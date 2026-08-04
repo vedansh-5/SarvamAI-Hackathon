@@ -318,15 +318,110 @@ Only Discord was tested. Per-app viability across the other six Electron apps re
 
 ---
 
-## D-017 — Canonical V1 task family
+## D-017 — Canonical V1 task family and concrete demo task
 
-**Status:** Proposed
+**Status:** Accepted
 
-**Decision (leaning).** *Structured data out of a Chromium app → into a native Mac app, with a confirmation gate on the write.*
+**Family.** *Structured data out of a Chromium app → into a native Mac app, with a confirmation gate on the write.*
 
-**Reasoning.** One task family exercises the entire system: CDP adapter, AppleEvents adapter, both capability generators, program synthesis and caching, read/write classification, GUI confirmation, and read-back verification. Cold run hits the LLM; warm run on the same page shape hits neither generator nor planner — which makes "runtime first, LLM second" observable rather than asserted.
+**Concrete V1 task (resolves Q-1).** From the user's instruction: navigate to a webpage, extract the content they asked for, write it into Apple Notes.
 
-**Open.** The specific demo task is not yet chosen.
+**Extraction means selector-program synthesis**, not a whole-page text dump. The user names what they want ("the pricing tiers", "the comparison table"); the LLM writes a selector program once (D-005); the runtime replays it on every later visit with zero LLM calls (D-002).
+
+**Reasoning.** One task exercises the entire system: navigation, CDP adapter, AppleEvents adapter, both capability generators, program synthesis, page signature and caching, read/write classification, GUI confirmation, and read-back verification. Cold run hits the LLM; warm run hits neither generator nor planner — which makes "runtime first, LLM second" observable rather than asserted.
+
+**Rejected: whole readable-page dump → note.** Faster to build and immediately useful, but it has no selector program, therefore no synthesis, no cache, and no verification of consequence. Every run costs the same, so nothing demonstrates the core thesis. A working feature that proves none of the architecture.
+
+**Stretch target.** Same task with Notion as the CDP source instead of Chrome. Same adapter, different target. Deferred because Notion's DOM is virtualized and contenteditable-heavy — it puts the candidate finder and page signature at their worst case, risking weeks spent on Notion specifically rather than on the runtime.
+
+---
+
+## D-018 — Navigation is in V1 scope
+
+**Status:** Accepted
+
+**Context.** V1 was originally scoped with no clicking, navigation, or pagination. D-017's task begins with "go to a webpage," which requires `Page.navigate`.
+
+**Decision.** Navigation is in. Clicking and pagination stay out.
+
+**Reasoning.** Navigation is a D-004 category-2 action — a state change, verifiable by checking resulting URL and load state. It carries none of the ambiguity of clicking, which requires identifying a target element and has no clean success predicate.
+
+**Tradeoff.** Recorded explicitly rather than allowed to slip in, because "navigate" is the thin end of the interaction wedge — pagination and clicking will look like small extensions of it, and they are not.
+
+---
+
+## D-019 — Verification is layered; the model can only tighten it
+
+**Status:** Accepted
+
+**Decision.** Three verifier kinds, applied in order:
+
+1. **Runtime structural checks** (CDP path) — nonzero rows; field arity consistent across rows; no required column entirely empty; no degenerate case where every row is identical, which indicates a selector that matched one container rather than N siblings.
+2. **Model-declared checks** — the `expect` block from D-005.
+3. **Read-back checks** (AppleEvents path, D-013) — query the written object back and compare against intent.
+
+**The rule:** runtime checks run first and the model cannot weaken them. `expect` may only make verification *stricter*.
+
+**Reasoning.** Closes the hole flagged in D-005's tradeoff — a model that writes a bad extractor may write a matching bad predicate, but it still has to clear a structural floor it does not control.
+
+**Tradeoff.** Structural checks are generic and will produce false failures on legitimately irregular data (rows with genuinely optional fields). Threshold tuning needed; expect this to be annoying before it is right.
+
+---
+
+## D-020 — Failure ladder, and executed writes are never retried
+
+**Status:** Accepted
+
+**Decision.** Ordered rungs, each more expensive than the last:
+
+| Rung | Trigger | Action | LLM? |
+|---|---|---|---|
+| 0 | CDP disconnect, app relaunched, `osascript` timeout | Reconnect, replay same program. Max 2. | No |
+| 1 | Verification failed, program came from **cache** | Invalidate entry, fall through to synthesis. Once. | Once |
+| 2 | Verification failed, program came from **fresh synthesis** | Re-synthesize with failure reasons in prompt. Max 1. | Once |
+| 3 | Anything else | Surface to GUI: what was tried, candidates found, failing predicate. | No |
+
+**Rung 0 exists because of the Discord finding in D-011** — an app can revoke the debug port mid-task, and that must not be misdiagnosed as a bad program.
+
+Rungs 1 and 2 converge on one synthesis code path, exercised from both directions. Retry counters are **per goal node, not global**, so a five-goal tree cannot quietly burn ten LLM calls.
+
+**The hard rule.** Anything classified as a write under D-012 that has *already executed* is never retried. It goes directly to rung 3. Verification ambiguity is not grounds for re-sending an email.
+
+**Tradeoff.** Bounded retries mean some recoverable failures surface to the user that a more aggressive policy would have fixed. Accepted — unbounded LLM retry loops are worse in both cost and safety.
+
+---
+
+## D-021 — Test strategy: pure core, fixture-driven, with a zero-LLM assertion
+
+**Status:** Accepted
+
+**Decision.** Three checked-in fixture sets:
+
+- `testdata/sdef/` — real dictionaries copied from app bundles. Generator tests run with **no apps installed**.
+- `testdata/dom/` — captured DOM snapshots. Candidate finder, program runner, and verifier run offline.
+- `testdata/mutations/` — captured DOMs mutated programmatically (renamed classes, inserted wrapper divs, deleted fields). Asserts page signature shifts correctly and verification fails.
+
+Three test tiers: **pure** (no network, no apps, no API key — the bulk, runs in CI); **adapter integration** (tagged, needs real apps, local only); **synthesis** (recorded cassettes in CI so prompt changes stay regression-testable, live mode on demand).
+
+**One test is the thesis:** assert the LLM call counter is exactly **zero** on a warm run.
+
+**Reasoning.** The mutation fixtures test cache invalidation — which D-006 predicts is where the first real bugs live — without waiting for a real site to redesign. And "runtime first, LLM second" belongs in the test suite as an assertion, not in a README as a claim.
+
+**Tradeoff.** Fixtures drift from reality; a captured DOM is a snapshot of a site that keeps changing. Needs periodic recapture, and passing tests will not prove live sites still work.
+
+---
+
+## D-022 — Task 2: natural-language CSS injection
+
+**Status:** Proposed — explicitly not V1
+
+**Decision (leaning).** Second task after D-017 ships: the user describes a visual change in natural language, and the runtime injects CSS into the page.
+
+**Reasoning.** It fits the same primitive as extraction — the LLM authors an artifact, the runtime owns, caches, and validates it. Same cache key (page signature), same failure ladder. CSS *is* the program. Confirms the D-002 primitive generalizes beyond extraction, which is the main thing worth learning from a second task.
+
+**Known problem to decide before starting.** Verification is inherently visual. The runtime can verify CSS was **applied** — query computed styles, confirm they changed as declared — but not that it **looks right**. Visual judgment is tier 5, the one tier D-010 excludes. Task 2 either accepts "applied, not evaluated" as its bar, or it pulls vision forward into the project. Decide deliberately, not mid-build.
+
+**Also unresolved.** Injected CSS is ephemeral — lost on reload unless persisted. Persistence mechanism undecided.
 
 ---
 
@@ -334,9 +429,11 @@ Only Discord was tested. Per-app viability across the other six Electron apps re
 
 | # | Question | Blocking? |
 |---|---|---|
-| Q-1 | Which concrete demo task instantiates D-017? | Yes — spec depends on it |
-| Q-2 | Verification predicates and the failure/retry ladder | Yes |
-| Q-3 | Test strategy: how much runs without Chrome, apps, or an API key? | Yes |
+| ~~Q-1~~ | ~~Which concrete demo task instantiates D-017?~~ | **Resolved** — see D-017 |
+| ~~Q-2~~ | ~~Verification predicates and the failure/retry ladder~~ | **Resolved** — see D-019, D-020 |
+| ~~Q-3~~ | ~~Test strategy~~ | **Resolved** — see D-021 |
+| Q-10 | Task 2 verification bar: "applied, not evaluated", or pull vision forward? | No — blocks task 2, not V1 |
+| Q-11 | Structural-check thresholds (field arity tolerance for optional fields) | No — empirical |
 | ~~Q-4~~ | ~~Which Electron apps accept `--remote-debugging-port`?~~ | **Resolved** — verified on Discord; see D-011. Two caveats recorded. |
 | Q-9 | How is Telegram/DBeaver-class coverage handled? (native, no dictionary, not Chromium) | No — out of V1 scope by D-010 |
 | Q-5 | LLM provider and model selection; local-model routing for memory-touching paths | No — deferred to implementation |
@@ -352,6 +449,7 @@ Recorded so they are not relitigated.
 
 - **CLI-first, defer Tauri** — overridden by D-007. Reasoning stands on its own merits but is outweighed by product shape and the permissions onboarding argument.
 - **Table-only extraction (`querySelectorAll('table')`)** — proves nothing. No planner, no capability resolution, no cache, no meaningful verification. A browser utility, not a runtime.
+- **Whole readable-page dump as the V1 task** — see D-017. Useful, but proves none of the architecture.
 - **Accessibility API in V1** — see D-010. Deferred, not rejected permanently.
 - **Layered pipeline architecture** — see D-003.
 - **Building on MCP as the primary structured tier** — see D-008.
