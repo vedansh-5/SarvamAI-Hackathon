@@ -256,7 +256,9 @@ Only Discord was tested. Per-app viability across the other six Electron apps re
 
 **Context.** D-010 puts writes in scope for V1: sdef surfaces include `make new note`, `send`, `delete`. That is D-004's category three, the one requiring a human gate. A hand-maintained list of dangerous operations per app does not scale and rots.
 
-**Decision.** Derive read/write classification from the schema. `.sdef` properties carry an `access` attribute (`r` versus read-write); commands are classifiable by verb (`get`/`count`/`exists` read; `make`/`delete`/`send`/`move` write). Reads flow freely. Writes gate on GUI confirmation.
+**Decision.** Derive read/write classification from the schema. `.sdef` properties carry an `access` attribute; commands are classifiable by verb (`get`/`count`/`exists` read; `make`/`delete`/`send`/`move` write). Reads flow freely. Writes gate on GUI confirmation.
+
+*Precision note, 2026-08-04:* per `/System/Library/DTDs/sdef.dtd`, `access` is `(r | w | rw)` — **three** values, not two. Write-only properties exist. An earlier version of this entry said "`r` versus read-write," which would have mapped `w` incorrectly. Treat `r` as read; `w` and `rw` both as write-capable.
 
 **Reasoning.** The capability generator and the permission model come from the same first-party schema. Adding an app adds both its tools and its safety classification in one step, with no manual curation.
 
