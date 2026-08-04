@@ -33,7 +33,12 @@ Scripting dictionary survey (parsed directly from `Contents/Resources/*.sdef`):
 | Reminders | — | 1 | — |
 | **Notion, VS Code, Telegram, Discord** | **none** | **none** | **none** |
 
-The zero-dictionary apps are all Electron. This split drives D-009 through D-011.
+Runtime classification of third-party apps (by bundle inspection):
+
+- **Electron:** Discord, Notion, VS Code, Postman, MongoDB Compass, Claude, Antigravity IDE
+- **Native, no scripting dictionary:** Telegram (Swift), DBeaver (Java)
+
+The native-without-dictionary apps are reachable by *neither* V1 tier. This split drives D-009 through D-011.
 
 ---
 
@@ -222,13 +227,24 @@ Evidence-based macOS ladder:
 
 **Status:** Accepted
 
-**Context.** Every zero-dictionary app on this machine — Notion, VS Code, Telegram, Discord, Claude, Postman, MongoDB Compass, DBeaver, Antigravity — is Electron. Electron is Chromium. Chromium speaks CDP.
+**Context.** Most zero-dictionary apps on this machine — Notion, VS Code, Discord, Claude, Postman, MongoDB Compass, Antigravity — are Electron. Electron is Chromium. Chromium speaks CDP.
+
+*Correction, 2026-08-04:* an earlier version of this entry also listed Telegram and DBeaver as Electron. Bundle inspection disproved it — Telegram is native Swift, DBeaver is Java. Neither has a scripting dictionary, so both are unreachable in V1.
 
 **Decision.** Name and scope the adapter as a Chromium adapter, not a browser adapter. One implementation covers Chrome plus the majority of installed third-party applications.
 
 **Reasoning.** This is what makes multi-app V1 tractable. The apparent conflict between "support many apps in V1" and "start with the browser" dissolves — they are the same build.
 
-**Tradeoff.** Electron CDP requires launching the app with `--remote-debugging-port`, so the runtime must relaunch apps. That is user-visible friction, it loses unsaved in-app state, and some apps strip or ignore the flag. Per-app viability is unverified and needs empirical testing.
+**Tradeoff.** Electron CDP requires launching the app with `--remote-debugging-port`, so the runtime must relaunch apps. That is user-visible friction and it loses unsaved in-app state.
+
+**Verified, 2026-08-04 (resolves Q-4).** Discord launched with `--remote-debugging-port=9333` served CDP correctly — `Chrome/148.0.7778.280`, `Electron/42.7.1`, protocol 1.3, browser WebSocket endpoint live. The mechanism works.
+
+Two caveats found in the same test:
+
+1. **The flag is revocable by the app.** Within seconds, Discord self-updated 0.0.403 → 0.0.406 and relaunched *itself* without the injected argument. The debug port vanished while the app kept running. **The adapter must treat CDP connections as revocable** — detect drop, and either re-establish by relaunching or degrade gracefully. It cannot assume a session it opened stays open.
+2. **`/json/list` returned empty while `/json/version` succeeded.** Cause ambiguous — possibly the self-update relaunch, possibly an Electron quirk where HTTP target enumeration is unpopulated and `Target.getTargets` over the browser WebSocket is required instead. Needs retest; assume the WebSocket path is authoritative.
+
+Only Discord was tested. Per-app viability across the other six Electron apps remains unverified.
 
 **Corollary.** Electron AX trees are typically poor, since they are derived from DOM. CDP beats Accessibility for these apps on quality as well as availability — reinforcing D-010.
 
@@ -321,7 +337,8 @@ Evidence-based macOS ladder:
 | Q-1 | Which concrete demo task instantiates D-017? | Yes — spec depends on it |
 | Q-2 | Verification predicates and the failure/retry ladder | Yes |
 | Q-3 | Test strategy: how much runs without Chrome, apps, or an API key? | Yes |
-| Q-4 | Which Electron apps actually accept `--remote-debugging-port`? | Yes — D-011 rests on this, unverified |
+| ~~Q-4~~ | ~~Which Electron apps accept `--remote-debugging-port`?~~ | **Resolved** — verified on Discord; see D-011. Two caveats recorded. |
+| Q-9 | How is Telegram/DBeaver-class coverage handled? (native, no dictionary, not Chromium) | No — out of V1 scope by D-010 |
 | Q-5 | LLM provider and model selection; local-model routing for memory-touching paths | No — deferred to implementation |
 | Q-6 | Windows strategy (UI Automation / COM); nothing in D-009 or D-010 ports | No |
 | Q-7 | Page signature tuning: depth limit, class normalization | No — empirical |
