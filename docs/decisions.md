@@ -459,7 +459,9 @@ Three test tiers: **pure** (no network, no apps, no API key — the bulk, runs i
 
 **Context.** D-023 pinned synthesis to Claude. Running the development loop against a paid frontier model on every cold run is not viable while iterating, and the requirement was explicitly *hosted* — not a local runtime.
 
-**Decision.** A second `Synthesizer` implementation speaks the **OpenAI-compatible chat-completions shape**, selected by environment variables. The default is OpenRouter's free tier on `google/gemma-4-31b-it:free`. The Anthropic implementation stays and is selected with `VANS_LLM_PROVIDER=anthropic`.
+**Decision.** A second `Synthesizer` implementation speaks the **OpenAI-compatible chat-completions shape**, selected by environment variables. The default is OpenRouter's free tier. The Anthropic implementation stays and is selected with `VANS_LLM_PROVIDER=anthropic`.
+
+**Correction (2026-08-05).** The default model was `google/gemma-4-31b-it:free` and is now `google/gemma-4-26b-a4b-it:free`. Measured: 31b returned 429 on every real synthesis request while trivially small requests to the same account succeeded, so the limit is on upstream load, not on the account. The 26b-a4b variant is a mixture with 4B active — weaker, but reachable. This is availability, not quality; `VANS_LLM_MODEL` overrides it when 31b has capacity.
 
 **Reasoning.** One implementation covers OpenRouter, Groq, Cerebras, Together, vLLM, LM Studio, and llama.cpp — every one of them exposes the same endpoint shape, so the choice of provider is a base URL, not a code change. This is the payoff of the provider-agnostic interface D-023 committed to; adding the backend touched no other package.
 
@@ -467,9 +469,50 @@ Model choice: verified against OpenRouter's live model list on 2026-08-05 — of
 
 **Tradeoff — and why the architecture absorbs it.** An open-weight model writes worse programs than a frontier model: weaker candidate choice, sloppier selectors, over-optimistic `expect` blocks. That degrades **cold-run latency, not correctness**, because a bad program fails verification (D-019) and the failure ladder re-synthesizes it (D-020). The cost is more rung-2 retries, not silent wrong data. This is the first real evidence that the verification design earns its keep.
 
-Free tiers also rate-limit aggressively, so HTTP error bodies are surfaced verbatim rather than collapsed to a status code.
+Free tiers also rate-limit aggressively, so HTTP error bodies are surfaced verbatim rather than collapsed to a status code. A 429 or a 5xx is retried with exponential backoff (`Retry-After` honoured when present in delay-seconds form, clamped to 60s); a 4xx that is not 429 is never retried, since the request itself is wrong and retrying only burns quota. Rate limiting is a wait, not a failed task — treating it as one would make the free tier unusable, which is the point of this decision.
 
 **Robustness the frontier path did not need.** Open-weight models wrap replies in markdown fences, prepend commentary, and emit `<think>` traces even when instructed otherwise. `extractJSONObject` scans for the first balanced JSON object, ignoring braces inside string literals, so a formatting quirk does not push a correct program into the failure ladder. Three `SchemaMode` levels degrade from API-enforced `json_schema` to `json_object` to prompt-only, for models that reject the stricter forms.
+
+---
+
+## D-026 — Programs execute in Go against a captured DOM, not in the page over CDP
+
+**Status:** Accepted
+
+**Context.** The runner could evaluate a program's selectors two ways: send `document.querySelectorAll` into the page via `Runtime.evaluate`, or parse the captured HTML in Go and match selectors there. The browser's own CSS engine is the more faithful of the two — it supports every selector a model could write, including whatever shipped last month.
+
+**Decision.** Programs run **in Go**, against the same HTML string that produced the page signature and the candidate regions. CSS matching uses `github.com/andybalholm/cascadia`.
+
+**Reasoning.** The three things the runtime does to a page — sign it, find candidates in it, extract from it — must all describe the *same* DOM. Querying the browser separately evaluates selectors against a snapshot taken later than the one that produced the cache key. A page that mutated in between (infinite scroll, a late-loading rail, a re-render) would pass verification while returning data from a shape the signature does not describe. That is the failure mode the cache exists to prevent, reintroduced through the back door.
+
+Running in Go also keeps the runner pure: no browser needed to test it, and it works on HTML from any source, which matters once non-Chromium surfaces arrive.
+
+**Tradeoff.** Cascadia implements CSS3 plus parts of CSS4, not everything Chrome accepts. A model emitting `:scope` or a very new pseudo-class writes a program the runner cannot compile. This is handled rather than avoided: a selector that fails to parse is a `ProgramError` carrying the parse error, which the ladder feeds back as a rung-2 re-synthesis reason. The model is told exactly what it wrote that the runtime cannot run, so the fidelity gap costs one extra synthesis on first encounter instead of producing wrong data.
+
+---
+
+## D-027 — The verifier's floor is what the model cannot weaken
+
+**Status:** Accepted — implements D-019
+
+**Context.** D-019 established that verification is layered and the model may only tighten it. The runner made that concrete, and the concrete version exposed a hole: the model authors `expect`, so it also chooses how weak its own contract is. A program declaring `min_rows: 1` with an empty `required` list passes every contract check while returning one row of empty strings.
+
+**Decision.** Verification enforces two independent layers.
+
+*The model's contract:* row count meets `min_rows`; every field named in `required` is non-empty in every row.
+
+*The runtime's floor, which no `expect` block can lower:*
+1. Zero rows never passes, whatever `min_rows` says.
+2. Every declared field must be non-empty in **at least one** row.
+3. A record yielding nothing in any field is dropped, and if more than `MaxDropRate` (34%) of matched records are dropped, the root selector is judged broader than the records.
+
+**Reasoning for floor 2.** A field empty in every row is a broken selector. The user named that field in the request, so a column of blanks is a wrong answer being reported as a successful one — and it is the most common partial failure, where the model gets two selectors right and one wrong.
+
+**Tradeoff.** A field that is legitimately absent across a whole page — a `discount` column no product currently carries — fails a run that arguably succeeded. Accepted, because the error is in the safe direction: it routes to re-synthesis rather than writing blanks into the user's notes, and the user asked for that field, so the answer is incomplete either way.
+
+**Reasoning for the drop rate.** Real listings interleave placeholder cards, skeleton loaders, and ad slots that share the records' shape. Failing on the first one is too brittle and keeping them puts blank rows in the output, so they are dropped and counted. The count is the signal: a few is normal page furniture, a third or more means the root is matching a container class rather than the records — a failure that row count alone cannot catch, since enough good rows survive to satisfy `min_rows`.
+
+**Every reason is reported, not the first.** Failure reasons are re-synthesis input (D-020, rung 2). A model told only about the first broken selector fixes it and leaves the second for the next round trip, and every round trip is a model call the runtime exists to avoid. Reasons also distinguish *selector matched nothing* from *selector matched an element that was empty* — different defects that send the model to different fixes.
 
 ---
 
@@ -481,7 +524,7 @@ Free tiers also rate-limit aggressively, so HTTP error bodies are surfaced verba
 | ~~Q-2~~ | ~~Verification predicates and the failure/retry ladder~~ | **Resolved** — see D-019, D-020 |
 | ~~Q-3~~ | ~~Test strategy~~ | **Resolved** — see D-021 |
 | Q-10 | Task 2 verification bar: "applied, not evaluated", or pull vision forward? | No — blocks task 2, not V1 |
-| Q-11 | Structural-check thresholds (field arity tolerance for optional fields) | No — empirical |
+| Q-11 | Structural-check thresholds (field arity tolerance for optional fields) | No — empirical. First values set in D-027 (`MaxDropRate` 34%, "non-empty in at least one row"); needs tuning against real pages. |
 | ~~Q-4~~ | ~~Which Electron apps accept `--remote-debugging-port`?~~ | **Resolved** — verified on Discord; see D-011. Two caveats recorded. |
 | Q-9 | How is Telegram/DBeaver-class coverage handled? (native, no dictionary, not Chromium) | No — out of V1 scope by D-010 |
 | ~~Q-5~~ | ~~LLM provider and model selection~~ | **Resolved** — see D-023. Local-model routing for memory-touching paths stays open (no personal data in V1). |

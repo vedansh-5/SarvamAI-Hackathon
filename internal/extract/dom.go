@@ -135,6 +135,14 @@ func text(n *html.Node) string {
 	return strings.Join(strings.Fields(b.String()), " ")
 }
 
+// Text returns an element's visible text with whitespace collapsed, skipping
+// script, style and other non-content tags.
+//
+// Exported so the runner reads text exactly the way candidate discovery did.
+// Two different notions of "the text of this element" would mean the samples
+// the model saw are not the values it later extracts.
+func Text(n *html.Node) string { return text(n) }
+
 // selectorFor builds a CSS selector describing the element's shape: its tag
 // plus stable classes. Not guaranteed unique on its own — see cssPath.
 func selectorFor(n *html.Node) string {
