@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -38,8 +40,36 @@ type OpenAICompatible struct {
 	// preamble before them.
 	MaxTokens int
 
+	// Retries is how many times a transient failure is retried. Defaults to
+	// DefaultRetries. Free tiers rate-limit constantly and upstream capacity
+	// comes and goes, so a 429 is a wait-and-retry, not a failed task.
+	Retries int
+
+	// RetryWait is the base backoff, doubled per attempt. Defaults to
+	// DefaultRetryWait. A Retry-After header takes precedence.
+	RetryWait time.Duration
+
 	// HTTP defaults to a client with a 3-minute timeout.
 	HTTP *http.Client
+}
+
+// Retry defaults for the transient-failure path.
+const (
+	DefaultRetries   = 3
+	DefaultRetryWait = 2 * time.Second
+)
+
+// transientError marks a failure worth retrying: rate limits and upstream
+// capacity problems. A 4xx that is not 429 means the request itself is wrong,
+// and retrying it only wastes quota.
+type transientError struct {
+	status     int
+	retryAfter time.Duration
+	body       string
+}
+
+func (e *transientError) Error() string {
+	return fmt.Sprintf("status %d: %s", e.status, truncate(e.body, 300))
 }
 
 // SchemaMode selects how strongly the response is constrained.
@@ -167,7 +197,46 @@ func (c *OpenAICompatible) responseFormat() json.RawMessage {
 	}
 }
 
+// post sends the request, retrying transient failures with backoff.
 func (c *OpenAICompatible) post(ctx context.Context, body chatRequest) (string, error) {
+	retries := c.Retries
+	if retries == 0 {
+		retries = DefaultRetries
+	}
+	wait := c.RetryWait
+	if wait == 0 {
+		wait = DefaultRetryWait
+	}
+
+	var last error
+	for attempt := 0; ; attempt++ {
+		text, err := c.postOnce(ctx, body)
+		if err == nil {
+			return text, nil
+		}
+
+		var tr *transientError
+		if !errors.As(err, &tr) || attempt >= retries {
+			if tr != nil {
+				return "", fmt.Errorf("synth: %w (gave up after %d attempts)", err, attempt+1)
+			}
+			return "", err
+		}
+		last = err
+
+		delay := tr.retryAfter
+		if delay <= 0 {
+			delay = wait << attempt
+		}
+		select {
+		case <-ctx.Done():
+			return "", fmt.Errorf("synth: %w while backing off from: %v", ctx.Err(), last)
+		case <-time.After(delay):
+		}
+	}
+}
+
+func (c *OpenAICompatible) postOnce(ctx context.Context, body chatRequest) (string, error) {
 	payload, err := json.Marshal(body)
 	if err != nil {
 		return "", fmt.Errorf("synth: encode request: %w", err)
@@ -197,6 +266,13 @@ func (c *OpenAICompatible) post(ctx context.Context, body chatRequest) (string, 
 	if resp.StatusCode != http.StatusOK {
 		// Free tiers rate-limit aggressively, and the body says which limit
 		// was hit — surface it rather than a bare status code.
+		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
+			return "", &transientError{
+				status:     resp.StatusCode,
+				retryAfter: parseRetryAfter(resp.Header.Get("Retry-After")),
+				body:       string(data),
+			}
+		}
 		return "", fmt.Errorf("synth: %s returned %d: %s", url, resp.StatusCode, truncate(string(data), 300))
 	}
 
@@ -268,6 +344,25 @@ func extractJSONObject(s string) string {
 		}
 	}
 	return ""
+}
+
+// parseRetryAfter reads the header in its delay-seconds form. The HTTP-date
+// form is ignored rather than guessed at — falling back to our own backoff is
+// safer than trusting a clock we do not control.
+func parseRetryAfter(v string) time.Duration {
+	if v == "" {
+		return 0
+	}
+	secs, err := strconv.Atoi(strings.TrimSpace(v))
+	if err != nil || secs < 0 {
+		return 0
+	}
+	const maxWait = 60 * time.Second
+	d := time.Duration(secs) * time.Second
+	if d > maxWait {
+		return maxWait
+	}
+	return d
 }
 
 func truncate(s string, n int) string {

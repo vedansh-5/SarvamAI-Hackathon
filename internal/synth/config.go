@@ -16,12 +16,17 @@ const (
 // Defaults for the OpenAI-compatible backend.
 //
 // OpenRouter's free tier is the development default: no cost, open-weight
-// models, and structured-output support. Gemma is dense and instruction-tuned,
-// which makes it more reliable at emitting a bare JSON object than the
-// reasoning-tuned mixtures, several of which prepend a thinking trace.
+// models, and structured-output support.
+//
+// The 26b-a4b variant is chosen over the denser 31b for availability, not
+// quality. Measured 2026-08-05: 31b was rate-limited upstream on every real
+// synthesis request while trivially small requests still succeeded, so the
+// limit is on load rather than on the account. 26b-a4b is a mixture with 4B
+// active — weaker, but reachable. Override with VANS_LLM_MODEL when 31b has
+// capacity.
 const (
 	DefaultBaseURL = "https://openrouter.ai/api/v1"
-	DefaultOSModel = "google/gemma-4-31b-it:free"
+	DefaultOSModel = "google/gemma-4-26b-a4b-it:free"
 )
 
 // FromEnv builds a Synthesizer from the environment.
