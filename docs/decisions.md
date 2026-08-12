@@ -427,6 +427,32 @@ Three test tiers: **pure** (no network, no apps, no API key — the bulk, runs i
 
 ---
 
+## D-023 — Synthesis runs on Claude via structured outputs (resolves Q-5)
+
+**Status:** Accepted
+
+**Decision.** `Synthesizer` is a provider-agnostic interface with one implementation: the official `anthropic-sdk-go`, model `claude-opus-5`, adaptive thinking, and **structured outputs** (`output_config.format` with a JSON Schema) constraining the reply to the program shape.
+
+**Reasoning.** Structured outputs make a well-formed program an API guarantee rather than a parse-and-retry loop, which removes an entire failure class from rung 2 of D-020. `Validate` still runs afterwards — the schema guarantees *shape*, not that the program is sensible, and a stored program can also go stale if the schema later changes.
+
+**Tradeoff.** Structured outputs constrain the schema itself: numeric and string constraints (`minimum`, `minLength`) are unsupported, and every object must set `additionalProperties: false` plus `required`. Those constraints move into `Validate`, so the rules live in two places and a test asserts the schema's `attr` enum matches the validator's allowed set.
+
+**Effort is left at the API default.** Lowering it trades synthesis quality for cold-run latency and cost, and has no effect on warm runs, which never reach this code. Configurable per-instance.
+
+**Refusals are handled before reading content.** A declined request returns HTTP 200 with no usable content; reading content blocks first would produce nonsense.
+
+---
+
+## D-024 — The LLM call counter is a runtime component, not test scaffolding
+
+**Status:** Accepted
+
+**Decision.** `synth.Counter` wraps any `Synthesizer` and counts calls. The engine composes it in.
+
+**Reasoning.** D-021 requires asserting the LLM call count is exactly zero on a warm run. That assertion needs a real, production-path counter — a test-only mock would prove the mock, not the runtime. Failed calls count too: they reached the model and cost money.
+
+---
+
 ## Open questions
 
 | # | Question | Blocking? |
@@ -438,7 +464,7 @@ Three test tiers: **pure** (no network, no apps, no API key — the bulk, runs i
 | Q-11 | Structural-check thresholds (field arity tolerance for optional fields) | No — empirical |
 | ~~Q-4~~ | ~~Which Electron apps accept `--remote-debugging-port`?~~ | **Resolved** — verified on Discord; see D-011. Two caveats recorded. |
 | Q-9 | How is Telegram/DBeaver-class coverage handled? (native, no dictionary, not Chromium) | No — out of V1 scope by D-010 |
-| Q-5 | LLM provider and model selection; local-model routing for memory-touching paths | No — deferred to implementation |
+| ~~Q-5~~ | ~~LLM provider and model selection~~ | **Resolved** — see D-023. Local-model routing for memory-touching paths stays open (no personal data in V1). |
 | Q-6 | Windows strategy (UI Automation / COM); nothing in D-009 or D-010 ports | No |
 | Q-7 | Page signature tuning: depth limit, class normalization | No — empirical |
 | Q-8 | Re-verify the D-008 MCP landscape against live sources | No |
