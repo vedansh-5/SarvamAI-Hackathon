@@ -14,8 +14,15 @@ import (
 
 // Run with: go test -tags integration ./internal/synth/
 //
-// Makes a real API call. Needs ANTHROPIC_API_KEY, or an active profile from
-// `ant auth login`.
+// Makes a real API call against whichever provider the environment selects.
+// Free open-weight default:
+//
+//	export VANS_LLM_API_KEY=sk-or-v1-...      # openrouter.ai key
+//	go test -tags integration ./internal/synth/
+//
+// Against Claude instead:
+//
+//	export VANS_LLM_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-ant-...
 func TestSynthesizeLive(t *testing.T) {
 	html, err := os.ReadFile("../extract/testdata/products.html")
 	if err != nil {
@@ -30,10 +37,15 @@ func TestSynthesizeLive(t *testing.T) {
 		t.Fatal("no candidates in the fixture")
 	}
 
+	s, err := FromEnv()
+	if err != nil {
+		t.Skipf("no synthesis backend configured: %v", err)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
-	got, err := NewAnthropic().Synthesize(ctx, Request{
+	got, err := s.Synthesize(ctx, Request{
 		Intent:     "the product name, link and price for each item",
 		URL:        "https://shop.example/search",
 		Candidates: candidates,
