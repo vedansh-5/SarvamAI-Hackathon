@@ -516,6 +516,53 @@ Running in Go also keeps the runner pure: no browser needed to test it, and it w
 
 ---
 
+## D-028 — Cache key is origin + page signature + normalized intent; paraphrases miss
+
+**Status:** Accepted — implements the `CacheKey` in the V1 spec
+
+**Context.** The store needs a key that hits on the ordinary case (the same search run again tomorrow) and misses on the dangerous one (a page that changed shape). All three parts of the spec's `CacheKey` had to be made concrete.
+
+**Decision.**
+- **Origin** is `scheme://host`. The path and query are deliberately excluded — a search results page differs from every other search results page only in its query string, and keying on the full URL would mean a cache that never hits. The signature is what distinguishes page *shapes*; the URL only says which site.
+- **Signature** is D-006's structural hash, unchanged.
+- **Intent** is normalized shallowly — case folded, punctuation dropped, whitespace collapsed — then hashed. Nothing tries to understand the sentence.
+
+**Tradeoff — paraphrases miss.** "product names and prices" and "the name and price of each product" ask the same question and will each be synthesized. Accepted, because the alternatives are worse. Semantic matching needs an embedding model, and that is a network call on the warm path — a warm path that calls a model is the thing this whole design exists to avoid. The asymmetry decides it: a miss costs one synthesis and is then cached, while a false hit runs the wrong program and reports it as a success.
+
+**Origin scoping is a safety property, not just a namespace.** Two unrelated sites can share a DOM skeleton. A program written for one has no business running on the other, and the signature alone would not stop it.
+
+---
+
+## D-029 — A key holds several programs, tried in order, rather than one that gets overwritten
+
+**Status:** Accepted
+
+**Context.** The obvious store is one program per key, replaced on re-synthesis. Building the failure ladder against it exposed a thrash: when two page variants share a signature, each visit fails the cached program, re-synthesizes, and overwrites — so the alternate visit fails again. The cache would call the model on *every* visit, which is worse than having no cache, and it fails precisely on the headline claim.
+
+**Decision.** A key maps to up to `MaxProgramsPerKey` (4) programs. Lookup returns them ordered by fewest consecutive failures, then most recent success. The runner tries each in turn; the model is called only when every stored program has failed. Re-synthesis inserts; it does not replace. Re-inserting a byte-identical program returns the existing row rather than resetting its statistics — a model handed failure reasons sometimes returns exactly what it just wrote.
+
+**Reasoning.** A program failing verification does not prove the program is wrong. It may be right for a variant the signature collapsed. Discarding it throws away the only evidence that distinguishes "this program is broken" from "this page is not the page it was".
+
+`consecutive_failures` rather than a lifetime failure rate: a program that worked for a year and broke yesterday should not outrank one that has never worked.
+
+**Tradeoff.** When a site simply churns forward — a new build hash every deploy — the older programs are dead weight, and each is a wasted local run before the lookup falls through. The waste is bounded (four programs, all pure in-Go DOM matching, no network) and is the price of not thrashing on A/B tests and staged rollouts, which are common. Measured in `TestAlternatingVariantsDoNotThrash`: with one program per key the same six alternating visits cost 8 model calls; with four, 2.
+
+**Statistics are recorded after verification, not after extraction.** A program that produced rows the verifier rejected did not succeed, and recording it as one would promote it to the front of the next lookup.
+
+---
+
+## D-030 — Pure-Go SQLite; stored programs are re-validated on every load
+
+**Status:** Accepted
+
+**Decision.** `modernc.org/sqlite`, not `mattn/go-sqlite3`. WAL journal, `busy_timeout`, and a single connection.
+
+**Reasoning.** modernc is cgo-free. V1 ships as a Tauri desktop app (D-007), and cgo makes cross-compilation and code signing materially harder for no benefit at this scale — a single-user program cache is not where SQLite's C performance matters. One connection because write throughput is not the constraint here and SQLite serializes writers anyway; an in-memory store opened on several connections would silently be several different databases.
+
+**Programs are validated on load, and unusable rows are deleted rather than skipped.** A cached program outlives the schema that produced it. Replaying one the runner cannot execute would surface as a page failure rather than as what it is, and skipping without deleting means every future lookup pays for it again.
+
+---
+
 ## Open questions
 
 | # | Question | Blocking? |
@@ -530,6 +577,8 @@ Running in Go also keeps the runner pure: no browser needed to test it, and it w
 | ~~Q-5~~ | ~~LLM provider and model selection~~ | **Resolved** — see D-023. Local-model routing for memory-touching paths stays open (no personal data in V1). |
 | Q-6 | Windows strategy (UI Automation / COM); nothing in D-009 or D-010 ports | No |
 | Q-7 | Page signature tuning: depth limit, class normalization | No — empirical |
+| Q-12 | Paraphrased intents miss the cache (D-028). Worth a local embedding model once one is on the machine anyway, or a stored list of known phrasings per program? | No — costs synthesis calls, never correctness |
+| Q-13 | Nothing evicts a program that stops being used. Bounded per key (D-029) but unbounded across keys. Needs an age or size policy before the store is long-lived. | No — not before V1 ships |
 | Q-8 | Re-verify the D-008 MCP landscape against live sources | No |
 
 ---
