@@ -453,6 +453,26 @@ Three test tiers: **pure** (no network, no apps, no API key — the bulk, runs i
 
 ---
 
+## D-025 — Default synthesis backend is a free hosted open-weight model
+
+**Status:** Accepted — amends D-023
+
+**Context.** D-023 pinned synthesis to Claude. Running the development loop against a paid frontier model on every cold run is not viable while iterating, and the requirement was explicitly *hosted* — not a local runtime.
+
+**Decision.** A second `Synthesizer` implementation speaks the **OpenAI-compatible chat-completions shape**, selected by environment variables. The default is OpenRouter's free tier on `google/gemma-4-31b-it:free`. The Anthropic implementation stays and is selected with `VANS_LLM_PROVIDER=anthropic`.
+
+**Reasoning.** One implementation covers OpenRouter, Groq, Cerebras, Together, vLLM, LM Studio, and llama.cpp — every one of them exposes the same endpoint shape, so the choice of provider is a base URL, not a code change. This is the payoff of the provider-agnostic interface D-023 committed to; adding the backend touched no other package.
+
+Model choice: verified against OpenRouter's live model list on 2026-08-05 — of 19 free models, 4 advertise structured-output support. Gemma is dense and instruction-tuned, which makes it more reliable at emitting a bare JSON object than the reasoning-tuned mixtures, several of which prepend a thinking trace.
+
+**Tradeoff — and why the architecture absorbs it.** An open-weight model writes worse programs than a frontier model: weaker candidate choice, sloppier selectors, over-optimistic `expect` blocks. That degrades **cold-run latency, not correctness**, because a bad program fails verification (D-019) and the failure ladder re-synthesizes it (D-020). The cost is more rung-2 retries, not silent wrong data. This is the first real evidence that the verification design earns its keep.
+
+Free tiers also rate-limit aggressively, so HTTP error bodies are surfaced verbatim rather than collapsed to a status code.
+
+**Robustness the frontier path did not need.** Open-weight models wrap replies in markdown fences, prepend commentary, and emit `<think>` traces even when instructed otherwise. `extractJSONObject` scans for the first balanced JSON object, ignoring braces inside string literals, so a formatting quirk does not push a correct program into the failure ladder. Three `SchemaMode` levels degrade from API-enforced `json_schema` to `json_object` to prompt-only, for models that reject the stricter forms.
+
+---
+
 ## Open questions
 
 | # | Question | Blocking? |
