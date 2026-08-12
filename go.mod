@@ -2,10 +2,14 @@ module github.com/vedansh/vans
 
 go 1.26.4
 
-require github.com/coder/websocket v1.8.15
+require (
+	github.com/andybalholm/cascadia v1.3.4
+	github.com/anthropics/anthropic-sdk-go v1.63.0
+	github.com/coder/websocket v1.8.15
+	golang.org/x/net v0.57.0
+)
 
 require (
-	github.com/anthropics/anthropic-sdk-go v1.63.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.2 // indirect
 	github.com/invopop/jsonschema v0.14.0 // indirect
@@ -16,6 +20,5 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
 	go.yaml.in/yaml/v4 v4.0.0-rc.2 // indirect
-	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
 )
