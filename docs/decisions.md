@@ -652,7 +652,42 @@ The program primitive selects one element per record and reads every field relat
 
 **What the failure surface got right.** No wrong data was produced and nothing was written. The runtime spent its budget, refused to guess, and reported the failing predicate, the two programs it tried, and the candidate regions it found. Rung 3 behaved as designed (D-020), and the two-phase gate meant the failure cost nothing outside the browser.
 
-**Not decided here** — see Q-14. Whether to implement generalized nodes for V1 or ship with the limitation documented is a scope call, not a technical one.
+**Resolved by D-035** — the gap was closed rather than documented.
+
+---
+
+## D-035 — A record is a window of consecutive siblings, not a single element
+
+**Status:** Accepted — closes Q-14, resolves the gap D-034 found
+
+**Context.** D-034 recorded that a record split across sibling elements is unreachable, and traced it to a simplification we took from MDR without writing down: the paper defines a data record as a *generalized node*, a set of consecutive sibling subtrees, and `extract` implemented only the single-subtree case.
+
+**Decision.** A record is a window of up to `MaxRootSpan` (6) consecutive sibling elements.
+
+- `Program.RootSpan` — how many siblings form one record, counting the one `Root` matched.
+- `Candidate.Span` — the span a region was found with, shown to the model along with the whole record's markup.
+- The runner builds a window per root match and searches **every element of it** for each field.
+
+**Zero is one.** `RootSpan` decodes as zero for every program cached before this existed, and `Span()` normalizes it to 1 — which is exactly what those programs describe. No migration, no invalidation, no re-synthesis.
+
+**Two rules decide where a record begins.** Trying every rotation of a repeating period finds the right group but not the right boundary, and the boundary matters because it becomes the root selector.
+
+1. **The first element's selector must match exactly as many elements as there are records.** A bare `tr` matches every row on the page, so replaying it would build overlapping windows. `tr.athing` matches exactly the 30 record starts. This is what makes the boundary reproducible rather than merely correct once.
+2. **The first element must have text.** Hacker News separates records with an empty spacer row; the rotation starting on the spacer is rejected in favour of the one starting on the title.
+
+**The runner enforces non-overlap at replay time too.** A root that matches more often than records repeat would otherwise emit windows sharing elements, reporting the same data several times. Consumed elements are tracked and a record starting inside a previous window is dropped.
+
+**Verified live** on the case that motivated it. Hacker News, *title, link and score* — the request that failed twice under D-034:
+
+```json
+{"root":"tr.athing.submission","root_span":2,
+ "fields":[{"name":"score","selector":".score","attr":"text"}, …],
+ "expect":{"min_rows":1,"required":["title"]}}
+```
+
+30 rows, one model call, 9.5 s cold and 344 ms warm. The model chose span 2 rather than 3 — it needs the title row and the subtext row but not the spacer — and marked only `title` required, correctly recognizing that HN's job postings carry no score. The layered verifier (D-019, D-027) accepted a legitimately blank column because the model's contract said it could be blank, and rejected nothing that was real.
+
+**Tradeoff.** Candidate discovery now runs `MaxSpan × span` passes over each parent's children instead of one. It is still linear in page size with a small constant, and the cost falls entirely on cold runs — warm runs never call it. The larger risk is spurious multi-element regions on pages with incidental periodicity; the two boundary rules are what hold that down, and `MaxRootSpan` bounds the damage when they do not.
 
 ---
 
@@ -671,7 +706,7 @@ The program primitive selects one element per record and reads every field relat
 | Q-6 | Windows strategy (UI Automation / COM); nothing in D-009 or D-010 ports | No |
 | Q-7 | Page signature tuning: depth limit, class normalization | No — empirical |
 | Q-12 | Paraphrased intents miss the cache (D-028). Worth a local embedding model once one is on the machine anyway, or a stored list of known phrasings per program? | No — costs synthesis calls, never correctness |
-| Q-14 | Records spanning consecutive siblings (MDR generalized nodes) are unreachable — see D-034. Implement for V1, or ship with the limitation documented? | **Yes for any table-based site**, including Hacker News. Not blocking the demo task (D-017), which targets contiguous records. |
+| ~~Q-14~~ | ~~Records spanning consecutive siblings are unreachable~~ | **Resolved** — implemented, see D-035 |
 | Q-13 | Nothing evicts a program that stops being used. Bounded per key (D-029) but unbounded across keys. Needs an age or size policy before the store is long-lived. | No — not before V1 ships |
 | Q-8 | Re-verify the D-008 MCP landscape against live sources | No |
 
