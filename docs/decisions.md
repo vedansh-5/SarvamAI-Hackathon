@@ -623,6 +623,39 @@ Rung 1 now reads: **every cached program is tried before synthesis is considered
 
 ---
 
+## D-034 — First live run, and the limit it exposed
+
+**Status:** Recorded — measurement, plus an open design gap
+
+**Measured 2026-08-16**, Hacker News via Chrome 151 over CDP, synthesis on OpenRouter's free tier (`gemma-4-26b-a4b-it:free`):
+
+| Run | Time | Model calls |
+|---|---|---|
+| Cold | 10.6 s | 1 |
+| Warm | 363 ms | 0 |
+| Warm | 329 ms | 0 |
+
+32× faster and free after the first visit. This is the first end-to-end evidence for the central claim, on a real site rather than a fixture.
+
+**The limit.** The first attempt asked for *title, link and score*. It failed, twice, and rung 3 reported exactly why: `field "score": selector "td.subtext > span.score" matched nothing in any of the 30 records`.
+
+The cause is structural, not a model failure. Hacker News puts the score in the **next sibling row**, outside the record:
+
+```html
+<tr class="athing submission"><td class="title">…<a>Title</a></td></tr>
+<tr><td class="subtext"><span class="score">318 points</span>…</td></tr>
+```
+
+The program primitive selects one element per record and reads every field relative to it (D-005). No selector can reach out of the root, so this data is unreachable — and the model demonstrated it understood *where* the score was, since its second attempt named `td.subtext > span.score` correctly. What it could not do was express "the sibling row", because the contract has no way to say it.
+
+**This is a simplification we took from MDR without recording it.** Liu, Grossman & Zhai define a data record as a *generalized node*: a set of **consecutive sibling subtrees**, not a single one. `internal/extract` implements only the single-subtree case. Every table-based layout that splits a record across rows — and any list that puts metadata in a sibling element — is out of reach until that changes.
+
+**What the failure surface got right.** No wrong data was produced and nothing was written. The runtime spent its budget, refused to guess, and reported the failing predicate, the two programs it tried, and the candidate regions it found. Rung 3 behaved as designed (D-020), and the two-phase gate meant the failure cost nothing outside the browser.
+
+**Not decided here** — see Q-14. Whether to implement generalized nodes for V1 or ship with the limitation documented is a scope call, not a technical one.
+
+---
+
 ## Open questions
 
 | # | Question | Blocking? |
@@ -638,6 +671,7 @@ Rung 1 now reads: **every cached program is tried before synthesis is considered
 | Q-6 | Windows strategy (UI Automation / COM); nothing in D-009 or D-010 ports | No |
 | Q-7 | Page signature tuning: depth limit, class normalization | No — empirical |
 | Q-12 | Paraphrased intents miss the cache (D-028). Worth a local embedding model once one is on the machine anyway, or a stored list of known phrasings per program? | No — costs synthesis calls, never correctness |
+| Q-14 | Records spanning consecutive siblings (MDR generalized nodes) are unreachable — see D-034. Implement for V1, or ship with the limitation documented? | **Yes for any table-based site**, including Hacker News. Not blocking the demo task (D-017), which targets contiguous records. |
 | Q-13 | Nothing evicts a program that stops being used. Bounded per key (D-029) but unbounded across keys. Needs an age or size policy before the store is long-lived. | No — not before V1 ships |
 | Q-8 | Re-verify the D-008 MCP landscape against live sources | No |
 
