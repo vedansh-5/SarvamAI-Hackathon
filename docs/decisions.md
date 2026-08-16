@@ -693,6 +693,42 @@ The program primitive selects one element per record and reads every field relat
 
 ---
 
+## D-036 — The shell talks to the engine over a private pipe, never a port
+
+**Status:** Accepted
+
+**Context.** The desktop shell is Rust (Tauri); the runtime is Go. They have to talk. The usual answer, and what most Tauri projects do, is to run the backend as a localhost HTTP server and `fetch` from the frontend.
+
+**Decision.** The Go runtime is a **sidecar child process** speaking newline-delimited JSON over stdin and stdout. It has no network listener. Linking Go into Rust as a C library was also rejected — it reintroduces cgo, which D-030 avoided precisely so the desktop build stays cross-compilable.
+
+**Reasoning — this is a security decision, not an ergonomic one.** `Commit` performs irreversible side effects: it writes into the user's Notes. A localhost port is reachable by **every process on the machine** — any Electron app, any `npm install` script, anything that can open a socket. `POST /commit` from any of them would walk straight around the confirmation gate that D-004 and D-031 exist to enforce. Binding to a random port with a bearer token narrows it but does not close it; the token has to live somewhere readable, and the port is still open.
+
+A pipe is reachable only by the process that created it. The gate holds because there is no second way in.
+
+**Consequences that fell out of it.**
+
+- *Plans are session-scoped.* A plan id is meaningful only to the process that issued it, so a confirmation cannot be replayed later or from elsewhere. Verified by test.
+- *stdout is protocol-only.* Diagnostics go to stderr; a stray line on stdout desynchronizes the shell's decoder.
+- *Progress needs a push channel.* A cold run takes ten seconds and a silent window looks broken, so the engine's log hook is forwarded as notifications tagged with the request they belong to.
+
+**Tradeoff.** No browser devtools against the backend, and a crashed sidecar has to be respawned by the shell rather than reconnected to. Both are cheaper than an open local port on a component whose whole job is gating irreversible actions.
+
+---
+
+## D-037 — Preflight never touches Notes; the user asks for that check
+
+**Status:** Accepted — reconciles D-007 with D-032
+
+**Context.** D-007 chose a GUI partly *for* permissions onboarding: discovering a denied automation permission halfway through a task is a bad experience, and a window can ask for it up front. But the only way to test automation access is to send an Apple event, which **launches Notes** — and D-032 says the runtime does not launch applications.
+
+**Decision.** The automatic preflight checks the synthesis backend and the browser endpoint only. Notes has its own method, `check_notes`, called only when the user presses a button that says what it will do.
+
+**Reasoning.** The conflict is real but it is about *timing*, not about whether the check happens. What D-032 forbids is the runtime opening applications on its own initiative. A button the user presses is their initiative, not the runtime's — and pressing it at a moment they chose is exactly the onboarding benefit D-007 wanted, versus hitting the denial mid-task.
+
+An app that launches Notes merely because its window opened is doing something nobody asked for, which is the thing being avoided.
+
+---
+
 ## Open questions
 
 | # | Question | Blocking? |
