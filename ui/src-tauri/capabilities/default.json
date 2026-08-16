@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Main window. Deliberately minimal: the window gets no shell, filesystem, or HTTP permission, so the only thing it can reach is the runtime, through the four commands in lib.rs.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

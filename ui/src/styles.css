@@ -1,0 +1,276 @@
+:root {
+  --bg: #fbfaf8;
+  --panel: #ffffff;
+  --ink: #1b1a17;
+  --muted: #6b675f;
+  --line: #e5e1d9;
+  --accent: #2f5d50;
+  --ok: #2f6b4f;
+  --bad: #9a3b2c;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17171a;
+    --panel: #1f1f23;
+    --ink: #eceae5;
+    --muted: #9b968d;
+    --line: #32323a;
+    --accent: #7fbfa8;
+    --ok: #7fbfa8;
+    --bad: #e2907f;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 2rem 2.25rem 3rem;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+header {
+  margin-bottom: 1.75rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.35rem;
+  letter-spacing: 0.02em;
+}
+
+.sub {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+h2 {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+h3 {
+  margin: 1.5rem 0 0.6rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+label {
+  display: block;
+  margin: 1rem 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.opt {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+input {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 1.25rem;
+  flex-wrap: wrap;
+}
+
+button {
+  padding: 0.5rem 1.05rem;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 0.9rem;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+/* The gate button carries the only irreversible action in the app, so it is
+   the only thing on screen that looks like one. */
+.gate #confirm {
+  background: var(--bad);
+}
+
+.status,
+.meta {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.meta {
+  margin: 0 0 1rem;
+}
+
+.note {
+  margin-top: 0.9rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+  max-width: 62ch;
+}
+
+.check {
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 0.6rem;
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: 7px;
+  background: var(--panel);
+}
+
+.check.ok {
+  border-left-color: var(--ok);
+}
+
+.check.bad {
+  border-left-color: var(--bad);
+}
+
+.check-label {
+  font-weight: 550;
+  font-size: 0.9rem;
+}
+
+.check-detail {
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.bad {
+  color: var(--bad);
+}
+
+pre.fix,
+pre.progress {
+  margin: 0.7rem 0 0;
+  padding: 0.7rem 0.8rem;
+  border-radius: 6px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font: 12px/1.5 var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+pre.progress {
+  margin-top: 1rem;
+  color: var(--muted);
+  max-height: 9rem;
+  overflow-y: auto;
+}
+
+.table-wrap {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 26rem;
+  background: var(--panel);
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.86rem;
+}
+
+th,
+td {
+  padding: 0.45rem 0.7rem;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+  max-width: 26rem;
+  overflow-wrap: anywhere;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+.attempt {
+  padding: 0.7rem 0.9rem;
+  margin-bottom: 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+}
+
+.attempt-head {
+  font: 12px/1.5 var(--mono);
+  color: var(--muted);
+}
+
+.attempt ul,
+.candidates {
+  margin: 0.4rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.86rem;
+}
+
+.candidates li {
+  margin-bottom: 0.5rem;
+  font: 12px/1.5 var(--mono);
+}
+
+.sample {
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font: 11px/1.45 var(--mono);
+  overflow-wrap: anywhere;
+}
