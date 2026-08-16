@@ -1,5 +1,7 @@
 # VANS V1 — Design Spec
 
+**VANS — Vedansh's Agent Navigation System**
+
 **Date:** 2026-08-04
 **Status:** Draft for review
 **Reasoning trail:** [`docs/decisions.md`](../../decisions.md) — every decision here has a `D-nnn` entry there with alternatives and tradeoffs. This document states *what to build*; that one states *why*.
