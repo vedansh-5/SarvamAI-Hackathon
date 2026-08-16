@@ -13,11 +13,19 @@
     "withGlobalTauri": false,
     "windows": [
       {
+        "label": "main",
         "title": "VANS",
-        "width": 980,
-        "height": 760,
-        "minWidth": 640,
-        "minHeight": 480
+        "width": 720,
+        "height": 460,
+        "center": true,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "visible": false,
+        "focus": false,
+        "shadow": true
       }
     ],
     "security": {
