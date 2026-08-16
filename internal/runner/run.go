@@ -150,14 +150,29 @@ func Run(doc *html.Node, p extract.Program, opts Options) (Result, error) {
 		}
 	}
 
+	span := p.Span()
+	used := make(map[*html.Node]bool)
+
 	for _, rec := range records {
+		// Records must not overlap. With a span, a root that matches more
+		// often than the records repeat would otherwise produce windows that
+		// share elements, and the same data would appear in several rows.
+		if used[rec] {
+			res.Dropped++
+			continue
+		}
+		window := siblingWindow(rec, span)
+		for _, n := range window {
+			used[n] = true
+		}
+
 		row := make(Row, len(p.Fields))
 		any := false
 
 		for i, f := range p.Fields {
-			node := rec
+			node := window[0]
 			if sels[i] != nil {
-				node = cascadia.Query(rec, sels[i])
+				node = queryWindow(window, sels[i])
 			}
 
 			st := res.Stats[f.Name]
@@ -189,6 +204,41 @@ func Run(doc *html.Node, p extract.Program, opts Options) (Result, error) {
 	}
 
 	return res, nil
+}
+
+// siblingWindow returns the record starting at n: n itself plus the following
+// element siblings, up to span elements in total.
+//
+// A record can run off the end of its parent — the last one in a list is often
+// missing the trailing separator that the others have — so a short window is
+// returned rather than treated as an error. The fields that were there are
+// still worth extracting, and the verifier judges what came out.
+func siblingWindow(n *html.Node, span int) []*html.Node {
+	window := []*html.Node{n}
+	for cur := n.NextSibling; cur != nil && len(window) < span; cur = cur.NextSibling {
+		if cur.Type == html.ElementNode {
+			window = append(window, cur)
+		}
+	}
+	return window
+}
+
+// queryWindow finds the first element in the record matching sel.
+//
+// Each element of the window is searched in order, and the window elements
+// themselves are candidates as well as their descendants. Without that, a
+// selector naming the second element of a two-element record — which is
+// exactly the case spans exist for — would match nothing.
+func queryWindow(window []*html.Node, sel cascadia.Selector) *html.Node {
+	for _, n := range window {
+		if sel.Match(n) {
+			return n
+		}
+		if got := cascadia.Query(n, sel); got != nil {
+			return got
+		}
+	}
+	return nil
 }
 
 // value reads one field off a matched element.

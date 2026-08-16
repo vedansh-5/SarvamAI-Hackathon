@@ -69,15 +69,28 @@ const systemPrompt = `You write extraction programs for a browser automation run
 A page has already been scanned for repeating structures, and you are given the candidate regions that were found. Your job is to pick the region that holds what the user asked for, and describe how to read each field out of it.
 
 How a program is executed:
-- "root" is a CSS selector run against the whole document. Every element it matches becomes one row.
-- Each field's "selector" is run against a single row's element. An empty selector means the row element itself.
+- "root" is a CSS selector run against the whole document. Every element it matches begins one row.
+- "root_span" is how many consecutive sibling elements make up one row, counting the one root matched. Each candidate below states the span it was found with; use that number. Most regions have a span of 1, meaning each row is a single element.
+- Each field's "selector" is run against the row — every element of the span, and their descendants. An empty selector means the first element of the row.
 - "attr" is "text" for the element's visible text, or the name of an attribute to read.
+
+A span above 1 means the page splits one record across sibling elements. Tables do this constantly: a row holds the title and the row beneath it holds the details. When a candidate has a span above 1, the markup shown for it is the whole record, all its elements concatenated, and a field may be selected from any of them.
 
 The "expect" block is a contract. The runtime enforces it on every future run of this program, long after this conversation, and treats a violation as a signal that the page changed and the program needs rewriting. Set "min_rows" to the fewest rows a correct run should produce, and list under "required" only the fields that genuinely must be present in every row — a field that is legitimately blank for some records does not belong there.
 
 Prefer selectors built from stable, meaningful class names and element structure. Class names containing what looks like a build hash are regenerated on every deploy; anchor on something else where you can.
 
 If none of the candidates contain what the user asked for, pick the closest one and set "min_rows" to 1.`
+
+// spanOf reports a candidate's span, treating an unset one as a single
+// element. Candidates built before spans existed, and hand-written ones in
+// tests, leave it zero.
+func spanOf(c extract.Candidate) int {
+	if c.Span < 1 {
+		return 1
+	}
+	return c.Span
+}
 
 // BuildPrompt renders the user-facing half of the request.
 func BuildPrompt(req Request) string {
@@ -99,6 +112,7 @@ func BuildPrompt(req Request) string {
 	for i, c := range req.Candidates {
 		fmt.Fprintf(&b, "\n--- candidate %d (%d records) ---\n", i+1, c.RecordCount)
 		fmt.Fprintf(&b, "selector: %s\n", c.Selector)
+		fmt.Fprintf(&b, "root_span: %d\n", spanOf(c))
 		fmt.Fprintf(&b, "first record markup:\n%s\n", c.Skeleton)
 		if len(c.Samples) > 0 {
 			b.WriteString("sample record text:\n")

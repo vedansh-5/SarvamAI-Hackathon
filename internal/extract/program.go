@@ -13,15 +13,46 @@ import (
 // Program has to be executable without any model involvement, and it has to
 // carry its own success condition.
 type Program struct {
-	// Root selects every record in the region, relative to the document.
+	// Root selects the first element of every record, relative to the document.
 	Root string `json:"root"`
 
-	// Fields are extracted from each record, with selectors relative to Root.
+	// RootSpan is how many consecutive sibling elements make up one record,
+	// counting the one Root matched. Zero and one both mean a single element.
+	//
+	// This exists because a data record is not always one subtree. MDR (which
+	// the candidate finder follows) defines a record as a *generalized node* —
+	// a set of consecutive sibling subtrees — and table-based layouts use that
+	// shape constantly. Hacker News puts a story's title in one <tr> and its
+	// score in the next; with a single-element record the score is not merely
+	// hard to select, it is unreachable, because every field selector is
+	// evaluated relative to the record.
+	RootSpan int `json:"root_span"`
+
+	// Fields are extracted from each record, with selectors relative to it.
 	Fields []Field `json:"fields"`
 
 	// Expect is the model-authored success condition. The runtime enforces it;
 	// it does not author it.
 	Expect Expectation `json:"expect"`
+}
+
+// MaxRootSpan bounds how many siblings one record may cover.
+//
+// A record made of many consecutive siblings is more likely a mis-detected
+// region than a real one, and an unbounded span lets a single root swallow the
+// whole page.
+const MaxRootSpan = 6
+
+// Span is RootSpan normalized: always at least 1.
+//
+// Programs cached before spans existed decode with RootSpan zero, and they
+// must keep working — every one of them describes a single-element record,
+// which is exactly what 1 means.
+func (p Program) Span() int {
+	if p.RootSpan < 1 {
+		return 1
+	}
+	return p.RootSpan
 }
 
 // Field is one column of the extracted data.
@@ -67,6 +98,9 @@ func (p Program) Validate() error {
 	}
 	if len(p.Fields) == 0 {
 		return fmt.Errorf("program: no fields")
+	}
+	if p.RootSpan < 0 || p.RootSpan > MaxRootSpan {
+		return fmt.Errorf("program: root_span is %d, want 0 to %d", p.RootSpan, MaxRootSpan)
 	}
 
 	seen := make(map[string]bool, len(p.Fields))
@@ -114,11 +148,17 @@ func ProgramSchema() map[string]any {
 	return map[string]any{
 		"type":                 "object",
 		"additionalProperties": false,
-		"required":             []string{"root", "fields", "expect"},
+		"required":             []string{"root", "root_span", "fields", "expect"},
 		"properties": map[string]any{
 			"root": map[string]any{
 				"type":        "string",
-				"description": "CSS selector matching every record in the region, relative to the document.",
+				"description": "CSS selector matching the first element of every record, relative to the document.",
+			},
+			"root_span": map[string]any{
+				"type": "integer",
+				"description": "How many consecutive sibling elements make up one record, counting the one root matched. " +
+					"Use 1 when each record is a single element. Use the span shown for the candidate when a record " +
+					"is split across siblings, as in a table that puts a row's details in the following row.",
 			},
 			"fields": map[string]any{
 				"type":        "array",
