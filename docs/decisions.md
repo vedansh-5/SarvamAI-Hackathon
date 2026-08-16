@@ -563,6 +563,66 @@ Running in Go also keeps the runner pure: no browser needed to test it, and it w
 
 ---
 
+## D-031 — The confirmation gate is the shape of the API, not a flag on a call
+
+**Status:** Accepted — implements D-004 category 3
+
+**Context.** D-004 established that a world side effect cannot be verified away and needs a human gate. The obvious implementation is one `Run(task)` method with a `confirm func(rows) bool` callback or a `RequireConfirmation bool` field.
+
+**Decision.** The engine exposes two methods. `Prepare` navigates, extracts, verifies, and caches — and touches nothing outside the browser. `Commit` performs the write. There is no third method, and no way to reach a side effect without holding a `Plan` that `Prepare` returned.
+
+**Reasoning.** A caller cannot forget to check a boolean it was never given. With a flag, the safe path depends on every future caller — the Tauri shell, the CLI harness, a test, whatever comes after — remembering to set it. With two methods, forgetting the gate means forgetting to write at all, which fails loudly and harmlessly. The gate stops being a policy the code follows and becomes a fact about what the code can do.
+
+It also matches the GUI shape D-007 committed to: the window shows what `Prepare` returned and the button calls `Commit`.
+
+**A plan is spent on the first Commit, successful or not.** D-020's hard rule is that an executed write is never retried, and `committed` is set *before* the sink is called rather than after. A write that timed out may still have landed; treating an ambiguous failure as permission to write again is how a runtime creates two notes where the user expected one.
+
+---
+
+## D-032 — The engine never launches applications
+
+**Status:** Accepted
+
+**Context.** Stated directly during development, after a test launched Discord to check whether it served CDP: *"don't run up apps and systems — why do we need it anyways"*. The reasoning generalizes past the test.
+
+**Decision.** The runtime attaches to what is already running. `ChromiumBrowser` connects to an existing debugging endpoint and, when there is none, returns an error naming the exact command for the user to run. Nothing in the engine spawns a process.
+
+**Reasoning.** Launching an app is itself a world side effect — it changes what is on screen, what has focus, and what is in the user's dock — and it would happen during `Prepare`, which is the phase defined as touching nothing. A runtime that opens applications to satisfy its own plan is doing something the user did not ask for, *before* any gate has been reached. The failure mode is also worse than it looks: the app may already be running without the debugging flag, so "launch it" means "quit and relaunch the user's browser", losing their tabs.
+
+**Tradeoff.** Setup is manual, and V1 must explain it. That is the correct place for the cost — a one-time instruction the user follows knowingly, rather than a surprise the runtime performs repeatedly.
+
+---
+
+## D-033 — Only http and https values become links in written output
+
+**Status:** Accepted
+
+**Context.** Extracted rows are rendered into a note, and a link field is far more useful clickable than as text.
+
+**Decision.** A value is rendered as an anchor only when it parses as a URL with an `http` or `https` scheme and a non-empty host. Everything else is escaped and shown as plain text. All values and the title go through HTML escaping regardless.
+
+**Reasoning.** Extracted values are attacker-controlled in the ordinary case — any page can put anything in an `href`. Rendering `javascript:` or `data:` as a clickable link inside Notes is the page reaching out of the browser and into an application that trusts its content. This is the first place in the pipeline where untrusted page data crosses into another app, so the filter belongs here rather than in the adapter.
+
+Values are shown rather than dropped when they fail the check: a hidden field looks like a bug, and the user can see for themselves that the link was not one.
+
+---
+
+## Amendment to D-020 — rung 1, given D-029
+
+Rung 1 was written as "verification failed on a program from cache → invalidate, fall through to synthesis." D-029 changed what a cache entry is: a key holds several programs, not one.
+
+Rung 1 now reads: **every cached program is tried before synthesis is considered.** Each failure is recorded against that program, which demotes it in future lookups; nothing is deleted. Synthesis happens only when the whole cache for that key has been exhausted, and it is given the rejection reasons from every program tried, not just the last.
+
+`InvalidateSignature` still exists for the blunt case — a signature shown to be wrong for one intent is not trustworthy for the others — but it is a deliberate operation, not the automatic response to a single failed run.
+
+---
+
+## Note on `cmd/vans` and the rejected CLI-first decision
+
+`cmd/vans` is a development harness, not a reversal of D-007. The rejected proposal was to *ship* a CLI as V1's product surface and defer the GUI; the reasoning against it (permissions onboarding, and a confirmation gate that wants a window) is unchanged. What the harness provides is a way to run the real pipeline against a real browser and a real Notes.app before that window exists, so the engine is exercised by something other than its own tests. It has no `--yes` flag: a harness that can skip the gate is a harness that tests a different program than the one that ships.
+
+---
+
 ## Open questions
 
 | # | Question | Blocking? |
