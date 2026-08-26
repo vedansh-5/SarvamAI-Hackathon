@@ -116,20 +116,15 @@ Still to do:
 Verify with: `⌥Space` from another app; panel appears centred, takes the
 keyboard, Escape dismisses, focus returns to the app you were in.
 
-### Phase 2 — Screen context
+### Phase 2 — Screen context ← implemented on phase-2-screen-context branch
 
-Know what the user is looking at.
+Know what the user is looking at without token bloat.
 
-- Frontmost application and window title (no permission needed for the app
-  name; window titles need Accessibility)
-- Screen capture via ScreenCaptureKit — **requires the Screen Recording
-  grant**
-- Extend preflight with a Screen Recording check, following the D-037 pattern:
-  the automatic preflight reports status, the user presses a button to trigger
-  the prompt
-- Decide what is sent to the model: full screenshot, active window only, or a
-  downscaled version. Full-screen captures leak whatever else is on screen —
-  a real privacy question, and one worth a decision entry before it is coded
+- `internal/screen/context.go` & `internal/rpc/protocol.go`: Go runtime screen context models & `screen_context` RPC method.
+- `ui/src-tauri/src/screen.rs`: Frontmost application, bundle ID, window title, PID & display geometry tracking via macOS native APIs (`NSWorkspace`, CoreGraphics).
+- Low-latency screen capture to memory/temp buffer with `screencapture`/ScreenCaptureKit integration.
+- `has_screen_recording_permission` & `request_screen_recording_permission` for non-intrusive preflight checks (D-037).
+- Frontend UI updated with live Active Context banner (`🎯 Active: App — Title`), Screen Recording preflight check button, and `Escape` hotkey dismiss.
 
 ### Phase 3 — Acting on the machine
 
