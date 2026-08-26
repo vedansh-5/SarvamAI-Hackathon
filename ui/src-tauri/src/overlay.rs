@@ -29,6 +29,9 @@ pub fn window(app: &AppHandle) -> Option<WebviewWindow> {
 pub fn show(app: &AppHandle) {
     let Some(win) = window(app) else { return };
 
+    // Capture context before VANS seizes the active focus
+    let context = crate::screen::capture_active_context(false);
+
     let _ = win.center();
     let _ = win.show();
     let _ = win.set_focus();
@@ -36,7 +39,7 @@ pub fn show(app: &AppHandle) {
     #[cfg(target_os = "macos")]
     let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
-    let _ = win.emit("overlay://shown", ());
+    let _ = win.emit("overlay://shown", &context);
 }
 
 /// Dismisses the panel and hands focus back.

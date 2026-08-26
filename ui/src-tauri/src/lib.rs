@@ -1,11 +1,31 @@
 mod engine;
 mod overlay;
+pub mod screen;
 
 use std::path::PathBuf;
 
 use engine::{Engine, RpcError};
+use screen::ScreenContext;
 use serde_json::{json, Value};
 use tauri::{Manager, State};
+
+/// Returns the current active application and screen context.
+#[tauri::command]
+fn get_screen_context(include_screenshot: Option<bool>) -> ScreenContext {
+    screen::capture_active_context(include_screenshot.unwrap_or(false))
+}
+
+/// Checks whether Screen Recording permission is granted.
+#[tauri::command]
+fn check_screen_recording() -> bool {
+    screen::has_screen_recording_permission()
+}
+
+/// Prompts the user for Screen Recording permission.
+#[tauri::command]
+fn request_screen_recording() -> bool {
+    screen::request_screen_recording_permission()
+}
 
 /// Commands are thin on purpose. Every decision the runtime makes — what to
 /// extract, whether it verified, whether a plan may be committed — stays in
@@ -99,7 +119,10 @@ pub fn run() {
             check_notes,
             prepare,
             commit,
-            dismiss
+            dismiss,
+            get_screen_context,
+            check_screen_recording,
+            request_screen_recording
         ])
         .run(tauri::generate_context!())
         .expect("error while running VANS");
