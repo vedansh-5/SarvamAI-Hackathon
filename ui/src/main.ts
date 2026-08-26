@@ -62,6 +62,16 @@ interface RpcError {
   data?: unknown;
 }
 
+interface ScreenContext {
+  app_name: string;
+  bundle_id: string;
+  window_title: string;
+  pid: number;
+  bounds: { x: number; y: number; width: number; height: number };
+  frame_path?: string;
+  image_base64?: string;
+}
+
 // --- helpers ---
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -340,6 +350,65 @@ function renderUnresolved(into: HTMLElement, data: Unresolved) {
   }
 }
 
+async function checkScreenRecording() {
+  const out = $("notes-result");
+  clear(out);
+  out.appendChild(el("p", "meta", "Checking Screen Recording permission…"));
+
+  try {
+    const granted = await invoke<boolean>("check_screen_recording");
+    clear(out);
+    if (granted) {
+      const box = el("div", "check ok");
+      box.appendChild(el("div", "check-label", "✓  Screen Recording"));
+      box.appendChild(
+        el("div", "check-detail", "Permission granted. VANS can capture display context."),
+      );
+      out.appendChild(box);
+    } else {
+      const box = el("div", "check bad");
+      box.appendChild(el("div", "check-label", "✗  Screen Recording"));
+      box.appendChild(
+        el("div", "check-detail", "Permission not granted. Click below to request access."),
+      );
+      const promptBtn = el(
+        "button",
+        "secondary",
+        "Request Screen Recording Access",
+      ) as HTMLButtonElement;
+      promptBtn.addEventListener("click", () => {
+        invoke("request_screen_recording").catch(console.error);
+      });
+      box.appendChild(promptBtn);
+      out.appendChild(box);
+    }
+  } catch (e) {
+    clear(out);
+    out.appendChild(el("p", "bad", isRpcError(e) ? e.message : String(e)));
+  }
+}
+
+function updateActiveContext(ctx?: ScreenContext) {
+  const label = $("active-app-label");
+  if (!label) return;
+  if (ctx && ctx.app_name && ctx.app_name !== "Unknown") {
+    label.innerHTML = `Active: <strong>${ctx.app_name}</strong>${ctx.window_title ? ` — <em>${ctx.window_title}</em>` : ""}`;
+  } else {
+    label.textContent = "Active: Entire Desktop";
+  }
+}
+
+async function refreshActiveContext() {
+  try {
+    const ctx = await invoke<ScreenContext>("get_screen_context", {
+      includeScreenshot: false,
+    });
+    updateActiveContext(ctx);
+  } catch (e) {
+    console.error("failed to get screen context", e);
+  }
+}
+
 // --- wiring ---
 
 listen<{ for_request: number; message: string }>("engine://progress", (event) => {
@@ -348,13 +417,35 @@ listen<{ for_request: number; message: string }>("engine://progress", (event) =>
   progress.appendChild(document.createTextNode(event.payload.message + "\n"));
 });
 
+listen<ScreenContext | undefined>("overlay://shown", (event) => {
+  if (event.payload) {
+    updateActiveContext(event.payload);
+  } else {
+    refreshActiveContext();
+  }
+  // Auto-focus the intent input on summon
+  const intent = $("intent") as HTMLInputElement;
+  if (intent) {
+    intent.focus();
+    intent.select();
+  }
+});
+
+// Escape dismisses the overlay panel
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    invoke("dismiss").catch(console.error);
+  }
+});
+
 $("run").addEventListener("click", extract);
 $("recheck").addEventListener("click", runPreflight);
+$("check-screen").addEventListener("click", checkScreenRecording);
 $("check-notes").addEventListener("click", checkNotes);
 $("confirm").addEventListener("click", confirmWrite);
 $("cancel").addEventListener("click", () => {
   currentPlan = null;
-  show("task");
+  invoke("dismiss").catch(console.error);
 });
 $("back").addEventListener("click", () => show("task"));
 $("setup").addEventListener("click", () => {
@@ -365,3 +456,4 @@ $("again").addEventListener("click", () => show("task"));
 
 show("preflight");
 runPreflight();
+refreshActiveContext();

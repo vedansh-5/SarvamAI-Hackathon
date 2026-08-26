@@ -29,14 +29,32 @@
 
 body {
   margin: 0;
-  padding: 2rem 2.25rem 3rem;
+  padding: 1.5rem 1.75rem 2rem;
   background: var(--bg);
   color: var(--ink);
-  font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  user-select: none;
+}
+
+.context-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  margin-bottom: 1rem;
+  border-radius: 6px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.context-banner strong {
+  color: var(--ink);
 }
 
 header {
-  margin-bottom: 1.75rem;
+  margin-bottom: 1.25rem;
 }
 
 h1 {

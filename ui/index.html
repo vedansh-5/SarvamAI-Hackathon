@@ -18,19 +18,22 @@
       <div id="checks"></div>
       <div class="row">
         <button id="recheck" class="secondary">Check again</button>
-        <button id="check-notes" class="secondary">
-          Check Notes access
-        </button>
+        <button id="check-screen" class="secondary">Check Screen Recording</button>
+        <button id="check-notes" class="secondary">Check Notes access</button>
       </div>
       <p class="note" id="notes-warning">
-        Checking Notes access opens the Notes app and may ask macOS for
-        permission. VANS never opens applications on its own.
+        Checking access opens applications and may ask macOS for permissions.
+        VANS never opens applications on its own without user consent.
       </p>
       <div id="notes-result"></div>
     </section>
 
     <!-- The task form. -->
     <section id="task" hidden>
+      <div id="active-context-banner" class="context-banner">
+        <span class="context-icon">🎯</span>
+        <span id="active-app-label">Active: None</span>
+      </div>
       <h2>Extract from a page</h2>
       <label for="url">Page</label>
       <input id="url" type="url" placeholder="https://news.ycombinator.com" />
