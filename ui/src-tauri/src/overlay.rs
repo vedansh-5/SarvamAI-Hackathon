@@ -73,9 +73,18 @@ pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     app.global_shortcut().on_shortcut(hotkey(), move |_, _, event| {
         // Fire on press. Acting on release too would toggle twice per tap.
         if event.state() == ShortcutState::Pressed {
+            eprintln!("[vans] hotkey fired");
             toggle(&handle);
         }
     })?;
+
+    // Registration can fail silently from the user's point of view — another
+    // app already owns the combination, and the panel simply never appears.
+    // Say so on stderr rather than leaving them pressing a dead key.
+    eprintln!(
+        "[vans] hotkey Alt+Space registered = {}",
+        app.global_shortcut().is_registered(hotkey())
+    );
 
     if let Some(win) = window(app) {
         let handle = app.clone();
