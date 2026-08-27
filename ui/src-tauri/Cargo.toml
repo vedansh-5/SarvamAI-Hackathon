@@ -18,3 +18,14 @@ serde_json = "1"
 tokio = { version = "1", features = ["sync"] }
 tauri-plugin-global-shortcut = "2.3.2"
 base64 = "0.22"
+
+# Frontmost-application lookup goes through AppKit directly. The alternative,
+# asking System Events over osascript, needs an Accessibility grant the user
+# has not given and costs ~50-100ms on a path that runs every time the panel
+# is summoned.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", features = ["NSWorkspace", "NSRunningApplication"] }
+objc2-foundation = { version = "0.3", features = ["NSString"] }
+objc2-core-graphics = { version = "0.3", features = ["CGWindow", "libc"] }
+objc2-core-foundation = { version = "0.3", features = ["CFArray", "CFDictionary", "CFNumber", "CFString"] }

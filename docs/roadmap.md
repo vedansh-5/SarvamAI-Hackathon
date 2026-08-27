@@ -82,39 +82,28 @@ task — see Q-15.
 
 ## Phases
 
-### Phase 1 — Overlay shell ← in progress
+### Phase 1 — Overlay shell — complete
 
-Hotkey-summoned floating panel replacing the ordinary window. **Shell only;
-the engine is untouched.**
-
-Done:
+Hotkey-summoned floating panel replacing the ordinary window. Shell only; the
+engine was untouched.
 
 - `ui/src-tauri/src/overlay.rs` — ⌥Space toggles the panel, dismiss on blur,
   `ActivationPolicy::Accessory` so there is no dock icon
 - `tauri.conf.json` — borderless, transparent, always-on-top, starts hidden
-- `dismiss` command wired into `lib.rs`
-- Rust compiles
+- Escape and Cancel route through the `dismiss` command rather than closing the
+  window, which would destroy state the user may come back to
+- Focus moves to the intent input on `overlay://shown`
+- `body` paints nothing; all colour belongs to `.panel`, which is translucent
+  with a `backdrop-filter` blur. A painted body would show as a hard rectangle
+  behind the panel's rounded corners, which is the usual way a transparent
+  window goes wrong
 
-Still to do:
+Still open, deliberately deferred:
 
-- **Frontend is not yet adapted.** `ui/src/main.ts` and `ui/src/styles.css`
-  still assume a full window. Needed:
-  - Escape key → `invoke("dismiss")`
-  - Cancel button → dismiss rather than switching views
-  - Panel styling: rounded corners, translucent background
-    (`backdrop-filter`), a body background that is actually transparent —
-    right now `body` paints an opaque colour, which will show as a rectangle
-  - Focus the intent input on the `overlay://shown` event
-  - Compact layout: the panel is 720×460, the current markup was laid out for
-    980×760
-- Window height should grow with content (results table) rather than being
-  fixed at 460
-- Decide whether preflight belongs in the panel or in a separate settings
-  window — a setup screen inside a dismiss-on-blur panel is awkward, since
-  clicking away to start Chrome dismisses the instructions
-
-Verify with: `⌥Space` from another app; panel appears centred, takes the
-keyboard, Escape dismisses, focus returns to the app you were in.
+- The panel is a fixed 720×460. Height should grow with the result table.
+- Preflight lives inside a dismiss-on-blur panel, which is awkward: clicking
+  away to start Chrome dismisses the instructions telling you to. Probably
+  wants its own ordinary window.
 
 ### Phase 2 — Screen context ← implemented on phase-2-screen-context branch
 

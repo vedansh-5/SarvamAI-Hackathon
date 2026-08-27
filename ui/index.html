@@ -7,19 +7,20 @@
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
-    <header>
-      <h1>VANS</h1>
-      <p class="sub">Vedansh's Agent Navigation System</p>
-    </header>
+    <div class="panel">
+      <header>
+        <h1>VANS</h1>
+        <p class="sub">Vedansh's Agent Navigation System</p>
+      </header>
 
-    <!-- Preflight. Shown until the environment can actually run a task. -->
-    <section id="preflight" hidden>
-      <h2>Before you start</h2>
-      <div id="checks"></div>
-      <div class="row">
-        <button id="recheck" class="secondary">Check again</button>
-        <button id="check-screen" class="secondary">Check Screen Recording</button>
-        <button id="check-notes" class="secondary">Check Notes access</button>
+      <!-- Preflight. Shown until the environment can actually run a task. -->
+      <section id="preflight" hidden>
+        <h2>Before you start</h2>
+        <div id="checks"></div>
+        <div class="row">
+          <button id="recheck" class="secondary">Check again</button>
+          <button id="check-screen" class="secondary">Check Screen Recording</button>
+          <button id="check-notes" class="secondary">Check Notes access</button>
       </div>
       <p class="note" id="notes-warning">
         Checking access opens applications and may ask macOS for permissions.
@@ -91,6 +92,8 @@
         <button id="again" class="secondary">Do another</button>
       </div>
     </section>
+
+    </div>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

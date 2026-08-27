@@ -26,7 +26,7 @@ A durable record of implementation progress, completed milestones, and immediate
 | **Step 9** | Engine + failure ladder + CLI harness | Merged | Cold run ~9.5s (1 model call) → Warm run ~344ms (0 model calls) |
 | **Step 9c** | Generalized nodes | Merged | Extraction across multi-column sibling nodes |
 | **Step 10** | Desktop shell (Tauri) | PR #10 | Private stdio RPC pipe, preflight checks, confirmation gate |
-| **Phase 1** | Hotkey summoned overlay | Complete | `⌥Space` global hotkey, accessory policy, dismiss on blur |
+| **Phase 1** | Hotkey summoned overlay | Complete | `⌥Space` global hotkey, accessory policy, dismiss on blur, translucent panel surface |
 | **Phase 2** | Screen context | Complete | Active app & window title metadata, Screen Recording preflight, silent display capture |
 
 ---
@@ -39,8 +39,9 @@ A durable record of implementation progress, completed milestones, and immediate
    * Unit tests added in `internal/screen/context_test.go` and `internal/rpc/server_test.go`.
 
 2. **Native Rust Shell (`ui/src-tauri/src/screen.rs`):**
-   * Active application detection using macOS `NSWorkspace` before overlay grabs focus.
-   * Window title and PID querying via `System Events` / CoreGraphics.
+   * Active application detection using macOS `NSWorkspace` before the overlay grabs focus.
+   * PID and bundle identifier from `NSWorkspace` — no permission, sub-millisecond.
+   * Window title via `CGWindowListCopyWindowInfo`, degrading to empty when Screen Recording is not granted (D-038).
    * Non-intrusive `CGPreflightScreenCaptureAccess()` and `CGRequestScreenCaptureAccess()` checks (D-037).
    * Silent low-latency display capture via `/usr/sbin/screencapture -x`.
 

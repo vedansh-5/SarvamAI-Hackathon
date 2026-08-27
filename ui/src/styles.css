@@ -8,6 +8,11 @@
   --ok: #2f6b4f;
   --bad: #9a3b2c;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  /* The panel floats over other applications, so it is translucent rather
+     than a flat fill — you can see what you summoned it on top of. */
+  --panel-bg: rgba(251, 250, 248, 0.82);
+  --panel-edge: rgba(0, 0, 0, 0.14);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -20,6 +25,9 @@
     --accent: #7fbfa8;
     --ok: #7fbfa8;
     --bad: #e2907f;
+
+    --panel-bg: rgba(23, 23, 26, 0.78);
+    --panel-edge: rgba(255, 255, 255, 0.12);
   }
 }
 
@@ -29,11 +37,29 @@
 
 body {
   margin: 0;
-  padding: 1.5rem 1.75rem 2rem;
-  background: var(--bg);
+  padding: 0;
+  /* Transparent on purpose. The window itself is transparent (tauri.conf.json),
+     so anything painted here shows up as a hard rectangle behind the panel's
+     rounded corners. All colour belongs to .panel. */
+  background: transparent;
   color: var(--ink);
   font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   user-select: none;
+  overflow: hidden;
+}
+
+/* The panel is the only thing that paints. */
+.panel {
+  height: 100vh;
+  padding: 1.5rem 1.75rem 2rem;
+  border-radius: 14px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-edge);
+  /* Frosts whatever is behind it, so the panel reads as floating above the
+     app you summoned it from rather than covering it. */
+  backdrop-filter: saturate(180%) blur(28px);
+  -webkit-backdrop-filter: saturate(180%) blur(28px);
+  overflow-y: auto;
 }
 
 .context-banner {

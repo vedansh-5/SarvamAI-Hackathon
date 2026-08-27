@@ -729,6 +729,26 @@ An app that launches Notes merely because its window opened is doing something n
 
 ---
 
+## D-038 — Active-application lookup uses AppKit, and the window title degrades on its own
+
+**Status:** Accepted — replaces the System Events implementation in Phase 2
+
+**Context.** Phase 2 read the frontmost application by asking System Events over `osascript`. It worked, but it sat on the path that runs every single time the panel is summoned.
+
+**Measured 2026-08-27** on the development machine: **355 ms per call**, and System Events needs an Accessibility grant that is still not given (see § Environment facts). A third of a second of latency on every hotkey press, gated behind a permission the user has not granted, for information macOS hands out for free.
+
+**Decision.** Application identity comes from `NSWorkspace.frontmostApplication` via `objc2-app-kit` — name, bundle identifier, and pid, with **no permission required** and no measurable cost.
+
+The window *title* is treated as a separate concern, because it genuinely is one: macOS gates it behind either Screen Recording (`CGWindowListCopyWindowInfo`) or Accessibility (the AX API). It is read via CGWindowList when Screen Recording is granted, and **degrades to an empty string otherwise** rather than failing the lookup.
+
+**Reasoning.** These two facts have different privacy weights and macOS treats them differently, so collapsing them into one call meant the cheap, unprivileged half inherited the cost and the permission requirement of the expensive, privileged half. Splitting them means the runtime always knows *which application* you are in — the part that decides which adapter tier applies — and knows *what you are looking at* only when you have allowed that.
+
+**Verified** by a test that calls the real AppKit path: `app="Google Chrome" bundle="com.google.Chrome" pid=28226 title="" screen_recording=false`. Identity present, title correctly absent.
+
+**Consequence for Phase 3.** Accessibility is still needed for acting on other applications, but it is no longer needed merely to *observe* which application is in front. The permission is now required only where it is genuinely unavoidable.
+
+---
+
 ## Open questions
 
 | # | Question | Blocking? |
