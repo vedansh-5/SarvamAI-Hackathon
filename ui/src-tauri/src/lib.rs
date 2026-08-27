@@ -1,10 +1,31 @@
 mod engine;
+mod overlay;
+pub mod screen;
 
 use std::path::PathBuf;
 
 use engine::{Engine, RpcError};
+use screen::ScreenContext;
 use serde_json::{json, Value};
 use tauri::{Manager, State};
+
+/// Returns the current active application and screen context.
+#[tauri::command]
+fn get_screen_context(include_screenshot: Option<bool>) -> ScreenContext {
+    screen::capture_active_context(include_screenshot.unwrap_or(false))
+}
+
+/// Checks whether Screen Recording permission is granted.
+#[tauri::command]
+fn check_screen_recording() -> bool {
+    screen::has_screen_recording_permission()
+}
+
+/// Prompts the user for Screen Recording permission.
+#[tauri::command]
+fn request_screen_recording() -> bool {
+    screen::request_screen_recording_permission()
+}
 
 /// Commands are thin on purpose. Every decision the runtime makes — what to
 /// extract, whether it verified, whether a plan may be committed — stays in
@@ -44,6 +65,13 @@ async fn commit(engine: State<'_, Engine>, plan_id: String) -> Result<Value, Rpc
         .await
 }
 
+/// Dismisses the panel. Escape and Cancel both route here rather than closing
+/// the window, which would destroy state the user may come back to.
+#[tauri::command]
+fn dismiss(app: tauri::AppHandle) {
+    overlay::hide(&app);
+}
+
 /// Finds the runtime binary.
 ///
 /// The bundled copy is preferred so a shipped app never depends on a checkout.
@@ -70,6 +98,7 @@ pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             let handle = app.handle().clone();
+            let handle_for_overlay = app.handle().clone();
             let path = engine_path(&handle);
 
             let engine = Engine::spawn(handle, &path).map_err(|e| {
@@ -80,13 +109,20 @@ pub fn run() {
                 )
             })?;
             app.manage(engine);
+
+            overlay::install(&handle_for_overlay)?;
             Ok(())
         })
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             preflight,
             check_notes,
             prepare,
-            commit
+            commit,
+            dismiss,
+            get_screen_context,
+            check_screen_recording,
+            request_screen_recording
         ])
         .run(tauri::generate_context!())
         .expect("error while running VANS");

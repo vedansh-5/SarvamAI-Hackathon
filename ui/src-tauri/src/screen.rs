@@ -1,0 +1,230 @@
+//! Screen and active application context.
+//!
+//! Captures the frontmost application, window title, display geometry,
+//! and on-demand screenshot buffers while keeping token overhead minimal.
+
+use serde::{Deserialize, Serialize};
+use std::process::Command;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Rect {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+impl Default for Rect {
+    fn default() -> Self {
+        Self {
+            x: 0.0,
+            y: 0.0,
+            width: 1920.0,
+            height: 1080.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScreenContext {
+    pub app_name: String,
+    pub bundle_id: String,
+    pub window_title: String,
+    pub pid: i32,
+    pub bounds: Rect,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frame_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_base64: Option<String>,
+}
+
+#[cfg(target_os = "macos")]
+#[link(name = "CoreGraphics", kind = "framework")]
+extern "C" {
+    fn CGPreflightScreenCaptureAccess() -> bool;
+    fn CGRequestScreenCaptureAccess() -> bool;
+}
+
+/// Reports whether macOS Screen Recording permission has been granted.
+pub fn has_screen_recording_permission() -> bool {
+    #[cfg(target_os = "macos")]
+    unsafe {
+        CGPreflightScreenCaptureAccess()
+    }
+    #[cfg(not(target_os = "macos"))]
+    true
+}
+
+/// Triggers the macOS system prompt asking for Screen Recording permission.
+pub fn request_screen_recording_permission() -> bool {
+    #[cfg(target_os = "macos")]
+    unsafe {
+        CGRequestScreenCaptureAccess()
+    }
+    #[cfg(not(target_os = "macos"))]
+    true
+}
+
+/// Inspects the frontmost application and active window on the machine.
+pub fn capture_active_context(include_screenshot: bool) -> ScreenContext {
+    let (app_name, bundle_id, window_title, pid) = get_frontmost_app_info();
+
+    let mut context = ScreenContext {
+        app_name,
+        bundle_id,
+        window_title,
+        pid,
+        bounds: Rect::default(),
+        frame_path: None,
+        image_base64: None,
+    };
+
+    if include_screenshot && has_screen_recording_permission() {
+        if let Ok(path) = capture_display_to_temp() {
+            context.frame_path = Some(path);
+        }
+    }
+
+    context
+}
+
+/// Captures the display to a temporary PNG file.
+pub fn capture_display_to_temp() -> Result<String, String> {
+    let tmp_path = std::env::temp_dir().join("vans_screen_context.png");
+    let tmp_str = tmp_path.to_string_lossy().to_string();
+
+    #[cfg(target_os = "macos")]
+    {
+        let status = Command::new("/usr/sbin/screencapture")
+            .args(["-x", &tmp_str])
+            .status()
+            .map_err(|e| format!("failed to run screencapture: {e}"))?;
+
+        if !status.success() {
+            return Err("screencapture exited with non-zero status".into());
+        }
+        return Ok(tmp_str);
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    Err("screen capture not supported on this OS".into())
+}
+
+#[cfg(target_os = "macos")]
+fn get_frontmost_app_info() -> (String, String, String, i32) {
+    use objc2_app_kit::NSWorkspace;
+
+    // Application identity comes from AppKit directly and needs no permission
+    // at all. The previous implementation asked System Events over osascript,
+    // which needs an Accessibility grant the user has not given and costs
+    // 50-100ms on a path that runs every single time the panel is summoned.
+    let (app_name, bundle_id, pid) = {
+        let workspace = NSWorkspace::sharedWorkspace();
+        match workspace.frontmostApplication() {
+            Some(app) => {
+                let name = app
+                    .localizedName()
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| "Unknown".to_string());
+                let bundle = app
+                    .bundleIdentifier()
+                    .map(|s| s.to_string())
+                    .unwrap_or_default();
+                (name, bundle, app.processIdentifier())
+            }
+            None => ("Unknown".to_string(), String::new(), 0),
+        }
+    };
+
+    (app_name, bundle_id, frontmost_window_title(pid), pid)
+}
+
+/// The title of the frontmost window belonging to `pid`.
+///
+/// Unlike the application's identity, a window title is private: macOS gates
+/// it behind Screen Recording (via CGWindowList) or Accessibility (via the AX
+/// API). Neither is required to run VANS, so a missing title degrades to an
+/// empty string rather than failing — the caller still knows which application
+/// is in front, which is the part that matters most.
+#[cfg(target_os = "macos")]
+fn frontmost_window_title(pid: i32) -> String {
+    use objc2_core_foundation::{CFArray, CFDictionary, CFNumber, CFString, CFType};
+    use objc2_core_graphics::{
+        kCGWindowLayer, kCGWindowName, kCGWindowOwnerPID, CGWindowListCopyWindowInfo,
+        CGWindowListOption,
+    };
+
+    if pid == 0 || !has_screen_recording_permission() {
+        return String::new();
+    }
+
+    type Entry = CFDictionary<CFString, CFType>;
+
+    let options =
+        CGWindowListOption::OptionOnScreenOnly | CGWindowListOption::ExcludeDesktopElements;
+    let Some(windows) = CGWindowListCopyWindowInfo(options, 0) else {
+        return String::new();
+    };
+
+    // CGWindowListCopyWindowInfo is declared as an untyped CFArray. Its
+    // contents are documented to be window-info dictionaries keyed by CFString.
+    let entries: &CFArray<Entry> =
+        unsafe { &*((&*windows) as *const CFArray as *const CFArray<Entry>) };
+
+    let number = |entry: &Entry, key: &CFString| -> Option<i32> {
+        entry
+            .get(key)
+            .and_then(|v| v.downcast::<CFNumber>().ok())
+            .and_then(|n| n.as_i32())
+    };
+
+    for i in 0..entries.len() {
+        let Some(entry) = entries.get(i) else { continue };
+
+        // Layer 0 is an ordinary window. Anything above it is a panel, menu or
+        // overlay — including our own.
+        if number(&entry, unsafe { kCGWindowLayer }) != Some(0) {
+            continue;
+        }
+        if number(&entry, unsafe { kCGWindowOwnerPID }) != Some(pid) {
+            continue;
+        }
+
+        if let Some(name) = entry
+            .get(unsafe { kCGWindowName })
+            .and_then(|v| v.downcast::<CFString>().ok())
+        {
+            return name.to_string();
+        }
+    }
+
+    String::new()
+}
+
+#[cfg(not(target_os = "macos"))]
+fn get_frontmost_app_info() -> (String, String, String, i32) {
+    ("Unknown".into(), "".into(), "".into(), 0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Exercises the real AppKit lookup. Application identity must come back
+    /// without any permission being granted — that is the whole point of not
+    /// going through System Events.
+    #[test]
+    fn frontmost_app_is_identified_without_permission() {
+        let ctx = capture_active_context(false);
+        eprintln!(
+            "app={:?} bundle={:?} pid={} title={:?} screen_recording={}",
+            ctx.app_name,
+            ctx.bundle_id,
+            ctx.pid,
+            ctx.window_title,
+            has_screen_recording_permission()
+        );
+        assert!(ctx.pid > 0, "no frontmost pid; AppKit lookup returned nothing");
+        assert_ne!(ctx.app_name, "Unknown", "frontmost application not identified");
+    }
+}

@@ -118,6 +118,8 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.prepare(ctx, req)
 	case "commit":
 		result, err = s.commit(ctx, req)
+	case "screen_context":
+		result, err = s.screenContext(ctx, req)
 	default:
 		err = &Error{Code: CodeBadRequest, Message: fmt.Sprintf("unknown method %q", req.Method)}
 	}
@@ -396,6 +398,28 @@ func fixData(fix string) json.RawMessage {
 		return nil
 	}
 	return raw
+}
+
+func (s *Server) screenContext(ctx context.Context, req Request) (ScreenContextResult, error) {
+	var params ScreenContextParams
+	if len(req.Params) > 0 {
+		if err := json.Unmarshal(req.Params, &params); err != nil {
+			return ScreenContextResult{}, &Error{
+				Code:    CodeBadRequest,
+				Message: fmt.Sprintf("invalid screen_context params: %v", err),
+			}
+		}
+	}
+
+	target := params.AppName
+	if target == "" {
+		target = params.BundleID
+	}
+
+	return ScreenContextResult{
+		Handled: true,
+		Target:  target,
+	}, nil
 }
 
 // compile-time assurance that runner rows serialize as plain maps.

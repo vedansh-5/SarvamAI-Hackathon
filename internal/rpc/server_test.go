@@ -629,3 +629,24 @@ func TestWarmPrepareReportsZeroModelCalls(t *testing.T) {
 		t.Errorf("cold run: calls=%d fromCache=%v", first.SynthesisCalls, first.FromCache)
 	}
 }
+
+func TestScreenContextHandlesFrontmostApp(t *testing.T) {
+	params := ScreenContextParams{
+		AppName:     "Google Chrome",
+		BundleID:    "com.google.Chrome",
+		WindowTitle: "Hacker News",
+		PID:         5432,
+		X:           0,
+		Y:           0,
+		Width:       1920,
+		Height:      1080,
+	}
+	s := run(t, nil, req(1, "screen_context", params))
+	res := decode[ScreenContextResult](t, s.ok(1))
+	if !res.Handled {
+		t.Errorf("expected screen context to be handled, got %+v", res)
+	}
+	if res.Target != "Google Chrome" {
+		t.Errorf("expected target 'Google Chrome', got %q", res.Target)
+	}
+}

@@ -158,3 +158,23 @@ type PreflightResult struct {
 type LogParams struct {
 	Message string `json:"message"`
 }
+
+// ScreenContextParams contains the frontmost app metadata and optional screen frame.
+type ScreenContextParams struct {
+	AppName     string  `json:"app_name"`
+	BundleID    string  `json:"bundle_id"`
+	WindowTitle string  `json:"window_title"`
+	PID         int32   `json:"pid"`
+	X           float64 `json:"x"`
+	Y           float64 `json:"y"`
+	Width       float64 `json:"width"`
+	Height      float64 `json:"height"`
+	FramePath   string  `json:"frame_path,omitempty"`
+	ImageBase64 string  `json:"image_base64,omitempty"`
+}
+
+// ScreenContextResult is returned by the engine after processing screen context.
+type ScreenContextResult struct {
+	Handled bool   `json:"handled"`
+	Target  string `json:"target,omitempty"`
+}
