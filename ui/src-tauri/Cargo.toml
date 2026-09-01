@@ -18,6 +18,7 @@ serde_json = "1"
 tokio = { version = "1", features = ["sync"] }
 tauri-plugin-global-shortcut = "2.3.2"
 base64 = "0.22"
+window-vibrancy = "0.8.0"
 
 # Frontmost-application lookup goes through AppKit directly. The alternative,
 # asking System Events over osascript, needs an Accessibility grant the user

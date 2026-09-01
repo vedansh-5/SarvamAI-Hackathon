@@ -98,6 +98,24 @@ engine was untouched.
   behind the panel's rounded corners, which is the usual way a transparent
   window goes wrong
 
+**The frosting is native, not CSS.** `backdrop-filter` worked but resolved
+seconds after the panel appeared: a transparent WKWebView has nothing behind it
+*inside the page* to sample, so the blur only settles once the compositor
+catches up. A panel that spends its first seconds as a solid box has failed at
+the moment it is being looked at. An `NSVisualEffectView` sits behind the
+webview and is composited by the window server, so it is right in the first
+frame. CSS keeps only the tint over it.
+
+**Light by default, with a switch.** The light palette is the bare `:root`
+block rather than a media query, so it applies before any script runs and to a
+window that has not said what it wants; dark is opt-in via `data-theme`, stored
+in `localStorage` and read behind a try/catch. It is deliberately not tied to
+`prefers-color-scheme` — the panel is summoned over whatever you are working in,
+so the choice is the user's rather than the system's. The theme has to reach
+AppKit as well as the stylesheet, because the blur material carries its own
+light/dark rendering and a light panel over a dark blur reads as a dark panel
+with a light patch in it.
+
 Both of the deferred items are now closed:
 
 - **The window follows the content.** The frontend measures `.panel-body` and

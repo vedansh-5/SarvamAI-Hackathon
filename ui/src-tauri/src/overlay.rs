@@ -25,6 +25,11 @@ const MIN_HEIGHT: f64 = 180.0;
 /// display it stops looking like something summoned over your work.
 const MAX_SCREEN_FRACTION: f64 = 0.85;
 
+/// Matches the CSS radius on .panel. The blur is a native layer behind the
+/// webview, so if it does not round with the panel it shows as square corners
+/// poking out from under the rounded ones.
+const CORNER_RADIUS: f64 = 14.0;
+
 /// The summoning shortcut.
 ///
 /// Option-Space rather than Command-Space, which is Spotlight's and cannot be
@@ -132,6 +137,58 @@ pub fn toggle(app: &AppHandle) {
     }
 }
 
+/// Frosts the window using AppKit rather than CSS.
+///
+/// `backdrop-filter` did work, but it arrived seconds after the panel did: a
+/// transparent WKWebView has nothing behind it inside the page to sample, so
+/// the blur only resolves once the compositor has caught up with the window.
+/// A summoned panel that spends its first seconds as a solid box has failed at
+/// the moment it is actually being looked at.
+///
+/// NSVisualEffectView sits behind the webview and is composited by the window
+/// server, so it is correct in the first frame. It also samples the desktop
+/// properly, which CSS cannot do from inside a transparent window.
+#[cfg(target_os = "macos")]
+fn frost(win: &WebviewWindow, theme: tauri::Theme) {
+    use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial, NSVisualEffectState};
+
+    // The material carries its own light/dark rendering, so the theme has to
+    // reach AppKit as well as CSS — a light panel over a dark blur reads as a
+    // dark panel with a light patch in it.
+    let material = match theme {
+        tauri::Theme::Dark => NSVisualEffectMaterial::HudWindow,
+        _ => NSVisualEffectMaterial::Popover,
+    };
+
+    // Active regardless of focus. The panel pins itself on some screens, and
+    // FollowsWindowActiveState would drain the blur out of a pinned panel the
+    // moment the user clicked away to do what it asked.
+    // A failure here is invisible from the outside — the panel simply renders
+    // as a flat tint over a transparent window, which looks like a styling
+    // choice rather than a broken one. Same reasoning as the hotkey below.
+    if let Err(e) = apply_vibrancy(
+        win,
+        material,
+        Some(NSVisualEffectState::Active),
+        Some(CORNER_RADIUS),
+    ) {
+        eprintln!("[vans] could not frost the panel: {e}");
+    }
+}
+
+/// Applies a theme to the window, and to the blur behind it.
+pub fn set_theme(app: &AppHandle, dark: bool) {
+    let Some(win) = window(app) else { return };
+    let theme = if dark {
+        tauri::Theme::Dark
+    } else {
+        tauri::Theme::Light
+    };
+    let _ = win.set_theme(Some(theme));
+    #[cfg(target_os = "macos")]
+    frost(&win, theme);
+}
+
 /// Registers the hotkey and the dismiss-on-blur behaviour.
 pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     // No dock icon. The panel is reached by hotkey, not by an icon to click.
@@ -156,6 +213,13 @@ pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     );
 
     if let Some(win) = window(app) {
+        // Light until the window says otherwise. Doing it here rather than
+        // waiting for the frontend means the first frame is already frosted;
+        // the frontend re-applies only if the stored choice differs.
+        let _ = win.set_theme(Some(tauri::Theme::Light));
+        #[cfg(target_os = "macos")]
+        frost(&win, tauri::Theme::Light);
+
         let handle = app.clone();
         win.on_window_event(move |event| {
             // Clicking away dismisses, the way a summoned panel should, unless

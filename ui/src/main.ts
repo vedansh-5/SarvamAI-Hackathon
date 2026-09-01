@@ -431,6 +431,60 @@ async function refreshActiveContext() {
   }
 }
 
+// --- theme ---
+
+/// Light unless the user has said otherwise.
+///
+/// The stylesheet's bare :root is the light palette, so a first run, a cleared
+/// store, or a failed read all land on light without this code having to run
+/// at all. Only dark is ever written to the document.
+const THEME_KEY = "vans.theme";
+
+/// localStorage throws outright in some contexts rather than returning null,
+/// and a panel that will not open because it could not remember a colour is a
+/// worse failure than a panel in the wrong colour.
+function storedTheme(): string | null {
+  try {
+    return localStorage.getItem(THEME_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function applyTheme(dark: boolean, persist: boolean) {
+  const root = document.documentElement;
+  if (dark) {
+    root.setAttribute("data-theme", "dark");
+  } else {
+    // Removed rather than set to "light": the bare :root block is the light
+    // palette, so absence is the default rather than a third state.
+    root.removeAttribute("data-theme");
+  }
+
+  $("theme").textContent = dark ? "Light" : "Dark";
+  $("theme").setAttribute(
+    "aria-label",
+    dark ? "Switch to the light theme" : "Switch to the dark theme",
+  );
+
+  if (persist) {
+    try {
+      localStorage.setItem(THEME_KEY, dark ? "dark" : "light");
+    } catch {
+      // Not worth surfacing: the theme still applies for this session.
+    }
+  }
+
+  // The frosting behind the panel is an AppKit layer the stylesheet cannot
+  // reach, and it carries its own light/dark rendering. A light panel over a
+  // dark blur reads as a dark panel with a light patch in it.
+  invoke("set_theme", { dark }).catch(console.error);
+}
+
+function isDark(): boolean {
+  return document.documentElement.getAttribute("data-theme") === "dark";
+}
+
 // --- the window follows the content ---
 
 const panel = document.querySelector(".panel") as HTMLElement;
@@ -504,6 +558,8 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
+$("theme").addEventListener("click", () => applyTheme(!isDark(), true));
+
 $("run").addEventListener("click", extract);
 $("recheck").addEventListener("click", runPreflight);
 $("check-screen").addEventListener("click", checkScreenRecording);
@@ -519,6 +575,10 @@ $("setup").addEventListener("click", () => {
   runPreflight();
 });
 $("again").addEventListener("click", () => show("task"));
+
+// The shell starts light so the first frame is already frosted correctly.
+// This re-asserts it either way rather than assuming the two sides agree.
+applyTheme(storedTheme() === "dark", false);
 
 show("preflight");
 runPreflight();

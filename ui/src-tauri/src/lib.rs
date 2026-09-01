@@ -88,6 +88,16 @@ fn resize_panel(app: tauri::AppHandle, height: f64) {
     overlay::resize(&app, height);
 }
 
+/// Applies the chosen theme to the window and to the blur behind it.
+///
+/// The frontend owns the choice — it is the side that persists it and draws
+/// it — but the blur is an AppKit layer the frontend cannot reach, so the
+/// choice has to be told to the shell as well as to the stylesheet.
+#[tauri::command]
+fn set_theme(app: tauri::AppHandle, dark: bool) {
+    overlay::set_theme(&app, dark);
+}
+
 /// Finds the runtime binary.
 ///
 /// The bundled copy is preferred so a shipped app never depends on a checkout.
@@ -138,6 +148,7 @@ pub fn run() {
             dismiss,
             set_pinned,
             resize_panel,
+            set_theme,
             get_screen_context,
             check_screen_recording,
             request_screen_recording
