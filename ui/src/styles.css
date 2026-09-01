@@ -50,7 +50,10 @@ body {
 
 /* The panel is the only thing that paints. */
 .panel {
-  height: 100vh;
+  /* Fills the window when the content is shorter, so the frosted surface is
+     never a partial rectangle with a transparent gap under it. The window is
+     sized to .panel-body, so beyond that this only matters mid-resize. */
+  min-height: 100vh;
   padding: 1.5rem 1.75rem 2rem;
   border-radius: 14px;
   background: var(--panel-bg);
@@ -59,7 +62,17 @@ body {
      app you summoned it from rather than covering it. */
   backdrop-filter: saturate(180%) blur(28px);
   -webkit-backdrop-filter: saturate(180%) blur(28px);
+  /* Only reachable once the content is taller than the window is allowed to
+     grow. Below that the window follows the content and this never engages. */
   overflow-y: auto;
+}
+
+/* Height here is content height: nothing constrains it, which is what makes it
+   safe to measure and feed back to the window. Constraining it — a percentage
+   height, a flex stretch — would make it report the window's height back to
+   the window, and it could then never shrink. */
+.panel-body {
+  height: auto;
 }
 
 .context-banner {

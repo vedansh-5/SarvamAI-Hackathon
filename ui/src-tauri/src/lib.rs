@@ -72,6 +72,22 @@ fn dismiss(app: tauri::AppHandle) {
     overlay::hide(&app);
 }
 
+/// Asks the panel to stay up when it loses focus.
+///
+/// The window knows which screen it is showing; the shell knows what a panel
+/// is. This is the one bit the window has to tell the shell, and it is a
+/// presentation request only — it cannot reach the runtime or a plan.
+#[tauri::command]
+fn set_pinned(pinned: bool) {
+    overlay::set_pinned(pinned);
+}
+
+/// Reports how tall the content is so the window can match it.
+#[tauri::command]
+fn resize_panel(app: tauri::AppHandle, height: f64) {
+    overlay::resize(&app, height);
+}
+
 /// Finds the runtime binary.
 ///
 /// The bundled copy is preferred so a shipped app never depends on a checkout.
@@ -120,6 +136,8 @@ pub fn run() {
             prepare,
             commit,
             dismiss,
+            set_pinned,
+            resize_panel,
             get_screen_context,
             check_screen_recording,
             request_screen_recording
