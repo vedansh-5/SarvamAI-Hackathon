@@ -160,6 +160,53 @@ func (d Decision) Validate() error {
 	return nil
 }
 
+// leaked reports literal values a template baked in instead of referencing.
+//
+// This is the failure that caching by shape makes permanent. Writing the
+// decision while looking at one instruction, a model will happily produce
+// "the top {n0} stories from the Hacker News homepage" — templating the number
+// but hardcoding the site. That is correct for the instruction in front of it
+// and wrong for every later one of the same shape, and because the decision is
+// cached, the wrongness is durable and silent: lobste.rs gets asked for Hacker
+// News stories forever.
+//
+// So it is a floor rather than an instruction. The prompt asks for templates;
+// this refuses anything else.
+func leaked(tmpl string, lits Literals) []string {
+	var found []string
+	for key, value := range lits {
+		v := strings.TrimSpace(value)
+		// Short values are not evidence of anything — a bare "5" appears
+		// inside ordinary prose and inside longer numbers.
+		if len(v) < 3 {
+			continue
+		}
+		if containsWord(strings.ToLower(tmpl), strings.ToLower(v)) {
+			found = append(found, fmt.Sprintf("%q (should be {%s})", v, key))
+		}
+	}
+	sort.Strings(found)
+	return found
+}
+
+// containsWord reports whether needle appears in haystack on word boundaries,
+// so "10" does not match inside "100".
+func containsWord(haystack, needle string) bool {
+	for i := 0; i+len(needle) <= len(haystack); i++ {
+		if haystack[i:i+len(needle)] != needle {
+			continue
+		}
+		if i > 0 && isWordish(rune(haystack[i-1])) {
+			continue
+		}
+		if end := i + len(needle); end < len(haystack) && isWordish(rune(haystack[end])) {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
 // Resolve fills a decision's templates with one instruction's literals.
 //
 // A slot that fills to nothing is dropped rather than passed on empty, so a
@@ -172,6 +219,12 @@ func (d Decision) Resolve(instruction, shape string, lits Literals) (Route, erro
 
 	slots := make(map[string]string, len(d.Slots))
 	for name, tmpl := range d.Slots {
+		if bad := leaked(tmpl, lits); len(bad) > 0 {
+			return Route{}, fmt.Errorf(
+				"route: slot %q hardcodes this instruction's values instead of referencing them: %s — "+
+					"the decision is reused for every instruction of this shape, so those must be placeholders",
+				name, strings.Join(bad, ", "))
+		}
 		if v := Fill(tmpl, lits); v != "" {
 			slots[name] = v
 		}

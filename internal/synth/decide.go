@@ -22,7 +22,16 @@ Answer about the SHAPE, not about this one instruction. Your answer is cached an
 
 Only use placeholders listed as available. Inventing one that is not there makes the answer unusable.
 
+Never write a value into a slot when a placeholder stands for it. If the instruction mentions Hacker News and the shape has {u0}, the slot says "{u0}" — not "Hacker News", and not "the Hacker News homepage". Naming anything you can only see in this one instruction bakes it into every future use of the shape.
+
 Pick the kind that genuinely fits. If none does, answer with kind "unknown" and say why in one line: that is a useful answer, and guessing at the nearest kind is not.`
+
+// A decision is a few hundred bytes. The budget is not for the answer — it is
+// for the thinking several of the free models do before they get to it, which
+// they charge to the same allowance. Too low and the response is cut off
+// mid-reasoning and never reaches the JSON at all, which surfaces as a token
+// limit error rather than anything that looks like a routing problem.
+const defaultRouteMaxTokens = 16384
 
 // routeSchema constrains the decision. Slots is an open map because each kind
 // has its own, and enumerating them all here would be a second copy of
@@ -103,7 +112,7 @@ func (c *OpenAICompatible) Decide(ctx context.Context, req route.Request) (route
 
 	maxTokens := c.MaxTokens
 	if maxTokens == 0 {
-		maxTokens = 4096
+		maxTokens = defaultRouteMaxTokens
 	}
 
 	system := routeSystemPrompt
@@ -139,9 +148,11 @@ func (c *OpenAICompatible) Decide(ctx context.Context, req route.Request) (route
 	if err := json.Unmarshal([]byte(text), &d); err != nil {
 		return route.Decision{}, fmt.Errorf("synth: decode decision: %w (output %q)", err, truncate(text, 300))
 	}
-	if err := d.Validate(); err != nil {
-		return route.Decision{}, fmt.Errorf("synth: %w", err)
-	}
+	// Deliberately not validated here. The router owns the retry ladder, and a
+	// decision rejected inside this function comes back as a transport-shaped
+	// error that skips it — so a fixable answer would end the task instead of
+	// being sent back with the reason. Decoding is this function's job;
+	// judging is the router's.
 	return d, nil
 }
 

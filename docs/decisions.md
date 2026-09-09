@@ -830,13 +830,40 @@ far from the cause, with an error the user cannot act on. Declining is a better
 answer than a wrong route, and it is what lets the overlay say which
 capabilities exist.
 
-**Two floors the model cannot lower**, mirroring the verifier's (D-016):
+**Three floors the model cannot lower**, mirroring the verifier's (D-016):
 
 - A decision naming a kind the engine cannot run is rejected.
 - A decision whose required slots do not *resolve* is rejected — not merely
   whose templates are non-empty. A decision can be structurally sound and still
   fill to nothing, because the template references `{u0}` and this instruction
   carries no URL. That is a miss, not a route.
+- **A template that hardcodes this instruction's values is rejected.** Found
+  against a live model, not in review. Asked about
+  `"the top 10 stories from https://news.ycombinator.com"`, it templated the
+  number and hardcoded the site:
+
+  ```
+  intent: "the top {n0} stories from the Hacker News homepage"
+  ```
+
+  Correct for the instruction in front of it, wrong for every later one of the
+  same shape — and because the decision is cached, the wrongness is durable and
+  silent. `lobste.rs` was asked for Hacker News stories, and nothing failed.
+  The prompt now forbids it *and* the runtime refuses it, because caching makes
+  this the one mistake that does not announce itself. Values shorter than three
+  characters are exempt: a bare `10` occurs in ordinary prose and inside longer
+  numbers, so matching on it would reject correct templates.
+
+**Where validation lives.** The decider decodes; the router judges. Validating
+inside the decider was tried and reverted: the error came back shaped like a
+transport failure and skipped the retry ladder, so a fixable answer ended the
+task instead of being sent back with the reason.
+
+**Token budget.** Routing allows 16384 tokens against a decision that is a few
+hundred bytes. The budget is not for the answer but for the reasoning several
+free models emit before it, charged to the same allowance. At 4096 and at 8192
+responses were cut off mid-reasoning and never reached the JSON — surfacing as
+a token-limit error rather than as anything resembling a routing problem.
 
 **Known limits.** Shaping is lexical, so paraphrases still miss the cache
 (Q-12, now sharper — it applies to routing as well as extraction). Bare

@@ -103,3 +103,55 @@ func TestUnknownIsAllowedToCarryNoSlots(t *testing.T) {
 		t.Errorf("kind = %q", r.Kind)
 	}
 }
+
+// The failure that caching by shape makes permanent: the model templates the
+// number but hardcodes the site, so every later instruction of this shape asks
+// the wrong page for the right thing — silently, and forever.
+func TestATemplateThatHardcodesAValueIsRejected(t *testing.T) {
+	shape, lits := Shape("the top 10 stories from https://news.ycombinator.com")
+
+	d := Decision{
+		Kind: KindWebExtract,
+		Slots: map[string]string{
+			"url":    "{u0}",
+			"intent": "the top {n0} stories from https://news.ycombinator.com",
+		},
+	}
+
+	_, err := d.Resolve("irrelevant", shape, lits)
+	if err == nil {
+		t.Fatal("a template with the URL baked into it was accepted")
+	}
+	if !strings.Contains(err.Error(), "u0") {
+		t.Errorf("error should name the placeholder that was skipped, got: %v", err)
+	}
+}
+
+// Short values are not evidence. A bare "10" turns up inside ordinary prose
+// and inside longer numbers, and rejecting on it would make the check fire on
+// correct templates.
+func TestShortValuesDoNotTriggerTheLeakCheck(t *testing.T) {
+	shape, lits := Shape("the top 10 stories from https://news.ycombinator.com")
+
+	d := Decision{
+		Kind:  KindWebExtract,
+		Slots: map[string]string{"url": "{u0}", "intent": "top {n0} stories"},
+	}
+	if _, err := d.Resolve("irrelevant", shape, lits); err != nil {
+		t.Fatalf("a correct template was rejected: %v", err)
+	}
+}
+
+// Word boundaries, so a literal "100" does not match inside "1000" and a
+// template mentioning "10" is not read as leaking a literal "100".
+func TestTheLeakCheckRespectsWordBoundaries(t *testing.T) {
+	shape, lits := Shape("the top 100 stories from example.com")
+
+	d := Decision{
+		Kind:  KindWebExtract,
+		Slots: map[string]string{"url": "{u0}", "intent": "top {n0} of the 1000 stories"},
+	}
+	if _, err := d.Resolve("irrelevant", shape, lits); err != nil {
+		t.Fatalf("100 was matched inside 1000: %v", err)
+	}
+}
