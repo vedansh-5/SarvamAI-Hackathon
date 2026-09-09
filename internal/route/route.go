@@ -26,24 +26,79 @@ const (
 	KindUnknown Kind = "unknown"
 )
 
-// Kinds the model may choose from, in the order they are offered to it.
-var known = []Kind{KindWebExtract, KindAppAction}
-
-func (k Kind) valid() bool {
-	for _, c := range known {
-		if k == c {
-			return true
-		}
-	}
-	return k == KindUnknown
+// Slot is one parameter a kind needs.
+type Slot struct {
+	Name     string
+	Describe string
+	Required bool
 }
 
-// Slots each kind requires. A decision missing one of these is rejected
-// before it can reach the engine, which is the cheapest place to catch a model
-// that answered in the wrong shape.
-var required = map[Kind][]string{
-	KindWebExtract: {"url", "intent"},
-	KindAppAction:  {"app", "action"},
+// Spec is everything known about a kind: what it does and what it needs.
+//
+// One definition, two consumers — the prompt is generated from this and the
+// validator checks against it. Describing the kinds to the model in one place
+// and enforcing them in another is how a router ends up rejecting exactly the
+// answers it asked for.
+type Spec struct {
+	Kind     Kind
+	Describe string
+	Slots    []Slot
+}
+
+// Specs are the kinds the model may choose from, in the order it is offered
+// them. Adding a capability to VANS means adding a Spec: until one exists,
+// there is no way for a user to ask for it.
+var Specs = []Spec{
+	{
+		Kind:     KindWebExtract,
+		Describe: "Read a set of repeating records off a web page and write them somewhere.",
+		Slots: []Slot{
+			{"url", "the page to read, as an address", true},
+			{"intent", "what to pull out of it, in plain words", true},
+			{"title", "what to call the note that gets written", false},
+		},
+	},
+	{
+		Kind:     KindAppAction,
+		Describe: "Do something inside a running macOS application, the way a person would.",
+		Slots: []Slot{
+			{"app", "the application to act in", true},
+			{"action", "what to do there, in plain words", true},
+			{"target", "the specific thing to act on, if the instruction names one", false},
+		},
+	},
+}
+
+func specOf(k Kind) (Spec, bool) {
+	for _, s := range Specs {
+		if s.Kind == k {
+			return s, true
+		}
+	}
+	return Spec{}, false
+}
+
+// requiredSlots lists the slots a kind cannot do without.
+func requiredSlots(k Kind) []string {
+	spec, ok := specOf(k)
+	if !ok {
+		return nil
+	}
+	var out []string
+	for _, s := range spec.Slots {
+		if s.Required {
+			out = append(out, s.Name)
+		}
+	}
+	return out
+}
+
+func (k Kind) valid() bool {
+	if k == KindUnknown {
+		return true
+	}
+	_, ok := specOf(k)
+	return ok
 }
 
 // Decision is what the model writes: which kind, and how to build that kind's
@@ -93,7 +148,7 @@ func (d Decision) Validate() error {
 		return nil
 	}
 	var missing []string
-	for _, slot := range required[d.Kind] {
+	for _, slot := range requiredSlots(d.Kind) {
 		if strings.TrimSpace(d.Slots[slot]) == "" {
 			missing = append(missing, slot)
 		}
@@ -134,7 +189,7 @@ func (d Decision) Resolve(instruction, shape string, lits Literals) (Route, erro
 	// sound and still resolve to nothing — the template referenced {u0} and
 	// this instruction carried no URL — and that is a miss, not a route.
 	if d.Kind != KindUnknown {
-		for _, slot := range required[d.Kind] {
+		for _, slot := range requiredSlots(d.Kind) {
 			if slots[slot] == "" {
 				return Route{}, fmt.Errorf(
 					"route: %s resolved with no %s (template %q had nothing to fill from)",
