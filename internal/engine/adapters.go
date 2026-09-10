@@ -50,9 +50,17 @@ type ChromiumBrowser struct {
 	// "127.0.0.1:9222".
 	HostPort string
 
+	// mu guards the connection and page handles below, which are rebuilt on
+	// reconnect.
 	mu   sync.Mutex
 	conn *cdp.Conn
 	page *cdp.Page
+
+	// nav serialises a whole navigate-and-capture against other requests
+	// sharing this tab. Distinct from mu, which is held only for as long as it
+	// takes to hand out a connection — holding that one across a page load
+	// would block every reconnect for the duration.
+	nav sync.Mutex
 }
 
 // NewChromiumBrowser returns a browser bound to a debugging endpoint. Nothing
@@ -143,6 +151,13 @@ func (b *ChromiumBrowser) do(ctx context.Context, op func(*cdp.Page) error) erro
 }
 
 // Navigate loads pageURL and waits for the load event.
+// Lock and Unlock make ChromiumBrowser a sync.Locker, which the engine uses to
+// serialise a navigate-and-capture against other requests sharing this tab.
+func (b *ChromiumBrowser) Lock() { b.nav.Lock() }
+
+// Unlock releases the page.
+func (b *ChromiumBrowser) Unlock() { b.nav.Unlock() }
+
 func (b *ChromiumBrowser) Navigate(ctx context.Context, pageURL string) error {
 	return b.do(ctx, func(p *cdp.Page) error { return p.Navigate(ctx, pageURL) })
 }

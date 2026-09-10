@@ -26,13 +26,6 @@ Never write a value into a slot when a placeholder stands for it. If the instruc
 
 Pick the kind that genuinely fits. If none does, answer with kind "unknown" and say why in one line: that is a useful answer, and guessing at the nearest kind is not.`
 
-// A decision is a few hundred bytes. The budget is not for the answer — it is
-// for the thinking several of the free models do before they get to it, which
-// they charge to the same allowance. Too low and the response is cut off
-// mid-reasoning and never reaches the JSON at all, which surfaces as a token
-// limit error rather than anything that looks like a routing problem.
-const defaultRouteMaxTokens = 16384
-
 // routeSchema constrains the decision. Slots is an open map because each kind
 // has its own, and enumerating them all here would be a second copy of
 // route.Specs to keep in step.
@@ -112,7 +105,7 @@ func (c *OpenAICompatible) Decide(ctx context.Context, req route.Request) (route
 
 	maxTokens := c.MaxTokens
 	if maxTokens == 0 {
-		maxTokens = defaultRouteMaxTokens
+		maxTokens = int(DefaultMaxTokens)
 	}
 
 	system := routeSystemPrompt

@@ -17,6 +17,13 @@ const (
 	// KindWebExtract is V1: read records off a page, write them somewhere.
 	KindWebExtract Kind = "web.extract"
 
+	// KindWebSearch is a question with no page attached: find the page first,
+	// then read it. Its own kind rather than web.extract with a cleverer URL
+	// slot, because what the user supplies is a phrase, not an address, and a
+	// slot that sometimes holds one and sometimes the other is a slot nothing
+	// can validate.
+	KindWebSearch Kind = "web.search"
+
 	// KindAppAction is Phase 3: do something in a running application.
 	KindAppAction Kind = "app.act"
 
@@ -56,6 +63,14 @@ var Specs = []Spec{
 			{"url", "the page to read, as an address", true},
 			{"intent", "what to pull out of it, in plain words", true},
 			{"title", "what to call the note that gets written", false},
+		},
+	},
+	{
+		Kind:     KindWebSearch,
+		Describe: "Search the web for something and read the results back.",
+		Slots: []Slot{
+			{"query", "what to search for, as the words to put in the box", true},
+			{"engine", "which search engine, only if the instruction names one", false},
 		},
 	},
 	{

@@ -36,8 +36,13 @@ type OpenAICompatible struct {
 	// SchemaMode controls how the response shape is constrained.
 	SchemaMode SchemaMode
 
-	// MaxTokens defaults to 4096. Programs are small; reasoning models
-	// preamble before them.
+	// MaxTokens defaults to DefaultMaxTokens — the same allowance the
+	// Anthropic path uses, and for the same reason. The budget is not for the
+	// answer, which is a few hundred bytes, but for the thinking several of
+	// the free models emit before reaching it, billed to the same allowance.
+	// At 4096 responses were cut off mid-reasoning and never got to the JSON,
+	// surfacing as a token limit rather than as anything resembling the real
+	// problem.
 	MaxTokens int
 
 	// Retries is how many times a transient failure is retried. Defaults to
@@ -128,7 +133,7 @@ func (c *OpenAICompatible) Synthesize(ctx context.Context, req Request) (extract
 
 	maxTokens := c.MaxTokens
 	if maxTokens == 0 {
-		maxTokens = 4096
+		maxTokens = int(DefaultMaxTokens)
 	}
 
 	system := systemPrompt

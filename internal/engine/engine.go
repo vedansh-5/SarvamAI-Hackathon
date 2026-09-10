@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vedansh/vans/internal/extract"
@@ -333,6 +334,26 @@ func (e *Engine) Prepare(ctx context.Context, task Task) (*Plan, error) {
 // This is rung 0: a dropped CDP socket or a relaunched app is a reconnect, not
 // a task failure, and it costs no model call.
 func (e *Engine) snapshot(ctx context.Context, target string) (src, pageURL string, err error) {
+	// One browser drives one tab, and navigating is a state change on shared
+	// state. Two requests in flight at once send the tab to different pages
+	// and then each read whichever won — surfacing as one failing with
+	// net::ERR_ABORTED and, worse because it is silent, the other reading a
+	// page it never asked for and signing it as its own.
+	//
+	// The lock lives on the browser rather than here because that is what it
+	// protects, and because the RPC server hands each request its own copy of
+	// the Engine to attach a logger to: a lock held in this struct would be
+	// copied along with it and guard nothing.
+	//
+	// Held across navigate, read-back and capture, since those three are one
+	// operation. A mutex rather than a retry — retrying an aborted navigation
+	// races the same way. A tab per request is the other answer, and the one
+	// to reach for when concurrency is worth having rather than survivable.
+	if l, ok := e.Browser.(sync.Locker); ok {
+		l.Lock()
+		defer l.Unlock()
+	}
+
 	attempts := e.transientRetries() + 1
 
 	for i := 0; i < attempts; i++ {
