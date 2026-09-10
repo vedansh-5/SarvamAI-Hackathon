@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow, LogicalPosition } from "@tauri-apps/api/window";
 
 // --- shapes mirrored from internal/rpc/protocol.go ---
 
@@ -99,12 +100,81 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 /// to click the terminal.
 const PINNED = new Set(["preflight"]);
 
+const ICONS: Record<string, string> = {
+  rss: '<path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.6"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  chart: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+  pencil: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+};
+
+interface Suggestion {
+  icon: string;
+  text: string;
+  destination?: string;
+}
+
+const SUGGESTIONS: Suggestion[] = [
+  { icon: "rss", text: "the top stories on news.ycombinator.com" },
+  { icon: "search", text: "search for noise-cancelling headphones under $200" },
+  { icon: "chart", text: "search for today's biggest NASDAQ movers" },
+  { icon: "pencil", text: "the top stories on news.ycombinator.com", destination: "notes" },
+];
+
+function icon(name: string): SVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("width", "15");
+  svg.setAttribute("height", "15");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  svg.innerHTML = ICONS[name] ?? "";
+  return svg;
+}
+
+function renderSuggestions(into: HTMLElement, items: Suggestion[]) {
+  clear(into);
+  for (const s of items) {
+    const writes = !!s.destination && destinationWrites(s.destination);
+    const row = el("button", writes ? "suggestion write" : "suggestion");
+    const wrap = el("span", "icon");
+    wrap.appendChild(icon(s.icon));
+    row.appendChild(wrap);
+    row.appendChild(el("span", undefined, s.destination ? `${s.text} → ${label(s.destination)}` : s.text));
+    row.addEventListener("click", () => {
+      ($("intent") as HTMLInputElement).value = s.text;
+      if (s.destination) pickDestination(s.destination);
+      show("ask");
+      extract();
+    });
+    into.appendChild(row);
+  }
+}
+
+let toastTimer = 0;
+
+function toast(message: string) {
+  const node = $("toast");
+  node.textContent = message;
+  node.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => {
+    node.hidden = true;
+    fitWindow();
+  }, 2200);
+}
+
 function show(id: string) {
   for (const s of document.querySelectorAll("section")) {
     (s as HTMLElement).hidden = s.id !== id;
   }
   invoke("set_pinned", { pinned: PINNED.has(id) }).catch(console.error);
-  setReading(id !== "task");
+  adjusting = id === "preflight";
+  setReading(id !== "ask");
+  paintTint();
+  $("write-bar").hidden = id !== "confirm";
 }
 
 /// Every value that reaches the DOM goes through a text node.
@@ -160,18 +230,26 @@ async function runPreflight(advance = true) {
 
   clear(checks);
   for (const c of result.checks) {
-    const box = el("div", `check ${c.ok ? "ok" : "bad"}`);
-    box.appendChild(el("div", "check-label", `${c.ok ? "✓" : "✗"}  ${c.label}`));
-    box.appendChild(el("div", "check-detail", c.detail));
-    if (!c.ok && c.fix) {
-      box.appendChild(el("pre", "fix", c.fix));
-    }
-    checks.appendChild(box);
+    checks.appendChild(checkRow(c));
   }
 
   if (result.ready && advance) {
-    show("task");
+    show("ask");
   }
+}
+
+function checkRow(c: Check): HTMLElement {
+  const box = el("div", c.ok ? "check ok" : "check");
+  box.appendChild(el("span", "check-dot"));
+
+  const text = el("div", "check-text");
+  text.appendChild(el("div", "check-label", c.label));
+  text.appendChild(el("div", "check-detail", c.detail));
+  if (!c.ok && c.fix) text.appendChild(el("pre", "fix", c.fix));
+  box.appendChild(text);
+
+  box.appendChild(el("span", "check-tag", c.ok ? "Granted" : "Needed"));
+  return box;
 }
 
 async function checkNotes() {
@@ -182,11 +260,7 @@ async function checkNotes() {
   try {
     const c = await invoke<Check>("check_notes");
     clear(out);
-    const box = el("div", `check ${c.ok ? "ok" : "bad"}`);
-    box.appendChild(el("div", "check-label", `${c.ok ? "✓" : "✗"}  ${c.label}`));
-    box.appendChild(el("div", "check-detail", c.detail));
-    if (c.fix) box.appendChild(el("pre", "fix", c.fix));
-    out.appendChild(box);
+    out.appendChild(checkRow(c));
   } catch (e) {
     clear(out);
     out.appendChild(el("p", "bad", isRpcError(e) ? e.message : String(e)));
@@ -202,31 +276,41 @@ async function extract() {
   const destination = chosen;
 
   if (!instruction) {
-    $("status").textContent = "Say what you want.";
+    ($("intent") as HTMLInputElement).focus();
     return;
   }
 
-  const run = $("run") as HTMLButtonElement;
-  const progress = $("progress");
-
-  run.disabled = true;
-  $("status").textContent = "Working…";
-  clear(progress);
-  progress.hidden = false;
-  progress.textContent = "Thinking…";
+  $("working-query").textContent = instruction;
+  $("progress").textContent = "Working";
+  setProgress(6);
+  show("working");
 
   try {
     const plan = await invoke<Plan>("prepare", { instruction, destination });
+    setProgress(100);
     currentPlan = plan;
-    renderPlan(plan);
-    show("plan");
+    if (plan.needs_commit) {
+      renderConfirm(plan);
+      show("confirm");
+    } else {
+      renderResults(plan);
+      show("results");
+    }
   } catch (e) {
     renderFailure(e);
-    show("failure");
-  } finally {
-    run.disabled = false;
-    $("status").textContent = "";
+    show(isRpcError(e) && e.code === "unroutable" ? "notunderstood" : "failure");
   }
+}
+
+let progressAt = 0;
+
+function setProgress(percent: number) {
+  progressAt = percent;
+  $("progress-fill").style.width = `${percent}%`;
+}
+
+function advanceProgress() {
+  setProgress(progressAt + (92 - progressAt) * 0.35);
 }
 
 /// What a column is for, worked out from the data rather than declared.
@@ -364,38 +448,12 @@ function renderCards(into: HTMLElement, fields: string[], rows: Record<string, s
   }
 }
 
-function renderPlan(plan: Plan) {
-  const calls = plan.synthesis_calls + plan.decision_calls;
-  const cost = calls === 0
-    ? "no model calls"
-    : `${calls} model call${calls === 1 ? "" : "s"}`;
-
-  // A plan bound for the panel is the answer; one bound anywhere else is a
-  // proposal. Saying "review before writing" over something already delivered
-  // would be asking for permission that was never needed.
-  const gate = $("gate");
-  const gateNote = $("gate-note");
-  const doneRow = $("done-row");
-
-  gate.hidden = !plan.needs_commit;
-  gateNote.hidden = !plan.needs_commit;
-  doneRow.hidden = plan.needs_commit;
-
-  $("plan-heading").textContent = plan.needs_commit ? "Review before writing" : "Here it is";
-
-  // Said the way a person would say it. How many model calls it took and how
-  // the page was fingerprinted are real and worth keeping, but they are the
-  // runtime talking about itself, and they were the first line of the result.
+function renderResults(plan: Plan) {
   const n = plan.rows.length;
-  const seconds = (plan.elapsed_ms / 1000).toFixed(1);
-  let meta = `${n} result${n === 1 ? "" : "s"} from ${hostOf(plan.page_url) || plan.page_url}`;
-  meta += calls === 0 ? ` · instant, remembered` : ` · ${seconds}s`;
-  if (plan.needs_commit) {
-    meta += ` · about to go to ${plan.destination}`;
-    ($("confirm") as HTMLButtonElement).textContent = `Write to ${plan.destination}`;
-  }
-  $("plan-meta").textContent = meta;
-  $("plan-meta").title = `${cost}, ${plan.elapsed_ms} ms — page signature ${plan.signature}`;
+  const source = hostOf(plan.page_url) || plan.page_url;
+  $("results-kicker").textContent =
+    `${n} result${n === 1 ? "" : "s"} from ${source}${plan.decision_calls + plan.synthesis_calls === 0 ? " · remembered" : ""}`;
+  $("results-kicker").title = timing(plan);
 
   renderCards($("cards"), plan.fields, plan.rows);
 
@@ -403,39 +461,61 @@ function renderPlan(plan: Plan) {
   clear(table);
 
   const head = el("tr");
-  for (const f of plan.fields) {
-    head.appendChild(el("th", undefined, prettyField(f)));
-  }
+  for (const f of plan.fields) head.appendChild(el("th", undefined, prettyField(f)));
   table.appendChild(head);
 
   for (const row of plan.rows) {
     const tr = el("tr");
-    for (const f of plan.fields) {
-      tr.appendChild(el("td", undefined, row[f] ?? ""));
-    }
+    for (const f of plan.fields) tr.appendChild(el("td", undefined, row[f] ?? ""));
     table.appendChild(tr);
   }
+}
+
+function renderConfirm(plan: Plan) {
+  const n = plan.rows.length;
+  $("confirm-title").textContent =
+    `Write ${n} result${n === 1 ? "" : "s"} to ${label(plan.destination)}?`;
+  $("confirm-preview").textContent = documentText(plan);
+  ($("commit") as HTMLButtonElement).textContent = `Confirm & write`;
+}
+
+function documentText(plan: Plan): string {
+  const lines = [plan.fields.map(prettyField).join("\t")];
+  for (const row of plan.rows) {
+    lines.push(
+      plan.fields
+        .map((f) => (row[f] ?? "").replace(/[\t\n\r]/g, " "))
+        .join("\t"),
+    );
+  }
+  return lines.join("\n");
+}
+
+function timing(plan: Plan): string {
+  const calls = plan.synthesis_calls + plan.decision_calls;
+  const cost = calls === 0 ? "no model calls" : `${calls} model call${calls === 1 ? "" : "s"}`;
+  return `${cost}, ${plan.elapsed_ms} ms — page signature ${plan.signature}`;
 }
 
 async function confirmWrite() {
   if (!currentPlan) return;
 
-  const button = $("confirm") as HTMLButtonElement;
+  const where = label(currentPlan.destination);
+  const button = $("commit") as HTMLButtonElement;
   button.disabled = true;
   button.textContent = "Writing…";
 
   try {
     const receipt = await invoke<Receipt>("commit", { planId: currentPlan.plan_id });
-    $("done-message").textContent = receipt.verified
-      ? `“${receipt.title}” is in Notes, read back and confirmed.`
-      : `“${receipt.title}” was written, but could not be read back to confirm it.`;
-    show("done");
+    toast(receipt.verified ? `Saved to ${where}` : `Written to ${where}, unverified`);
+    ($("intent") as HTMLInputElement).value = "";
+    show("ask");
   } catch (e) {
     renderFailure(e);
     show("failure");
   } finally {
     button.disabled = false;
-    button.textContent = "Write to Notes";
+    button.textContent = "Confirm & write";
     currentPlan = null;
   }
 }
@@ -477,6 +557,14 @@ function renderFailure(e: unknown) {
     return;
   }
 
+  if (e.code === "unroutable") {
+    const data = e.data as Unroutable;
+    $("notunderstood-why").textContent = data?.why ?? "";
+    $("notunderstood-why").hidden = !data?.why;
+    renderSuggestions($("can-do"), SUGGESTIONS);
+    return;
+  }
+
   const plain = PLAIN[e.code];
   $("failure-title").textContent = plain?.title ?? "That didn't work";
   $("failure-message").textContent = plain?.message ?? "Something went wrong inside VANS.";
@@ -486,18 +574,8 @@ function renderFailure(e: unknown) {
       renderUnresolved(detail, e.data as Unresolved);
       break;
     }
-    case "unroutable": {
-      const data = e.data as Unroutable;
-      if (data?.can?.length) {
-        detail.appendChild(el("h3", undefined, "What VANS can do"));
-        const list = el("ul");
-        for (const c of data.can) list.appendChild(el("li", undefined, c));
-        detail.appendChild(list);
-      }
-      break;
-    }
     case "no_browser": {
-      const toSetup = el("button", "secondary", "Show me how") as HTMLButtonElement;
+      const toSetup = el("button", "btn secondary", "Show me how") as HTMLButtonElement;
       toSetup.addEventListener("click", () => {
         show("preflight");
         runPreflight(false);
@@ -575,29 +653,23 @@ async function checkScreenRecording() {
   try {
     const granted = await invoke<boolean>("check_screen_recording");
     clear(out);
-    if (granted) {
-      const box = el("div", "check ok");
-      box.appendChild(el("div", "check-label", "✓  Screen Recording"));
-      box.appendChild(
-        el("div", "check-detail", "Permission granted. VANS can capture display context."),
-      );
-      out.appendChild(box);
-    } else {
-      const box = el("div", "check bad");
-      box.appendChild(el("div", "check-label", "✗  Screen Recording"));
-      box.appendChild(
-        el("div", "check-detail", "Permission not granted. Click below to request access."),
-      );
-      const promptBtn = el(
-        "button",
-        "secondary",
-        "Request Screen Recording Access",
-      ) as HTMLButtonElement;
+    const row = checkRow({
+      name: "screen",
+      label: "Screen Recording",
+      ok: granted,
+      detail: granted
+        ? "VANS can see what you are looking at."
+        : "Not granted yet. Ask for it below.",
+      required: false,
+    });
+    out.appendChild(row);
+
+    if (!granted) {
+      const promptBtn = el("button", "btn secondary", "Request access") as HTMLButtonElement;
       promptBtn.addEventListener("click", () => {
         invoke("request_screen_recording").catch(console.error);
       });
-      box.appendChild(promptBtn);
-      out.appendChild(box);
+      out.appendChild(promptBtn);
     }
   } catch (e) {
     clear(out);
@@ -659,11 +731,13 @@ async function loadDestinations() {
 
   clear(group);
   for (const d of destinations) {
-    const label = el("label", undefined, d.name) as HTMLLabelElement;
-    label.setAttribute("role", "radio");
-    label.dataset.name = d.name;
-    label.addEventListener("click", () => pickDestination(d.name));
-    group.appendChild(label);
+    const button = el("button", undefined, label(d.name)) as HTMLButtonElement;
+    button.type = "button";
+    button.setAttribute("role", "radio");
+    button.dataset.name = d.name;
+    if (d.touches_world) button.appendChild(el("span", "write-dot"));
+    button.addEventListener("click", () => pickDestination(d.name));
+    group.appendChild(button);
   }
 
   // The panel is first and safest, and starting anywhere else would mean a
@@ -671,14 +745,24 @@ async function loadDestinations() {
   pickDestination(destinations[0]?.name ?? "");
 }
 
+const LABELS: Record<string, string> = { panel: "Here", clipboard: "Clipboard", notes: "Note" };
+
+function label(name: string): string {
+  return LABELS[name] ?? prettyField(name);
+}
+
+function destinationWrites(name: string): boolean {
+  return !!destinations.find((d) => d.name === name)?.touches_world;
+}
+
 function pickDestination(name: string) {
   chosen = name;
 
-  for (const el of $("destination").children) {
-    const label = el as HTMLElement;
-    const on = label.dataset.name === name;
-    label.classList.toggle("on", on);
-    label.setAttribute("aria-checked", String(on));
+  for (const node of $("destination").children) {
+    const button = node as HTMLElement;
+    const on = button.dataset.name === name;
+    button.classList.toggle("on", on);
+    button.setAttribute("aria-checked", String(on));
   }
 
   const d = destinations.find((x) => x.name === name);
@@ -727,6 +811,8 @@ function storedLook(): Look {
 }
 
 let look = DEFAULT_LOOK;
+let frosted: boolean | null = null;
+let frostedDark: boolean | null = null;
 
 const READABLE = 0.94;
 
@@ -754,10 +840,12 @@ function applyLook(next: Look, persist: boolean) {
   $("opacity-value").textContent = `${next.tint}%`;
   ($("blur") as HTMLInputElement).checked = next.blur;
 
-  // The blur is an AppKit layer the stylesheet cannot reach, so it has to be
-  // told separately — and told the theme, since the material it uses differs
-  // between light and dark.
-  invoke("set_blur", { blurred: next.blur, dark: isDark() }).catch(console.error);
+  const dark = isDark();
+  if (next.blur !== frosted || dark !== frostedDark) {
+    frosted = next.blur;
+    frostedDark = dark;
+    invoke("set_blur", { blurred: next.blur, dark }).catch(console.error);
+  }
 
   if (persist) {
     try {
@@ -798,11 +886,7 @@ function applyTheme(dark: boolean, persist: boolean) {
     root.removeAttribute("data-theme");
   }
 
-  $("theme").textContent = dark ? "Light" : "Dark";
-  $("theme").setAttribute(
-    "aria-label",
-    dark ? "Switch to the light theme" : "Switch to the dark theme",
-  );
+  ($("dark") as HTMLInputElement).checked = dark;
 
   if (persist) {
     try {
@@ -861,35 +945,21 @@ new ResizeObserver(fitWindow).observe(panelBody);
 
 // --- wiring ---
 
-/// Progress is a status line, not a log.
-///
-/// The runtime narrates itself in its own terms — page signatures, cache hits,
-/// programs rejected — and all of it is true and worth having when something
-/// goes wrong. On screen, mid-request, it was a monospace dump of internals
-/// where a person wanted to know whether anything was happening. The latest
-/// line only, in plain type; the full trace is still on stderr for whoever
-/// needs it.
 listen<{ for_request: number; message: string }>("engine://progress", (event) => {
-  const progress = $("progress");
-  progress.hidden = false;
-  progress.textContent = humanise(event.payload.message);
+  $("progress").textContent = humanise(event.payload.message);
+  advanceProgress();
 });
 
-/// Turns the runtime's own vocabulary into something worth reading.
-///
-/// Deliberately a small set of rewrites rather than a general one: anything
-/// unrecognised passes through untouched, so a message this does not know
-/// about is still shown rather than swallowed.
 function humanise(message: string): string {
   const url = message.match(/page (\S+) signature/);
-  if (url) return `Reading ${hostOf(url[1]) || url[1]}…`;
+  if (url) return `Reading ${hostOf(url[1]) || url[1]}`;
 
   if (message.startsWith("cache hit")) {
     const n = message.match(/(\d+) rows/);
     return n ? `Found ${n[1]} — no thinking needed` : "Found it — no thinking needed";
   }
   if (message.startsWith("route cache hit")) return "Understood that already";
-  if (message.startsWith("instruction shape")) return "Working out what you meant…";
+  if (message.startsWith("instruction shape")) return "Working out what you meant";
   if (message.startsWith("routed to")) return "Got it — going to work";
   if (message.includes("synthesized a working program")) return "Worked out how to read it";
   if (message.includes("rejected")) return "That did not work — trying again";
@@ -903,14 +973,10 @@ listen<ScreenContext | undefined>("overlay://shown", (event) => {
     refreshActiveContext();
   }
 
-  // A panel that comes back scrolled where it was left looks broken — the top
-  // of it is the heading that says what you are looking at.
   panel.scrollTop = 0;
 
-  // Only when it is actually on screen. During preflight the task form is
-  // hidden, and focusing into a hidden section takes the keyboard nowhere.
-  const task = $("task");
-  if (!task.hidden) {
+  const ask = $("ask");
+  if (!ask.hidden) {
     const intent = $("intent") as HTMLInputElement;
     intent.focus();
     intent.select();
@@ -919,22 +985,21 @@ listen<ScreenContext | undefined>("overlay://shown", (event) => {
 
 window.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
-  if (!$("look-panel").hidden) {
-    setLookOpen(false);
+  if (!$("confirm").hidden) {
+    currentPlan = null;
+    backToAsk();
     return;
   }
   invoke("dismiss").catch(console.error);
 });
 
-// Cards read better for a handful of results with prose; the table is better
-// for many short values. Which one is wanted depends on the answer, so it is
-// the user's call and it is remembered.
 const VIEW_KEY = "vans.view";
 
 function applyView(table: boolean, persist: boolean) {
   $("cards").hidden = table;
   $("table-wrap").hidden = !table;
-  $("view-toggle").textContent = table ? "Cards" : "Table";
+  $("view-cards").classList.toggle("on", !table);
+  $("view-table").classList.toggle("on", table);
   if (persist) {
     try {
       localStorage.setItem(VIEW_KEY, table ? "table" : "cards");
@@ -952,31 +1017,124 @@ function tableView(): boolean {
   }
 }
 
-$("view-toggle").addEventListener("click", () => applyView($("table-wrap").hidden, true));
-
-$("ask-again").addEventListener("click", () => show("task"));
-$("to-task").addEventListener("click", () => show("task"));
-
-// Return runs it. A summoned panel you have to reach for the mouse in is a
-// window, not a shortcut.
-$("intent").addEventListener("keydown", (e) => {
-  if ((e as KeyboardEvent).key === "Enter") extract();
-});
-
-function setLookOpen(open: boolean) {
-  $("look-panel").hidden = !open;
-  document.documentElement.toggleAttribute("data-look-open", open);
-  adjusting = open;
-  paintTint();
+function backToAsk() {
+  const intent = $("intent") as HTMLInputElement;
+  show("ask");
+  intent.focus();
+  intent.select();
 }
 
-$("look").addEventListener("click", (e) => {
-  e.stopPropagation();
-  setLookOpen($("look-panel").hidden);
+$("view-cards").addEventListener("click", () => applyView(false, true));
+$("view-table").addEventListener("click", () => applyView(true, true));
+
+$("ask-again").addEventListener("click", backToAsk);
+$("to-task").addEventListener("click", backToAsk);
+$("back").addEventListener("click", backToAsk);
+$("back-from-unknown").addEventListener("click", backToAsk);
+
+$("intent").addEventListener("keydown", (e) => {
+  const key = (e as KeyboardEvent).key;
+
+  if (key === "Enter") {
+    extract();
+    return;
+  }
+  if (key === "ArrowDown") {
+    e.preventDefault();
+    focusSuggestion(0);
+    return;
+  }
+  if (key === "Tab") {
+    e.preventDefault();
+    cycleDestination((e as KeyboardEvent).shiftKey ? -1 : 1);
+  }
 });
 
-document.addEventListener("click", () => setLookOpen(false));
-$("look-panel").addEventListener("click", (e) => e.stopPropagation());
+function suggestionButtons(): HTMLElement[] {
+  const list = $("ask").hidden ? $("can-do") : $("suggestions");
+  return Array.from(list.querySelectorAll<HTMLElement>(".suggestion"));
+}
+
+function focusSuggestion(index: number) {
+  const items = suggestionButtons();
+  if (!items.length) return;
+  items[Math.max(0, Math.min(index, items.length - 1))].focus();
+}
+
+function cycleDestination(by: number) {
+  if (!destinations.length) return;
+  const at = destinations.findIndex((d) => d.name === chosen);
+  const next = (at + by + destinations.length) % destinations.length;
+  pickDestination(destinations[next].name);
+}
+
+document.addEventListener("keydown", (e) => {
+  const items = suggestionButtons();
+  const at = items.indexOf(document.activeElement as HTMLElement);
+  if (at < 0) return;
+
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    focusSuggestion(at + 1);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    if (at === 0) ($("intent") as HTMLInputElement).focus();
+    else focusSuggestion(at - 1);
+  }
+});
+
+window.addEventListener("keydown", (e) => {
+  if ($("confirm").hidden) return;
+  if (e.key === "Enter") {
+    e.preventDefault();
+    confirmWrite();
+  }
+});
+
+interface Drag {
+  pointerX: number;
+  pointerY: number;
+  windowX: number;
+  windowY: number;
+}
+
+let drag: Drag | null = null;
+let dragTo: LogicalPosition | null = null;
+let dragFrame = 0;
+
+$("grip").addEventListener("mousedown", async (e) => {
+  const target = e.target as HTMLElement;
+  if (target.closest("button, input, a, select, textarea")) return;
+  e.preventDefault();
+
+  const win = getCurrentWindow();
+  try {
+    const scale = await win.scaleFactor();
+    const at = (await win.outerPosition()).toLogical(scale);
+    drag = { pointerX: e.screenX, pointerY: e.screenY, windowX: at.x, windowY: at.y };
+  } catch (err) {
+    console.error(err);
+  }
+});
+
+window.addEventListener("mousemove", (e) => {
+  if (!drag) return;
+  dragTo = new LogicalPosition(
+    drag.windowX + (e.screenX - drag.pointerX),
+    drag.windowY + (e.screenY - drag.pointerY),
+  );
+  if (!dragFrame) {
+    dragFrame = requestAnimationFrame(() => {
+      dragFrame = 0;
+      if (dragTo) getCurrentWindow().setPosition(dragTo).catch(console.error);
+    });
+  }
+});
+
+window.addEventListener("mouseup", () => {
+  drag = null;
+  dragTo = null;
+});
 
 $("opacity").addEventListener("input", (e) => {
   applyLook({ ...look, tint: Number((e.target as HTMLInputElement).value) }, true);
@@ -986,29 +1144,27 @@ $("blur").addEventListener("change", (e) => {
   applyLook({ ...look, blur: (e.target as HTMLInputElement).checked }, true);
 });
 
-$("theme").addEventListener("click", () => applyTheme(!isDark(), true));
+$("dark").addEventListener("change", (e) => {
+  applyTheme((e.target as HTMLInputElement).checked, true);
+});
 
-$("run").addEventListener("click", extract);
 $("recheck").addEventListener("click", () => runPreflight(false));
 $("check-screen").addEventListener("click", checkScreenRecording);
 $("check-notes").addEventListener("click", checkNotes);
-$("confirm").addEventListener("click", confirmWrite);
+$("commit").addEventListener("click", confirmWrite);
 $("cancel").addEventListener("click", () => {
   currentPlan = null;
-  invoke("dismiss").catch(console.error);
+  backToAsk();
 });
-$("back").addEventListener("click", () => show("task"));
 $("setup").addEventListener("click", () => {
   show("preflight");
   runPreflight(false);
 });
-$("again").addEventListener("click", () => show("task"));
 
-// The shell starts light so the first frame is already frosted correctly.
-// This re-asserts it either way rather than assuming the two sides agree.
 applyTheme(storedTheme() === "dark", false);
 applyLook(storedLook(), false);
 applyView(tableView(), false);
+renderSuggestions($("suggestions"), SUGGESTIONS);
 
 show("preflight");
 runPreflight();

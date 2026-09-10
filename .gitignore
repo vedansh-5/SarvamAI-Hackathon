@@ -1,3 +1,4 @@
 /vans
 *.test
 .DS_Store
+ui/.vite/

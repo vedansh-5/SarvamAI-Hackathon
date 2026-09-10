@@ -7,7 +7,7 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use tauri::{AppHandle, Emitter, LogicalSize, Manager, WebviewWindow};
+use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, WebviewWindow};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 /// Whether clicking away leaves the panel up.
@@ -28,7 +28,14 @@ const MAX_SCREEN_FRACTION: f64 = 0.85;
 /// Matches the CSS radius on .panel. The blur is a native layer behind the
 /// webview, so if it does not round with the panel it shows as square corners
 /// poking out from under the rounded ones.
-const CORNER_RADIUS: f64 = 14.0;
+const CORNER_RADIUS: f64 = 18.0;
+
+/// How close to the edge of the display the panel is allowed to sit.
+const EDGE_MARGIN: f64 = 12.0;
+
+/// Whether the panel has been given a position yet. It is centred once, on the
+/// first summon; after that where it sits is wherever the user dragged it to.
+static PLACED: AtomicBool = AtomicBool::new(false);
 
 /// The summoning shortcut.
 ///
@@ -54,10 +61,7 @@ pub fn show(app: &AppHandle) {
     // Capture context before VANS seizes the active focus
     let context = crate::screen::capture_active_context(false);
 
-    // Only recentre when summoning it fresh. A pinned panel that the user
-    // clicked away from is still on screen where they left it, and moving it
-    // out from under them on the way back is disorienting.
-    if !win.is_visible().unwrap_or(false) {
+    if !PLACED.swap(true, Ordering::Relaxed) {
         let _ = win.center();
     }
     let _ = win.show();
@@ -109,12 +113,36 @@ pub fn resize(app: &AppHandle, content_height: f64) {
         .unwrap_or(720.0);
 
     let _ = win.set_size(LogicalSize::new(width, height));
+    keep_on_screen(&win, height);
+}
 
-    // Recentre rather than anchoring an edge. Growth is driven by moving
-    // between screens, which is infrequent and deliberate, and centring is the
-    // only rule that cannot walk the panel off the bottom of the display.
-    if win.is_visible().unwrap_or(false) {
-        let _ = win.center();
+/// Where the panel sits is the user's, not the runtime's.
+///
+/// It is centred once, the first time it is summoned, and never moved again —
+/// growing content pushes the bottom edge down rather than recentring, because
+/// recentring on every resize walked the panel out from under a drag and made
+/// it look as though it could not be moved at all. The only exception is
+/// falling off the display, which is corrected by the smallest shift that
+/// puts it back.
+fn keep_on_screen(win: &WebviewWindow, height: f64) {
+    let Ok(Some(monitor)) = win.current_monitor() else {
+        return;
+    };
+    let scale = monitor.scale_factor();
+    let area = monitor.size().to_logical::<f64>(scale);
+    let origin = monitor.position().to_logical::<f64>(scale);
+
+    let Ok(position) = win.outer_position() else {
+        return;
+    };
+    let position = position.to_logical::<f64>(win.scale_factor().unwrap_or(scale));
+
+    let bottom = origin.y + area.height;
+    let lowest = bottom - height - EDGE_MARGIN;
+    let y = position.y.min(lowest).max(origin.y + EDGE_MARGIN);
+
+    if (y - position.y).abs() > 1.0 {
+        let _ = win.set_position(LogicalPosition::new(position.x, y));
     }
 }
 
@@ -298,6 +326,14 @@ fn frost(win: &WebviewWindow, theme: tauri::Theme) {
     // Tried first and fallen back on rather than gated on a version check:
     // the call fails on an OS without it, which is the same answer a version
     // check would have given, without a second thing to keep in step.
+    // Applying is not idempotent: it inserts a tagged glass view and reparents
+    // the webview into it. Called twice without clearing, the panel ends up
+    // with two of them and a content view nested inside the first, and the
+    // clear that follows only finds the outer one — which is what made the
+    // toggle stop responding after the opacity slider had been dragged.
+    let _ = window_vibrancy::clear_liquid_glass(win);
+    let _ = window_vibrancy::clear_vibrancy(win);
+
     let glass = apply_liquid_glass(
         win,
         LiquidGlassOptions::new(NSGlassEffectViewStyle::Regular).radius(CORNER_RADIUS),

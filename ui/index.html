@@ -8,126 +8,169 @@
   </head>
   <body>
     <div class="panel">
-      <!-- Everything measurable lives in here. The panel itself is stretched to
-           fill the window, so its height says nothing about how tall the
-           content wants to be; this wrapper is what the window is sized from. -->
       <div class="panel-body">
-        <header data-tauri-drag-region>
-          <div class="wordmark" data-tauri-drag-region>
+        <div id="write-bar" class="write-bar" hidden></div>
+
+        <header id="grip">
+          <div class="wordmark">
             <span class="mark">VANS</span>
-            <span id="active-app-label" class="context">Ready</span>
+            <span id="active-app-label" class="context"></span>
           </div>
-          <div class="header-controls">
-            <button id="look" class="theme-toggle" type="button" title="Appearance">Look</button>
-            <button id="theme" class="theme-toggle" type="button" title="Switch theme">Dark</button>
+          <div class="header-right">
+            <span class="kbd-hint">esc to dismiss</span>
+            <button id="setup" class="icon-btn" type="button" title="Setup" aria-label="Setup">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <circle cx="12" cy="12" r="8" stroke-dasharray="3 4"></circle>
+              </svg>
+            </button>
           </div>
         </header>
 
-        <!-- Appearance. A popover rather than a block: it is set once and then
-             left, and it should not push the panel's actual content down. -->
-        <div id="look-panel" class="popover" hidden>
-          <div class="popover-row">
-            <label for="opacity">Opacity</label>
-            <input id="opacity" type="range" min="15" max="100" step="1" />
-            <output id="opacity-value"></output>
-          </div>
-          <div class="popover-row">
-            <label for="blur">Frosted</label>
-            <input id="blur" type="checkbox" class="switch" />
-          </div>
-        </div>
+        <section id="ask" hidden>
+          <div class="body-pad">
+            <input
+              id="intent"
+              class="ask"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="Ask VANS…"
+            />
 
-        <!-- Preflight. Shown until the environment can actually run a task. -->
-        <section id="preflight" hidden>
-          <h2>Before you start</h2>
-          <p class="lede">VANS needs these to work. It will not start anything on your behalf.</p>
-          <div id="checks"></div>
-          <div class="row">
-            <button id="recheck" class="primary">Check again</button>
-            <button id="check-screen" class="quiet">Screen Recording</button>
-            <button id="check-notes" class="quiet">Notes access</button>
-            <button id="to-task" class="quiet">Done</button>
-          </div>
-          <p class="footnote">
-            Checking access opens applications and may ask macOS for
-            permission. VANS never opens anything on its own. This screen stays
-            up while you click away, so you can follow the steps without losing
-            them.
-          </p>
-          <div id="screen-result"></div>
-          <div id="notes-result"></div>
-        </section>
-
-        <!-- The task form. -->
-        <section id="task" hidden>
-          <!-- The field is the interface. Everything else defers to it. -->
-          <input
-            id="intent"
-            class="ask"
-            type="text"
-            autocomplete="off"
-            spellcheck="false"
-            placeholder="Ask for anything…"
-          />
-
-          <div class="field">
-            <span class="field-label">Send it to</span>
-            <div id="destination" class="segmented" role="radiogroup"></div>
+            <div class="dest-row">
+              <span class="kicker">answer goes to</span>
+              <div id="destination" class="segmented" role="radiogroup"></div>
+            </div>
             <p class="field-note" id="destination-note"></p>
-          </div>
 
-          <div class="row">
-            <button id="run" class="primary">Go</button>
-            <span id="status" class="status"></span>
-            <button id="setup" class="quiet">Setup</button>
-          </div>
-          <pre id="progress" class="progress" hidden></pre>
-        </section>
+            <div class="divider"></div>
 
-        <!-- Results, and the gate when the destination has a side effect. -->
-        <section id="plan" hidden>
-          <div class="result-head">
-            <h2 id="plan-heading">Review before writing</h2>
-            <button id="view-toggle" class="quiet" type="button">Table</button>
-          </div>
-          <p id="plan-meta" class="meta"></p>
-          <div id="cards" class="cards"></div>
-          <div id="table-wrap" class="table-wrap" hidden>
-            <table id="rows"></table>
-          </div>
-          <div class="row gate" id="gate">
-            <button id="confirm" class="danger">Write it</button>
-            <button id="cancel" class="quiet">Cancel</button>
-          </div>
-          <p class="note" id="gate-note">
-            Nothing has been written yet. VANS cannot write without this
-            confirmation.
-          </p>
-          <div class="row" id="done-row" hidden>
-            <button id="ask-again" class="primary">Ask something else</button>
+            <div class="kicker">try asking</div>
+            <div id="suggestions" class="suggestions"></div>
           </div>
         </section>
 
-        <!-- Rung 3, and any other failure with something to act on. -->
+        <section id="working" hidden>
+          <div class="body-pad">
+            <div id="working-query" class="ask-echo"></div>
+            <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+            <div class="kicker working-label">
+              <span id="progress">Working</span><span class="blink">…</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="results" hidden>
+          <div class="results-head">
+            <span id="results-kicker" class="kicker"></span>
+            <div class="segmented small">
+              <button id="view-cards" type="button">List</button>
+              <button id="view-table" type="button">Dense</button>
+            </div>
+          </div>
+          <div class="results-list">
+            <div id="cards" class="cards"></div>
+            <div id="table-wrap" class="table-wrap" hidden>
+              <table id="rows"></table>
+            </div>
+          </div>
+          <div class="body-pad tight">
+            <button id="ask-again" class="btn quiet">Ask something else</button>
+          </div>
+        </section>
+
+        <section id="confirm" hidden>
+          <div class="body-pad">
+            <div class="tag-row"><span class="write-tag">WRITE</span></div>
+            <h2 id="confirm-title" class="confirm-title"></h2>
+            <div id="confirm-preview" class="preview-box"></div>
+            <p class="helper">This can't be undone automatically.</p>
+            <div class="actions">
+              <button id="cancel" class="btn secondary">Cancel</button>
+              <button id="commit" class="btn danger">Confirm &amp; write</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="notunderstood" hidden>
+          <div class="body-pad">
+            <div class="head-row">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 1 1 5.83 1c0 2-3 2-3 4"></path>
+                <line x1="12" y1="17" x2="12" y2="17.01"></line>
+              </svg>
+              <span id="notunderstood-title" class="head-title">I didn't catch that.</span>
+            </div>
+            <p id="notunderstood-why" class="lede"></p>
+            <div class="kicker">here's what I can do</div>
+            <div id="can-do" class="suggestions"></div>
+            <button id="back-from-unknown" class="btn quiet">Back</button>
+          </div>
+        </section>
+
         <section id="failure" hidden>
-          <h2 id="failure-title">That didn't work</h2>
-          <p id="failure-message" class="meta"></p>
-          <div id="failure-detail"></div>
-          <div class="row">
-            <button id="back" class="primary">Back</button>
+          <div class="body-pad">
+            <div class="head-row">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12.5"></line>
+                <line x1="12" y1="16" x2="12" y2="16.01"></line>
+              </svg>
+              <span id="failure-title" class="head-title"></span>
+            </div>
+            <p id="failure-message" class="lede"></p>
+            <div id="failure-detail"></div>
+            <button id="back" class="btn quiet">Back</button>
           </div>
         </section>
 
-        <!-- Success. -->
-        <section id="done" hidden>
-          <h2>Written</h2>
-          <p id="done-message" class="meta"></p>
-          <div class="row">
-            <button id="again" class="primary">Do another</button>
+        <section id="preflight" hidden>
+          <div class="body-pad">
+            <h2 class="screen-title">Setup</h2>
+            <p class="lede">Grant these once — VANS remembers.</p>
+
+            <div id="checks" class="setup-list"></div>
+
+            <div class="row">
+              <button id="recheck" class="btn secondary">Check again</button>
+              <button id="check-screen" class="btn quiet">Screen Recording</button>
+              <button id="check-notes" class="btn quiet">Notes access</button>
+            </div>
+            <div id="screen-result"></div>
+            <div id="notes-result"></div>
+
+            <div class="divider"></div>
+
+            <div class="kicker">appearance</div>
+            <div class="setting-row">
+              <label for="opacity">Opacity</label>
+              <input id="opacity" type="range" min="15" max="100" step="1" />
+              <output id="opacity-value"></output>
+            </div>
+            <div class="setting-row">
+              <label for="blur">Frosted</label>
+              <input id="blur" type="checkbox" class="switch" />
+            </div>
+            <div class="setting-row">
+              <label for="dark">Dark</label>
+              <input id="dark" type="checkbox" class="switch" />
+            </div>
+
+            <p class="helper">
+              Checking access opens applications and may ask macOS for
+              permission. VANS never opens anything on its own. This screen
+              stays up while you click away.
+            </p>
+
+            <button id="to-task" class="btn secondary">Done</button>
           </div>
         </section>
       </div>
     </div>
+
+    <div id="toast" class="toast" hidden></div>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -1,100 +1,68 @@
-/* VANS overlay panel.
-   ------------------------------------------------------------------
-   A summoned panel, not a page. Apple's three principles apply, but a
-   16px-gutter marketing scale does not: this thing appears over your work,
-   is read in a second, and gets dismissed. So the rhythm is the same and the
-   magnitudes are one step down — 13/15/20 rather than 13/17/32, and controls
-   at macOS pointer sizes rather than iOS touch sizes.
-
-   Deference is the one that does most of the work here. The field is the
-   interface; everything else recedes until it is needed. */
-
-/* Light is the default, and it is the bare :root block rather than a media
-   query, so it applies before any script runs and to a window that has not
-   said which theme it wants. Dark is opt-in via data-theme on <html>.
-
-   Deliberately not keyed to prefers-color-scheme: the panel is summoned over
-   whatever you are working in, and the choice belongs to the user rather than
-   to whatever the system happens to be set to. */
 :root {
-  /* How opaque the panel's own surface is. Driven from the appearance slider,
-     which is why it is a number rather than baked into the colour below. */
-  --tint: 0.62;
+  --tint: 0.82;
 
-  /* Surfaces. These sit over a live NSVisualEffectView, so they are tints
-     rather than fills — a solid colour here would throw the blur away. */
-  --panel-bg: rgba(250, 250, 252, var(--tint));
-  --panel-edge: rgba(0, 0, 0, 0.12);
-  --pop-bg: rgba(252, 252, 254, 0.92);
-  --pop-edge: rgba(0, 0, 0, 0.1);
-  --pop-sheen: rgba(255, 255, 255, 0.9);
-  --raised: rgba(255, 255, 255, 0.7);
-  --sunken: rgba(120, 120, 128, 0.1);
-  --line: rgba(0, 0, 0, 0.09);
+  --surface-rgb: 234, 233, 233;
+  --panel-bg: rgba(var(--surface-rgb), var(--tint));
+  --ink: #201e1d;
+  --ink-dim: rgba(29, 29, 31, 0.55);
+  --divider: rgba(0, 0, 0, 0.09);
+  --hover: rgba(0, 0, 0, 0.045);
+  --sunken: rgba(0, 0, 0, 0.05);
+  --inset: rgba(0, 0, 0, 0.035);
 
-  /* Ink. Two weights only. A third grey is almost always a hierarchy that
-     should have been expressed with space instead. */
-  --ink: #1d1d1f;
-  --ink-dim: #6e6e73;
-
-  /* macOS system colours. */
   --accent: #007aff;
-  --accent-ink: #ffffff;
-  --ok: #1d8348;
-  --bad: #c9402f;
-  --focus: rgba(0, 122, 255, 0.45);
+  --accent-soft: rgba(0, 122, 255, 0.1);
+  --write: #ff3b30;
+  --write-soft: rgba(255, 59, 48, 0.12);
 
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  --panel-shadow:
+    0 30px 70px rgba(0, 0, 0, 0.22),
+    0 0 0 0.5px rgba(0, 0, 0, 0.04);
 
-  /* 4 / 8 / 16 / 24, with 12 where a panel needs a half-step. */
-  --s1: 4px;
-  --s2: 8px;
-  --s3: 12px;
-  --s4: 16px;
-  --s5: 24px;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  --mono: "SF Mono", SFMono-Regular, Menlo, monospace;
 
-  --r-sm: 7px;
-  --r-md: 10px;
-  --r-lg: 14px;
-  --r-pill: 980px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 10px;
+  --r-panel: 18px;
+  --r-pill: 999px;
 
-  /* One curve, used everywhere. Mixed easings read as different apps. */
   --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 :root[data-theme="dark"] {
-  --panel-bg: rgba(28, 28, 30, var(--tint));
-  --panel-edge: rgba(255, 255, 255, 0.11);
-  --pop-bg: rgba(44, 44, 47, 0.92);
-  --pop-edge: rgba(255, 255, 255, 0.14);
-  --pop-sheen: rgba(255, 255, 255, 0.16);
-  --raised: rgba(255, 255, 255, 0.07);
-  --sunken: rgba(120, 120, 128, 0.22);
-  --line: rgba(255, 255, 255, 0.1);
-
-  --ink: #f5f5f7;
-  --ink-dim: #98989d;
+  --surface-rgb: 58, 56, 56;
+  --ink: #f8f4f4;
+  --ink-dim: rgba(245, 245, 247, 0.55);
+  --divider: rgba(255, 255, 255, 0.12);
+  --hover: rgba(255, 255, 255, 0.07);
+  --sunken: rgba(255, 255, 255, 0.07);
+  --inset: rgba(255, 255, 255, 0.06);
 
   --accent: #0a84ff;
-  --accent-ink: #ffffff;
-  --ok: #30d158;
-  --bad: #ff6b5a;
-  --focus: rgba(10, 132, 255, 0.5);
+  --accent-soft: rgba(10, 132, 255, 0.22);
+  --write: #ff453a;
+  --write-soft: rgba(255, 69, 58, 0.2);
+
+  --panel-shadow:
+    0 30px 70px rgba(0, 0, 0, 0.55),
+    0 0 0 0.5px rgba(255, 255, 255, 0.06);
 }
 
 * {
   box-sizing: border-box;
 }
 
+::selection {
+  background: var(--accent-soft);
+}
+
 body {
   margin: 0;
-  padding: 0;
-  /* Transparent on purpose. The window itself is transparent, so anything
-     painted here shows as a hard rectangle behind the panel's rounded
-     corners. All colour belongs to .panel. */
   background: transparent;
   color: var(--ink);
-  font: 400 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font: 400 14px/1.45 var(--font);
   -webkit-font-smoothing: antialiased;
   user-select: none;
   overflow: hidden;
@@ -103,57 +71,67 @@ body {
 .panel {
   position: relative;
   min-height: 100vh;
-  padding: var(--s4) var(--s5) var(--s5);
-  border-radius: var(--r-lg);
+  border-radius: var(--r-panel);
+  border: 0.5px solid var(--divider);
   background: var(--panel-bg);
-  border: 0.5px solid var(--panel-edge);
+  box-shadow: var(--panel-shadow);
+  overflow: hidden;
   transition: background 0.22s var(--ease);
-  /* No backdrop-filter. The frosting is an NSVisualEffectView behind the
-     webview (see overlay.rs) — the CSS one resolved seconds after the panel
-     appeared, because a transparent WKWebView has nothing inside the page to
-     sample. This is only the tint over it. */
-  overflow-y: auto;
+  animation: rise 0.16s ease-out;
 }
 
-/* Height here is content height: nothing constrains it, which is what makes
-   it safe to measure and feed back to the window. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
 .panel-body {
   height: auto;
 }
 
+.write-bar {
+  height: 4px;
+  background: var(--write);
+}
+
 /* ---------- header ---------- */
 
-/* The header is the drag handle (data-tauri-drag-region in the markup).
-   Tauri only starts a drag when the element under the pointer carries the
-   attribute itself, so putting it here rather than on the panel means buttons
-   and the field keep their clicks — and there is still somewhere obvious to
-   grab. */
 header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--s3);
-  margin-bottom: var(--s4);
-  padding-bottom: var(--s2);
-  cursor: default;
+  gap: 12px;
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--divider);
+  cursor: grab;
+}
+
+header:active {
+  cursor: grabbing;
+}
+
+header button,
+header input {
+  cursor: pointer;
 }
 
 .wordmark {
   display: flex;
   align-items: baseline;
-  gap: var(--s2);
+  gap: 8px;
   min-width: 0;
 }
 
 .mark {
-  font-size: 12px;
+  flex: none;
+  font-size: 14px;
   font-weight: 600;
-  letter-spacing: 0.09em;
+  letter-spacing: -0.01em;
   color: var(--ink-dim);
 }
 
-/* What you were looking at when you summoned it. Quiet by default — it is
-   context, not content. */
 .context {
   font-size: 12px;
   color: var(--ink-dim);
@@ -164,123 +142,614 @@ header {
 
 .context strong {
   font-weight: 500;
-  color: var(--ink);
 }
 
 .context em {
   font-style: normal;
 }
 
-.theme-toggle {
-  flex: none;
-  padding: 3px 10px;
-  border: 0.5px solid var(--line);
-  border-radius: var(--r-pill);
-  background: var(--raised);
-  color: var(--ink-dim);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: color 0.2s var(--ease), background 0.2s var(--ease);
-}
-
-/* :not(:disabled) is not idle — it is what outweighs the generic
-   button:hover:not(:disabled) below, which would otherwise restyle this. */
-.theme-toggle:hover:not(:disabled) {
-  color: var(--ink);
-  background: var(--sunken);
-  transform: none;
-}
-
-/* ---------- appearance ---------- */
-
-.header-controls {
-  display: flex;
-  gap: var(--s1);
-  flex: none;
-  opacity: 0;
-  transition: opacity 0.18s var(--ease);
-}
-
-.panel:hover .header-controls,
-:root[data-look-open] .header-controls {
-  opacity: 1;
-}
-
-.header-controls:focus-within {
-  opacity: 1;
-}
-
-/* Glass, and floating. Absolutely positioned so opening it does not push the
-   panel's content down or grow the window — the thing it adjusts stays put
-   while it is adjusted, which is the whole point of being able to see it. */
-.popover {
-  position: absolute;
-  top: 44px;
-  right: var(--s5);
-  z-index: 10;
-  width: 236px;
-  display: grid;
-  gap: var(--s2);
-  padding: var(--s3);
-  border-radius: var(--r-md);
-
-  /* Its own glass, over the panel's. Heavier than the panel so it reads as a
-     layer above rather than a hole in it, and blurred here rather than
-     natively because this one sits over the webview's own content. */
-  background: var(--pop-bg);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border: 0.5px solid var(--pop-edge);
-  box-shadow:
-    0 8px 28px rgba(0, 0, 0, 0.18),
-    /* The hairline along the top edge is what makes glass look lit rather
-       than merely transparent. */
-    inset 0 0.5px 0 var(--pop-sheen);
-  animation: pop 0.16s var(--ease);
-}
-
-@keyframes pop {
-  from {
-    opacity: 0;
-    transform: translateY(-4px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.popover-row {
+.header-right {
   display: flex;
   align-items: center;
-  gap: var(--s2);
-  min-height: 22px;
-}
-
-.popover-row label {
-  margin: 0;
-  width: 4.2rem;
+  gap: 10px;
   flex: none;
-  font-size: 12px;
 }
 
-.popover-row output {
-  width: 2.4rem;
-  text-align: right;
+.kbd-hint {
   font-size: 11px;
+  color: var(--ink-dim);
+  letter-spacing: 0.01em;
+}
+
+.icon-btn {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+
+.icon-btn:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+/* ---------- shared ---------- */
+
+.body-pad {
+  padding: 18px 20px 20px;
+}
+
+.body-pad.tight {
+  padding-top: 0;
+}
+
+.kicker {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+}
+
+.divider {
+  height: 1px;
+  margin: 14px 0;
+  background: var(--divider);
+}
+
+.lede {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-dim);
+}
+
+.helper {
+  margin: 12px 0 18px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-dim);
+}
+
+.screen-title {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.head-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  color: var(--ink-dim);
+}
+
+.head-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn {
+  padding: 9px 16px;
+  border: none;
+  border-radius: var(--r-md);
+  background: var(--sunken);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s var(--ease), color 0.15s var(--ease);
+}
+
+.btn:hover:not(:disabled) {
+  filter: brightness(0.96);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn.danger {
+  background: var(--write);
+  color: #fff;
+}
+
+.btn.secondary {
+  background: var(--sunken);
+}
+
+.btn.quiet {
+  padding-left: 0;
+  background: transparent;
+  color: var(--ink-dim);
+}
+
+.btn.quiet:hover:not(:disabled) {
+  filter: none;
+  color: var(--ink);
+}
+
+/* ---------- ask ---------- */
+
+.ask {
+  width: 100%;
+  padding: 0;
+  margin-bottom: 14px;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--ink);
+  user-select: text;
+}
+
+.ask::placeholder {
+  color: inherit;
+  opacity: 0.42;
+}
+
+.ask-echo {
+  margin-bottom: 14px;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dest-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dest-row .kicker {
+  flex: none;
+}
+
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r-md);
+  background: var(--sunken);
+}
+
+.segmented > * {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.segmented > .on {
+  background: var(--accent);
+  color: #fff;
+}
+
+.segmented.small {
+  flex: none;
+  border-radius: 7px;
+}
+
+.segmented.small > * {
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 11px;
+}
+
+.write-dot {
+  width: 5px;
+  height: 5px;
+  margin-left: 2px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--write);
+}
+
+.segmented > .on .write-dot {
+  background: #fff;
+}
+
+.field-note {
+  margin: 10px 0 0;
+  min-height: 1em;
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+.suggestions {
+  display: grid;
+  gap: 1px;
+  margin-top: 8px;
+}
+
+.suggestion {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.suggestion:hover,
+.suggestion:focus-visible {
+  background: var(--hover);
+  outline: none;
+}
+
+.suggestion:focus-visible {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.segmented > *:focus-visible,
+.btn:focus-visible,
+.icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.suggestion .icon {
+  display: flex;
+  flex: none;
+  color: var(--accent);
+}
+
+.suggestion.write .icon {
+  color: var(--write);
+}
+
+/* ---------- working ---------- */
+
+.progress-track {
+  height: 3px;
+  margin-bottom: 14px;
+  background: var(--divider);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.3s var(--ease);
+}
+
+.working-label {
+  display: flex;
+  gap: 2px;
+}
+
+.blink {
+  animation: blink 1.1s infinite;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* ---------- results ---------- */
+
+.results-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--divider);
+}
+
+.results-head .kicker {
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.results-list {
+  padding: 6px 20px 18px;
+  max-height: 58vh;
+  overflow-y: auto;
+}
+
+.results-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.results-list::-webkit-scrollbar-thumb {
+  border-radius: var(--r-pill);
+  background: rgba(120, 115, 113, 0.4);
+}
+
+.card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--divider);
+}
+
+.card:last-child {
+  border-bottom: none;
+}
+
+.card-image,
+.card-tile {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: 9px;
+  object-fit: cover;
+  background: var(--sunken);
+}
+
+.card-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink-dim);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--sunken) 0 6px,
+    var(--inset) 6px 12px
+  );
+}
+
+.card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-title {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+a.card-title:hover {
+  text-decoration: underline;
+}
+
+.card-host {
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: var(--accent);
+  text-transform: lowercase;
+}
+
+.card-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-dim);
+  user-select: text;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--divider);
+  text-align: left;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+
+td {
+  padding: 8px;
+  border-bottom: 1px solid var(--divider);
+  font-size: 13px;
+  user-select: text;
+}
+
+/* ---------- confirm ---------- */
+
+.tag-row {
+  margin-bottom: 10px;
+}
+
+.write-tag {
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  background: var(--write-soft);
+  color: var(--write);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.confirm-title {
+  margin: 0 0 14px;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.preview-box {
+  max-height: 32vh;
+  padding: 14px;
+  margin-bottom: 12px;
+  border: 1px solid var(--divider);
+  border-radius: var(--r-lg);
+  background: var(--inset);
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-y: auto;
+  user-select: text;
+}
+
+/* ---------- setup ---------- */
+
+.setup-list {
+  margin-bottom: 14px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--divider);
+}
+
+.check-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.check.ok .check-dot {
+  background: var(--ink-dim);
+}
+
+.check-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.check-label {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.check-detail {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+.check-tag {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.check.ok .check-tag {
+  background: var(--sunken);
+  color: var(--ink-dim);
+}
+
+.fix {
+  margin: 8px 0 0;
+  padding: 11px 12px;
+  border-radius: var(--r-md);
+  background: var(--inset);
+  font: 400 12px/1.5 var(--mono);
+  white-space: pre-wrap;
+  user-select: text;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 30px;
+  margin-top: 8px;
+}
+
+.setting-row label {
+  width: 5rem;
+  flex: none;
+  font-size: 13px;
+}
+
+.setting-row output {
+  width: 2.6rem;
+  text-align: right;
+  font-size: 12px;
   color: var(--ink-dim);
   font-variant-numeric: tabular-nums;
 }
 
 input[type="range"] {
-  flex: 1;
-  min-width: 0;
-  padding: 0;
+  width: 116px;
+  flex: none;
   height: 3px;
+  padding: 0;
   border: none;
   border-radius: var(--r-pill);
-  background: var(--sunken);
+  background: var(--divider);
   appearance: none;
   -webkit-appearance: none;
 }
@@ -291,15 +760,14 @@ input[type="range"]::-webkit-slider-thumb {
   width: 13px;
   height: 13px;
   border-radius: 50%;
-  background: #fff;
   border: 0.5px solid rgba(0, 0, 0, 0.18);
+  background: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   cursor: pointer;
 }
 
 input[type="range"]:focus {
   outline: none;
-  box-shadow: none;
 }
 
 input[type="checkbox"].switch {
@@ -309,25 +777,23 @@ input[type="checkbox"].switch {
   padding: 0;
   border: none;
   border-radius: var(--r-pill);
-  background: var(--sunken);
+  background: var(--divider);
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
-  transition: background 0.2s var(--ease);
-  position: relative;
+  transition: background 0.18s var(--ease);
 }
 
 input[type="checkbox"].switch::after {
   content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
+  display: block;
   width: 15px;
   height: 15px;
+  margin: 2px;
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  transition: transform 0.2s var(--ease);
+  transition: transform 0.18s var(--ease);
 }
 
 input[type="checkbox"].switch:checked {
@@ -338,559 +804,57 @@ input[type="checkbox"].switch:checked::after {
   transform: translateX(13px);
 }
 
-/* ---------- the ask field ---------- */
+/* ---------- failures ---------- */
 
-/* Borderless and oversized, the way a summoned panel's one input should be.
-   A box drawn around it would make it look like a form field among others,
-   which is exactly what it is not. */
-.ask {
-  width: 100%;
-  padding: var(--s2) 0 var(--s3);
-  border: none;
-  border-bottom: 1px solid var(--line);
-  border-radius: 0;
-  background: transparent;
-  color: var(--ink);
-  font-size: 20px;
-  font-weight: 400;
-  line-height: 1.3;
-  transition: border-color 0.25s var(--ease);
+.attempt {
+  margin-bottom: 12px;
 }
 
-.ask::placeholder {
-  color: var(--ink-dim);
-  opacity: 0.7;
-}
-
-.ask:focus {
-  outline: none;
-  border-bottom-color: var(--accent);
-}
-
-/* ---------- fields ---------- */
-
-.field {
-  margin-top: var(--s5);
-}
-
-.field-label,
-label {
-  display: block;
-  margin-bottom: var(--s2);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ink-dim);
-}
-
-.field-note {
-  margin: var(--s2) 0 0;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--ink-dim);
-}
-
-input {
-  width: 100%;
-  padding: 7px 10px;
-  border: 0.5px solid var(--line);
-  border-radius: var(--r-sm);
-  background: var(--raised);
-  color: var(--ink);
-  font-size: 14px;
-  font-family: inherit;
-}
-
-input:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--focus);
-}
-
-/* ---------- segmented control ---------- */
-
-/* Three destinations, all worth seeing at once. A popup menu would hide two
-   of them, and which one is selected is the single most consequential thing
-   on this screen — it decides whether anything happens to the world. */
-.segmented {
-  display: flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: var(--r-md);
-  background: var(--sunken);
-}
-
-.segmented label {
-  flex: 1;
-  margin: 0;
-  padding: 5px 10px;
-  border-radius: 8px;
-  text-align: center;
+.attempt-head {
+  margin-bottom: 4px;
   font-size: 13px;
-  font-weight: 500;
-  color: var(--ink-dim);
-  cursor: pointer;
-  transition: background 0.18s var(--ease), color 0.18s var(--ease);
-}
-
-.segmented input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.segmented label:hover {
-  color: var(--ink);
-}
-
-.segmented input:checked + span,
-.segmented label.on {
-  color: var(--ink);
-}
-
-.segmented label.on {
-  background: var(--raised);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-
-/* ---------- buttons ---------- */
-
-.row {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  margin-top: var(--s5);
-  flex-wrap: wrap;
-}
-
-button {
-  padding: 6px 16px;
-  min-height: 30px;
-  border: 0.5px solid transparent;
-  border-radius: var(--r-pill);
-  background: var(--sunken);
-  color: var(--ink);
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: transform 0.15s var(--ease), filter 0.15s var(--ease),
-    background 0.15s var(--ease);
-}
-
-button:hover:not(:disabled) {
-  filter: brightness(1.06);
-  transform: scale(1.02);
-}
-
-button:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-button:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--focus);
-}
-
-button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-/* One primary action per screen. */
-.primary {
-  background: var(--accent);
-  color: var(--accent-ink);
-}
-
-.quiet {
-  background: transparent;
-  color: var(--ink-dim);
-  border-color: var(--line);
-}
-
-.quiet:hover:not(:disabled) {
-  color: var(--ink);
-}
-
-/* The gate carries the only irreversible action in the app, so it is the only
-   thing on screen that looks like one. */
-.danger {
-  background: var(--bad);
-  color: #fff;
-}
-
-/* Pushes what follows to the far end of the row. */
-.status {
-  flex: 1;
-  font-size: 12px;
-  color: var(--ink-dim);
-}
-
-/* ---------- headings and prose ---------- */
-
-h1 {
-  margin: 0;
-  font-size: 20px;
   font-weight: 600;
-  letter-spacing: -0.01em;
 }
 
-h2 {
-  margin: 0 0 var(--s1);
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-h3 {
-  margin: var(--s5) 0 var(--s2);
+#failure-detail h3 {
+  margin: 16px 0 6px;
   font-size: 11px;
-  font-weight: 600;
-  color: var(--ink-dim);
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  color: var(--ink-dim);
 }
 
-.lede {
-  margin: 0 0 var(--s4);
+#failure-detail ul {
+  margin: 0 0 8px;
+  padding-left: 18px;
   font-size: 13px;
   color: var(--ink-dim);
 }
 
-.meta {
-  margin: 0 0 var(--s3);
-  font-size: 13px;
-  color: var(--ink-dim);
+#failure-detail li {
+  margin-bottom: 3px;
 }
 
-.note,
-.footnote {
-  margin-top: var(--s3);
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--ink-dim);
-  max-width: 62ch;
-}
-
-.opt {
-  font-weight: 400;
-  color: var(--ink-dim);
-}
-
-.bad {
-  color: var(--bad);
-}
-
-/* ---------- checks ---------- */
-
-.check {
-  padding: var(--s3) var(--s3) var(--s3) var(--s4);
-  margin-bottom: var(--s2);
-  border: 0.5px solid var(--line);
-  border-left: 2px solid var(--line);
-  border-radius: var(--r-md);
-  background: var(--raised);
-}
-
-.check.ok {
-  border-left-color: var(--ok);
-}
-
-.check.bad {
-  border-left-color: var(--bad);
-}
-
-.check-label {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.check-detail {
-  margin-top: 2px;
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--ink-dim);
-  overflow-wrap: anywhere;
-}
-
-.check button {
-  margin-top: var(--s2);
-}
-
-/* ---------- code ---------- */
-
-pre.fix,
-pre.progress {
-  margin: var(--s2) 0 0;
-  padding: var(--s3);
-  border-radius: var(--r-sm);
-  border: 0.5px solid var(--line);
-  background: var(--sunken);
-  color: var(--ink);
-  font: 11.5px/1.55 var(--mono);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  user-select: text;
-}
-
-/* A status line, not a log. Plain type, one line, no scrollback — the runtime
-   narrating its own internals belongs on stderr, not in front of someone
-   waiting to see whether anything is happening. */
-pre.progress {
-  margin-top: var(--s3);
-  padding: 0;
-  border: none;
-  background: none;
-  font: 400 12.5px/1.45 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+.sample {
+  margin-top: 3px;
+  font: 400 11px/1.5 var(--mono);
   color: var(--ink-dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* ---------- results ---------- */
-
-.result-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--s3);
-}
-
-.result-head button {
-  flex: none;
-  padding: 3px 10px;
-  min-height: 0;
-  font-size: 11px;
-}
-
-/* A list of things, not a grid of cells. Search results, products, articles —
-   the shape people actually ask for is a few records with a sentence each,
-   which a table renders as a wall of clipped text. */
-.cards {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s1);
-  max-height: 24rem;
-  overflow-y: auto;
-  margin: 0 calc(var(--s2) * -1);
-  padding: 0 var(--s2);
-}
-
-.card {
-  display: flex;
-  gap: var(--s3);
-  padding: var(--s3) var(--s2);
-  border-radius: var(--r-md);
-  transition: background 0.15s var(--ease);
-}
-
-.card:hover {
-  background: var(--sunken);
-}
-
-.card + .card {
-  border-top: 0.5px solid var(--line);
-}
-
-.card-image {
-  flex: none;
-  width: 56px;
-  height: 56px;
-  border-radius: var(--r-sm);
-  object-fit: cover;
-  background: var(--sunken);
-}
-
-/* Stands in for a site icon. Same size as a real image so a list with some of
-   each does not develop a ragged left edge. */
-.card-tile {
-  flex: none;
-  width: 56px;
-  height: 56px;
-  border-radius: var(--r-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  font-weight: 600;
-  color: hsl(var(--hue) 55% 38%);
-  background: hsl(var(--hue) 60% 92%);
-}
-
-:root[data-theme="dark"] .card-tile {
-  color: hsl(var(--hue) 70% 78%);
-  background: hsl(var(--hue) 40% 22%);
-}
-
-.card-body {
-  min-width: 0;
-  flex: 1;
-}
-
-.card-title {
-  display: block;
-  font-size: 14px;
-  font-weight: 550;
-  line-height: 1.35;
-  color: var(--ink);
-  text-decoration: none;
-  /* Two lines, then stop. A long headline should not push the next result off
-     the panel. */
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-a.card-title:hover {
-  color: var(--accent);
-  text-decoration: underline;
-}
-
-.card-host {
-  margin-top: 1px;
-  font-size: 11.5px;
-  color: var(--accent);
-}
-
-.card-text {
-  margin: var(--s1) 0 0;
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: var(--ink-dim);
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  user-select: text;
-}
-
-.table-wrap {
-  border: 0.5px solid var(--line);
-  border-radius: var(--r-md);
-  overflow: auto;
-  max-height: 22rem;
-  background: var(--raised);
-}
-
-table {
-  border-collapse: collapse;
-  width: 100%;
-  font-size: 13px;
-}
-
-th,
-td {
-  padding: 7px 10px;
-  text-align: left;
-  border-bottom: 0.5px solid var(--line);
-  vertical-align: top;
-  max-width: 24rem;
-  overflow-wrap: anywhere;
-}
-
-td {
-  user-select: text;
-}
-
-th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  /* Opaque enough to hide rows scrolling under it — a translucent sticky
-     header over a translucent panel shows the text sliding behind it. */
-  background: var(--panel-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--ink-dim);
-}
-
-tr:last-child td {
-  border-bottom: none;
-}
-
-/* ---------- failure detail ---------- */
-
-.attempt {
-  padding: var(--s3);
-  margin-bottom: var(--s2);
-  border: 0.5px solid var(--line);
-  border-radius: var(--r-md);
-  background: var(--raised);
-}
-
-.attempt-head {
-  font: 11.5px/1.5 var(--mono);
-  color: var(--ink-dim);
-}
-
-.attempt ul,
-.candidates {
-  margin: var(--s2) 0 0;
-  padding-left: var(--s4);
-  font-size: 13px;
-}
-
-.attempt li,
-.candidates li {
-  margin-bottom: var(--s1);
-}
-
-.candidates li {
-  font: 11.5px/1.5 var(--mono);
-  margin-bottom: var(--s2);
-}
-
-.sample {
-  margin-top: 2px;
-  font: 11px/1.45 var(--mono);
-  color: var(--ink-dim);
-  overflow-wrap: anywhere;
-}
-
-/* ---------- motion ---------- */
-
-/* Only opacity and transform, so a section change cannot alter measured
-   height and set the window resizing against itself. */
-section:not([hidden]) {
-  animation: rise 0.22s var(--ease);
-}
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  section:not([hidden]) {
-    animation: none !important;
-    transition: none !important;
-  }
-}
-
 .raw {
-  margin-top: var(--s3);
+  margin: 12px 0 18px;
   font-size: 12px;
   color: var(--ink-dim);
 }
 
 .raw summary {
-  cursor: default;
-  list-style: none;
-  color: var(--ink-dim);
   padding: 2px 0;
+  list-style: none;
+  cursor: default;
 }
 
 .raw summary::-webkit-details-marker {
@@ -898,7 +862,7 @@ section:not([hidden]) {
 }
 
 .raw summary::before {
-  content: "›";
+  content: "\203A";
   display: inline-block;
   width: 12px;
   transition: transform 0.15s var(--ease);
@@ -909,12 +873,38 @@ section:not([hidden]) {
 }
 
 .raw pre {
-  margin: var(--s1) 0 0;
-  padding: var(--s2) var(--s3);
-  border-radius: var(--r-sm);
-  background: var(--sunken);
+  margin: 4px 0 0;
+  padding: 11px 12px;
+  border-radius: var(--r-md);
+  background: var(--inset);
   font: 400 11px/1.5 var(--mono);
   white-space: pre-wrap;
   word-break: break-word;
   user-select: text;
+}
+
+.bad {
+  color: var(--write);
+}
+
+/* ---------- toast ---------- */
+
+.toast {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 18px;
+  border-radius: var(--r-lg);
+  background: var(--ink);
+  color: rgb(var(--surface-rgb));
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  animation: rise 0.16s ease-out;
+  z-index: 50;
+}
+
+section:not([hidden]) {
+  animation: rise 0.16s ease-out;
 }
