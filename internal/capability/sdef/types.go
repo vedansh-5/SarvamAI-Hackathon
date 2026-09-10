@@ -27,7 +27,8 @@ type Dictionary struct {
 // Include is an xi:include directive. Cocoa apps use it to pull in the
 // standard suite rather than redeclaring it.
 type Include struct {
-	Href string `xml:"href,attr"`
+	Href     string `xml:"href,attr"`
+	Xpointer string `xml:"xpointer,attr"`
 }
 
 // Suite groups related classes and commands.

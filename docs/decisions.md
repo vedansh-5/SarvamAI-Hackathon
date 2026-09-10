@@ -869,3 +869,43 @@ a token-limit error rather than as anything resembling a routing problem.
 (Q-12, now sharper — it applies to routing as well as extraction). Bare
 hostnames are recognised by TLD rather than by parsing, so an unusual TLD is
 read as prose; an explicit scheme always works.
+
+## D-040 — An application's own dictionary is the capability surface
+
+Driving applications means knowing what they can do. The two obvious routes are
+both wrong: asking a model what an app supports invents commands that do not
+exist, and hand-writing an adapter per app — which is what `appleevents.Notes`
+is — does not generalise past the apps somebody found time for.
+
+Every scriptable Mac application already ships a machine-readable answer. The
+`.sdef` in its bundle is a first-party declaration of its classes, properties
+and commands, written by whoever wrote the app. It is the same kind of object
+as a page signature: something the runtime reads rather than something the
+model asserts.
+
+**Read from the bundle, not from `sdef(1)`.** The `sdef` command-line tool
+resolves includes properly but requires a full Xcode install, and a runtime
+that stops working because someone has only the command line tools is a runtime
+with a dependency it never declared. The dictionary is globbed out of
+`Contents/Resources/*.sdef` — exactly one on every one of the 21 scriptable
+applications on the development machine.
+
+**Includes are spliced, and exclusions honoured.** Cocoa apps pull in the
+standard suite with `xi:include` rather than redeclaring it, so an unresolved
+include loses `make`, `get` and `delete` — most of what is worth driving. Four
+of the dictionaries on this machine use an xpointer that *removes* commands
+from that suite: Safari does not respond to `make`, and others drop `delete`,
+`duplicate` or `move`. Those exclusions are load-bearing. An app that declares
+it does not do something and is asked to do it anyway fails at the Apple event,
+long after the plan the user confirmed said it would work. An xpointer in any
+other shape is an error rather than a guess.
+
+**Ambiguity is refused, not broken by ordering.** `Find("mai")` with both Mail
+and Mailbox installed returns both names and no app. Acting in the wrong
+application is precisely the failure a confirmation gate cannot catch: the
+plan would name the app the runtime chose, and it would be the wrong one, and
+it would look correct.
+
+**What this is not yet.** Discovery only. Nothing here writes a program,
+executes an Apple event, or decides what a confirmation looks like when the
+side effect leaves the machine.
