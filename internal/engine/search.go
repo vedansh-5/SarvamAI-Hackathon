@@ -28,7 +28,14 @@ var searchEngines = map[string]string{
 }
 
 // DefaultSearchEngine is used when the instruction does not name one.
-const DefaultSearchEngine = "google"
+//
+// Not Google. Google randomises the class names on its results page, so its
+// signature never repeats: every search would be a cold run, two model calls
+// and seven seconds, for the same question asked twice. DuckDuckGo renders
+// the same shape every time, which is what makes a search cost nothing the
+// second time anyone asks it. Naming another engine in the instruction still
+// works, Google included.
+const DefaultSearchEngine = "duckduckgo"
 
 // searchIntent is what the extractor is asked for on a results page.
 //

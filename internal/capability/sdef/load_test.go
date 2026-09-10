@@ -9,6 +9,10 @@ import (
 
 const notesPath = "/System/Applications/Notes.app"
 
+func loadFile(path string) (*Dictionary, error) {
+	return ParseFile(path, SystemResolver)
+}
+
 func bundle(t *testing.T, dictName, dict string) string {
 	t.Helper()
 	root := t.TempDir()
@@ -62,7 +66,7 @@ func TestIncludedSuitesAreSpliced(t *testing.T) {
 	own := filepath.Join(root, "Thing.sdef")
 	if err := os.WriteFile(own, []byte(`<dictionary title="Thing"
 	    xmlns:xi="http://www.w3.org/2001/XInclude">
-	  <xi:include href="`+standard+`" xpointer="xpointer(/dictionary/suite)"/>
+	  <xi:include href="file://`+standard+`" xpointer="xpointer(/dictionary/suite)"/>
 	  <suite name="Thing Suite" code="thng">
 	    <command name="ponder" code="thngpndr"/>
 	  </suite>
@@ -70,7 +74,7 @@ func TestIncludedSuitesAreSpliced(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d, err := LoadFile(own)
+	d, err := loadFile(own)
 	if err != nil {
 		t.Fatalf("LoadFile: %v", err)
 	}
@@ -105,12 +109,12 @@ func TestExcludedCommandsDoNotSurviveTheSplice(t *testing.T) {
 	pointer := `xpointer(/dictionary/suite/node()[not(self::command and ((@name = 'delete') or (@name = 'move')))])`
 	if err := os.WriteFile(own, []byte(`<dictionary title="Thing"
 	    xmlns:xi="http://www.w3.org/2001/XInclude">
-	  <xi:include href="`+standard+`" xpointer="`+pointer+`"/>
+	  <xi:include href="file://`+standard+`" xpointer="`+pointer+`"/>
 	</dictionary>`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	d, err := LoadFile(own)
+	d, err := loadFile(own)
 	if err != nil {
 		t.Fatalf("LoadFile: %v", err)
 	}
@@ -132,7 +136,7 @@ func TestNetworkIncludesAreRefused(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := LoadFile(own)
+	_, err := loadFile(own)
 	if err == nil || !strings.Contains(err.Error(), "network") {
 		t.Errorf("err = %v, want a refusal to fetch over the network", err)
 	}
@@ -147,12 +151,12 @@ func TestUnrecognisedXpointerIsAnError(t *testing.T) {
 	own := filepath.Join(root, "Thing.sdef")
 	if err := os.WriteFile(own, []byte(`<dictionary title="Thing"
 	    xmlns:xi="http://www.w3.org/2001/XInclude">
-	  <xi:include href="`+standard+`" xpointer="xpointer(/dictionary/suite/class)"/>
+	  <xi:include href="file://`+standard+`" xpointer="xpointer(/dictionary/suite/class)"/>
 	</dictionary>`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := LoadFile(own); err == nil {
+	if _, err := loadFile(own); err == nil {
 		t.Error("an xpointer VANS cannot honour was accepted, so the surface it reports is a guess")
 	}
 }
@@ -183,7 +187,7 @@ func TestLoadsARealDictionary(t *testing.T) {
 	}
 }
 
-func hasCommand(d Dictionary, name string) bool {
+func hasCommand(d *Dictionary, name string) bool {
 	for _, s := range d.Suites {
 		for _, c := range s.Commands {
 			if strings.EqualFold(c.Name, name) {
@@ -192,4 +196,44 @@ func hasCommand(d Dictionary, name string) bool {
 		}
 	}
 	return false
+}
+
+// The including dictionary's own definitions have to win. Mail redefines
+// delete, move and duplicate, and resolving an include the other way round
+// silently hands back the standard suite's version of a command the app
+// deliberately replaced.
+func TestTheAppsOwnDefinitionWins(t *testing.T) {
+	root := t.TempDir()
+	standard := filepath.Join(root, "Standard.sdef")
+	if err := os.WriteFile(standard, []byte(`<dictionary title="Standard">
+	  <suite name="Standard Suite" code="core">
+	    <command name="delete" code="coredelo" description="standard"/>
+	  </suite>
+	</dictionary>`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	own := filepath.Join(root, "Thing.sdef")
+	if err := os.WriteFile(own, []byte(`<dictionary title="Thing"
+	    xmlns:xi="http://www.w3.org/2001/XInclude">
+	  <xi:include href="file://`+standard+`" xpointer="xpointer(/dictionary/suite)"/>
+	  <suite name="Thing Suite" code="thng">
+	    <command name="delete" code="thngdelo" description="the app's own"/>
+	  </suite>
+	</dictionary>`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	d, err := loadFile(own)
+	if err != nil {
+		t.Fatalf("loadFile: %v", err)
+	}
+
+	got, ok := d.FindCommand("delete")
+	if !ok {
+		t.Fatal("delete went missing")
+	}
+	if got.Description != "the app's own" {
+		t.Errorf("delete resolved to the %q definition", got.Description)
+	}
 }

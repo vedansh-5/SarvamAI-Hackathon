@@ -21,6 +21,7 @@ import (
 
 	"github.com/vedansh/vans/internal/adapter/appleevents"
 	"github.com/vedansh/vans/internal/adapter/cdp"
+	"github.com/vedansh/vans/internal/capability"
 	"github.com/vedansh/vans/internal/engine"
 	"github.com/vedansh/vans/internal/extract"
 	"github.com/vedansh/vans/internal/route"
@@ -54,8 +55,16 @@ func run() error {
 	}
 	defer st.Close()
 
-	browser := engine.NewChromiumBrowser(*hostPort)
-	defer browser.Close()
+	debugged := engine.NewChromiumBrowser(*hostPort)
+	defer debugged.Close()
+
+	// The browser the user is already in comes first. The debugging port
+	// reaches only a second Chrome on a throwaway profile, which is signed in
+	// to nothing — the wrong browser for most of what anyone asks.
+	browser := &engine.LiveFirst{
+		Live:     &appleevents.Chrome{Runner: appleevents.Osascript{}, Remember: st},
+		Debugged: debugged,
+	}
 
 	notes := appleevents.Notes{Runner: appleevents.Osascript{}}
 
@@ -80,6 +89,22 @@ func run() error {
 		router = &route.Router{Decider: decider, Cache: st, Model: modelLabel()}
 	}
 
+	// Acting inside applications needs four things and takes them together:
+	// the catalogue of what is installed, a backend that can write a program
+	// against one, somewhere to cache it, and something to run it. A backend
+	// that cannot write actions leaves Writer nil, and the engine declines
+	// app.act with what it can do instead — rather than accepting the request
+	// and failing partway through it.
+	var writer engine.ActionWriter
+	if w, ok := synthesizer.(engine.ActionWriter); ok {
+		writer = w
+	}
+
+	var answers engine.Answerer
+	if a, ok := synthesizer.(engine.Answerer); ok {
+		answers = a
+	}
+
 	srv := &rpc.Server{
 		Engine: &engine.Engine{
 			Browser: browser,
@@ -88,11 +113,18 @@ func run() error {
 			Router:  router,
 			Sinks:   engine.DefaultSinks(engine.NotesSink{Notes: notes}),
 			Model:   modelLabel(),
+
+			Answers: answers,
+			Apps:    capability.New(),
+			Writer:  writer,
+			Actions: st,
+			Runner:  appleevents.Osascript{},
 		},
 		Probe: probe{
 			hostPort: *hostPort,
 			notes:    notes,
 			synthErr: synthErr,
+			live:     &appleevents.Chrome{Runner: appleevents.Osascript{}},
 		},
 		HostPort: *hostPort,
 	}
@@ -105,14 +137,29 @@ type probe struct {
 	hostPort string
 	notes    appleevents.Notes
 	synthErr error
+	live     *appleevents.Chrome
 }
 
 func (p probe) LLMConfigured() error { return p.synthErr }
 
+// BrowserReachable prefers the browser the user is actually in, and only
+// falls back to reporting on the debugged one. A ready live browser needs no
+// setup at all, so saying "start Chrome with these flags" when it is right
+// there would send someone to do work they do not need to do.
 func (p probe) BrowserReachable(ctx context.Context) error {
-	_, err := cdp.BrowserWSURL(ctx, p.hostPort)
-	return err
+	live := p.live.Reachable(ctx)
+	if live == nil {
+		return nil
+	}
+	if _, err := cdp.BrowserWSURL(ctx, p.hostPort); err == nil {
+		return nil
+	}
+	return live
 }
+
+// BrowserFix is the instruction for whatever BrowserReachable reported, when
+// there is one that is easier than launching a second browser.
+func (p probe) BrowserFix(err error) string { return appleevents.Fix(err) }
 
 // NotesAccessible sends a trivial Apple event to Notes.
 //

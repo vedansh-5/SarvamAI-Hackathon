@@ -23,8 +23,16 @@ func TestAnUnnamedEngineFallsBackToTheDefault(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(got, "google.com") {
-		t.Errorf("url = %q, want the default engine", got)
+
+	// Asserted against the constant rather than against a host. Which engine
+	// is the default is a decision about what caches (D-045) and is expected
+	// to change; that the fallback happens is not.
+	want, err := searchURL(DefaultSearchEngine, "widgets")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Errorf("url = %q, want the default engine's %q", got, want)
 	}
 }
 

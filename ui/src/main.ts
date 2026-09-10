@@ -1,6 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWindow, LogicalPosition } from "@tauri-apps/api/window";
 
 // --- shapes mirrored from internal/rpc/protocol.go ---
 
@@ -32,6 +31,10 @@ interface Plan {
   needs_commit: boolean;
   kind: string;
   decision_calls: number;
+  action: string;
+  answer: string;
+  answer_cites: number[];
+  answer_calls: number;
 }
 
 interface Destination {
@@ -449,6 +452,16 @@ function renderCards(into: HTMLElement, fields: string[], rows: Record<string, s
 }
 
 function renderResults(plan: Plan) {
+  if (plan.action) {
+    $("results-kicker").textContent = `${plan.destination} — nothing to change`;
+    clear($("cards"));
+    $("cards").appendChild(el("p", "card-text", plan.action));
+    clear($("rows"));
+    return;
+  }
+
+  renderAnswer(plan);
+
   const n = plan.rows.length;
   const source = hostOf(plan.page_url) || plan.page_url;
   $("results-kicker").textContent =
@@ -471,12 +484,61 @@ function renderResults(plan: Plan) {
   }
 }
 
+/// The answer, and what it rests on.
+///
+/// The citations are shown rather than kept as provenance: an answer written
+/// off a page is only worth as much as the page, and the fastest way to judge
+/// it is to see which results it used. Clicking one scrolls to it.
+function renderAnswer(plan: Plan) {
+  const box = $("answer");
+  const cites = $("answer-cites");
+  clear(cites);
+
+  if (!plan.answer) {
+    box.hidden = true;
+    return;
+  }
+
+  $("answer-text").textContent = plan.answer;
+  box.hidden = false;
+
+  for (const n of plan.answer_cites ?? []) {
+    const row = plan.rows[n - 1];
+    if (!row) continue;
+
+    const label = hostOf(firstLink(row, plan.fields)) || String(n);
+    const chip = el("button", "cite", label) as HTMLButtonElement;
+    chip.type = "button";
+    chip.title = row[plan.fields[0]] ?? "";
+    chip.addEventListener("click", () => {
+      const card = $("cards").children[n - 1] as HTMLElement | undefined;
+      card?.scrollIntoView({ behavior: "smooth", block: "center" });
+      card?.classList.add("lit");
+      setTimeout(() => card?.classList.remove("lit"), 1200);
+    });
+    cites.appendChild(chip);
+  }
+}
+
+function firstLink(row: Record<string, string>, fields: string[]): string {
+  for (const f of fields) {
+    const v = (row[f] ?? "").trim();
+    if (/^https?:/i.test(v)) return v;
+  }
+  return "";
+}
+
 function renderConfirm(plan: Plan) {
-  const n = plan.rows.length;
-  $("confirm-title").textContent =
-    `Write ${n} result${n === 1 ? "" : "s"} to ${label(plan.destination)}?`;
-  $("confirm-preview").textContent = documentText(plan);
-  ($("commit") as HTMLButtonElement).textContent = `Confirm & write`;
+  if (plan.action) {
+    $("confirm-title").textContent = `Do this in ${plan.destination}?`;
+    $("confirm-preview").textContent = plan.action;
+  } else {
+    const n = plan.rows.length;
+    $("confirm-title").textContent =
+      `Write ${n} result${n === 1 ? "" : "s"} to ${label(plan.destination)}?`;
+    $("confirm-preview").textContent = documentText(plan);
+  }
+  ($("commit") as HTMLButtonElement).textContent = "Confirm & write";
 }
 
 function documentText(plan: Plan): string {
@@ -534,7 +596,12 @@ const PLAIN: Record<string, { title: string; message: string }> = {
   no_browser: {
     title: "Chrome isn't ready",
     message:
-      "VANS works through a Chrome that is already running, with at least one tab open. It will not start one for you.",
+      "VANS works through the Chrome you are already using, with at least one window open. It will not start one for you.",
+  },
+  browser_scripting_off: {
+    title: "Chrome won't let VANS read the page",
+    message:
+      "One menu item, once. Chrome keeps this off by default so that scripts cannot read what you are signed in to.",
   },
   permission_denied: {
     title: "macOS blocked the write",
@@ -583,6 +650,11 @@ function renderFailure(e: unknown) {
       detail.appendChild(toSetup);
       break;
     }
+    case "browser_scripting_off":
+      detail.appendChild(
+        el("pre", "fix", "Chrome › View › Developer › Allow JavaScript from Apple Events"),
+      );
+      break;
     case "permission_denied":
       detail.appendChild(
         el("pre", "fix", "System Settings › Privacy & Security › Automation, then try again."),
@@ -1091,49 +1163,37 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-interface Drag {
-  pointerX: number;
-  pointerY: number;
-  windowX: number;
-  windowY: number;
-}
-
-let drag: Drag | null = null;
-let dragTo: LogicalPosition | null = null;
+let dragging = false;
+let dragFrom = { x: 0, y: 0 };
+let dragTo: { dx: number; dy: number } | null = null;
 let dragFrame = 0;
 
-$("grip").addEventListener("mousedown", async (e) => {
+$("grip").addEventListener("mousedown", (e) => {
   const target = e.target as HTMLElement;
   if (target.closest("button, input, a, select, textarea")) return;
   e.preventDefault();
 
-  const win = getCurrentWindow();
-  try {
-    const scale = await win.scaleFactor();
-    const at = (await win.outerPosition()).toLogical(scale);
-    drag = { pointerX: e.screenX, pointerY: e.screenY, windowX: at.x, windowY: at.y };
-  } catch (err) {
-    console.error(err);
-  }
+  dragging = true;
+  dragFrom = { x: e.screenX, y: e.screenY };
+  invoke("begin_drag").catch(console.error);
 });
 
 window.addEventListener("mousemove", (e) => {
-  if (!drag) return;
-  dragTo = new LogicalPosition(
-    drag.windowX + (e.screenX - drag.pointerX),
-    drag.windowY + (e.screenY - drag.pointerY),
-  );
+  if (!dragging) return;
+  dragTo = { dx: e.screenX - dragFrom.x, dy: e.screenY - dragFrom.y };
   if (!dragFrame) {
     dragFrame = requestAnimationFrame(() => {
       dragFrame = 0;
-      if (dragTo) getCurrentWindow().setPosition(dragTo).catch(console.error);
+      if (dragTo) invoke("drag_by", dragTo).catch(console.error);
     });
   }
 });
 
 window.addEventListener("mouseup", () => {
-  drag = null;
+  if (!dragging) return;
+  dragging = false;
   dragTo = null;
+  invoke("end_drag").catch(console.error);
 });
 
 $("opacity").addEventListener("input", (e) => {

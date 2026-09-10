@@ -44,6 +44,7 @@ type Suite struct {
 // Class is a scriptable object type, such as a note or a mailbox.
 type Class struct {
 	Name        string     `xml:"name,attr"`
+	Plural      string     `xml:"plural,attr"`
 	Code        string     `xml:"code,attr"`
 	Hidden      string     `xml:"hidden,attr"`
 	Description string     `xml:"description,attr"`

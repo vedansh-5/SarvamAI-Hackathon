@@ -201,3 +201,26 @@ func TestFailuresIgnoresUnrelatedErrors(t *testing.T) {
 type errUnrelated struct{}
 
 func (errUnrelated) Error() string { return "something else went wrong" }
+
+// A results page interleaves records with image strips, "people also ask" and
+// video carousels, all siblings under one class. More than half of them
+// legitimately hold nothing — and the ones that do are the answer. Rejecting
+// the program threw away eight complete records off a real search page.
+func TestAMixedPageIsNotTooBroadWhenTheRecordsAreThere(t *testing.T) {
+	var b strings.Builder
+	b.WriteString(`<div class="results">`)
+	for i := 0; i < 8; i++ {
+		b.WriteString(`<article class="card"><h3><a href="/p/x">Widget</a></h3><span class="price">$1</span></article>`)
+	}
+	for i := 0; i < 11; i++ {
+		b.WriteString(`<article class="card"><h3><a></a></h3><span class="price"></span></article>`)
+	}
+	b.WriteString(`</div>`)
+
+	p := shopProgram()
+	p.Expect.MinRows = 1
+
+	if rs := reasonsFor(t, b.String(), p); rs != nil {
+		t.Errorf("8 records among 19 elements were rejected: %v", rs)
+	}
+}

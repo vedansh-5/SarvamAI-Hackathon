@@ -16,6 +16,17 @@ import (
 // the selector is matching a container class rather than the records.
 const MaxDropRate = 0.34
 
+// ConfidentRows is how many complete records make a high drop rate acceptable.
+//
+// The floor above exists to catch a selector that grabbed a container instead
+// of the records, and that mistake yields a handful of rows at most. A search
+// page is the other case: results, image strips, "people also ask" and video
+// carousels are all siblings under one class, so more than half of them
+// legitimately hold nothing a record needs — and the rows that do survive are
+// the answer. Found on a Google results page that produced eight complete
+// records out of nineteen elements and had them thrown away.
+const ConfidentRows = 5
+
 // VerifyError is a result that ran but does not satisfy its contract.
 //
 // It carries every reason rather than the first, because its whole purpose is
@@ -119,9 +130,10 @@ func Verify(p extract.Program, res Result) error {
 	}
 
 	// A root that matches far more elements than it yields rows is selecting
-	// something broader than the records, even when enough rows survive to
-	// satisfy min_rows.
-	if res.Matched > 0 && float64(res.Dropped)/float64(res.Matched) > MaxDropRate {
+	// something broader than the records — unless what survives is itself a
+	// full set of records, which is what a mixed results page looks like.
+	tooBroad := res.Matched > 0 && float64(res.Dropped)/float64(res.Matched) > MaxDropRate
+	if tooBroad && len(res.Rows) < ConfidentRows {
 		reasons = append(reasons, fmt.Sprintf(
 			"root selector %q matched %d elements but %d of them held no data; it is broader than the records",
 			p.Root, res.Matched, res.Dropped))

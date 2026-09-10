@@ -320,8 +320,24 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 		kind = string(plan.Route.Kind)
 	}
 
+	action := ""
+	if plan.Action != nil {
+		action = plan.Action.Preview
+	}
+
+	answerText := ""
+	var cites []int
+	if plan.Answer != nil {
+		answerText = plan.Answer.Text
+		cites = plan.Answer.Cites
+	}
+
 	return PrepareResult{
 		PlanID:         id,
+		Action:         action,
+		Answer:         answerText,
+		AnswerCites:    cites,
+		AnswerCalls:    plan.AnswerCalls,
 		PageURL:        plan.PageURL,
 		Signature:      plan.Signature,
 		Title:          title,
@@ -409,9 +425,23 @@ func asError(err error) *Error {
 		}
 	}
 
+	// Matched on the error rather than on its text: the sentinel is what the
+	// adapter promises, and the wording is not.
+	if errors.Is(err, appleevents.ErrScriptingOff) {
+		return &Error{
+			Code:    CodeBrowserScripting,
+			Message: err.Error(),
+			Data:    fixData(appleevents.Fix(err)),
+		}
+	}
+	if errors.Is(err, appleevents.ErrNotRunning) {
+		return &Error{Code: CodeNoBrowser, Message: err.Error(), Data: fixData(appleevents.Fix(err))}
+	}
+
 	msg := err.Error()
 	switch {
 	case strings.Contains(msg, "no Chromium debugging endpoint"),
+		strings.Contains(msg, "Chrome has no window open"),
 		strings.Contains(msg, "no page target"):
 		return &Error{Code: CodeNoBrowser, Message: msg}
 	case strings.Contains(msg, "already been committed"):

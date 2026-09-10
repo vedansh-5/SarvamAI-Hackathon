@@ -98,7 +98,7 @@ func Open(path string) (*Store, error) {
 // Close releases the database.
 func (s *Store) Close() error { return s.db.Close() }
 
-const schemaVersion = 2
+const schemaVersion = 4
 
 func (s *Store) migrate(ctx context.Context) error {
 	var v int
@@ -138,6 +138,29 @@ CREATE TABLE IF NOT EXISTS routes (
 	created_at   INTEGER NOT NULL,
 	last_used_at INTEGER NOT NULL DEFAULT 0,
 	uses         INTEGER NOT NULL DEFAULT 0
+);
+
+-- Programs that act inside an application, keyed by the application and the
+-- shape of the action asked for. The same idea as routes one tier along: the
+-- shape is the generalisation, so one program per key, replaced rather than
+-- accumulated.
+CREATE TABLE IF NOT EXISTS actions (
+	app          TEXT    NOT NULL,
+	shape        TEXT    NOT NULL,
+	program      TEXT    NOT NULL,
+	model        TEXT    NOT NULL DEFAULT '',
+	created_at   INTEGER NOT NULL,
+	last_used_at INTEGER NOT NULL DEFAULT 0,
+	uses         INTEGER NOT NULL DEFAULT 0,
+	PRIMARY KEY (app, shape)
+);
+
+-- Small durable facts that are not programs. Currently the id of the tab
+-- VANS opened for itself, so a restarted engine adopts it rather than opening
+-- another one every time.
+CREATE TABLE IF NOT EXISTS settings (
+	key   TEXT PRIMARY KEY,
+	value TEXT NOT NULL
 );
 `
 	if _, err := s.db.ExecContext(ctx, ddl); err != nil {

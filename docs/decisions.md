@@ -909,3 +909,291 @@ it would look correct.
 **What this is not yet.** Discovery only. Nothing here writes a program,
 executes an Apple event, or decides what a confirmation looks like when the
 side effect leaves the machine.
+
+## D-041 — What an application's surface is, and what it is not
+
+The dictionary (D-040) is the raw material; the surface is what a model is
+actually shown. Building one turned up three things that are not obvious from
+reading the grammar.
+
+**`get` and `set` are in no dictionary.** Not in any application's, and not in
+`CocoaStandard.sdef` either. They belong to the Apple Event Object Model
+rather than to any application's vocabulary, and every scriptable application
+answers them — which is also why JXA spells a property read as a call,
+`note.body()`, rather than as a command. A validator built only from declared
+commands rejects every program that reads anything. They are seeded into every
+surface.
+
+**Hidden does not mean refused.** `hidden="yes"` asks a dictionary browser not
+to list a command. The application still answers it. Hidden commands are
+therefore collected for validation and left out of the rendering: the model is
+not told about them, and a program that uses one is not rejected for it.
+
+**Objects mostly arrive by class-extension.** Notes declares no `application`
+class; it extends the standard one and hangs its notes and folders off that.
+A surface built from `<class>` elements alone reports an application that can
+do nothing with notes. Extensions are merged into the class they extend, and
+into a synthesised one if it was never declared.
+
+**Size is not the constraint it looked like.** Every one of the 21 scriptable
+applications on this machine renders in under 2200 tokens — Notes 759,
+Reminders 688, Messages 359, the widest, Keynote, 2216. Truncating to a budget
+was built first and then removed: a surface trimmed to fit is a silent claim
+that an application cannot do something it can, and there was no need for it.
+What remains is a backstop at 24000 bytes that nothing reaches, which drops
+whole object types rather than properties and says how many it dropped.
+Commands are never dropped, because they are what the validator checks
+against.
+
+It is a cold-path cost in any case. The program that comes out of this is
+cached by instruction shape; the warm path spends nothing.
+
+## D-042 — An application program is data, not code
+
+A model asked to drive an application will happily write JXA. Taking it would
+hand the runtime a string whose meaning can only be established by reading it,
+and reading arbitrary JavaScript well enough to say what it will do to
+somebody's Mail is not something a validator can be trusted to do. The check
+that matters — does this change anything? — would come down to the model's own
+account of itself.
+
+So the model does not write code. It chooses from the vocabulary the
+application declares: a list of steps, each naming a command, what to act on,
+and what to set. The runtime renders the script. This is the selector program
+(D-002) one tier up, and the same trade: less expressive, in exchange for
+something that can be checked, cached and replayed.
+
+**What the floors are.** Every one consults the dictionary rather than the
+model, so none can be argued past:
+
+- The program must address the application it was written for.
+- Every command must be one the application declares, or one the object model
+  provides. Invented verbs are rejected by name.
+- Every class must be one the application declares.
+- Every property must exist on the class it is set on, **and be writable**.
+  That last one is worth the most: a read-only property fails at the Apple
+  event, which is to say after the user has confirmed a plan that said it
+  would work.
+- A step may only look inside a binding an earlier step produced.
+
+**Whether it writes is not the model's to say.** `Writes` asks the dictionary.
+Whether a confirmation appears is the one decision on that screen with
+consequences.
+
+**Values cannot become code.** Every value reaches the script through
+`encoding/json`, which closes quotes, backslashes, control characters and
+U+2028/U+2029 — the last of which JavaScript treats as a line terminator and
+JSON does not. Identifiers never go through it: only a name checked against the
+dictionary is ever written out, and `identifier()` stands behind that as the
+check that holds if an earlier one is wrong. HTML escaping is off, because `<`
+does no harm inside a string literal and `<div>` in a script the user
+is about to confirm does.
+
+**Two things the shape of JXA forces.** Collections are addressed by plural —
+ten dictionaries on this machine declare `plural` on the class and those are
+used verbatim, the rest get ordinary English. And a bound lookup must stay a
+specifier: in JXA a specifier is a function, so calling it turns a live
+reference into a dead copy, and a step that binds a list followed by one that
+puts something in it would be addressing an object the application no longer
+recognises. Evaluation happens once, at the end, on the result being reported.
+
+## D-043 — Acting in an application, end to end
+
+`app.act` is live: routed, written, validated, cached, previewed, confirmed and
+run. Cold costs one routing call and one synthesis call; warm costs none.
+Measured against Notes with a real model:
+
+    cold   2970 ms   1 decision + 1 synthesis
+    warm     11 ms   0 calls
+    warm     10 ms   0 calls
+
+**The bug that nearly shipped.** The first working version cached the program
+under the instruction shape and passed the model the *resolved* action — the
+one with this instruction's words already in it. So the program came back with
+the value written into it:
+
+    {"command":"make","make":"note","with":{"body":"pick up the dry cleaning"}}
+
+and every later note of that shape got the first note's text. Warm runs were
+fast, made no model calls, reported success, and wrote the wrong thing. Nothing
+failed. It was found by running three requests in a row and reading the
+previews rather than the timings, which is the only way it shows.
+
+This is D-039's leak floor one tier down, and it needed the same two answers:
+the model is told plainly that its program is kept and reused, and the runtime
+refuses a program that hardcodes a value the shape has a placeholder for.
+Synthesis now happens against the templated action, the template is what gets
+cached, and filling happens at use:
+
+    {"command":"make","make":"note","with":{"body":"{s0}"}}
+
+Filling touches values only. Commands, classes and bindings came from the
+dictionary and are not the instruction's to change — a placeholder there would
+be a program rewriting its own structure per request. The filled program is
+validated again before it runs.
+
+**Staleness is checked on the way out.** A cached program was valid against the
+dictionary the day it was written. An application update can withdraw a command
+or make a property read-only, so a cache hit is re-validated and dropped if it
+no longer fits — the same treatment a cached routing decision gets.
+
+**Capabilities are asked of the build, not of a constant.** Acting needs four
+things together: the catalogue, a backend that can write programs, somewhere to
+cache them, and something to run them. A build missing any of them declines
+`app.act` with what it *can* do, rather than accepting the request and failing
+partway through. The list shown after "I didn't catch that" is generated from
+the same check, so it cannot offer what this runtime was not assembled to do.
+
+## D-044 — Drive the browser the user is already in
+
+The debugging port reaches the wrong browser. Chrome 136 and later refuse
+`--remote-debugging-port` on the default profile — deliberately, because an
+open debugging port on a signed-in browser is every cookie in it — and passing
+the flag to a Chrome that is already running does nothing at all, since the
+second process hands off to the first and exits. Between them, CDP means a
+second Chrome on a throwaway profile, signed in to nothing. Most of what
+anyone actually wants to ask about is behind a login.
+
+Chrome is scriptable, and the tier built for acting in applications (D-040 to
+D-043) already knows how to talk to scriptable applications. Its dictionary
+carries everything needed: `execute … javascript:` for the rendered DOM, a
+writable `URL` on a tab, `loading` to wait on, and a read-only `id` per tab.
+
+**One gate, and it is the right one.** Chrome keeps "Allow JavaScript from
+Apple Events" off by default, for the same reason it closed the debugging
+port. It is a menu item, once, and it gets its own error code so the window
+can say which menu item rather than telling someone to relaunch their browser.
+
+**VANS opens its own tab.** The first version took over the frontmost tab,
+with a comment arguing that leaving tabs behind was the worse side effect.
+That was wrong and obviously so: the tab someone is reading is theirs, and
+taking it over to go and look something up is the rudest thing a background
+agent can do to a browser. VANS opens a tab, puts the active tab index back so
+the view does not change underneath them, addresses it by id for the rest of
+the task, and reuses it for later ones. If it is closed, the next task opens
+another.
+
+**The port stays as a fallback.** A live browser that is running with
+scripting on needs no setup at all, so preflight prefers it and only falls
+back to reporting on the debugged one. When both fail, the error with a fix in
+it wins: "turn on this menu item" beats "no page target among 0 targets",
+which is a description of a second browser the user never wanted to run.
+
+**Schemes.** The router hands over what the instruction said, and instructions
+say `news.ycombinator.com`. CDP guesses; the dictionary refuses with "Invalid
+URL entered", which is true and unhelpful. The adapter supplies the scheme.
+
+## D-045 — What the live browser changed about caching
+
+Reading the page through the browser the user is actually in (D-044) changes
+what gets signed. Measured on DuckDuckGo, three identical searches:
+
+    run 1   sig aa9fa438   1 synthesis call
+    run 2   sig d7435ee2   1 synthesis call
+    run 3   sig aa9fa438   0 calls
+
+The results page renders more than one DOM skeleton for the same query. The
+cache is not failing — run 3 is a hit on run 1's signature — but each variant
+has to be met once before it is free. This is the case D-029 kept several
+programs per key for, arriving in practice rather than in theory.
+
+**Google is no longer the default.** It randomises the class names on its
+results page, so its signature never repeats: every search would be a cold
+run, two model calls and seven seconds, for the same question asked twice.
+DuckDuckGo renders a small number of stable shapes, which is what makes the
+second ask free. Naming an engine in the instruction still works, Google
+included — the default is a choice about what caches, not about what is
+allowed.
+
+**Both reasons survive a browser failure.** When the live browser and the
+debugging port both fail, the live one's error is what goes back, with the
+fallback's appended. Discarding it left only "no page target among 0 targets",
+which describes a browser the user never wanted to run and says nothing about
+why the real one could not be driven.
+
+## D-046 — Two things a real browser made obvious
+
+**One tab, remembered.** The live adapter opened a tab per engine process and
+abandoned the last one, so a browser ended up with nine of them. The id now
+lives in the store, and a restarted engine adopts the tab rather than opening
+another. Verified across two processes: the tab count did not move.
+
+**A mixed results page is not a broad selector.** The drop-rate floor (D-016)
+rejects a root that matches far more elements than it yields rows, on the
+grounds that it has grabbed a container class instead of the records. That is
+the right instinct and it was catching the wrong thing. A search results page
+puts results, image strips, "people also ask" and video carousels under one
+class as siblings, so more than half of them legitimately hold nothing a
+record needs — and the ones that do are the answer.
+
+Found on a real Google page: nineteen elements, eight complete records, and
+the program thrown away with the candidate list on screen saying
+`div#rso > div.MjjYud — 8 records`. The runtime had the answer and refused it.
+
+The floor now fires only when a high drop rate is *also* accompanied by few
+surviving rows, which is what taking a container actually looks like — a
+handful of rows at most. Both sides are tested: eight records among nineteen
+elements pass, one record among ten still fail.
+
+## D-047 — An answer, and the one thing that cannot cache
+
+Search returned a table. For "who is X" the table is not the answer; it is the
+raw material for one. The runtime now writes a reply over the rows it already
+has, and shows which rows it rests on.
+
+**This is the boundary of the caching claim, and it is worth stating plainly.**
+Everything else caches because it is about a *shape* — this kind of
+instruction, this kind of page. An answer is about this *content*. Two
+questions of the same shape have different answers, so there is nothing to
+replay. A warm run is therefore zero calls for routing and extraction, plus
+one small call over rows already in hand. Pretending otherwise would mean
+either caching an answer to a different question or not answering at all.
+
+**Grounding is a floor, not an instruction.** A model given thin results
+answers from memory, and a remembered answer reads exactly like a read one:
+fluent, specific, and about something else. So the runtime checks rather than
+asks —
+
+- an answer citing nothing is refused, because that is what answering from
+  memory looks like;
+- a citation past the end of the results is refused;
+- a link that appears in no row is refused, because a fabricated URL is the
+  one invention that cannot be caught by reading.
+
+Refusals go back with the reason, the same ladder everything else uses.
+
+**A failed answer never fails the task.** The rows are extracted and worth
+showing on their own. Trading a working result for a missing summary would be
+losing the thing that works to the thing on top of it.
+
+**The citations are shown, not kept as provenance.** An answer written off a
+page is worth what the page is worth, and the quickest way to judge it is to
+see which results it used. Clicking one goes to it.
+
+## D-048 — Dismiss on a click, not on losing focus
+
+Dismiss-on-blur closed the panel with nobody touching anything. The log, once
+it printed every window event rather than only the one being acted on:
+
+    window event: Focused(false)
+    blur re-check: key=false visible=true
+    hiding: lost the keyboard after a blur     (three times, untouched)
+
+A panel that floats over full-screen applications and never activates gives up
+key status constantly, and almost never because the user left: the menu bar
+auto-revealing does it, so does a full-screen window's own controls appearing,
+so does being moved or resized. Two attempts were made to keep blur and
+qualify it — ignore it while dragging, ask AppKit again a moment later — and
+each added a condition that was correct in one case and wrong in another.
+
+Blur is the wrong event. The one that means "I have gone somewhere else" is
+the mouse going down in another application, and it is available: a global
+`NSEvent` monitor for mouse-down. Hovering, scrolling, and a menu bar sliding
+into view produce none. Clicks inside the panel never reach a global monitor,
+and the click's position is checked against the window frame anyway.
+
+**Dragging moved to the shell.** The frontend's route to the window position
+was two async calls that could fail into a console nobody is reading, which
+is indistinguishable from a drag that does nothing — and that is exactly how
+it presented. The shell reads the position when the drag begins and the
+frontend sends screen deltas, so a failure prints somewhere it can be seen.

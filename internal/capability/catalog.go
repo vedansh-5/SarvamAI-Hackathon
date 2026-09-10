@@ -115,6 +115,6 @@ func normalise(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-func (c *Catalog) Dictionary(a App) (sdef.Dictionary, error) {
+func (c *Catalog) Dictionary(a App) (*sdef.Dictionary, error) {
 	return sdef.Load(a.Path)
 }

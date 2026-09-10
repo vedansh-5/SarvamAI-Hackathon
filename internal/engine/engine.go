@@ -22,6 +22,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vedansh/vans/internal/answer"
+	"github.com/vedansh/vans/internal/appact"
+	"github.com/vedansh/vans/internal/capability"
 	"github.com/vedansh/vans/internal/extract"
 	"github.com/vedansh/vans/internal/route"
 	"github.com/vedansh/vans/internal/runner"
@@ -88,6 +91,18 @@ type Engine struct {
 	// Sinks are the destinations that write somewhere, by name. The panel is
 	// not among them — it is the absence of a write, not a kind of one.
 	Sinks map[string]Sink
+
+	// Apps, Writer, Actions and Runner are what it takes to act inside an
+	// application. All optional and all four required together: a build with
+	// some of them declines app.act rather than failing partway through one.
+	// Answers replies to a question from rows already extracted. Optional: a
+	// build without one shows the rows and nothing above them.
+	Answers Answerer
+
+	Apps    *capability.Catalog
+	Writer  ActionWriter
+	Actions ActionCache
+	Runner  appact.Runner
 
 	// Model labels which backend wrote a program, stored as provenance.
 	Model string
@@ -193,6 +208,21 @@ type Plan struct {
 	// DecisionCalls is how many model calls the routing cost. Zero on a warm
 	// shape, the same way SynthesisCalls is zero on a warm page.
 	DecisionCalls int
+
+	// Answer is a reply to the question, grounded in the rows. Nil when the
+	// task was not a question, or when nothing survived being checked against
+	// the results.
+	Answer *answer.Answer
+
+	// AnswerCalls is what the answer cost. Unlike everything else it is never
+	// zero on a warm run: routing and extraction are about a shape and cache,
+	// an answer is about this content and cannot.
+	AnswerCalls int
+
+	// Action is set when this plan acts inside an application rather than
+	// extracting from a page. Rows are empty in that case: there is nothing
+	// to show as a table, and the preview is what gets confirmed.
+	Action *ActionPlan
 
 	key       store.Key
 	programID int64
@@ -409,6 +439,14 @@ func (e *Engine) Commit(ctx context.Context, plan *Plan) (Receipt, error) {
 	if plan.committed {
 		return Receipt{}, fmt.Errorf("engine: this plan has already been committed; writes are never retried")
 	}
+	if plan.Action != nil {
+		// Set before the call, not after: if the program panics or the
+		// process dies mid-flight the plan is still spent, because the change
+		// may have happened.
+		plan.committed = true
+		return e.runAction(ctx, plan)
+	}
+
 	if len(plan.Rows) == 0 {
 		return Receipt{}, fmt.Errorf("engine: refusing to write an empty document")
 	}
@@ -452,6 +490,12 @@ func (p *Plan) Committed() bool { return p.committed }
 // this rather than unconditionally — a confirmation in front of something with
 // no side effect teaches people to dismiss confirmations.
 func (p *Plan) NeedsCommit() bool {
+	// An action asks the dictionary. A program that only reads has nothing to
+	// confirm, and a confirmation in front of an action with no side effect
+	// teaches people to dismiss confirmations.
+	if p.Action != nil {
+		return p.Action.Writes
+	}
 	return p.Destination != "" && p.Destination != PanelDestination
 }
 

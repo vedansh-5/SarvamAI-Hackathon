@@ -79,7 +79,7 @@ async fn commit(engine: State<'_, Engine>, plan_id: String) -> Result<Value, Rpc
 /// the window, which would destroy state the user may come back to.
 #[tauri::command]
 fn dismiss(app: tauri::AppHandle) {
-    overlay::hide(&app);
+    overlay::hide_because(&app, "the window asked to be dismissed");
 }
 
 /// Asks the panel to stay up when it loses focus.
@@ -87,6 +87,21 @@ fn dismiss(app: tauri::AppHandle) {
 /// The window knows which screen it is showing; the shell knows what a panel
 /// is. This is the one bit the window has to tell the shell, and it is a
 /// presentation request only — it cannot reach the runtime or a plan.
+#[tauri::command]
+fn begin_drag(app: tauri::AppHandle) {
+    overlay::begin_drag(&app);
+}
+
+#[tauri::command]
+fn drag_by(app: tauri::AppHandle, dx: f64, dy: f64) {
+    overlay::drag_by(&app, dx, dy);
+}
+
+#[tauri::command]
+fn end_drag() {
+    overlay::end_drag();
+}
+
 #[tauri::command]
 fn set_pinned(pinned: bool) {
     overlay::set_pinned(pinned);
@@ -196,6 +211,9 @@ pub fn run() {
             commit,
             dismiss,
             set_pinned,
+            begin_drag,
+            drag_by,
+            end_drag,
             resize_panel,
             set_theme,
             set_blur,

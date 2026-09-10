@@ -142,6 +142,13 @@ type Route struct {
 	Shape       string
 	Instruction string
 
+	// Templates are the slots before filling, and Literals what filled them.
+	// Carried because anything cached under the shape has to be written
+	// against the templates and filled at use, or it bakes in the values of
+	// whichever instruction happened to be first (D-039).
+	Templates map[string]string
+	Literals  Literals
+
 	// FromCache reports that no model call was made. The number worth
 	// watching, and the same claim the extraction path makes (D-006).
 	FromCache bool
@@ -149,6 +156,10 @@ type Route struct {
 
 // Slot reads a filled slot.
 func (r Route) Slot(name string) string { return r.Slots[name] }
+
+// Template reads a slot before filling, which is what anything cached by
+// shape must be written against.
+func (r Route) Template(name string) string { return r.Templates[name] }
 
 // Validate rejects a decision the engine could not act on.
 //
@@ -251,6 +262,8 @@ func (d Decision) Resolve(instruction, shape string, lits Literals) (Route, erro
 		Why:         d.Why,
 		Shape:       shape,
 		Instruction: instruction,
+		Templates:   d.Slots,
+		Literals:    lits,
 	}
 
 	// Re-checked after filling, not only before. A decision can be structurally

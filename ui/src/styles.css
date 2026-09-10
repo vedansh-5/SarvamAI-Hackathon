@@ -908,3 +908,50 @@ input[type="checkbox"].switch:checked::after {
 section:not([hidden]) {
   animation: rise 0.16s ease-out;
 }
+
+/* ---------- answer ---------- */
+
+.answer {
+  padding: 14px 0 16px;
+  border-bottom: 1px solid var(--divider);
+}
+
+.answer p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink);
+  user-select: text;
+}
+
+.cites {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.cite {
+  padding: 3px 9px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cite:hover {
+  filter: brightness(0.95);
+}
+
+.card.lit {
+  background: var(--accent-soft);
+  border-radius: var(--r-md);
+}

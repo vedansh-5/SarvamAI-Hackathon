@@ -53,6 +53,13 @@ const (
 	// CodePermission means macOS denied automation access.
 	CodePermission = "permission_denied"
 
+	// CodeBrowserScripting means Chrome is open and reachable but will not
+	// run JavaScript sent by Apple Events. Its own code because it is the one
+	// browser problem whose fix is a menu item rather than a relaunch, and
+	// telling someone to start a second browser when this is all that is
+	// wrong sends them to do work they do not need to do.
+	CodeBrowserScripting = "browser_scripting_off"
+
 	// CodeSpent means a plan was already committed. Writes are never retried.
 	CodeSpent = "plan_spent"
 
@@ -122,6 +129,18 @@ type PrepareResult struct {
 	// understanding cost. Zero on a shape seen before.
 	Kind          string `json:"kind"`
 	DecisionCalls int    `json:"decision_calls"`
+
+	// Answer is a reply to the question, and Cites the one-based results it
+	// rests on. Empty when the task was not a question or nothing survived
+	// being checked against the rows.
+	Answer      string `json:"answer"`
+	AnswerCites []int  `json:"answer_cites"`
+	AnswerCalls int    `json:"answer_calls"`
+
+	// Action is what will happen inside an application, in that
+	// application's own words. Empty for a plan that reads a page: those are
+	// confirmed against the rows themselves.
+	Action string `json:"action"`
 }
 
 // Destination is somewhere an answer can be sent.

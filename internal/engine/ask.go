@@ -63,7 +63,7 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 			return nil, &UnroutableError{
 				Instruction: in.Instruction,
 				Why:         undecided.Why,
-				Can:         capabilities(),
+				Can:         e.capabilities(),
 			}
 		}
 		return nil, err
@@ -106,30 +106,50 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 			r := res.Route
 			plan.Route = &r
 			plan.DecisionCalls = res.DecisionCalls
+
+			// The question is the user's, not the runtime's rewriting of it.
+			// searchIntent describes what a results page looks like; it is not
+			// what anybody asked.
+			e.answerFor(ctx, in.Instruction, plan)
 		}
 		return plan, err
 
-	default:
-		// A kind the router can choose but the engine cannot yet run. Said
-		// plainly rather than failing somewhere downstream: the router is
-		// deliberately ahead of the adapters, so this is an expected state
-		// and not a bug to be discovered from a stack trace.
-		return nil, &UnroutableError{
-			Instruction: in.Instruction,
-			Why: fmt.Sprintf(
-				"that is a %s task, which VANS can recognise but cannot carry out yet",
-				res.Route.Kind),
-			Can: capabilities(),
+	case route.KindAppAction:
+		if e.canAct() {
+			plan, calls, err := e.act(ctx, res.Route, res.Shape)
+			if err != nil {
+				return nil, err
+			}
+			r := res.Route
+			plan.Route = &r
+			plan.DecisionCalls = res.DecisionCalls
+			plan.SynthesisCalls = calls
+			return plan, nil
 		}
+	}
+
+	// A kind the router can choose but this build cannot run. Said plainly
+	// rather than failing somewhere downstream: the router is deliberately
+	// ahead of the adapters, so this is an expected state and not a bug to be
+	// discovered from a stack trace.
+	return nil, &UnroutableError{
+		Instruction: in.Instruction,
+		Why: fmt.Sprintf(
+			"that is a %s task, which VANS can recognise but cannot carry out yet",
+			res.Route.Kind),
+		Can: e.capabilities(),
 	}
 }
 
-// capabilities describes what can actually be run, which is not the same as
-// what can be routed.
-func capabilities() []string {
+// capabilities describes what this build can actually run, which is not the
+// same as what can be routed — and not the same across builds either. Asked of
+// the engine rather than of a constant, so the list a user is shown after
+// "I did not catch that" cannot offer something this particular runtime was
+// not assembled to do.
+func (e *Engine) capabilities() []string {
 	var out []string
 	for _, spec := range route.Specs {
-		if !runnable[spec.Kind] {
+		if !e.runs(spec.Kind) {
 			continue
 		}
 		out = append(out, spec.Describe)
@@ -137,10 +157,20 @@ func capabilities() []string {
 	return out
 }
 
-// runnable marks the kinds that have an adapter behind them. Anything routed
-// to a kind not listed here is recognised and declined, which is a better
-// answer than attempting it.
-var runnable = map[route.Kind]bool{
-	route.KindWebExtract: true,
-	route.KindWebSearch:  true,
+func (e *Engine) runs(k route.Kind) bool {
+	switch k {
+	case route.KindWebExtract, route.KindWebSearch:
+		return true
+	case route.KindAppAction:
+		return e.canAct()
+	default:
+		return false
+	}
+}
+
+// canAct reports whether every piece acting in an application needs is here.
+// All four together or none: a build with some of them would decline halfway
+// through a request rather than before starting one.
+func (e *Engine) canAct() bool {
+	return e.Apps != nil && e.Writer != nil && e.Actions != nil && e.Runner != nil
 }

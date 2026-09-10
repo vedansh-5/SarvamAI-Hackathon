@@ -89,6 +89,12 @@ func (r *Router) maxDecisions() int {
 type Result struct {
 	Route Route
 
+	// Shape is the instruction with its values lifted out, which is the key
+	// the decision was cached under. Carried so that anything cached further
+	// down — a program written for this kind of request — can be keyed by the
+	// same generalisation rather than by this one instruction.
+	Shape string
+
 	// DecisionCalls is how many times the model was asked. Zero is the
 	// expected value on a warm run and the number worth watching.
 	DecisionCalls int
@@ -146,7 +152,7 @@ func (r *Router) Route(ctx context.Context, instruction string) (Result, error) 
 			if rt, err := d.Resolve(instruction, shape, lits); err == nil {
 				r.logf("route cache hit: %s, no model call", rt.Kind)
 				rt.FromCache = true
-				return Result{Route: rt}, nil
+				return Result{Route: rt, Shape: shape}, nil
 			} else {
 				r.logf("cached route no longer resolves (%v); deciding again", err)
 				if err := r.Cache.ForgetRoute(ctx, shape); err != nil {
@@ -200,7 +206,7 @@ func (r *Router) Route(ctx context.Context, instruction string) (Result, error) 
 			}
 		}
 		r.logf("routed to %s after %d model call(s)", rt.Kind, call)
-		return Result{Route: rt, DecisionCalls: call}, nil
+		return Result{Route: rt, Shape: shape, DecisionCalls: call}, nil
 	}
 
 	return Result{DecisionCalls: r.maxDecisions()}, &UndecidedError{

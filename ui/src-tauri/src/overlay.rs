@@ -6,6 +6,7 @@
 //! launch is the thing this replaces.
 
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 
 use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, WebviewWindow};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
@@ -76,12 +77,136 @@ pub fn show(app: &AppHandle) {
 /// were in. Without it the empty VANS process stays frontmost and they have to
 /// click their own window again.
 pub fn hide(app: &AppHandle) {
+    hide_because(app, "unspecified");
+}
+
+/// Every path that puts the panel away, with why.
+///
+/// The panel was dismissing itself with nobody touching it, and three guesses
+/// at the cause had each been half right. Naming the caller is the difference
+/// between reading the answer out of a log and guessing a fourth time.
+pub fn hide_because(app: &AppHandle, reason: &str) {
+    eprintln!("[vans] hiding: {reason}");
     let Some(win) = window(app) else { return };
     let _ = win.hide();
 }
 
 pub fn set_pinned(pinned: bool) {
     PINNED.store(pinned, Ordering::Relaxed);
+}
+
+/// True while the user is dragging the panel by its header.
+///
+/// Moving a window changes which window is key, so a drag produces exactly
+/// the event that dismiss-on-blur is watching for — the panel disappeared
+/// from under the pointer that was moving it, which reads as "dragging does
+/// nothing" rather than as "it closed".
+static DRAGGING: AtomicBool = AtomicBool::new(false);
+
+pub fn set_dragging(dragging: bool) {
+    DRAGGING.store(dragging, Ordering::Relaxed);
+}
+
+/// Where the panel was when the current drag began, in logical points.
+static DRAG_ORIGIN: Mutex<Option<(f64, f64)>> = Mutex::new(None);
+
+/// Records the panel's position so a drag can be measured from it.
+///
+/// Read here rather than in the window, because the frontend's route to it is
+/// two async calls that can fail into a console nobody is reading. The whole
+/// drag having quietly done nothing was the symptom.
+pub fn begin_drag(app: &AppHandle) {
+    let Some(win) = window(app) else { return };
+    set_dragging(true);
+
+    let scale = win.scale_factor().unwrap_or(1.0);
+    match win.outer_position() {
+        Ok(p) => {
+            let at = p.to_logical::<f64>(scale);
+            *DRAG_ORIGIN.lock().unwrap() = Some((at.x, at.y));
+        }
+        Err(e) => {
+            eprintln!("[vans] could not read the panel position to drag it: {e}");
+            *DRAG_ORIGIN.lock().unwrap() = None;
+        }
+    }
+}
+
+/// Moves the panel to where the drag has taken it.
+pub fn drag_by(app: &AppHandle, dx: f64, dy: f64) {
+    let Some(origin) = *DRAG_ORIGIN.lock().unwrap() else {
+        return;
+    };
+    let Some(win) = window(app) else { return };
+    if !dx.is_finite() || !dy.is_finite() {
+        return;
+    }
+    let _ = win.set_position(LogicalPosition::new(origin.0 + dx, origin.1 + dy));
+}
+
+/// Dismisses the panel when a click lands outside it.
+///
+/// A click, specifically. Blur was tried and removed: a panel that floats over
+/// full-screen apps and never activates gives up key status for the menu bar
+/// auto-revealing, for a full-screen window's controls appearing, for being
+/// moved — none of which is the user going somewhere else. Watching for the
+/// mouse going down in another application is the thing that actually
+/// happened, and hovering and scrolling do not produce it.
+///
+/// The monitor is global, so it never sees clicks inside VANS itself; the
+/// frame check is there for the case where it does.
+#[cfg(target_os = "macos")]
+fn dismiss_on_click_outside(app: &AppHandle) {
+    use block2::RcBlock;
+    use objc2_app_kit::{NSEvent, NSEventMask, NSWindow};
+
+    let handle = app.clone();
+    let block = RcBlock::new(move |event: core::ptr::NonNull<NSEvent>| {
+        if PINNED.load(Ordering::Relaxed) || DRAGGING.load(Ordering::Relaxed) {
+            return;
+        }
+        let Some(win) = window(&handle) else { return };
+        if !win.is_visible().unwrap_or(false) {
+            return;
+        }
+
+        let at = unsafe { NSEvent::mouseLocation() };
+
+        let Ok(ptr) = win.ns_window() else { return };
+        if ptr.is_null() {
+            return;
+        }
+        let ns: &NSWindow = unsafe { &*(ptr as *const NSWindow) };
+        let frame = ns.frame();
+
+        // Screen coordinates, origin bottom-left, same for both.
+        let inside = at.x >= frame.origin.x
+            && at.x <= frame.origin.x + frame.size.width
+            && at.y >= frame.origin.y
+            && at.y <= frame.origin.y + frame.size.height;
+        if inside {
+            return;
+        }
+
+        let inner = handle.clone();
+        let _ = handle.run_on_main_thread(move || hide_because(&inner, "clicked outside"));
+        let _ = event;
+    });
+
+    let mask = NSEventMask::LeftMouseDown
+        | NSEventMask::RightMouseDown
+        | NSEventMask::OtherMouseDown;
+    unsafe {
+        // The returned token is deliberately dropped: the monitor lives as
+        // long as the process, which is as long as the panel can be shown.
+        let _ = NSEvent::addGlobalMonitorForEventsMatchingMask_handler(mask, &block);
+    }
+    std::mem::forget(block);
+}
+
+pub fn end_drag() {
+    set_dragging(false);
+    *DRAG_ORIGIN.lock().unwrap() = None;
 }
 
 /// Sizes the window to the height its content asked for.
@@ -177,7 +302,7 @@ pub fn toggle(app: &AppHandle) {
     // dismiss, or the panel that deliberately stayed up is the one the hotkey
     // cannot recover.
     if win.is_visible().unwrap_or(false) && holds_keyboard(&win) {
-        hide(app);
+        hide_because(app, "hotkey pressed while it held the keyboard");
     } else {
         show(app);
     }
@@ -461,18 +586,23 @@ pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         #[cfg(target_os = "macos")]
         frost(&win, tauri::Theme::Light);
 
-        let handle = app.clone();
-        win.on_window_event(move |event| {
-            // Clicking away dismisses, the way a summoned panel should, unless
-            // the window has pinned itself. In-flight work is unaffected either
-            // way: the webview is hidden, not destroyed, so a plan waiting for
-            // confirmation is still there when it comes back.
-            if let tauri::WindowEvent::Focused(false) = event {
-                if !PINNED.load(Ordering::Relaxed) {
-                    hide(&handle);
-                }
-            }
-        });
+        #[cfg(target_os = "macos")]
+        dismiss_on_click_outside(app);
+
+        // Deliberately no dismiss-on-blur.
+        //
+        // A panel that floats over full-screen apps and never activates gives
+        // up key status constantly, and for reasons that have nothing to do
+        // with the user leaving: the menu bar auto-revealing over a
+        // full-screen window does it, so does that window's own controls
+        // appearing, so does being moved or resized. The log showed three
+        // Focused(false) events with nobody touching anything, each one
+        // closing the panel.
+        //
+        // Blur was never a reliable signal here, and every attempt to make it
+        // one added a condition that was wrong somewhere else. Dismissal is
+        // now only ever asked for: Escape, the hotkey, or the window saying
+        // so. Nobody has ever complained that it stayed open.
     }
 
     Ok(())

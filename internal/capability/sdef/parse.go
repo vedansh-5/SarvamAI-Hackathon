@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -13,9 +14,14 @@ import (
 // no dependency on /System.
 type Resolver func(href string) (string, error)
 
-// SystemResolver strips the file://localhost prefix Apple uses in includes.
+// SystemResolver turns an include href into a path on this machine. Apple
+// writes both file://localhost/... and file:///..., and a dictionary that
+// tries to include something over the network is refused rather than fetched.
 func SystemResolver(href string) (string, error) {
-	p := strings.TrimPrefix(href, "file://localhost")
+	p := strings.TrimPrefix(strings.TrimPrefix(href, "file://localhost"), "file://")
+	if strings.Contains(href, "://") && !strings.HasPrefix(href, "file:") {
+		return "", fmt.Errorf("sdef: refusing to fetch an include over the network: %q", href)
+	}
 	if !strings.HasPrefix(p, "/") {
 		return "", fmt.Errorf("sdef: unsupported include href %q", href)
 	}
@@ -62,11 +68,18 @@ func parseFile(path string, r Resolver, seen map[string]bool) (*Dictionary, erro
 		if err != nil {
 			return nil, err
 		}
+		drop, err := excludedCommands(inc.Xpointer)
+		if err != nil {
+			return nil, fmt.Errorf("sdef: include %s: %w", inc.Href, err)
+		}
 		sub, err := parseFile(p, r, seen)
 		if err != nil {
 			return nil, fmt.Errorf("sdef: include %s: %w", inc.Href, err)
 		}
-		merged = append(merged, sub.Suites...)
+		for _, s := range sub.Suites {
+			s.Commands = withoutCommands(s.Commands, drop)
+			merged = append(merged, s)
+		}
 	}
 	d.Suites = append(merged, d.Suites...)
 	d.Includes = nil
@@ -119,12 +132,65 @@ func (c Class) VisibleProperties() []Property {
 	return out
 }
 
-// FindCommand returns the first visible command with the given name.
+// FindCommand returns the visible command with the given name, preferring the
+// last definition of it.
+//
+// Included suites are spliced in first so that the standard commands read
+// first, which means a redefinition arrives later — and Mail, Safari and
+// others do redefine delete, move and duplicate. Taking the first match
+// handed back the standard suite's version of a command the application had
+// deliberately replaced.
 func (d *Dictionary) FindCommand(name string) (Command, bool) {
-	for _, c := range d.Commands() {
-		if c.Name == name {
-			return c, true
+	commands := d.Commands()
+	for i := len(commands) - 1; i >= 0; i-- {
+		if commands[i].Name == name {
+			return commands[i], true
 		}
 	}
 	return Command{}, false
+}
+
+// An app whose xpointer removes commands from the standard suite genuinely
+// does not respond to them — Safari drops make, and others drop delete,
+// duplicate or move. Claiming otherwise produces a plan that is confirmed and
+// then fails at the Apple event. An xpointer in any other shape is an error
+// rather than a guess.
+const allSuites = "xpointer(/dictionary/suite)"
+
+var (
+	suiteMinusCommands = regexp.MustCompile(`^xpointer\(/dictionary/suite/node\(\)\[not\(self::command and .*\)\]\)$`)
+	commandName        = regexp.MustCompile(`@name\s*=\s*'([^']*)'`)
+)
+
+func excludedCommands(xpointer string) (map[string]bool, error) {
+	if xpointer == "" || xpointer == allSuites {
+		return nil, nil
+	}
+	if !suiteMinusCommands.MatchString(xpointer) {
+		return nil, fmt.Errorf("unsupported xpointer %q", xpointer)
+	}
+
+	names := commandName.FindAllStringSubmatch(xpointer, -1)
+	if len(names) == 0 {
+		return nil, fmt.Errorf("unsupported xpointer %q", xpointer)
+	}
+
+	drop := map[string]bool{}
+	for _, m := range names {
+		drop[strings.ToLower(m[1])] = true
+	}
+	return drop, nil
+}
+
+func withoutCommands(commands []Command, drop map[string]bool) []Command {
+	if len(drop) == 0 {
+		return commands
+	}
+	kept := make([]Command, 0, len(commands))
+	for _, c := range commands {
+		if !drop[strings.ToLower(c.Name)] {
+			kept = append(kept, c)
+		}
+	}
+	return kept
 }
