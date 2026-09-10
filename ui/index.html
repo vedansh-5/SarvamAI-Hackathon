@@ -86,9 +86,13 @@
 
         <!-- Results, and the gate when the destination has a side effect. -->
         <section id="plan" hidden>
-          <h2 id="plan-heading">Review before writing</h2>
+          <div class="result-head">
+            <h2 id="plan-heading">Review before writing</h2>
+            <button id="view-toggle" class="quiet" type="button">Table</button>
+          </div>
           <p id="plan-meta" class="meta"></p>
-          <div class="table-wrap">
+          <div id="cards" class="cards"></div>
+          <div id="table-wrap" class="table-wrap" hidden>
             <table id="rows"></table>
           </div>
           <div class="row gate" id="gate">

@@ -118,6 +118,34 @@ fn set_blur(app: tauri::AppHandle, blurred: bool, dark: bool) {
     overlay::set_blur(&app, blurred, dark);
 }
 
+/// Opens a link in the user's browser.
+///
+/// The webview will not do it: a target="_blank" inside Tauri has nowhere to
+/// go, so every link in a result was inert.
+///
+/// Only http and https. These URLs were scraped off a page, which makes them
+/// attacker-controlled in the ordinary case, and `open` on macOS will happily
+/// launch a file:// path, a custom scheme registered by any installed app, or
+/// anything else it is handed. The same reasoning already governs the note
+/// renderer (D-033); it applies at least as strongly to something that hands
+/// the URL to the operating system.
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    let lowered = url.trim().to_ascii_lowercase();
+    if !(lowered.starts_with("http://") || lowered.starts_with("https://")) {
+        return Err(format!("refusing to open a non-web link: {url}"));
+    }
+
+    // Passed as an argument rather than through a shell, so a URL containing
+    // shell metacharacters is a URL and not a command.
+    std::process::Command::new("open")
+        .arg("--")
+        .arg(url.trim())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// Finds the runtime binary.
 ///
 /// The bundled copy is preferred so a shipped app never depends on a checkout.
@@ -171,6 +199,7 @@ pub fn run() {
             resize_panel,
             set_theme,
             set_blur,
+            open_url,
             get_screen_context,
             check_screen_recording,
             request_screen_recording

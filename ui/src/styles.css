@@ -597,6 +597,122 @@ pre.progress {
 
 /* ---------- results ---------- */
 
+.result-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.result-head button {
+  flex: none;
+  padding: 3px 10px;
+  min-height: 0;
+  font-size: 11px;
+}
+
+/* A list of things, not a grid of cells. Search results, products, articles —
+   the shape people actually ask for is a few records with a sentence each,
+   which a table renders as a wall of clipped text. */
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  max-height: 24rem;
+  overflow-y: auto;
+  margin: 0 calc(var(--s2) * -1);
+  padding: 0 var(--s2);
+}
+
+.card {
+  display: flex;
+  gap: var(--s3);
+  padding: var(--s3) var(--s2);
+  border-radius: var(--r-md);
+  transition: background 0.15s var(--ease);
+}
+
+.card:hover {
+  background: var(--sunken);
+}
+
+.card + .card {
+  border-top: 0.5px solid var(--line);
+}
+
+.card-image {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--r-sm);
+  object-fit: cover;
+  background: var(--sunken);
+}
+
+/* Stands in for a site icon. Same size as a real image so a list with some of
+   each does not develop a ragged left edge. */
+.card-tile {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 600;
+  color: hsl(var(--hue) 55% 38%);
+  background: hsl(var(--hue) 60% 92%);
+}
+
+:root[data-theme="dark"] .card-tile {
+  color: hsl(var(--hue) 70% 78%);
+  background: hsl(var(--hue) 40% 22%);
+}
+
+.card-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.card-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 550;
+  line-height: 1.35;
+  color: var(--ink);
+  text-decoration: none;
+  /* Two lines, then stop. A long headline should not push the next result off
+     the panel. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+a.card-title:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.card-host {
+  margin-top: 1px;
+  font-size: 11.5px;
+  color: var(--accent);
+}
+
+.card-text {
+  margin: var(--s1) 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  user-select: text;
+}
+
 .table-wrap {
   border: 0.5px solid var(--line);
   border-radius: var(--r-md);

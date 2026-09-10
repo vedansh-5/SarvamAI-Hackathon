@@ -227,6 +227,141 @@ async function extract() {
   }
 }
 
+/// What a column is for, worked out from the data rather than declared.
+///
+/// The extractor names fields in the user's language — "link", "url", "thumb",
+/// "image" — and nothing upstream promises a vocabulary. So the values decide:
+/// a field whose contents are image URLs is an image wherever it came from.
+type Role = "image" | "link" | "text";
+
+const IMAGE_URL = /^https?:\/\/[^\s]+\.(?:png|jpe?g|gif|webp|avif|svg)(?:[?#]|$)/i;
+const IMAGE_NAME = /(image|img|thumb|photo|picture|avatar|icon|logo)/i;
+const LINK_NAME = /(link|url|href|permalink)/i;
+
+/// Decided across the whole column, not per cell.
+///
+/// One row with an empty description must not make that column a different
+/// kind from its neighbours, and a single stray URL in a text column must not
+/// turn every other row's prose into a link.
+function roleOf(field: string, rows: Record<string, string>[]): Role {
+  const values = rows.map((r) => (r[field] ?? "").trim()).filter(Boolean);
+  if (values.length === 0) return "text";
+
+  const share = (test: (v: string) => boolean) =>
+    values.filter(test).length / values.length;
+
+  if (IMAGE_NAME.test(field) && share((v) => /^https?:/i.test(v)) > 0.5) return "image";
+  if (share((v) => IMAGE_URL.test(v)) > 0.5) return "image";
+  if (LINK_NAME.test(field) && share((v) => /^https?:/i.test(v)) > 0.5) return "link";
+  return "text";
+}
+
+/// A coloured initial standing in for a site's icon.
+///
+/// The hue comes from the domain, so the same site is the same colour every
+/// time and a familiar result is recognisable before it is read.
+function domainTile(host: string): HTMLElement | null {
+  if (!host) return null;
+
+  let hash = 0;
+  for (let i = 0; i < host.length; i++) {
+    hash = (hash * 31 + host.charCodeAt(i)) >>> 0;
+  }
+
+  const tile = el("div", "card-tile", host[0].toUpperCase());
+  tile.style.setProperty("--hue", String(hash % 360));
+  return tile;
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+/// A card per record: a picture if there is one, a headline that goes
+/// somewhere if there is a link, the site it came from, and the rest as prose.
+///
+/// A table was the wrong shape. It is right for dense columns of short values
+/// and wrong for the thing people actually ask for — a handful of results with
+/// a sentence of description each, which a table renders as a wall of clipped
+/// cells. The table is still there behind a toggle, because for prices and
+/// scores it remains the better view.
+function renderCards(into: HTMLElement, fields: string[], rows: Record<string, string>[]) {
+  clear(into);
+
+  const roles = new Map(fields.map((f) => [f, roleOf(f, rows)]));
+  const imageField = fields.find((f) => roles.get(f) === "image");
+  const linkField = fields.find((f) => roles.get(f) === "link");
+  const textFields = fields.filter((f) => roles.get(f) === "text");
+  const titleField = textFields[0];
+  const bodyFields = textFields.slice(1);
+
+  for (const row of rows) {
+    const card = el("div", "card");
+
+    const src = imageField ? (row[imageField] ?? "").trim() : "";
+    const href = linkField ? (row[linkField] ?? "").trim() : "";
+    const host = hostOf(href);
+
+    if (src) {
+      const img = el("img", "card-image") as HTMLImageElement;
+      img.src = src;
+      img.loading = "lazy";
+      img.alt = "";
+      // A dead URL would otherwise leave a broken-image glyph in every card
+      // that had one, which looks worse than no picture at all. Falls back to
+      // the tile rather than to nothing, so the row keeps its shape.
+      img.addEventListener("error", () => {
+        const tile = domainTile(host);
+        if (tile) img.replaceWith(tile);
+        else img.remove();
+      });
+      card.appendChild(img);
+    } else {
+      // No picture in the data. A letter tile from the domain rather than a
+      // fetched favicon: an icon service would be told every domain that ever
+      // appeared in a result, which is a decent picture of what someone has
+      // been searching for, sent somewhere they did not ask for.
+      const tile = domainTile(host);
+      if (tile) card.appendChild(tile);
+    }
+
+    const body = el("div", "card-body");
+    const titleText = titleField ? (row[titleField] ?? "").trim() : href;
+
+    if (titleText) {
+      if (href) {
+        const a = el("a", "card-title", titleText) as HTMLAnchorElement;
+        // Kept as a real href so it reads as a link and shows on hover, but
+        // the navigation is handled rather than followed: a target="_blank"
+        // inside a Tauri webview has nowhere to go, and letting the webview
+        // navigate itself would replace the panel with the page.
+        a.href = href;
+        a.addEventListener("click", (e) => {
+          e.preventDefault();
+          invoke("open_url", { url: href }).catch(console.error);
+        });
+        body.appendChild(a);
+      } else {
+        body.appendChild(el("div", "card-title", titleText));
+      }
+    }
+
+    if (host) body.appendChild(el("div", "card-host", host));
+
+    for (const f of bodyFields) {
+      const v = (row[f] ?? "").trim();
+      if (v) body.appendChild(el("p", "card-text", v));
+    }
+
+    card.appendChild(body);
+    into.appendChild(card);
+  }
+}
+
 function renderPlan(plan: Plan) {
   const calls = plan.synthesis_calls + plan.decision_calls;
   const cost = calls === 0
@@ -246,12 +381,21 @@ function renderPlan(plan: Plan) {
 
   $("plan-heading").textContent = plan.needs_commit ? "Review before writing" : "Here it is";
 
-  let meta = `${plan.rows.length} rows from ${plan.page_url} — ${cost}, ${plan.elapsed_ms} ms.`;
+  // Said the way a person would say it. How many model calls it took and how
+  // the page was fingerprinted are real and worth keeping, but they are the
+  // runtime talking about itself, and they were the first line of the result.
+  const n = plan.rows.length;
+  const seconds = (plan.elapsed_ms / 1000).toFixed(1);
+  let meta = `${n} result${n === 1 ? "" : "s"} from ${hostOf(plan.page_url) || plan.page_url}`;
+  meta += calls === 0 ? ` · instant, remembered` : ` · ${seconds}s`;
   if (plan.needs_commit) {
-    meta += ` Will be sent to ${plan.destination} as “${plan.title}”.`;
+    meta += ` · about to go to ${plan.destination}`;
     ($("confirm") as HTMLButtonElement).textContent = `Write to ${plan.destination}`;
   }
   $("plan-meta").textContent = meta;
+  $("plan-meta").title = `${cost}, ${plan.elapsed_ms} ms — page signature ${plan.signature}`;
+
+  renderCards($("cards"), plan.fields, plan.rows);
 
   const table = $("rows");
   clear(table);
@@ -717,6 +861,34 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
+// Cards read better for a handful of results with prose; the table is better
+// for many short values. Which one is wanted depends on the answer, so it is
+// the user's call and it is remembered.
+const VIEW_KEY = "vans.view";
+
+function applyView(table: boolean, persist: boolean) {
+  $("cards").hidden = table;
+  $("table-wrap").hidden = !table;
+  $("view-toggle").textContent = table ? "Cards" : "Table";
+  if (persist) {
+    try {
+      localStorage.setItem(VIEW_KEY, table ? "table" : "cards");
+    } catch {
+      // Applies for this session either way.
+    }
+  }
+}
+
+function tableView(): boolean {
+  try {
+    return localStorage.getItem(VIEW_KEY) === "table";
+  } catch {
+    return false;
+  }
+}
+
+$("view-toggle").addEventListener("click", () => applyView($("table-wrap").hidden, true));
+
 $("ask-again").addEventListener("click", () => show("task"));
 $("to-task").addEventListener("click", () => show("task"));
 
@@ -761,6 +933,7 @@ $("again").addEventListener("click", () => show("task"));
 // This re-asserts it either way rather than assuming the two sides agree.
 applyTheme(storedTheme() === "dark", false);
 applyLook(storedLook(), false);
+applyView(tableView(), false);
 
 show("preflight");
 runPreflight();
