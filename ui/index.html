@@ -17,8 +17,25 @@
             <span class="mark">VANS</span>
             <span id="active-app-label" class="context">Ready</span>
           </div>
-          <button id="theme" class="theme-toggle" type="button" title="Switch theme">Dark</button>
+          <div class="header-controls">
+            <button id="look" class="theme-toggle" type="button" title="Appearance">Look</button>
+            <button id="theme" class="theme-toggle" type="button" title="Switch theme">Dark</button>
+          </div>
         </header>
+
+        <!-- Appearance. Folded away because it is set once and then left. -->
+        <div id="look-panel" class="look-panel" hidden>
+          <div class="look-row">
+            <label for="opacity">Opacity</label>
+            <input id="opacity" type="range" min="10" max="100" step="1" />
+            <output id="opacity-value" class="look-value"></output>
+          </div>
+          <div class="look-row">
+            <label for="blur">Frosted</label>
+            <input id="blur" type="checkbox" class="switch" />
+            <span class="look-hint">Blurs whatever is behind the panel.</span>
+          </div>
+        </div>
 
         <!-- Preflight. Shown until the environment can actually run a task. -->
         <section id="preflight" hidden>

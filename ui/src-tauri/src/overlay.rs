@@ -320,7 +320,41 @@ pub fn set_theme(app: &AppHandle, dark: bool) {
     };
     let _ = win.set_theme(Some(theme));
     #[cfg(target_os = "macos")]
-    frost(&win, theme);
+    if BLURRED.load(Ordering::Relaxed) {
+        frost(&win, theme);
+    }
+}
+
+/// Whether the frosting layer is present.
+///
+/// Separate from how opaque the panel's own tint is, because they are
+/// genuinely different questions. The blur decides whether you can make out
+/// what is behind the panel; the tint decides how strongly the panel's own
+/// surface sits over it. Frosted-and-faint and clear-and-solid are both
+/// reasonable places to be, and one slider could not express either.
+static BLURRED: AtomicBool = AtomicBool::new(true);
+
+/// Turns the frosting layer on or off.
+pub fn set_blur(app: &AppHandle, blurred: bool, dark: bool) {
+    let Some(win) = window(app) else { return };
+    BLURRED.store(blurred, Ordering::Relaxed);
+
+    #[cfg(target_os = "macos")]
+    {
+        if blurred {
+            let theme = if dark {
+                tauri::Theme::Dark
+            } else {
+                tauri::Theme::Light
+            };
+            frost(&win, theme);
+        } else if let Err(e) = window_vibrancy::clear_vibrancy(&win) {
+            eprintln!("[vans] could not clear the frosting: {e}");
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    let _ = (win, dark);
 }
 
 /// Registers the hotkey and the dismiss-on-blur behaviour.

@@ -108,6 +108,16 @@ fn set_theme(app: tauri::AppHandle, dark: bool) {
     overlay::set_theme(&app, dark);
 }
 
+/// Turns the frosting behind the panel on or off.
+///
+/// Only the blur lives out here. How opaque the panel's own surface is stays
+/// in the stylesheet, where it is one custom property — pushing it through the
+/// shell as well would mean two places deciding the same appearance.
+#[tauri::command]
+fn set_blur(app: tauri::AppHandle, blurred: bool, dark: bool) {
+    overlay::set_blur(&app, blurred, dark);
+}
+
 /// Finds the runtime binary.
 ///
 /// The bundled copy is preferred so a shipped app never depends on a checkout.
@@ -160,6 +170,7 @@ pub fn run() {
             set_pinned,
             resize_panel,
             set_theme,
+            set_blur,
             get_screen_context,
             check_screen_recording,
             request_screen_recording

@@ -531,6 +531,65 @@ function pickDestination(name: string) {
     : d.describe;
 }
 
+// --- appearance ---
+
+/// How the panel looks over your work: how opaque its surface is, and whether
+/// what is behind it is blurred.
+///
+/// Two settings rather than one, because they answer different questions. The
+/// blur decides whether you can make out what is behind the panel; the tint
+/// decides how strongly the panel's own surface sits over it. Frosted-and-faint
+/// and clear-and-solid are both reasonable, and one slider expresses neither.
+const LOOK_KEY = "vans.look";
+
+interface Look {
+  tint: number; // 10..100, the panel surface's own opacity
+  blur: boolean;
+}
+
+const DEFAULT_LOOK: Look = { tint: 62, blur: true };
+
+function storedLook(): Look {
+  try {
+    const raw = localStorage.getItem(LOOK_KEY);
+    if (!raw) return DEFAULT_LOOK;
+    const v = JSON.parse(raw) as Partial<Look>;
+    return {
+      // Clamped on the way in. A stored value from an older build, or one
+      // edited by hand, must not be able to make the panel invisible.
+      tint: Math.min(100, Math.max(10, Number(v.tint) || DEFAULT_LOOK.tint)),
+      blur: v.blur !== false,
+    };
+  } catch {
+    return DEFAULT_LOOK;
+  }
+}
+
+let look = DEFAULT_LOOK;
+
+function applyLook(next: Look, persist: boolean) {
+  look = next;
+
+  document.documentElement.style.setProperty("--tint", String(next.tint / 100));
+
+  ($("opacity") as HTMLInputElement).value = String(next.tint);
+  $("opacity-value").textContent = `${next.tint}%`;
+  ($("blur") as HTMLInputElement).checked = next.blur;
+
+  // The blur is an AppKit layer the stylesheet cannot reach, so it has to be
+  // told separately — and told the theme, since the material it uses differs
+  // between light and dark.
+  invoke("set_blur", { blurred: next.blur, dark: isDark() }).catch(console.error);
+
+  if (persist) {
+    try {
+      localStorage.setItem(LOOK_KEY, JSON.stringify(next));
+    } catch {
+      // Not worth surfacing: it still applies for this session.
+    }
+  }
+}
+
 // --- theme ---
 
 /// Light unless the user has said otherwise.
@@ -667,6 +726,19 @@ $("intent").addEventListener("keydown", (e) => {
   if ((e as KeyboardEvent).key === "Enter") extract();
 });
 
+$("look").addEventListener("click", () => {
+  const p = $("look-panel");
+  p.hidden = !p.hidden;
+});
+
+$("opacity").addEventListener("input", (e) => {
+  applyLook({ ...look, tint: Number((e.target as HTMLInputElement).value) }, true);
+});
+
+$("blur").addEventListener("change", (e) => {
+  applyLook({ ...look, blur: (e.target as HTMLInputElement).checked }, true);
+});
+
 $("theme").addEventListener("click", () => applyTheme(!isDark(), true));
 
 $("run").addEventListener("click", extract);
@@ -688,6 +760,7 @@ $("again").addEventListener("click", () => show("task"));
 // The shell starts light so the first frame is already frosted correctly.
 // This re-asserts it either way rather than assuming the two sides agree.
 applyTheme(storedTheme() === "dark", false);
+applyLook(storedLook(), false);
 
 show("preflight");
 runPreflight();
