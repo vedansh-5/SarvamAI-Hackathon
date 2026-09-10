@@ -61,10 +61,17 @@ func (e *UnknownAppError) Error() string {
 // act prepares an action inside an application. It never runs it.
 func (e *Engine) act(ctx context.Context, r route.Route, shape string) (*Plan, int, error) {
 	name := r.Slot("app")
+
 	app, err := e.Apps.Find(name)
 	if err != nil {
 		var unknown *capability.UnknownAppError
 		if errors.As(err, &unknown) {
+			// Not a scriptable application. It may still be one the user has
+			// open in a browser tab — most of what people want to drive is.
+			if plan, calls, pageErr := e.actOnPage(ctx, r, shape); pageErr == nil {
+				e.logf("%s has no scripting dictionary; acting on the page instead", name)
+				return plan, calls, nil
+			}
 			return nil, 0, &UnknownAppError{Name: unknown.Name, Near: unknown.Near}
 		}
 		return nil, 0, err

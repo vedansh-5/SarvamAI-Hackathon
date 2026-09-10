@@ -321,8 +321,11 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 	}
 
 	action := ""
-	if plan.Action != nil {
+	switch {
+	case plan.Action != nil:
 		action = plan.Action.Preview
+	case plan.Web != nil:
+		action = plan.Web.Preview
 	}
 
 	answerText := ""

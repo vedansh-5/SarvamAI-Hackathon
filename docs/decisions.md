@@ -1225,3 +1225,47 @@ one nobody was watching.
 
 Proven against a real tab: a Prime Video page, three rows, answered without
 the tab moving.
+
+## D-050 — Reaching applications that declare nothing
+
+The application tier (D-042) reaches 21 applications on this machine and none
+of the ones people spend the day in. Telegram, Notion, Discord, Slack and
+VS Code ship no scripting dictionary, so there is nothing to validate against
+and nothing to drive.
+
+**The ladder, cheapest first.** Acting in an application resolves in order:
+
+1. Its scripting dictionary. Fastest, and the only tier that can say from a
+   declaration whether a command changes state.
+2. Its web version, in the browser already being driven. No new permission, no
+   new dependency, and the user is already signed in.
+3. The accessibility tree. Not built; the only tier left for something with
+   neither a dictionary nor a web version.
+
+An application name that resolves to no installed bundle now falls to rung 2
+before it is refused, because "Telegram" usually means the tab.
+
+**The page is the authority.** A page declares nothing, so the checks are
+against the DOM that was actually captured: every selector must match exactly
+one element, and text may only be typed into something that can hold it.
+Ambiguity is refused rather than resolved — the plan says "click Send", four
+things match, and the user confirms one while another happens. Typing into a
+`<span>` is refused because it does nothing at all, which is worse than
+failing: the plan is confirmed, the click lands, and the message is empty.
+
+**Everything is confirmed.** There is no dictionary to ask whether a click
+sends a message or opens a menu, so every page program goes through the gate.
+The preview is the model's own description of each step — that line is the
+only thing between the user and a message they did not mean to send.
+
+**Nothing is verified afterwards.** A page states no identity for what a click
+did, so unlike an application (D-004) there is no object to ask about. The
+receipt says unverified rather than assuming, because the difference is real.
+
+**Re-checked at run time as well.** The DOM was captured a moment ago and a
+live page moves. An element that was there when the plan was made can be gone
+when it is confirmed, and clicking nothing while reporting success is the
+failure worth preventing. Text is set through the value setter and followed by
+input and change events, because every framework worth naming ignores a value
+that arrives without them — the box shows the text, the application never sees
+it, and the message sends empty.

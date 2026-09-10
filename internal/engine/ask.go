@@ -126,6 +126,17 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 		e.answerFor(ctx, in.Instruction, plan)
 		return plan, nil
 
+	case route.KindPageAction:
+		plan, calls, err := e.actOnPage(ctx, res.Route, res.Shape)
+		if err != nil {
+			return nil, err
+		}
+		r := res.Route
+		plan.Route = &r
+		plan.DecisionCalls = res.DecisionCalls
+		plan.SynthesisCalls = calls
+		return plan, nil
+
 	case route.KindAppAction:
 		if e.canAct() {
 			plan, calls, err := e.act(ctx, res.Route, res.Shape)
@@ -173,6 +184,9 @@ func (e *Engine) runs(k route.Kind) bool {
 	switch k {
 	case route.KindWebExtract, route.KindWebSearch, route.KindPageHere:
 		return true
+	case route.KindPageAction:
+		_, ok := e.pageDriver()
+		return ok && e.WebWriter != nil
 	case route.KindAppAction:
 		return e.canAct()
 	default:

@@ -99,10 +99,14 @@ type Engine struct {
 	// build without one shows the rows and nothing above them.
 	Answers Answerer
 
-	Apps    *capability.Catalog
-	Writer  ActionWriter
-	Actions ActionCache
-	Runner  appact.Runner
+	Apps   *capability.Catalog
+	Writer ActionWriter
+
+	// WebWriter drives a page the user has open, for the applications that
+	// ship no scripting dictionary. Optional.
+	WebWriter WebActionWriter
+	Actions   ActionCache
+	Runner    appact.Runner
 
 	// Model labels which backend wrote a program, stored as provenance.
 	Model string
@@ -218,6 +222,10 @@ type Plan struct {
 	// zero on a warm run: routing and extraction are about a shape and cache,
 	// an answer is about this content and cannot.
 	AnswerCalls int
+
+	// Web is set when this plan acts inside a page rather than an
+	// application. Mutually exclusive with Action.
+	Web *WebPlan
 
 	// Action is set when this plan acts inside an application rather than
 	// extracting from a page. Rows are empty in that case: there is nothing
@@ -454,6 +462,11 @@ func (e *Engine) Commit(ctx context.Context, plan *Plan) (Receipt, error) {
 	if plan.committed {
 		return Receipt{}, fmt.Errorf("engine: this plan has already been committed; writes are never retried")
 	}
+	if plan.Web != nil {
+		plan.committed = true
+		return e.runWeb(ctx, plan)
+	}
+
 	if plan.Action != nil {
 		// Set before the call, not after: if the program panics or the
 		// process dies mid-flight the plan is still spent, because the change
@@ -510,6 +523,12 @@ func (p *Plan) NeedsCommit() bool {
 	// teaches people to dismiss confirmations.
 	if p.Action != nil {
 		return p.Action.Writes
+	}
+
+	// A page declares nothing, so there is no dictionary to ask whether a
+	// click sends a message or opens a menu. Every page program is confirmed.
+	if p.Web != nil {
+		return true
 	}
 	return p.Destination != "" && p.Destination != PanelDestination
 }

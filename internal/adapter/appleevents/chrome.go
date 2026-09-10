@@ -331,6 +331,35 @@ func (c *Chrome) FrontTitle(ctx context.Context) (string, error) {
 	return title, err
 }
 
+// Do runs a program in the tab the user is looking at, and reports what the
+// page said about it.
+//
+// Their tab, not VANS's: acting in a web app means acting in the session they
+// are signed into. The script reports failure as data, so a step that found
+// nothing comes back as a reason rather than as an exit status.
+func (c *Chrome) Do(ctx context.Context, script string) error {
+	source, err := jsLiteral(script)
+	if err != nil {
+		return err
+	}
+
+	var out struct {
+		OK    bool   `json:"ok"`
+		Error string `json:"error"`
+	}
+	if err := c.run(ctx, fmt.Sprintf(`reply(function () {
+  const app = chrome();
+  const tab = app.windows[0].activeTab;
+  return JSON.parse(String(app.execute(tab, { javascript: %s })));
+});`, source), &out); err != nil {
+		return err
+	}
+	if !out.OK {
+		return fmt.Errorf("appleevents: the page refused the program: %s", out.Error)
+	}
+	return nil
+}
+
 // Reachable reports whether this adapter can drive Chrome right now, and says
 // what to do if it cannot.
 func (c *Chrome) Reachable(ctx context.Context) error {

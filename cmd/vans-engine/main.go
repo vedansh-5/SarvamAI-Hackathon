@@ -100,6 +100,11 @@ func run() error {
 		writer = w
 	}
 
+	var webWriter engine.WebActionWriter
+	if w, ok := synthesizer.(engine.WebActionWriter); ok {
+		webWriter = w
+	}
+
 	var answers engine.Answerer
 	if a, ok := synthesizer.(engine.Answerer); ok {
 		answers = a
@@ -114,11 +119,12 @@ func run() error {
 			Sinks:   engine.DefaultSinks(engine.NotesSink{Notes: notes}),
 			Model:   modelLabel(),
 
-			Answers: answers,
-			Apps:    capability.New(),
-			Writer:  writer,
-			Actions: st,
-			Runner:  appleevents.Osascript{},
+			Answers:   answers,
+			Apps:      capability.New(),
+			Writer:    writer,
+			WebWriter: webWriter,
+			Actions:   st,
+			Runner:    appleevents.Osascript{},
 		},
 		Probe: probe{
 			hostPort: *hostPort,

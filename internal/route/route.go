@@ -24,6 +24,14 @@ const (
 	// can validate.
 	KindWebSearch Kind = "web.search"
 
+	// KindPageAction is doing something on the page already on screen —
+	// typing into it, clicking something in it. The counterpart of
+	// KindPageHere, which only reads.
+	//
+	// Its own kind because the two need different things said about them: one
+	// shows an answer, the other asks before it touches anything.
+	KindPageAction Kind = "page.act"
+
 	// KindAppAction is Phase 3: do something in a running application.
 	KindAppAction Kind = "app.act"
 
@@ -87,6 +95,13 @@ var Specs = []Spec{
 		Describe: "Read the page the user already has open, without going anywhere.",
 		Slots: []Slot{
 			{"intent", "what to get from the page they are looking at, in plain words", true},
+		},
+	},
+	{
+		Kind:     KindPageAction,
+		Describe: "Do something on the page the user has open — type into it, click something in it.",
+		Slots: []Slot{
+			{"action", "what to do on that page, in plain words", true},
 		},
 	},
 	{
