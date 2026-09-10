@@ -780,3 +780,92 @@ Recorded so they are not relitigated.
 - **Accessibility API in V1** — see D-010. Deferred, not rejected permanently.
 - **Layered pipeline architecture** — see D-003.
 - **Building on MCP as the primary structured tier** — see D-008.
+
+---
+
+## D-039 — Instructions are routed on their shape, not their text
+
+**Status:** Accepted — `internal/route`
+
+**Context.** Until now the overlay was a form with three boxes — page, what to
+extract, note title — because that is exactly the shape of `engine.Task`. There
+was one verb. Anything the user might want that is not "read records off a web
+page and write them to Notes" had no way of being asked for.
+
+Making the overlay accept a free-text instruction means something has to decide
+what an instruction is *asking for*, and that decision is a language problem.
+It is the second place a model becomes necessary.
+
+**Decision.** The router reuses the primitive the extractor already established
+(D-002, D-006): the model decides once, the runtime caches and replays.
+
+The cache key is the instruction's **shape** — the sentence with its values
+lifted out and replaced by placeholders:
+
+```
+"the top 10 stories from https://news.ycombinator.com"
+"the top 30 stories from https://lobste.rs"
+            ↓ both shape to
+"the top {n0} stories from {u0}"
+```
+
+Those are the same instruction asked about different particulars, so the second
+costs no model call. This is the page signature idea moved up a level: there,
+structure is cached so content can change; here, phrasing is cached so
+particulars can change.
+
+The model's answer is a `Decision` — a kind, plus **templates** for that kind's
+slots (`url: "{u0}"`, `intent: "top {n0} stories"`). Templates rather than
+finished strings is what makes the decision reusable: the structure is cached,
+the values come from whichever instruction arrives.
+
+**Why not cache on normalized text.** `store.NormalizeIntent` already lowercases
+and strips punctuation, and it would have been the cheap thing to reuse. But it
+keeps the literals, so every new URL is a new key and the router would call the
+model on essentially every instruction — a cache that never hits.
+
+**Why the router may answer "I don't know."** `KindUnknown` is a valid decision.
+A router forced to pick the nearest kind sends the task somewhere it will fail,
+far from the cause, with an error the user cannot act on. Declining is a better
+answer than a wrong route, and it is what lets the overlay say which
+capabilities exist.
+
+**Three floors the model cannot lower**, mirroring the verifier's (D-016):
+
+- A decision naming a kind the engine cannot run is rejected.
+- A decision whose required slots do not *resolve* is rejected — not merely
+  whose templates are non-empty. A decision can be structurally sound and still
+  fill to nothing, because the template references `{u0}` and this instruction
+  carries no URL. That is a miss, not a route.
+- **A template that hardcodes this instruction's values is rejected.** Found
+  against a live model, not in review. Asked about
+  `"the top 10 stories from https://news.ycombinator.com"`, it templated the
+  number and hardcoded the site:
+
+  ```
+  intent: "the top {n0} stories from the Hacker News homepage"
+  ```
+
+  Correct for the instruction in front of it, wrong for every later one of the
+  same shape — and because the decision is cached, the wrongness is durable and
+  silent. `lobste.rs` was asked for Hacker News stories, and nothing failed.
+  The prompt now forbids it *and* the runtime refuses it, because caching makes
+  this the one mistake that does not announce itself. Values shorter than three
+  characters are exempt: a bare `10` occurs in ordinary prose and inside longer
+  numbers, so matching on it would reject correct templates.
+
+**Where validation lives.** The decider decodes; the router judges. Validating
+inside the decider was tried and reverted: the error came back shaped like a
+transport failure and skipped the retry ladder, so a fixable answer ended the
+task instead of being sent back with the reason.
+
+**Token budget.** Routing allows 16384 tokens against a decision that is a few
+hundred bytes. The budget is not for the answer but for the reasoning several
+free models emit before it, charged to the same allowance. At 4096 and at 8192
+responses were cut off mid-reasoning and never reached the JSON — surfacing as
+a token-limit error rather than as anything resembling a routing problem.
+
+**Known limits.** Shaping is lexical, so paraphrases still miss the cache
+(Q-12, now sharper — it applies to routing as well as extraction). Bare
+hostnames are recognised by TLD rather than by parsing, so an unusual TLD is
+read as prose; an explicit scheme always works.

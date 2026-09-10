@@ -98,7 +98,7 @@ func Open(path string) (*Store, error) {
 // Close releases the database.
 func (s *Store) Close() error { return s.db.Close() }
 
-const schemaVersion = 1
+const schemaVersion = 2
 
 func (s *Store) migrate(ctx context.Context) error {
 	var v int
@@ -127,6 +127,18 @@ CREATE TABLE IF NOT EXISTS programs (
 );
 CREATE INDEX IF NOT EXISTS programs_key ON programs (origin, signature, intent_hash);
 CREATE INDEX IF NOT EXISTS programs_signature ON programs (origin, signature);
+
+-- Routing decisions, keyed by instruction shape (D-039). The decision is kept
+-- as the JSON the model produced: its shape belongs to the route package, and
+-- storing it as columns would mean a migration every time a kind gains a slot.
+CREATE TABLE IF NOT EXISTS routes (
+	shape        TEXT    PRIMARY KEY,
+	decision     TEXT    NOT NULL,
+	model        TEXT    NOT NULL DEFAULT '',
+	created_at   INTEGER NOT NULL,
+	last_used_at INTEGER NOT NULL DEFAULT 0,
+	uses         INTEGER NOT NULL DEFAULT 0
+);
 `
 	if _, err := s.db.ExecContext(ctx, ddl); err != nil {
 		return fmt.Errorf("store: create schema: %w", err)
