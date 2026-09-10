@@ -23,17 +23,17 @@
           </div>
         </header>
 
-        <!-- Appearance. Folded away because it is set once and then left. -->
-        <div id="look-panel" class="look-panel" hidden>
-          <div class="look-row">
+        <!-- Appearance. A popover rather than a block: it is set once and then
+             left, and it should not push the panel's actual content down. -->
+        <div id="look-panel" class="popover" hidden>
+          <div class="popover-row">
             <label for="opacity">Opacity</label>
-            <input id="opacity" type="range" min="10" max="100" step="1" />
-            <output id="opacity-value" class="look-value"></output>
+            <input id="opacity" type="range" min="15" max="100" step="1" />
+            <output id="opacity-value"></output>
           </div>
-          <div class="look-row">
+          <div class="popover-row">
             <label for="blur">Frosted</label>
             <input id="blur" type="checkbox" class="switch" />
-            <span class="look-hint">Blurs whatever is behind the panel.</span>
           </div>
         </div>
 

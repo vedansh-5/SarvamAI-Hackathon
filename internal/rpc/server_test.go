@@ -585,6 +585,19 @@ func TestNoBrowserIsItsOwnCode(t *testing.T) {
 	}
 }
 
+func TestBrowserWithNoTabIsNoBrowser(t *testing.T) {
+	s := run(t, func(srv *Server, _ *session) {
+		srv.Engine.Browser = &fakeBrowser{
+			err: &engine.TransientError{Err: errors.New("cdp: no page target among 0 targets")},
+		}
+		srv.Engine.MaxTransientRetries = 1
+	}, req(1, "prepare", prepareParams()))
+
+	if e := s.failure(1); e.Code != CodeNoBrowser {
+		t.Errorf("code = %q, want %q", e.Code, CodeNoBrowser)
+	}
+}
+
 func TestUnknownMethod(t *testing.T) {
 	s := run(t, nil, req(1, "eval", nil))
 	if e := s.failure(1); e.Code != CodeBadRequest {

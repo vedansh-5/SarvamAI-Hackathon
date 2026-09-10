@@ -25,6 +25,9 @@
      rather than fills — a solid colour here would throw the blur away. */
   --panel-bg: rgba(250, 250, 252, var(--tint));
   --panel-edge: rgba(0, 0, 0, 0.12);
+  --pop-bg: rgba(252, 252, 254, 0.92);
+  --pop-edge: rgba(0, 0, 0, 0.1);
+  --pop-sheen: rgba(255, 255, 255, 0.9);
   --raised: rgba(255, 255, 255, 0.7);
   --sunken: rgba(120, 120, 128, 0.1);
   --line: rgba(0, 0, 0, 0.09);
@@ -62,6 +65,9 @@
 :root[data-theme="dark"] {
   --panel-bg: rgba(28, 28, 30, var(--tint));
   --panel-edge: rgba(255, 255, 255, 0.11);
+  --pop-bg: rgba(44, 44, 47, 0.92);
+  --pop-edge: rgba(255, 255, 255, 0.14);
+  --pop-sheen: rgba(255, 255, 255, 0.16);
   --raised: rgba(255, 255, 255, 0.07);
   --sunken: rgba(120, 120, 128, 0.22);
   --line: rgba(255, 255, 255, 0.1);
@@ -95,11 +101,13 @@ body {
 }
 
 .panel {
+  position: relative;
   min-height: 100vh;
   padding: var(--s4) var(--s5) var(--s5);
   border-radius: var(--r-lg);
   background: var(--panel-bg);
   border: 0.5px solid var(--panel-edge);
+  transition: background 0.22s var(--ease);
   /* No backdrop-filter. The frosting is an NSVisualEffectView behind the
      webview (see overlay.rs) — the CSS one resolved seconds after the panel
      appeared, because a transparent WKWebView has nothing inside the page to
@@ -190,52 +198,89 @@ header {
   display: flex;
   gap: var(--s1);
   flex: none;
+  opacity: 0;
+  transition: opacity 0.18s var(--ease);
 }
 
-.look-panel {
+.panel:hover .header-controls,
+:root[data-look-open] .header-controls {
+  opacity: 1;
+}
+
+.header-controls:focus-within {
+  opacity: 1;
+}
+
+/* Glass, and floating. Absolutely positioned so opening it does not push the
+   panel's content down or grow the window — the thing it adjusts stays put
+   while it is adjusted, which is the whole point of being able to see it. */
+.popover {
+  position: absolute;
+  top: 44px;
+  right: var(--s5);
+  z-index: 10;
+  width: 236px;
   display: grid;
-  gap: var(--s3);
+  gap: var(--s2);
   padding: var(--s3);
-  margin-bottom: var(--s4);
-  border: 0.5px solid var(--line);
   border-radius: var(--r-md);
-  background: var(--raised);
+
+  /* Its own glass, over the panel's. Heavier than the panel so it reads as a
+     layer above rather than a hole in it, and blurred here rather than
+     natively because this one sits over the webview's own content. */
+  background: var(--pop-bg);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border: 0.5px solid var(--pop-edge);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.18),
+    /* The hairline along the top edge is what makes glass look lit rather
+       than merely transparent. */
+    inset 0 0.5px 0 var(--pop-sheen);
+  animation: pop 0.16s var(--ease);
 }
 
-.look-row {
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.popover-row {
   display: flex;
   align-items: center;
-  gap: var(--s3);
+  gap: var(--s2);
+  min-height: 22px;
 }
 
-.look-row label {
+.popover-row label {
   margin: 0;
-  width: 4.5rem;
+  width: 4.2rem;
   flex: none;
+  font-size: 12px;
 }
 
-.look-value {
-  width: 2.6rem;
+.popover-row output {
+  width: 2.4rem;
   text-align: right;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--ink-dim);
   font-variant-numeric: tabular-nums;
 }
 
-.look-hint {
-  font-size: 12px;
-  color: var(--ink-dim);
-}
-
 input[type="range"] {
   flex: 1;
-  width: auto;
+  min-width: 0;
   padding: 0;
-  height: 4px;
+  height: 3px;
   border: none;
   border-radius: var(--r-pill);
   background: var(--sunken);
-  accent-color: var(--accent);
   appearance: none;
   -webkit-appearance: none;
 }
@@ -243,12 +288,12 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-thumb {
   appearance: none;
   -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
   background: #fff;
-  border: 0.5px solid rgba(0, 0, 0, 0.2);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  border: 0.5px solid rgba(0, 0, 0, 0.18);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   cursor: pointer;
 }
 
@@ -258,8 +303,8 @@ input[type="range"]:focus {
 }
 
 input[type="checkbox"].switch {
-  width: 34px;
-  height: 20px;
+  width: 32px;
+  height: 19px;
   flex: none;
   padding: 0;
   border: none;
@@ -277,8 +322,8 @@ input[type="checkbox"].switch::after {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -290,7 +335,7 @@ input[type="checkbox"].switch:checked {
 }
 
 input[type="checkbox"].switch:checked::after {
-  transform: translateX(14px);
+  transform: translateX(13px);
 }
 
 /* ---------- the ask field ---------- */
@@ -588,11 +633,19 @@ pre.progress {
   user-select: text;
 }
 
+/* A status line, not a log. Plain type, one line, no scrollback — the runtime
+   narrating its own internals belongs on stderr, not in front of someone
+   waiting to see whether anything is happening. */
 pre.progress {
-  margin-top: var(--s4);
-  max-height: 8rem;
-  overflow-y: auto;
+  margin-top: var(--s3);
+  padding: 0;
+  border: none;
+  background: none;
+  font: 400 12.5px/1.45 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ---------- results ---------- */
@@ -825,4 +878,43 @@ section:not([hidden]) {
     animation: none !important;
     transition: none !important;
   }
+}
+
+.raw {
+  margin-top: var(--s3);
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+.raw summary {
+  cursor: default;
+  list-style: none;
+  color: var(--ink-dim);
+  padding: 2px 0;
+}
+
+.raw summary::-webkit-details-marker {
+  display: none;
+}
+
+.raw summary::before {
+  content: "›";
+  display: inline-block;
+  width: 12px;
+  transition: transform 0.15s var(--ease);
+}
+
+.raw[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.raw pre {
+  margin: var(--s1) 0 0;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--r-sm);
+  background: var(--sunken);
+  font: 400 11px/1.5 var(--mono);
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
 }

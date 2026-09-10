@@ -411,7 +411,8 @@ func asError(err error) *Error {
 
 	msg := err.Error()
 	switch {
-	case strings.Contains(msg, "no Chromium debugging endpoint"):
+	case strings.Contains(msg, "no Chromium debugging endpoint"),
+		strings.Contains(msg, "no page target"):
 		return &Error{Code: CodeNoBrowser, Message: msg}
 	case strings.Contains(msg, "already been committed"):
 		return &Error{Code: CodeSpent, Message: msg}

@@ -284,7 +284,27 @@ fn float_over_fullscreen(win: &WebviewWindow) {
 /// properly, which CSS cannot do from inside a transparent window.
 #[cfg(target_os = "macos")]
 fn frost(win: &WebviewWindow, theme: tauri::Theme) {
-    use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial, NSVisualEffectState};
+    use window_vibrancy::{
+        apply_liquid_glass, apply_vibrancy, LiquidGlassOptions, NSGlassEffectViewStyle,
+        NSVisualEffectMaterial, NSVisualEffectState,
+    };
+
+    // Liquid Glass where the OS has it. NSVisualEffectView is the older
+    // frosted-pane look; on macOS 26 the system's own panels are lit glass
+    // with a specular edge, and a panel that floats over that using the
+    // previous decade's material reads as a foreign object rather than a
+    // native one.
+    //
+    // Tried first and fallen back on rather than gated on a version check:
+    // the call fails on an OS without it, which is the same answer a version
+    // check would have given, without a second thing to keep in step.
+    let glass = apply_liquid_glass(
+        win,
+        LiquidGlassOptions::new(NSGlassEffectViewStyle::Regular).radius(CORNER_RADIUS),
+    );
+    if glass.is_ok() {
+        return;
+    }
 
     // The material carries its own light/dark rendering, so the theme has to
     // reach AppKit as well as CSS — a light panel over a dark blur reads as a
@@ -348,8 +368,13 @@ pub fn set_blur(app: &AppHandle, blurred: bool, dark: bool) {
                 tauri::Theme::Light
             };
             frost(&win, theme);
-        } else if let Err(e) = window_vibrancy::clear_vibrancy(&win) {
-            eprintln!("[vans] could not clear the frosting: {e}");
+        } else {
+            // Both, because which one was applied depends on the OS and this
+            // is the only place that knows it should now be neither.
+            let _ = window_vibrancy::clear_liquid_glass(&win);
+            if let Err(e) = window_vibrancy::clear_vibrancy(&win) {
+                eprintln!("[vans] could not clear the frosting: {e}");
+            }
         }
     }
 

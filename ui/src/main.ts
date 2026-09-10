@@ -104,6 +104,7 @@ function show(id: string) {
     (s as HTMLElement).hidden = s.id !== id;
   }
   invoke("set_pinned", { pinned: PINNED.has(id) }).catch(console.error);
+  setReading(id !== "task");
 }
 
 /// Every value that reaches the DOM goes through a text node.
@@ -212,6 +213,7 @@ async function extract() {
   $("status").textContent = "Working…";
   clear(progress);
   progress.hidden = false;
+  progress.textContent = "Thinking…";
 
   try {
     const plan = await invoke<Plan>("prepare", { instruction, destination });
@@ -440,26 +442,51 @@ async function confirmWrite() {
 
 // --- failures ---
 
+const PLAIN: Record<string, { title: string; message: string }> = {
+  unresolved: {
+    title: "Could not read that page",
+    message: "The page loaded, but nothing on it matched what you asked for.",
+  },
+  unroutable: {
+    title: "Not sure what you meant",
+    message: "Try naming a site, or asking for a search.",
+  },
+  no_browser: {
+    title: "Chrome isn't ready",
+    message:
+      "VANS works through a Chrome that is already running, with at least one tab open. It will not start one for you.",
+  },
+  permission_denied: {
+    title: "macOS blocked the write",
+    message: "Automation access has not been granted yet.",
+  },
+  plan_spent: {
+    title: "Already written",
+    message: "That confirmation was used. VANS never repeats a write, so ask again for another.",
+  },
+};
+
 function renderFailure(e: unknown) {
   const detail = $("failure-detail");
   clear(detail);
 
   if (!isRpcError(e)) {
     $("failure-title").textContent = "That didn't work";
-    $("failure-message").textContent = String(e);
+    $("failure-message").textContent = "Something went wrong inside VANS.";
+    detail.appendChild(raw(String(e)));
     return;
   }
 
-  $("failure-message").textContent = e.message;
+  const plain = PLAIN[e.code];
+  $("failure-title").textContent = plain?.title ?? "That didn't work";
+  $("failure-message").textContent = plain?.message ?? "Something went wrong inside VANS.";
 
   switch (e.code) {
     case "unresolved": {
-      $("failure-title").textContent = "Could not read that page";
       renderUnresolved(detail, e.data as Unresolved);
       break;
     }
     case "unroutable": {
-      $("failure-title").textContent = "Not sure what you meant";
       const data = e.data as Unroutable;
       if (data?.can?.length) {
         detail.appendChild(el("h3", undefined, "What VANS can do"));
@@ -470,12 +497,6 @@ function renderFailure(e: unknown) {
       break;
     }
     case "no_browser": {
-      $("failure-title").textContent = "Chrome is not listening";
-      detail.appendChild(
-        el("p", "meta", "Start it yourself, then try again — VANS does not launch applications."),
-      );
-      // The setup screen holds the exact command, so send them there rather
-      // than making them remember it.
       const toSetup = el("button", "secondary", "Show me how") as HTMLButtonElement;
       toSetup.addEventListener("click", () => {
         show("preflight");
@@ -485,24 +506,20 @@ function renderFailure(e: unknown) {
       break;
     }
     case "permission_denied":
-      $("failure-title").textContent = "macOS blocked the write";
       detail.appendChild(
         el("pre", "fix", "System Settings › Privacy & Security › Automation, then try again."),
       );
       break;
-    case "plan_spent":
-      $("failure-title").textContent = "Already written";
-      detail.appendChild(
-        el(
-          "p",
-          "meta",
-          "That confirmation was already used. VANS never repeats a write, because a write that may have succeeded must not happen twice. Extract again if you want another note.",
-        ),
-      );
-      break;
-    default:
-      $("failure-title").textContent = "That didn't work";
   }
+
+  detail.appendChild(raw(e.message));
+}
+
+function raw(text: string): HTMLElement {
+  const box = el("details", "raw");
+  box.appendChild(el("summary", undefined, "Details"));
+  box.appendChild(el("pre", undefined, text));
+  return box;
 }
 
 /// Rung 3 belongs on screen in full: what was tried, which predicate failed,
@@ -711,10 +728,27 @@ function storedLook(): Look {
 
 let look = DEFAULT_LOOK;
 
+const READABLE = 0.94;
+
+let reading = false;
+let adjusting = false;
+
+function paintTint() {
+  const set = look.tint / 100;
+  const solid = reading && !adjusting ? Math.max(set, READABLE) : set;
+  document.documentElement.style.setProperty("--tint", String(solid));
+}
+
+function setReading(next: boolean) {
+  if (next === reading) return;
+  reading = next;
+  paintTint();
+}
+
 function applyLook(next: Look, persist: boolean) {
   look = next;
 
-  document.documentElement.style.setProperty("--tint", String(next.tint / 100));
+  paintTint();
 
   ($("opacity") as HTMLInputElement).value = String(next.tint);
   $("opacity-value").textContent = `${next.tint}%`;
@@ -827,11 +861,40 @@ new ResizeObserver(fitWindow).observe(panelBody);
 
 // --- wiring ---
 
+/// Progress is a status line, not a log.
+///
+/// The runtime narrates itself in its own terms — page signatures, cache hits,
+/// programs rejected — and all of it is true and worth having when something
+/// goes wrong. On screen, mid-request, it was a monospace dump of internals
+/// where a person wanted to know whether anything was happening. The latest
+/// line only, in plain type; the full trace is still on stderr for whoever
+/// needs it.
 listen<{ for_request: number; message: string }>("engine://progress", (event) => {
   const progress = $("progress");
   progress.hidden = false;
-  progress.appendChild(document.createTextNode(event.payload.message + "\n"));
+  progress.textContent = humanise(event.payload.message);
 });
+
+/// Turns the runtime's own vocabulary into something worth reading.
+///
+/// Deliberately a small set of rewrites rather than a general one: anything
+/// unrecognised passes through untouched, so a message this does not know
+/// about is still shown rather than swallowed.
+function humanise(message: string): string {
+  const url = message.match(/page (\S+) signature/);
+  if (url) return `Reading ${hostOf(url[1]) || url[1]}…`;
+
+  if (message.startsWith("cache hit")) {
+    const n = message.match(/(\d+) rows/);
+    return n ? `Found ${n[1]} — no thinking needed` : "Found it — no thinking needed";
+  }
+  if (message.startsWith("route cache hit")) return "Understood that already";
+  if (message.startsWith("instruction shape")) return "Working out what you meant…";
+  if (message.startsWith("routed to")) return "Got it — going to work";
+  if (message.includes("synthesized a working program")) return "Worked out how to read it";
+  if (message.includes("rejected")) return "That did not work — trying again";
+  return message;
+}
 
 listen<ScreenContext | undefined>("overlay://shown", (event) => {
   if (event.payload) {
@@ -854,11 +917,13 @@ listen<ScreenContext | undefined>("overlay://shown", (event) => {
   }
 });
 
-// Escape dismisses the overlay panel
 window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") {
-    invoke("dismiss").catch(console.error);
+  if (e.key !== "Escape") return;
+  if (!$("look-panel").hidden) {
+    setLookOpen(false);
+    return;
   }
+  invoke("dismiss").catch(console.error);
 });
 
 // Cards read better for a handful of results with prose; the table is better
@@ -898,10 +963,20 @@ $("intent").addEventListener("keydown", (e) => {
   if ((e as KeyboardEvent).key === "Enter") extract();
 });
 
-$("look").addEventListener("click", () => {
-  const p = $("look-panel");
-  p.hidden = !p.hidden;
+function setLookOpen(open: boolean) {
+  $("look-panel").hidden = !open;
+  document.documentElement.toggleAttribute("data-look-open", open);
+  adjusting = open;
+  paintTint();
+}
+
+$("look").addEventListener("click", (e) => {
+  e.stopPropagation();
+  setLookOpen($("look-panel").hidden);
 });
+
+document.addEventListener("click", () => setLookOpen(false));
+$("look-panel").addEventListener("click", (e) => e.stopPropagation());
 
 $("opacity").addEventListener("input", (e) => {
   applyLook({ ...look, tint: Number((e.target as HTMLInputElement).value) }, true);
