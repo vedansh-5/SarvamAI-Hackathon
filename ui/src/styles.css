@@ -1,34 +1,42 @@
+/* Light is the default, and it is the bare :root block rather than a media
+   query, so it applies before any script runs and to a window that has not
+   said which theme it wants. Dark is opt-in via data-theme on <html>, which
+   main.ts sets from the stored choice.
+
+   Deliberately not keyed to prefers-color-scheme: the panel is summoned over
+   whatever you are working in, and the choice belongs to the user rather than
+   to whatever the system happens to be set to. */
 :root {
   --bg: #fbfaf8;
-  --panel: #ffffff;
+  --panel: rgba(255, 255, 255, 0.72);
   --ink: #1b1a17;
   --muted: #6b675f;
-  --line: #e5e1d9;
+  --line: rgba(0, 0, 0, 0.1);
   --accent: #2f5d50;
   --ok: #2f6b4f;
   --bad: #9a3b2c;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 
-  /* The panel floats over other applications, so it is translucent rather
-     than a flat fill — you can see what you summoned it on top of. */
-  --panel-bg: rgba(251, 250, 248, 0.82);
+  /* A tint over the native blur, not the blur itself — the frosting is an
+     NSVisualEffectView behind the webview (see overlay.rs). Kept light enough
+     that the blur reads through and heavy enough to keep text legible over
+     whatever the panel happens to be covering. */
+  --panel-bg: rgba(251, 250, 248, 0.58);
   --panel-edge: rgba(0, 0, 0, 0.14);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #17171a;
-    --panel: #1f1f23;
-    --ink: #eceae5;
-    --muted: #9b968d;
-    --line: #32323a;
-    --accent: #7fbfa8;
-    --ok: #7fbfa8;
-    --bad: #e2907f;
+:root[data-theme="dark"] {
+  --bg: #17171a;
+  --panel: rgba(255, 255, 255, 0.07);
+  --ink: #eceae5;
+  --muted: #9b968d;
+  --line: rgba(255, 255, 255, 0.12);
+  --accent: #7fbfa8;
+  --ok: #7fbfa8;
+  --bad: #e2907f;
 
-    --panel-bg: rgba(23, 23, 26, 0.78);
-    --panel-edge: rgba(255, 255, 255, 0.12);
-  }
+  --panel-bg: rgba(23, 23, 26, 0.5);
+  --panel-edge: rgba(255, 255, 255, 0.12);
 }
 
 * {
@@ -50,16 +58,29 @@ body {
 
 /* The panel is the only thing that paints. */
 .panel {
-  height: 100vh;
+  /* Fills the window when the content is shorter, so the frosted surface is
+     never a partial rectangle with a transparent gap under it. The window is
+     sized to .panel-body, so beyond that this only matters mid-resize. */
+  min-height: 100vh;
   padding: 1.5rem 1.75rem 2rem;
   border-radius: 14px;
   background: var(--panel-bg);
   border: 1px solid var(--panel-edge);
-  /* Frosts whatever is behind it, so the panel reads as floating above the
-     app you summoned it from rather than covering it. */
-  backdrop-filter: saturate(180%) blur(28px);
-  -webkit-backdrop-filter: saturate(180%) blur(28px);
+  /* No backdrop-filter. The frosting is an NSVisualEffectView behind the
+     webview, applied in overlay.rs, because the CSS one resolved seconds after
+     the panel appeared — a transparent WKWebView has nothing inside the page
+     to sample. This is only the tint over it. */
+  /* Only reachable once the content is taller than the window is allowed to
+     grow. Below that the window follows the content and this never engages. */
   overflow-y: auto;
+}
+
+/* Height here is content height: nothing constrains it, which is what makes it
+   safe to measure and feed back to the window. Constraining it — a percentage
+   height, a flex stretch — would make it report the window's height back to
+   the window, and it could then never shrink. */
+.panel-body {
+  height: auto;
 }
 
 .context-banner {
@@ -80,7 +101,35 @@ body {
 }
 
 header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
   margin-bottom: 1.25rem;
+}
+
+/* Small, quiet, and out of the tab order's way until it is wanted. Changing
+   the theme is not a task the panel exists for. */
+.theme-toggle {
+  flex: none;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+/* :not(:disabled) is not idle here — it is what outweighs the generic
+   button:hover:not(:disabled) below, which would otherwise brighten this one
+   too. Matching its class count is the part that decides it. */
+.theme-toggle:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--panel-edge);
+  filter: none;
 }
 
 h1 {

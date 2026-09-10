@@ -76,10 +76,18 @@ interface ScreenContext {
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
+/// Screens that send the user somewhere else, and so must outlive them going.
+///
+/// Preflight prints a command to run in a terminal. With dismiss-on-blur and
+/// nothing else, clicking the terminal destroys the instructions telling you
+/// to click the terminal.
+const PINNED = new Set(["preflight"]);
+
 function show(id: string) {
   for (const s of document.querySelectorAll("section")) {
     (s as HTMLElement).hidden = s.id !== id;
   }
+  invoke("set_pinned", { pinned: PINNED.has(id) }).catch(console.error);
 }
 
 /// Every value that reaches the DOM goes through a text node.
@@ -351,7 +359,7 @@ function renderUnresolved(into: HTMLElement, data: Unresolved) {
 }
 
 async function checkScreenRecording() {
-  const out = $("notes-result");
+  const out = $("screen-result");
   clear(out);
   out.appendChild(el("p", "meta", "Checking Screen Recording permission…"));
 
@@ -388,13 +396,27 @@ async function checkScreenRecording() {
   }
 }
 
+/// The window title is whatever the frontmost application decided to call
+/// itself, and when that application is a browser it is whatever the page
+/// decided — `document.title` is writable by any script on it. Building this
+/// banner with innerHTML let a visited page put markup into the panel just by
+/// being frontmost when the hotkey was pressed. Text nodes, like everything
+/// else that reaches this DOM.
 function updateActiveContext(ctx?: ScreenContext) {
   const label = $("active-app-label");
   if (!label) return;
-  if (ctx && ctx.app_name && ctx.app_name !== "Unknown") {
-    label.innerHTML = `Active: <strong>${ctx.app_name}</strong>${ctx.window_title ? ` — <em>${ctx.window_title}</em>` : ""}`;
-  } else {
+  clear(label);
+
+  if (!ctx || !ctx.app_name || ctx.app_name === "Unknown") {
     label.textContent = "Active: Entire Desktop";
+    return;
+  }
+
+  label.appendChild(document.createTextNode("Active: "));
+  label.appendChild(el("strong", undefined, ctx.app_name));
+  if (ctx.window_title) {
+    label.appendChild(document.createTextNode(" — "));
+    label.appendChild(el("em", undefined, ctx.window_title));
   }
 }
 
@@ -408,6 +430,97 @@ async function refreshActiveContext() {
     console.error("failed to get screen context", e);
   }
 }
+
+// --- theme ---
+
+/// Light unless the user has said otherwise.
+///
+/// The stylesheet's bare :root is the light palette, so a first run, a cleared
+/// store, or a failed read all land on light without this code having to run
+/// at all. Only dark is ever written to the document.
+const THEME_KEY = "vans.theme";
+
+/// localStorage throws outright in some contexts rather than returning null,
+/// and a panel that will not open because it could not remember a colour is a
+/// worse failure than a panel in the wrong colour.
+function storedTheme(): string | null {
+  try {
+    return localStorage.getItem(THEME_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function applyTheme(dark: boolean, persist: boolean) {
+  const root = document.documentElement;
+  if (dark) {
+    root.setAttribute("data-theme", "dark");
+  } else {
+    // Removed rather than set to "light": the bare :root block is the light
+    // palette, so absence is the default rather than a third state.
+    root.removeAttribute("data-theme");
+  }
+
+  $("theme").textContent = dark ? "Light" : "Dark";
+  $("theme").setAttribute(
+    "aria-label",
+    dark ? "Switch to the light theme" : "Switch to the dark theme",
+  );
+
+  if (persist) {
+    try {
+      localStorage.setItem(THEME_KEY, dark ? "dark" : "light");
+    } catch {
+      // Not worth surfacing: the theme still applies for this session.
+    }
+  }
+
+  // The frosting behind the panel is an AppKit layer the stylesheet cannot
+  // reach, and it carries its own light/dark rendering. A light panel over a
+  // dark blur reads as a dark panel with a light patch in it.
+  invoke("set_theme", { dark }).catch(console.error);
+}
+
+function isDark(): boolean {
+  return document.documentElement.getAttribute("data-theme") === "dark";
+}
+
+// --- the window follows the content ---
+
+const panel = document.querySelector(".panel") as HTMLElement;
+const panelBody = document.querySelector(".panel-body") as HTMLElement;
+
+/// Tells the shell how tall the panel wants to be.
+///
+/// A summoned panel is not a document viewer: it should be the size of what it
+/// has to say. At a fixed height, preflight — the one screen whose entire job
+/// is to be read — came up scrolled into its own middle with the heading cut
+/// off the top, and nothing on screen suggested there was anything above it.
+///
+/// Only .panel-body is measured. .panel stretches to fill the window, so
+/// measuring it would report the window's own height back to the window, and
+/// the panel could grow but never shrink again.
+let requested = 0;
+
+function fitWindow() {
+  const style = getComputedStyle(panel);
+  const chrome =
+    parseFloat(style.paddingTop) +
+    parseFloat(style.paddingBottom) +
+    parseFloat(style.borderTopWidth) +
+    parseFloat(style.borderBottomWidth);
+
+  const height = Math.ceil(panelBody.getBoundingClientRect().height + chrome);
+
+  // Sub-pixel churn from font loading and scrollbar reflow would otherwise
+  // resize the window continuously.
+  if (Math.abs(height - requested) < 2) return;
+  requested = height;
+
+  invoke("resize_panel", { height }).catch(console.error);
+}
+
+new ResizeObserver(fitWindow).observe(panelBody);
 
 // --- wiring ---
 
@@ -423,9 +536,16 @@ listen<ScreenContext | undefined>("overlay://shown", (event) => {
   } else {
     refreshActiveContext();
   }
-  // Auto-focus the intent input on summon
-  const intent = $("intent") as HTMLInputElement;
-  if (intent) {
+
+  // A panel that comes back scrolled where it was left looks broken — the top
+  // of it is the heading that says what you are looking at.
+  panel.scrollTop = 0;
+
+  // Only when it is actually on screen. During preflight the task form is
+  // hidden, and focusing into a hidden section takes the keyboard nowhere.
+  const task = $("task");
+  if (!task.hidden) {
+    const intent = $("intent") as HTMLInputElement;
     intent.focus();
     intent.select();
   }
@@ -437,6 +557,8 @@ window.addEventListener("keydown", (e) => {
     invoke("dismiss").catch(console.error);
   }
 });
+
+$("theme").addEventListener("click", () => applyTheme(!isDark(), true));
 
 $("run").addEventListener("click", extract);
 $("recheck").addEventListener("click", runPreflight);
@@ -453,6 +575,10 @@ $("setup").addEventListener("click", () => {
   runPreflight();
 });
 $("again").addEventListener("click", () => show("task"));
+
+// The shell starts light so the first frame is already frosted correctly.
+// This re-asserts it either way rather than assuming the two sides agree.
+applyTheme(storedTheme() === "dark", false);
 
 show("preflight");
 runPreflight();

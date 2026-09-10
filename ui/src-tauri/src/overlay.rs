@@ -5,8 +5,30 @@
 //! no chrome — and it starts hidden, because an app that seizes the screen on
 //! launch is the thing this replaces.
 
-use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use tauri::{AppHandle, Emitter, LogicalSize, Manager, WebviewWindow};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+
+/// Whether clicking away leaves the panel up.
+///
+/// Dismiss-on-blur is right for the task form and wrong for preflight, which
+/// tells you to go start Chrome in a terminal and then disappears the moment
+/// you click the terminal. A screen whose whole purpose is to send you
+/// somewhere else has to survive you going there.
+static PINNED: AtomicBool = AtomicBool::new(false);
+
+/// Below this the panel reads as a glitch rather than a window.
+const MIN_HEIGHT: f64 = 180.0;
+
+/// The panel is an overlay, not a full-screen app: past this fraction of the
+/// display it stops looking like something summoned over your work.
+const MAX_SCREEN_FRACTION: f64 = 0.85;
+
+/// Matches the CSS radius on .panel. The blur is a native layer behind the
+/// webview, so if it does not round with the panel it shows as square corners
+/// poking out from under the rounded ones.
+const CORNER_RADIUS: f64 = 14.0;
 
 /// The summoning shortcut.
 ///
@@ -32,7 +54,12 @@ pub fn show(app: &AppHandle) {
     // Capture context before VANS seizes the active focus
     let context = crate::screen::capture_active_context(false);
 
-    let _ = win.center();
+    // Only recentre when summoning it fresh. A pinned panel that the user
+    // clicked away from is still on screen where they left it, and moving it
+    // out from under them on the way back is disorienting.
+    if !win.is_visible().unwrap_or(false) {
+        let _ = win.center();
+    }
     let _ = win.show();
     let _ = win.set_focus();
 
@@ -55,12 +82,111 @@ pub fn hide(app: &AppHandle) {
     let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 }
 
+pub fn set_pinned(pinned: bool) {
+    PINNED.store(pinned, Ordering::Relaxed);
+}
+
+/// Sizes the window to the height its content asked for.
+///
+/// A summoned panel is not a document viewer. At a fixed height the preflight
+/// screen — the one screen whose entire job is to be read — came up scrolled
+/// into its own middle with the heading off the top, which is how the fixed
+/// size was found. The window follows the content instead, within bounds.
+pub fn resize(app: &AppHandle, content_height: f64) {
+    let Some(win) = window(app) else { return };
+    if !content_height.is_finite() {
+        return;
+    }
+
+    let ceiling = win
+        .current_monitor()
+        .ok()
+        .flatten()
+        .map(|m| m.size().to_logical::<f64>(m.scale_factor()).height * MAX_SCREEN_FRACTION)
+        .unwrap_or(f64::INFINITY);
+
+    // clamp panics if the bounds cross, which they do on a display shorter
+    // than MIN_HEIGHT/MAX_SCREEN_FRACTION.
+    let height = content_height.clamp(MIN_HEIGHT, ceiling.max(MIN_HEIGHT));
+
+    let width = win
+        .inner_size()
+        .map(|s| s.to_logical::<f64>(win.scale_factor().unwrap_or(1.0)).width)
+        .unwrap_or(720.0);
+
+    let _ = win.set_size(LogicalSize::new(width, height));
+
+    // Recentre rather than anchoring an edge. Growth is driven by moving
+    // between screens, which is infrequent and deliberate, and centring is the
+    // only rule that cannot walk the panel off the bottom of the display.
+    if win.is_visible().unwrap_or(false) {
+        let _ = win.center();
+    }
+}
+
 pub fn toggle(app: &AppHandle) {
     let Some(win) = window(app) else { return };
-    match win.is_visible() {
-        Ok(true) => hide(app),
-        _ => show(app),
+    // Visible but not focused means pinned and clicked away from. Treat the
+    // hotkey as a request to come back, not to dismiss — otherwise the panel
+    // that deliberately stayed up is the one the hotkey cannot recover.
+    let up = win.is_visible().unwrap_or(false) && win.is_focused().unwrap_or(false);
+    if up {
+        hide(app);
+    } else {
+        show(app);
     }
+}
+
+/// Frosts the window using AppKit rather than CSS.
+///
+/// `backdrop-filter` did work, but it arrived seconds after the panel did: a
+/// transparent WKWebView has nothing behind it inside the page to sample, so
+/// the blur only resolves once the compositor has caught up with the window.
+/// A summoned panel that spends its first seconds as a solid box has failed at
+/// the moment it is actually being looked at.
+///
+/// NSVisualEffectView sits behind the webview and is composited by the window
+/// server, so it is correct in the first frame. It also samples the desktop
+/// properly, which CSS cannot do from inside a transparent window.
+#[cfg(target_os = "macos")]
+fn frost(win: &WebviewWindow, theme: tauri::Theme) {
+    use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial, NSVisualEffectState};
+
+    // The material carries its own light/dark rendering, so the theme has to
+    // reach AppKit as well as CSS — a light panel over a dark blur reads as a
+    // dark panel with a light patch in it.
+    let material = match theme {
+        tauri::Theme::Dark => NSVisualEffectMaterial::HudWindow,
+        _ => NSVisualEffectMaterial::Popover,
+    };
+
+    // Active regardless of focus. The panel pins itself on some screens, and
+    // FollowsWindowActiveState would drain the blur out of a pinned panel the
+    // moment the user clicked away to do what it asked.
+    // A failure here is invisible from the outside — the panel simply renders
+    // as a flat tint over a transparent window, which looks like a styling
+    // choice rather than a broken one. Same reasoning as the hotkey below.
+    if let Err(e) = apply_vibrancy(
+        win,
+        material,
+        Some(NSVisualEffectState::Active),
+        Some(CORNER_RADIUS),
+    ) {
+        eprintln!("[vans] could not frost the panel: {e}");
+    }
+}
+
+/// Applies a theme to the window, and to the blur behind it.
+pub fn set_theme(app: &AppHandle, dark: bool) {
+    let Some(win) = window(app) else { return };
+    let theme = if dark {
+        tauri::Theme::Dark
+    } else {
+        tauri::Theme::Light
+    };
+    let _ = win.set_theme(Some(theme));
+    #[cfg(target_os = "macos")]
+    frost(&win, theme);
 }
 
 /// Registers the hotkey and the dismiss-on-blur behaviour.
@@ -73,18 +199,37 @@ pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     app.global_shortcut().on_shortcut(hotkey(), move |_, _, event| {
         // Fire on press. Acting on release too would toggle twice per tap.
         if event.state() == ShortcutState::Pressed {
+            eprintln!("[vans] hotkey fired");
             toggle(&handle);
         }
     })?;
 
+    // Registration can fail silently from the user's point of view — another
+    // app already owns the combination, and the panel simply never appears.
+    // Say so on stderr rather than leaving them pressing a dead key.
+    eprintln!(
+        "[vans] hotkey Alt+Space registered = {}",
+        app.global_shortcut().is_registered(hotkey())
+    );
+
     if let Some(win) = window(app) {
+        // Light until the window says otherwise. Doing it here rather than
+        // waiting for the frontend means the first frame is already frosted;
+        // the frontend re-applies only if the stored choice differs.
+        let _ = win.set_theme(Some(tauri::Theme::Light));
+        #[cfg(target_os = "macos")]
+        frost(&win, tauri::Theme::Light);
+
         let handle = app.clone();
         win.on_window_event(move |event| {
-            // Clicking away dismisses, the way a summoned panel should. In-flight
-            // work is unaffected: the webview is hidden, not destroyed, so a plan
-            // waiting for confirmation is still there when it comes back.
+            // Clicking away dismisses, the way a summoned panel should, unless
+            // the window has pinned itself. In-flight work is unaffected either
+            // way: the webview is hidden, not destroyed, so a plan waiting for
+            // confirmation is still there when it comes back.
             if let tauri::WindowEvent::Focused(false) = event {
-                hide(&handle);
+                if !PINNED.load(Ordering::Relaxed) {
+                    hide(&handle);
+                }
             }
         });
     }
