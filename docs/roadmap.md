@@ -23,8 +23,8 @@ everything already built. This file holds the *what next*.
 | 8 | Program store (the cache) | merged |
 | 9 | Engine + failure ladder + CLI harness | merged |
 | 9c | Generalized nodes (records spanning siblings) | merged |
-| 10 | Desktop shell (Tauri) | **PR #10, open** |
-| 11 | Overlay (hotkey panel) | **in progress, this branch** |
+| 10 | Desktop shell (Tauri) | merged |
+| 11 | Overlay (hotkey panel) | merged |
 
 **Measured live** on Hacker News, Chrome 151, free open-weight model:
 
@@ -98,12 +98,50 @@ engine was untouched.
   behind the panel's rounded corners, which is the usual way a transparent
   window goes wrong
 
-Still open, deliberately deferred:
+**The frosting is native, not CSS.** `backdrop-filter` worked but resolved
+seconds after the panel appeared: a transparent WKWebView has nothing behind it
+*inside the page* to sample, so the blur only settles once the compositor
+catches up. A panel that spends its first seconds as a solid box has failed at
+the moment it is being looked at. An `NSVisualEffectView` sits behind the
+webview and is composited by the window server, so it is right in the first
+frame. CSS keeps only the tint over it.
 
-- The panel is a fixed 720×460. Height should grow with the result table.
-- Preflight lives inside a dismiss-on-blur panel, which is awkward: clicking
-  away to start Chrome dismisses the instructions telling you to. Probably
-  wants its own ordinary window.
+**Light by default, with a switch.** The light palette is the bare `:root`
+block rather than a media query, so it applies before any script runs and to a
+window that has not said what it wants; dark is opt-in via `data-theme`, stored
+in `localStorage` and read behind a try/catch. It is deliberately not tied to
+`prefers-color-scheme` — the panel is summoned over whatever you are working in,
+so the choice is the user's rather than the system's. The theme has to reach
+AppKit as well as the stylesheet, because the blur material carries its own
+light/dark rendering and a light panel over a dark blur reads as a dark panel
+with a light patch in it.
+
+Both of the deferred items are now closed:
+
+- **The window follows the content.** The frontend measures `.panel-body` and
+  reports its height; the shell clamps it to `[180px, 85% of the display]` and
+  resizes. The fixed 720×460 was found the way these things usually are — a
+  screenshot of preflight, opened scrolled into its own middle with the heading
+  cut off the top and nothing on screen to suggest there was anything above it.
+  Only `.panel-body` is measured, never `.panel`: `.panel` stretches to fill the
+  window, so measuring it would report the window's height back to the window
+  and the panel could grow but never shrink.
+- **Preflight pins the panel.** Rather than a second window, the frontend asks
+  the shell to suspend dismiss-on-blur while a screen is up whose instructions
+  send the user elsewhere. Escape and ⌥Space still dismiss, so there is no way
+  to get stuck. ⌥Space now distinguishes *visible* from *focused*: a pinned
+  panel that was clicked away from is raised rather than hidden, or the hotkey
+  could not recover the one panel that deliberately stayed up.
+
+Fixed alongside them, found while reading the Phase 2 frontend: the active
+context banner built itself with `innerHTML` from the frontmost window title.
+A window title is attacker-controlled whenever the frontmost application is a
+browser — `document.title` is writable by any script on the page — so a visited
+page could put markup into the panel just by being frontmost when the hotkey was
+pressed. It goes through text nodes now, like everything else that reaches this
+DOM. The CSP blocked script execution, so this was a hole in the second layer
+rather than the first, but the rule that everything reaching this DOM is a text
+node is the layer that is supposed to hold.
 
 ### Phase 2 — Screen context ← implemented on phase-2-screen-context branch
 
@@ -178,11 +216,15 @@ real.
 
 ## Immediate next actions
 
-1. **Merge PR #10** (desktop shell) — https://github.com/vedansh-5/VANS/pull/10
-2. **Do one real write through the GUI** to close D-017
-3. **Finish Phase 1's frontend** — the list under Phase 1 above
-4. **Grant Accessibility** in System Settings before Phase 3 starts, and
+1. **Do one real write through the GUI** to close D-017. Every run so far has
+   been `-dry-run`; this is the last unproven step of V1.
+2. **Wire screen context into the engine.** Phase 2 captures it and shows it in
+   the banner, but nothing downstream consumes it — `internal/engine` has no
+   reference to it. It is plumbing without a consumer until it reaches a task.
+3. **Grant Accessibility** in System Settings before Phase 3 starts, and
    re-measure the environment facts in `decisions.md`
+4. **Write up the bidirectional RPC decision** — see Phase 3. The engine cannot
+   call back into the shell today, and it must be able to before it can act.
 
 ---
 
