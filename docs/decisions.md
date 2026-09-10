@@ -1197,3 +1197,31 @@ was two async calls that could fail into a console nobody is reading, which
 is indistinguishable from a drag that does nothing — and that is exactly how
 it presented. The shell reads the position when the drag begins and the
 frontend sends screen deltas, so a failure prints somewhere it can be seen.
+
+## D-049 — The page already on screen
+
+VANS could search the web and read a page it was given an address for. It
+could not read the one in front of you, which is most of what anyone means by
+"summarise this".
+
+**Its own kind, not web.extract with a missing url.** A missing required slot
+is a rejected decision, and this decision is complete: the user did supply the
+page, by having it open. `page.here` takes one slot — what to get — and the
+address comes from the browser.
+
+**It navigates nowhere, and that is the point.** Going anywhere would answer a
+different question and would throw away the state that made the page worth
+asking about: a search that had been refined, a list that had been filtered,
+anything behind a login. It reads the active tab of the frontmost window —
+deliberately not the tab VANS opened for itself (D-044), because a request
+about "this page" means theirs, and reading the wrong one answers confidently
+about a page they cannot see.
+
+**One ladder, not two.** Everything after the page is in hand — the cache, the
+rungs, the model, the verifier — was split out of Prepare so a page the
+runtime navigated to and a page the user already had open go through exactly
+the same path. Two copies would drift, and the one that drifted would be the
+one nobody was watching.
+
+Proven against a real tab: a Prime Video page, three rows, answered without
+the tab moving.

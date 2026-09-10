@@ -27,6 +27,15 @@ const (
 	// KindAppAction is Phase 3: do something in a running application.
 	KindAppAction Kind = "app.act"
 
+	// KindPageHere is the page already on screen. "Summarise this", "what does
+	// this say", "pull the prices off this" — a request with no address in it
+	// because the address is whatever the user is looking at.
+	//
+	// Its own kind rather than web.extract with a missing url, because a
+	// missing required slot is a rejected decision and this one is complete:
+	// the user did supply the page, by having it open.
+	KindPageHere Kind = "page.here"
+
 	// KindUnknown is the honest answer. The router is allowed to say it does
 	// not know, and saying so is better than routing to the nearest kind and
 	// failing somewhere the user cannot interpret.
@@ -71,6 +80,13 @@ var Specs = []Spec{
 		Slots: []Slot{
 			{"query", "what to search for, as the words to put in the box", true},
 			{"engine", "which search engine, only if the instruction names one", false},
+		},
+	},
+	{
+		Kind:     KindPageHere,
+		Describe: "Read the page the user already has open, without going anywhere.",
+		Slots: []Slot{
+			{"intent", "what to get from the page they are looking at, in plain words", true},
 		},
 	},
 	{

@@ -259,6 +259,21 @@ func (e *Engine) Prepare(ctx context.Context, task Task) (*Plan, error) {
 	}
 	e.logf("page %s signature %s", pageURL, sig)
 
+	return e.extractFrom(ctx, src, pageURL, sig, key, task)
+}
+
+// extractFrom is everything after a page is in hand: the cache, the ladder,
+// the model, the verifier.
+//
+// Split out so that a page the runtime navigated to and a page the user
+// already had open go through exactly the same path. Two copies of the ladder
+// would drift, and the one that drifted would be the one nobody was watching.
+func (e *Engine) extractFrom(
+	ctx context.Context,
+	src, pageURL, sig string,
+	key store.Key,
+	task Task,
+) (*Plan, error) {
 	base, err := url.Parse(pageURL)
 	if err != nil {
 		return nil, fmt.Errorf("engine: parse page URL: %w", err)

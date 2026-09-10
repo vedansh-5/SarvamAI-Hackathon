@@ -114,6 +114,18 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 		}
 		return plan, err
 
+	case route.KindPageHere:
+		plan, err := e.here(ctx, res.Route.Slot("intent"))
+		if err != nil {
+			return nil, err
+		}
+		r := res.Route
+		plan.Route = &r
+		plan.DecisionCalls = res.DecisionCalls
+		plan.Destination = in.Destination
+		e.answerFor(ctx, in.Instruction, plan)
+		return plan, nil
+
 	case route.KindAppAction:
 		if e.canAct() {
 			plan, calls, err := e.act(ctx, res.Route, res.Shape)
@@ -159,7 +171,7 @@ func (e *Engine) capabilities() []string {
 
 func (e *Engine) runs(k route.Kind) bool {
 	switch k {
-	case route.KindWebExtract, route.KindWebSearch:
+	case route.KindWebExtract, route.KindWebSearch, route.KindPageHere:
 		return true
 	case route.KindAppAction:
 		return e.canAct()

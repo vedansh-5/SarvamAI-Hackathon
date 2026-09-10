@@ -293,6 +293,44 @@ func (c *Chrome) onTab(body string) string {
 	return "reply(function () {\n  const app = chrome();\n  " + lookup + "\n  " + body + "\n});"
 }
 
+// Front is the page the user is looking at: the active tab of the frontmost
+// window, never the tab VANS opened for itself.
+//
+// Deliberately separate from URL and OuterHTML, which address VANS's own tab.
+// A request about "this page" means theirs, and reading the wrong one would
+// answer confidently about a page they cannot see.
+func (c *Chrome) Front(ctx context.Context) (url, html string, err error) {
+	var front struct {
+		URL   string `json:"url"`
+		HTML  string `json:"html"`
+		Title string `json:"title"`
+	}
+
+	err = c.run(ctx, `reply(function () {
+  const app = chrome();
+  const tab = app.windows[0].activeTab;
+  return {
+    url: String(tab.url()),
+    title: String(tab.title()),
+    html: String(app.execute(tab, { javascript: 'document.documentElement.outerHTML' })),
+  };
+});`, &front)
+	if err != nil {
+		return "", "", err
+	}
+	return front.URL, front.HTML, nil
+}
+
+// FrontTitle is what the frontmost tab calls itself. Read without executing
+// anything, so it works before the scripting gate is opened.
+func (c *Chrome) FrontTitle(ctx context.Context) (string, error) {
+	var title string
+	err := c.run(ctx, `reply(function () {
+  return String(chrome().windows[0].activeTab.title());
+});`, &title)
+	return title, err
+}
+
 // Reachable reports whether this adapter can drive Chrome right now, and says
 // what to do if it cannot.
 func (c *Chrome) Reachable(ctx context.Context) error {

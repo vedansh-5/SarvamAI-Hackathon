@@ -108,6 +108,7 @@ const ICONS: Record<string, string> = {
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
   chart: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
   pencil: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  page: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/>',
 };
 
 interface Suggestion {
@@ -117,6 +118,7 @@ interface Suggestion {
 }
 
 const SUGGESTIONS: Suggestion[] = [
+  { icon: "page", text: "what is this page about" },
   { icon: "rss", text: "the top stories on news.ycombinator.com" },
   { icon: "search", text: "search for noise-cancelling headphones under $200" },
   { icon: "chart", text: "search for today's biggest NASDAQ movers" },
