@@ -25,11 +25,10 @@ A durable record of implementation progress, completed milestones, and immediate
 | **Step 8** | Program store | Merged | SQLite persistence for learned selector programs |
 | **Step 9** | Engine + failure ladder + CLI harness | Merged | Cold run ~9.5s (1 model call) → Warm run ~344ms (0 model calls) |
 | **Step 9c** | Generalized nodes | Merged | Extraction across multi-column sibling nodes |
-| **Step 10** | Desktop shell (Tauri) | PR #10 | Private stdio RPC pipe, preflight checks, confirmation gate |
-| **Phase 1** | Hotkey summoned overlay | Complete | `⌥Space` global hotkey, accessory policy, dismiss on blur, translucent panel surface |
-| **Router** | Free-text instructions (D-039) | Complete | Shape-keyed routing cache; cold 1 call, warm 0. Proven live against a hosted model |
 | **Step 10** | Desktop shell (Tauri) | Merged | Private stdio RPC pipe, preflight checks, confirmation gate |
-| **Phase 1** | Hotkey summoned overlay | Complete | `⌥Space` global hotkey, accessory policy, dismiss on blur, native `NSVisualEffectView` frosting, light/dark switch, window sized to its content |
+| **Phase 1** | Hotkey summoned overlay | Complete | `⌥Space` global hotkey, non-activating panel over full-screen apps, native `NSVisualEffectView` frosting, light/dark switch, window sized to its content |
+| **Router** | Free-text instructions (D-039) | Complete, wired | Shape-keyed routing cache; cold 1 call, warm 0. `Engine.Ask` routes it; the panel is one field |
+| **Sinks** | Destinations for an answer | Complete | panel / clipboard / notes. The gate follows the destination rather than being a fixed step |
 | **Phase 2** | Screen context | Complete | Active app & window title metadata, Screen Recording preflight, silent display capture |
 
 ---

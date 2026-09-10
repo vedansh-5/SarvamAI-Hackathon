@@ -228,6 +228,17 @@ real.
 
 ---
 
+## Known limits
+
+**One browser, one tab, no queue.** The RPC server runs a goroutine per request
+and every one of them drives the same `ChromiumBrowser`. Two prepares in flight
+at once navigate the same tab, and the loser comes back
+`net::ERR_ABORTED` — seen while testing two instructions sent back to back.
+The window only sends one at a time, so this is not reachable from the UI
+today, but it will be the moment anything issues concurrent requests
+(multi-step plans, Q-6 onwards). The fix is a queue or a tab per request, not a
+retry: retrying an aborted navigation races the same way.
+
 ## Open questions carried forward
 
 | # | Question |

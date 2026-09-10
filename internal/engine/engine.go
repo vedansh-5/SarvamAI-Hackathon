@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/vedansh/vans/internal/extract"
+	"github.com/vedansh/vans/internal/route"
 	"github.com/vedansh/vans/internal/runner"
 	"github.com/vedansh/vans/internal/store"
 	"github.com/vedansh/vans/internal/synth"
@@ -36,14 +37,6 @@ type Browser interface {
 	Navigate(ctx context.Context, pageURL string) error
 	URL(ctx context.Context) (string, error)
 	OuterHTML(ctx context.Context) (string, error)
-}
-
-// Sink is a destination for extracted data.
-type Sink interface {
-	// Write commits the document and returns a receipt. An implementation
-	// that can read its own writes back must do so; the receipt says whether
-	// it did.
-	Write(ctx context.Context, doc Document) (Receipt, error)
 }
 
 // Document is what gets written.
@@ -74,6 +67,11 @@ type Task struct {
 
 	// Title names the document that will be written.
 	Title string
+
+	// Destination is where the answer goes. Empty means the panel, which
+	// writes nothing — so a task that says nothing about its destination
+	// cannot accidentally acquire a side effect.
+	Destination string
 }
 
 // Engine runs tasks.
@@ -81,7 +79,14 @@ type Engine struct {
 	Browser Browser
 	Store   *store.Store
 	Synth   synth.Synthesizer
-	Sink    Sink
+
+	// Router turns a free-text instruction into a task. Optional: Prepare
+	// takes an already-resolved task and does not need one. Ask does.
+	Router *route.Router
+
+	// Sinks are the destinations that write somewhere, by name. The panel is
+	// not among them — it is the absence of a write, not a kind of one.
+	Sinks map[string]Sink
 
 	// Model labels which backend wrote a program, stored as provenance.
 	Model string
@@ -176,6 +181,18 @@ type Plan struct {
 	// of the store rather than being written for this run.
 	FromCache bool
 
+	// Destination is where the answer goes. Empty means the panel, which
+	// writes nothing.
+	Destination string
+
+	// Route is how the instruction was understood, when one was routed.
+	// Nil for a task that arrived already resolved.
+	Route *route.Route
+
+	// DecisionCalls is how many model calls the routing cost. Zero on a warm
+	// shape, the same way SynthesisCalls is zero on a warm page.
+	DecisionCalls int
+
 	key       store.Key
 	programID int64
 	committed bool
@@ -237,6 +254,7 @@ func (e *Engine) Prepare(ctx context.Context, task Task) (*Plan, error) {
 				Task: task, PageURL: pageURL, Signature: sig,
 				Fields: res.Fields, Rows: res.Rows,
 				FromCache: true, key: key, programID: entry.ID,
+				Destination: task.Destination,
 			}, nil
 		}
 
@@ -262,7 +280,7 @@ func (e *Engine) Prepare(ctx context.Context, task Task) (*Plan, error) {
 		return nil, &UnresolvedError{PageURL: pageURL, Signature: sig, Attempts: attempts}
 	}
 
-	plan := &Plan{Task: task, PageURL: pageURL, Signature: sig, key: key}
+	plan := &Plan{Task: task, PageURL: pageURL, Signature: sig, key: key, Destination: task.Destination}
 
 	for plan.SynthesisCalls < e.maxSynthesis() {
 		req := synth.Request{
@@ -374,6 +392,13 @@ func (e *Engine) Commit(ctx context.Context, plan *Plan) (Receipt, error) {
 		return Receipt{}, fmt.Errorf("engine: refusing to write an empty document")
 	}
 
+	// Resolved before the plan is spent, so a plan is not burned by a typo in
+	// a destination name.
+	sink, err := e.sinkFor(plan.Destination)
+	if err != nil {
+		return Receipt{}, err
+	}
+
 	title := plan.Task.Title
 	if strings.TrimSpace(title) == "" {
 		title = defaultTitle(plan)
@@ -383,7 +408,7 @@ func (e *Engine) Commit(ctx context.Context, plan *Plan) (Receipt, error) {
 	// mid-flight the plan is still spent, because the note may exist.
 	plan.committed = true
 
-	receipt, err := e.Sink.Write(ctx, Document{
+	receipt, err := sink.Write(ctx, Document{
 		Title:  title,
 		Fields: plan.Fields,
 		Rows:   plan.Rows,
@@ -398,6 +423,16 @@ func (e *Engine) Commit(ctx context.Context, plan *Plan) (Receipt, error) {
 
 // Committed reports whether this plan has been spent.
 func (p *Plan) Committed() bool { return p.committed }
+
+// NeedsCommit reports whether this plan still has to touch the world.
+//
+// False for the panel: the rows are already in hand, so the answer has been
+// delivered by the time Prepare returns. The gate is shown on the strength of
+// this rather than unconditionally — a confirmation in front of something with
+// no side effect teaches people to dismiss confirmations.
+func (p *Plan) NeedsCommit() bool {
+	return p.Destination != "" && p.Destination != PanelDestination
+}
 
 func defaultTitle(plan *Plan) string {
 	host := plan.PageURL

@@ -118,6 +118,8 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.prepare(ctx, req)
 	case "commit":
 		result, err = s.commit(ctx, req)
+	case "destinations":
+		result = s.destinations()
 	case "screen_context":
 		result, err = s.screenContext(ctx, req)
 	default:
@@ -245,6 +247,23 @@ func (s *Server) checkNotes(ctx context.Context) (Check, error) {
 	return c, nil
 }
 
+// destinations lists everywhere an answer can go.
+//
+// Sent to the shell rather than hardcoded there, so adding a sink to the
+// runtime makes it appear in the window without a matching change in the
+// frontend — and so the window cannot offer a destination that does not exist.
+func (s *Server) destinations() []Destination {
+	var out []Destination
+	for _, d := range s.Engine.Destinations() {
+		out = append(out, Destination{
+			Name:         d.Name,
+			Describe:     d.Describe,
+			TouchesWorld: d.TouchesWorld,
+		})
+	}
+	return out
+}
+
 func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error) {
 	var p PrepareParams
 	if err := json.Unmarshal(req.Params, &p); err != nil {
@@ -257,7 +276,23 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 	eng.Log = func(format string, args ...any) { s.notify(req.ID, format, args...) }
 
 	started := time.Now()
-	plan, err := eng.Prepare(ctx, engine.Task{URL: p.URL, Intent: p.Intent, Title: p.Title})
+
+	// Free text when there is any, the resolved form otherwise. The CLI and
+	// anything else that already knows what it wants skips the router
+	// entirely, and so skips its model call.
+	var plan *engine.Plan
+	var err error
+	if strings.TrimSpace(p.Instruction) != "" {
+		plan, err = eng.Ask(ctx, engine.Ask{
+			Instruction: p.Instruction,
+			Destination: p.Destination,
+		})
+	} else {
+		plan, err = eng.Prepare(ctx, engine.Task{
+			URL: p.URL, Intent: p.Intent, Title: p.Title,
+			Destination: p.Destination,
+		})
+	}
 	if err != nil {
 		return PrepareResult{}, err
 	}
@@ -275,9 +310,14 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 		rows[i] = r
 	}
 
-	title := p.Title
+	title := plan.Task.Title
 	if strings.TrimSpace(title) == "" {
 		title = fmt.Sprintf("%s — %s", plan.Task.Intent, plan.PageURL)
+	}
+
+	kind := ""
+	if plan.Route != nil {
+		kind = string(plan.Route.Kind)
 	}
 
 	return PrepareResult{
@@ -290,6 +330,10 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 		SynthesisCalls: plan.SynthesisCalls,
 		FromCache:      plan.FromCache,
 		ElapsedMS:      time.Since(started).Milliseconds(),
+		Destination:    plan.Destination,
+		NeedsCommit:    plan.NeedsCommit(),
+		Kind:           kind,
+		DecisionCalls:  plan.DecisionCalls,
 	}, nil
 }
 
@@ -338,6 +382,23 @@ func asError(err error) *Error {
 	var unresolved *engine.UnresolvedError
 	if errors.As(err, &unresolved) {
 		return unresolvedError(unresolved)
+	}
+
+	// Kept separate from unresolved on purpose. "I did not understand you" and
+	// "I understood you and could not do it" call for different things on
+	// screen: one wants a rephrase and a list of what is possible, the other
+	// wants to show what was tried on the page.
+	var unroutable *engine.UnroutableError
+	if errors.As(err, &unroutable) {
+		return &Error{
+			Code:    CodeUnroutable,
+			Message: unroutable.Error(),
+			Data: mustData(UnroutableData{
+				Instruction: unroutable.Instruction,
+				Why:         unroutable.Why,
+				Can:         unroutable.Can,
+			}),
+		}
 	}
 
 	if appleevents.IsPermissionDenied(err) {
@@ -390,6 +451,19 @@ func spanOf(c extract.Candidate) int {
 		return 1
 	}
 	return c.Span
+}
+
+// mustData encodes error payloads, dropping them if they cannot be encoded.
+//
+// Losing the detail is survivable; losing the error is not. The code and
+// message always reach the shell, so the worst case is a less specific screen
+// rather than a silent failure.
+func mustData(v any) json.RawMessage {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return nil
+	}
+	return raw
 }
 
 func fixData(fix string) json.RawMessage {

@@ -63,9 +63,6 @@ pub fn show(app: &AppHandle) {
     let _ = win.show();
     let _ = win.set_focus();
 
-    #[cfg(target_os = "macos")]
-    let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
-
     let _ = win.emit("overlay://shown", &context);
 }
 
@@ -77,9 +74,6 @@ pub fn show(app: &AppHandle) {
 pub fn hide(app: &AppHandle) {
     let Some(win) = window(app) else { return };
     let _ = win.hide();
-
-    #[cfg(target_os = "macos")]
-    let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 }
 
 pub fn set_pinned(pinned: bool) {
@@ -124,17 +118,157 @@ pub fn resize(app: &AppHandle, content_height: f64) {
     }
 }
 
+/// Whether the panel currently holds the keyboard.
+///
+/// Asked of AppKit rather than of Tauri. `is_focused` reports whether the
+/// *application* is active, and this one deliberately never activates — so it
+/// answers false even when the panel is right there with a cursor blinking in
+/// it, and the hotkey could then only ever open, never close.
+#[cfg(target_os = "macos")]
+fn holds_keyboard(win: &WebviewWindow) -> bool {
+    use objc2_app_kit::NSWindow;
+
+    let Ok(ptr) = win.ns_window() else { return false };
+    if ptr.is_null() {
+        return false;
+    }
+    let ns: &NSWindow = unsafe { &*(ptr as *const NSWindow) };
+    ns.isKeyWindow()
+}
+
+#[cfg(not(target_os = "macos"))]
+fn holds_keyboard(win: &WebviewWindow) -> bool {
+    win.is_focused().unwrap_or(false)
+}
+
 pub fn toggle(app: &AppHandle) {
     let Some(win) = window(app) else { return };
-    // Visible but not focused means pinned and clicked away from. Treat the
-    // hotkey as a request to come back, not to dismiss — otherwise the panel
-    // that deliberately stayed up is the one the hotkey cannot recover.
-    let up = win.is_visible().unwrap_or(false) && win.is_focused().unwrap_or(false);
-    if up {
+
+    // Visible but not holding the keyboard means it was pinned and clicked
+    // away from. Treat the hotkey as a request to come back rather than to
+    // dismiss, or the panel that deliberately stayed up is the one the hotkey
+    // cannot recover.
+    if win.is_visible().unwrap_or(false) && holds_keyboard(&win) {
         hide(app);
     } else {
         show(app);
     }
+}
+
+/// An NSPanel subclass that agrees to take the keyboard.
+///
+/// Plain NSPanel is not enough. `canBecomeKeyWindow` is false by default for a
+/// window with no title bar, and this one is deliberately borderless — so
+/// swapping to NSPanel alone produced a panel that appeared over full-screen
+/// apps and could not be typed into. The one override is the whole reason this
+/// class exists.
+///
+/// Registered once. A second `ClassBuilder::new` with the same name returns
+/// None, so the result is cached rather than rebuilt per call.
+#[cfg(target_os = "macos")]
+fn vans_panel_class() -> Option<&'static objc2::runtime::AnyClass> {
+    use std::sync::OnceLock;
+
+    use objc2::runtime::{AnyClass, AnyObject, Bool, ClassBuilder, Sel};
+
+    static CLASS: OnceLock<Option<&'static AnyClass>> = OnceLock::new();
+
+    *CLASS.get_or_init(|| {
+        extern "C" fn can_become_key(_this: &AnyObject, _cmd: Sel) -> Bool {
+            Bool::YES
+        }
+
+        let superclass = AnyClass::get(c"NSPanel")?;
+        let mut builder = ClassBuilder::new(c"VansPanel", superclass)?;
+
+        // Safety: the signature matches canBecomeKeyWindow's, which takes no
+        // arguments beyond the implicit receiver and selector and returns BOOL.
+        unsafe {
+            builder.add_method(
+                objc2::sel!(canBecomeKeyWindow),
+                // Inferred rather than spelled out: naming the receiver's
+                // lifetime pins it, and the trait wants a signature generic
+                // over any lifetime.
+                can_become_key as extern "C" fn(_, _) -> _,
+            );
+        }
+        Some(builder.register())
+    })
+}
+
+/// Lets the panel appear over a full-screen application.
+///
+/// Joining all Spaces is only half of it. A full-screen app owns its own
+/// Space, and an ordinary window — even one that can join every Space — is
+/// still hidden behind it. `FullScreenAuxiliary` is the behaviour that says
+/// "I am a panel, show me over the full-screen window rather than switching
+/// away from it", and there is no Tauri call for it.
+///
+/// The level goes up to match. Always-on-top puts the window above normal
+/// windows, and a full-screen app is not a normal window: below the status
+/// level it stays behind. Stationary keeps it from sliding under a Spaces
+/// swipe, which for a panel that is meant to be above everything reads as it
+/// falling off the screen.
+#[cfg(target_os = "macos")]
+fn float_over_fullscreen(win: &WebviewWindow) {
+    use objc2::runtime::AnyObject;
+    use objc2_app_kit::{NSWindow, NSWindowCollectionBehavior, NSWindowLevel, NSWindowStyleMask};
+
+    let Ok(ptr) = win.ns_window() else {
+        eprintln!("[vans] no native window; the panel will not cover full-screen apps");
+        return;
+    };
+    if ptr.is_null() {
+        return;
+    }
+
+    // Safety: Tauri hands back the NSWindow backing this webview, and this
+    // runs on the main thread during setup, which is where AppKit requires it.
+    let ns: &NSWindow = unsafe { &*(ptr as *const NSWindow) };
+
+    // Stationary is deliberately not in this set. It belongs to the same
+    // mutually-exclusive group as Managed and Transient, and AppKit ignores a
+    // behaviour set that contradicts itself rather than reporting it.
+    ns.setCollectionBehavior(
+        NSWindowCollectionBehavior::CanJoinAllSpaces
+            | NSWindowCollectionBehavior::FullScreenAuxiliary,
+    );
+
+    // NSStatusWindowLevel. Written as a number because objc2 exposes the level
+    // as a bare integer rather than the old named constants.
+    const STATUS_LEVEL: NSWindowLevel = 25;
+    ns.setLevel(STATUS_LEVEL);
+
+    // The collection behaviour above is necessary and not sufficient, which is
+    // the part that cost an afternoon: with both flags set and the level
+    // raised, the panel still would not appear over a full-screen app.
+    //
+    // The reason is focus. An ordinary NSWindow becoming key activates its
+    // application, and activating an application pulls macOS out of the
+    // full-screen Space to get to it — so the panel is drawn correctly, in a
+    // Space you are no longer looking at.
+    //
+    // NSWindowStyleMaskNonactivatingPanel is the flag that says "take the
+    // keyboard without activating me", and AppKit only honours it on NSPanel.
+    // Tauri builds an NSWindow, so the class is swapped underneath it. That is
+    // legitimate — NSPanel adds no instance variables, so the object layout is
+    // unchanged and the existing delegate and content view keep working.
+    let Some(panel_class) = vans_panel_class() else {
+        eprintln!("[vans] could not build the panel class; full-screen overlay unavailable");
+        return;
+    };
+    unsafe {
+        objc2::ffi::object_setClass(ptr as *mut AnyObject, panel_class);
+    }
+    ns.setStyleMask(ns.styleMask() | NSWindowStyleMask::NonactivatingPanel);
+
+    eprintln!(
+        "[vans] panel: behaviour = {:?}, level = {}, nonactivating = {}, can be key = {}",
+        ns.collectionBehavior(),
+        ns.level(),
+        ns.styleMask().contains(NSWindowStyleMask::NonactivatingPanel),
+        ns.canBecomeKeyWindow()
+    );
 }
 
 /// Frosts the window using AppKit rather than CSS.
@@ -213,6 +347,18 @@ pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     );
 
     if let Some(win) = window(app) {
+        #[cfg(target_os = "macos")]
+        float_over_fullscreen(&win);
+
+        // Follow the user between desktops instead of dragging them to VANS.
+        //
+        // A window belongs to the Space it was created on. Summoning it from
+        // another one made macOS switch Spaces to reach it — the whole desktop
+        // slid sideways on every press of the hotkey. Joining all Spaces is
+        // what Spotlight does and what a summoned panel has to do: it appears
+        // where the user already is, over a full-screen app included.
+        let _ = win.set_visible_on_all_workspaces(true);
+
         // Light until the window says otherwise. Doing it here rather than
         // waiting for the frontend means the first frame is already frosted;
         // the frontend re-applies only if the stored choice differs.

@@ -1,42 +1,75 @@
+/* VANS overlay panel.
+   ------------------------------------------------------------------
+   A summoned panel, not a page. Apple's three principles apply, but a
+   16px-gutter marketing scale does not: this thing appears over your work,
+   is read in a second, and gets dismissed. So the rhythm is the same and the
+   magnitudes are one step down — 13/15/20 rather than 13/17/32, and controls
+   at macOS pointer sizes rather than iOS touch sizes.
+
+   Deference is the one that does most of the work here. The field is the
+   interface; everything else recedes until it is needed. */
+
 /* Light is the default, and it is the bare :root block rather than a media
    query, so it applies before any script runs and to a window that has not
-   said which theme it wants. Dark is opt-in via data-theme on <html>, which
-   main.ts sets from the stored choice.
+   said which theme it wants. Dark is opt-in via data-theme on <html>.
 
    Deliberately not keyed to prefers-color-scheme: the panel is summoned over
    whatever you are working in, and the choice belongs to the user rather than
    to whatever the system happens to be set to. */
 :root {
-  --bg: #fbfaf8;
-  --panel: rgba(255, 255, 255, 0.72);
-  --ink: #1b1a17;
-  --muted: #6b675f;
-  --line: rgba(0, 0, 0, 0.1);
-  --accent: #2f5d50;
-  --ok: #2f6b4f;
-  --bad: #9a3b2c;
+  /* Surfaces. These sit over a live NSVisualEffectView, so they are tints
+     rather than fills — a solid colour here would throw the blur away. */
+  --panel-bg: rgba(250, 250, 252, 0.62);
+  --panel-edge: rgba(0, 0, 0, 0.12);
+  --raised: rgba(255, 255, 255, 0.7);
+  --sunken: rgba(120, 120, 128, 0.1);
+  --line: rgba(0, 0, 0, 0.09);
+
+  /* Ink. Two weights only. A third grey is almost always a hierarchy that
+     should have been expressed with space instead. */
+  --ink: #1d1d1f;
+  --ink-dim: #6e6e73;
+
+  /* macOS system colours. */
+  --accent: #007aff;
+  --accent-ink: #ffffff;
+  --ok: #1d8348;
+  --bad: #c9402f;
+  --focus: rgba(0, 122, 255, 0.45);
+
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 
-  /* A tint over the native blur, not the blur itself — the frosting is an
-     NSVisualEffectView behind the webview (see overlay.rs). Kept light enough
-     that the blur reads through and heavy enough to keep text legible over
-     whatever the panel happens to be covering. */
-  --panel-bg: rgba(251, 250, 248, 0.58);
-  --panel-edge: rgba(0, 0, 0, 0.14);
+  /* 4 / 8 / 16 / 24, with 12 where a panel needs a half-step. */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+
+  --r-sm: 7px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-pill: 980px;
+
+  /* One curve, used everywhere. Mixed easings read as different apps. */
+  --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 :root[data-theme="dark"] {
-  --bg: #17171a;
-  --panel: rgba(255, 255, 255, 0.07);
-  --ink: #eceae5;
-  --muted: #9b968d;
-  --line: rgba(255, 255, 255, 0.12);
-  --accent: #7fbfa8;
-  --ok: #7fbfa8;
-  --bad: #e2907f;
+  --panel-bg: rgba(28, 28, 30, 0.58);
+  --panel-edge: rgba(255, 255, 255, 0.11);
+  --raised: rgba(255, 255, 255, 0.07);
+  --sunken: rgba(120, 120, 128, 0.22);
+  --line: rgba(255, 255, 255, 0.1);
 
-  --panel-bg: rgba(23, 23, 26, 0.5);
-  --panel-edge: rgba(255, 255, 255, 0.12);
+  --ink: #f5f5f7;
+  --ink-dim: #98989d;
+
+  --accent: #0a84ff;
+  --accent-ink: #ffffff;
+  --ok: #30d158;
+  --bad: #ff6b5a;
+  --focus: rgba(10, 132, 255, 0.5);
 }
 
 * {
@@ -46,211 +79,359 @@
 body {
   margin: 0;
   padding: 0;
-  /* Transparent on purpose. The window itself is transparent (tauri.conf.json),
-     so anything painted here shows up as a hard rectangle behind the panel's
-     rounded corners. All colour belongs to .panel. */
+  /* Transparent on purpose. The window itself is transparent, so anything
+     painted here shows as a hard rectangle behind the panel's rounded
+     corners. All colour belongs to .panel. */
   background: transparent;
   color: var(--ink);
-  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font: 400 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
   user-select: none;
   overflow: hidden;
 }
 
-/* The panel is the only thing that paints. */
 .panel {
-  /* Fills the window when the content is shorter, so the frosted surface is
-     never a partial rectangle with a transparent gap under it. The window is
-     sized to .panel-body, so beyond that this only matters mid-resize. */
   min-height: 100vh;
-  padding: 1.5rem 1.75rem 2rem;
-  border-radius: 14px;
+  padding: var(--s4) var(--s5) var(--s5);
+  border-radius: var(--r-lg);
   background: var(--panel-bg);
-  border: 1px solid var(--panel-edge);
+  border: 0.5px solid var(--panel-edge);
   /* No backdrop-filter. The frosting is an NSVisualEffectView behind the
-     webview, applied in overlay.rs, because the CSS one resolved seconds after
-     the panel appeared — a transparent WKWebView has nothing inside the page
-     to sample. This is only the tint over it. */
-  /* Only reachable once the content is taller than the window is allowed to
-     grow. Below that the window follows the content and this never engages. */
+     webview (see overlay.rs) — the CSS one resolved seconds after the panel
+     appeared, because a transparent WKWebView has nothing inside the page to
+     sample. This is only the tint over it. */
   overflow-y: auto;
 }
 
-/* Height here is content height: nothing constrains it, which is what makes it
-   safe to measure and feed back to the window. Constraining it — a percentage
-   height, a flex stretch — would make it report the window's height back to
-   the window, and it could then never shrink. */
+/* Height here is content height: nothing constrains it, which is what makes
+   it safe to measure and feed back to the window. */
 .panel-body {
   height: auto;
 }
 
-.context-banner {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.75rem;
-  margin-bottom: 1rem;
-  border-radius: 6px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  font-size: 0.82rem;
-  color: var(--muted);
-}
+/* ---------- header ---------- */
 
-.context-banner strong {
-  color: var(--ink);
-}
-
+/* The header is the drag handle (data-tauri-drag-region in the markup).
+   Tauri only starts a drag when the element under the pointer carries the
+   attribute itself, so putting it here rather than on the panel means buttons
+   and the field keep their clicks — and there is still somewhere obvious to
+   grab. */
 header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+  padding-bottom: var(--s2);
+  cursor: default;
 }
 
-/* Small, quiet, and out of the tab order's way until it is wanted. Changing
-   the theme is not a task the panel exists for. */
+.wordmark {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  min-width: 0;
+}
+
+.mark {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  color: var(--ink-dim);
+}
+
+/* What you were looking at when you summoned it. Quiet by default — it is
+   context, not content. */
+.context {
+  font-size: 12px;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.context strong {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.context em {
+  font-style: normal;
+}
+
 .theme-toggle {
   flex: none;
-  padding: 0.3rem 0.6rem;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--panel);
-  color: var(--muted);
-  font-size: 0.78rem;
+  padding: 3px 10px;
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--raised);
+  color: var(--ink-dim);
+  font-size: 11px;
   font-weight: 500;
-  line-height: 1.4;
   cursor: pointer;
+  transition: color 0.2s var(--ease), background 0.2s var(--ease);
 }
 
-/* :not(:disabled) is not idle here — it is what outweighs the generic
-   button:hover:not(:disabled) below, which would otherwise brighten this one
-   too. Matching its class count is the part that decides it. */
+/* :not(:disabled) is not idle — it is what outweighs the generic
+   button:hover:not(:disabled) below, which would otherwise restyle this. */
 .theme-toggle:hover:not(:disabled) {
   color: var(--ink);
-  border-color: var(--panel-edge);
-  filter: none;
+  background: var(--sunken);
+  transform: none;
 }
 
-h1 {
-  margin: 0;
-  font-size: 1.35rem;
-  letter-spacing: 0.02em;
+/* ---------- the ask field ---------- */
+
+/* Borderless and oversized, the way a summoned panel's one input should be.
+   A box drawn around it would make it look like a form field among others,
+   which is exactly what it is not. */
+.ask {
+  width: 100%;
+  padding: var(--s2) 0 var(--s3);
+  border: none;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.3;
+  transition: border-color 0.25s var(--ease);
 }
 
-.sub {
-  margin: 0.15rem 0 0;
-  color: var(--muted);
-  font-size: 0.85rem;
+.ask::placeholder {
+  color: var(--ink-dim);
+  opacity: 0.7;
 }
 
-h2 {
-  margin: 0 0 1rem;
-  font-size: 1.05rem;
-  font-weight: 600;
+.ask:focus {
+  outline: none;
+  border-bottom-color: var(--accent);
 }
 
-h3 {
-  margin: 1.5rem 0 0.6rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+/* ---------- fields ---------- */
+
+.field {
+  margin-top: var(--s5);
 }
 
+.field-label,
 label {
   display: block;
-  margin: 1rem 0 0.35rem;
-  font-size: 0.85rem;
+  margin-bottom: var(--s2);
+  font-size: 12px;
   font-weight: 500;
+  color: var(--ink-dim);
 }
 
-.opt {
-  color: var(--muted);
-  font-weight: 400;
+.field-note {
+  margin: var(--s2) 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-dim);
 }
 
 input {
   width: 100%;
-  padding: 0.55rem 0.7rem;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--panel);
+  padding: 7px 10px;
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--raised);
   color: var(--ink);
-  font-size: 0.95rem;
+  font-size: 14px;
+  font-family: inherit;
 }
 
 input:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: -1px;
-  border-color: transparent;
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus);
 }
+
+/* ---------- segmented control ---------- */
+
+/* Three destinations, all worth seeing at once. A popup menu would hide two
+   of them, and which one is selected is the single most consequential thing
+   on this screen — it decides whether anything happens to the world. */
+.segmented {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r-md);
+  background: var(--sunken);
+}
+
+.segmented label {
+  flex: 1;
+  margin: 0;
+  padding: 5px 10px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: background 0.18s var(--ease), color 0.18s var(--ease);
+}
+
+.segmented input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.segmented label:hover {
+  color: var(--ink);
+}
+
+.segmented input:checked + span,
+.segmented label.on {
+  color: var(--ink);
+}
+
+.segmented label.on {
+  background: var(--raised);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* ---------- buttons ---------- */
 
 .row {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  margin-top: 1.25rem;
+  gap: var(--s2);
+  margin-top: var(--s5);
   flex-wrap: wrap;
 }
 
 button {
-  padding: 0.5rem 1.05rem;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  background: var(--accent);
-  color: var(--bg);
-  font-size: 0.9rem;
-  font-weight: 550;
+  padding: 6px 16px;
+  min-height: 30px;
+  border: 0.5px solid transparent;
+  border-radius: var(--r-pill);
+  background: var(--sunken);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
+  transition: transform 0.15s var(--ease), filter 0.15s var(--ease),
+    background 0.15s var(--ease);
 }
 
 button:hover:not(:disabled) {
-  filter: brightness(1.08);
+  filter: brightness(1.06);
+  transform: scale(1.02);
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus);
 }
 
 button:disabled {
-  opacity: 0.55;
+  opacity: 0.4;
   cursor: default;
 }
 
-button.secondary {
+/* One primary action per screen. */
+.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.quiet {
   background: transparent;
-  color: var(--ink);
+  color: var(--ink-dim);
   border-color: var(--line);
 }
 
-/* The gate button carries the only irreversible action in the app, so it is
-   the only thing on screen that looks like one. */
-.gate #confirm {
+.quiet:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+/* The gate carries the only irreversible action in the app, so it is the only
+   thing on screen that looks like one. */
+.danger {
   background: var(--bad);
+  color: #fff;
 }
 
-.status,
+/* Pushes what follows to the far end of the row. */
+.status {
+  flex: 1;
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+/* ---------- headings and prose ---------- */
+
+h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  margin: 0 0 var(--s1);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  margin: var(--s5) 0 var(--s2);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.lede {
+  margin: 0 0 var(--s4);
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+
 .meta {
-  color: var(--muted);
-  font-size: 0.88rem;
+  margin: 0 0 var(--s3);
+  font-size: 13px;
+  color: var(--ink-dim);
 }
 
-.meta {
-  margin: 0 0 1rem;
-}
-
-.note {
-  margin-top: 0.9rem;
-  color: var(--muted);
-  font-size: 0.82rem;
+.note,
+.footnote {
+  margin-top: var(--s3);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-dim);
   max-width: 62ch;
 }
 
+.opt {
+  font-weight: 400;
+  color: var(--ink-dim);
+}
+
+.bad {
+  color: var(--bad);
+}
+
+/* ---------- checks ---------- */
+
 .check {
-  padding: 0.75rem 0.9rem;
-  margin-bottom: 0.6rem;
-  border: 1px solid var(--line);
-  border-left-width: 3px;
-  border-radius: 7px;
-  background: var(--panel);
+  padding: var(--s3) var(--s3) var(--s3) var(--s4);
+  margin-bottom: var(--s2);
+  border: 0.5px solid var(--line);
+  border-left: 2px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--raised);
 }
 
 .check.ok {
@@ -262,108 +443,157 @@ button.secondary {
 }
 
 .check-label {
-  font-weight: 550;
-  font-size: 0.9rem;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .check-detail {
-  margin-top: 0.2rem;
-  color: var(--muted);
-  font-size: 0.85rem;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-dim);
   overflow-wrap: anywhere;
 }
 
-.bad {
-  color: var(--bad);
+.check button {
+  margin-top: var(--s2);
 }
+
+/* ---------- code ---------- */
 
 pre.fix,
 pre.progress {
-  margin: 0.7rem 0 0;
-  padding: 0.7rem 0.8rem;
-  border-radius: 6px;
-  background: var(--bg);
-  border: 1px solid var(--line);
+  margin: var(--s2) 0 0;
+  padding: var(--s3);
+  border-radius: var(--r-sm);
+  border: 0.5px solid var(--line);
+  background: var(--sunken);
   color: var(--ink);
-  font: 12px/1.5 var(--mono);
+  font: 11.5px/1.55 var(--mono);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  user-select: text;
 }
 
 pre.progress {
-  margin-top: 1rem;
-  color: var(--muted);
-  max-height: 9rem;
+  margin-top: var(--s4);
+  max-height: 8rem;
   overflow-y: auto;
+  color: var(--ink-dim);
 }
 
+/* ---------- results ---------- */
+
 .table-wrap {
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-md);
   overflow: auto;
-  max-height: 26rem;
-  background: var(--panel);
+  max-height: 22rem;
+  background: var(--raised);
 }
 
 table {
   border-collapse: collapse;
   width: 100%;
-  font-size: 0.86rem;
+  font-size: 13px;
 }
 
 th,
 td {
-  padding: 0.45rem 0.7rem;
+  padding: 7px 10px;
   text-align: left;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 0.5px solid var(--line);
   vertical-align: top;
-  max-width: 26rem;
+  max-width: 24rem;
   overflow-wrap: anywhere;
+}
+
+td {
+  user-select: text;
 }
 
 th {
   position: sticky;
   top: 0;
-  background: var(--panel);
+  z-index: 1;
+  /* Opaque enough to hide rows scrolling under it — a translucent sticky
+     header over a translucent panel shows the text sliding behind it. */
+  background: var(--panel-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-size: 11px;
   font-weight: 600;
-  font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--muted);
+  color: var(--ink-dim);
 }
 
 tr:last-child td {
   border-bottom: none;
 }
 
+/* ---------- failure detail ---------- */
+
 .attempt {
-  padding: 0.7rem 0.9rem;
-  margin-bottom: 0.55rem;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--panel);
+  padding: var(--s3);
+  margin-bottom: var(--s2);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--raised);
 }
 
 .attempt-head {
-  font: 12px/1.5 var(--mono);
-  color: var(--muted);
+  font: 11.5px/1.5 var(--mono);
+  color: var(--ink-dim);
 }
 
 .attempt ul,
 .candidates {
-  margin: 0.4rem 0 0;
-  padding-left: 1.1rem;
-  font-size: 0.86rem;
+  margin: var(--s2) 0 0;
+  padding-left: var(--s4);
+  font-size: 13px;
+}
+
+.attempt li,
+.candidates li {
+  margin-bottom: var(--s1);
 }
 
 .candidates li {
-  margin-bottom: 0.5rem;
-  font: 12px/1.5 var(--mono);
+  font: 11.5px/1.5 var(--mono);
+  margin-bottom: var(--s2);
 }
 
 .sample {
-  margin-top: 0.2rem;
-  color: var(--muted);
+  margin-top: 2px;
   font: 11px/1.45 var(--mono);
+  color: var(--ink-dim);
   overflow-wrap: anywhere;
+}
+
+/* ---------- motion ---------- */
+
+/* Only opacity and transform, so a section change cannot alter measured
+   height and set the window resizing against itself. */
+section:not([hidden]) {
+  animation: rise 0.22s var(--ease);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  section:not([hidden]) {
+    animation: none !important;
+    transition: none !important;
+  }
 }

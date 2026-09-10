@@ -83,6 +83,10 @@ type fakeSink struct {
 	err    error
 }
 
+func (s *fakeSink) Destination() Destination {
+	return Destination{Name: "notes", Describe: "test sink", TouchesWorld: true}
+}
+
 func (s *fakeSink) Write(_ context.Context, doc Document) (Receipt, error) {
 	s.writes = append(s.writes, doc)
 	if s.err != nil {
@@ -133,7 +137,7 @@ func newHarness(t *testing.T, respond func(int) (extract.Program, error)) *harne
 		Browser: h.browser,
 		Store:   st,
 		Synth:   h.synth,
-		Sink:    h.sink,
+		Sinks:   map[string]Sink{"notes": h.sink},
 		Model:   "test",
 		Log:     func(string, ...any) {},
 	}
@@ -145,7 +149,13 @@ func always(p extract.Program) func(int) (extract.Program, error) {
 }
 
 func task() Task {
-	return Task{URL: pageURL, Intent: "product names, links and prices", Title: "Widgets"}
+	// Named explicitly: an unaddressed task goes to the panel, which writes
+	// nothing, so a commit test that omitted this would be testing the wrong
+	// thing entirely.
+	return Task{
+		URL: pageURL, Intent: "product names, links and prices",
+		Title: "Widgets", Destination: "notes",
+	}
 }
 
 // --- the happy path and the claim ---

@@ -55,6 +55,12 @@ const (
 
 	// CodeSpent means a plan was already committed. Writes are never retried.
 	CodeSpent = "plan_spent"
+
+	// CodeUnroutable means the instruction was not understood, or names
+	// something VANS can recognise but cannot yet carry out. Distinct from
+	// CodeUnresolved, which is a request that *was* understood and then
+	// failed — the two need entirely different things said to the user.
+	CodeUnroutable = "unroutable"
 )
 
 // Error is a structured failure.
@@ -68,8 +74,21 @@ func (e *Error) Error() string { return e.Code + ": " + e.Message }
 
 // --- method payloads ---
 
-// PrepareParams asks for an extraction, without writing anything.
+// PrepareParams asks for whatever the instruction turns out to mean, without
+// writing anything.
+//
+// URL, Intent and Title remain for an already-resolved request — the CLI, and
+// any caller that knows exactly what it wants. When Instruction is set it wins,
+// and the runtime works the rest out.
 type PrepareParams struct {
+	// Instruction is free text: what the user typed or said.
+	Instruction string `json:"instruction"`
+
+	// Destination names where the answer should go. Empty means the panel,
+	// which writes nothing — so a request that says nothing about its
+	// destination cannot acquire a side effect by accident.
+	Destination string `json:"destination"`
+
 	URL    string `json:"url"`
 	Intent string `json:"intent"`
 	Title  string `json:"title"`
@@ -91,6 +110,33 @@ type PrepareResult struct {
 	SynthesisCalls int   `json:"synthesis_calls"`
 	FromCache      bool  `json:"from_cache"`
 	ElapsedMS      int64 `json:"elapsed_ms"`
+
+	// Destination is where this plan will go if committed, and NeedsCommit
+	// says whether committing is a thing that exists for it. The panel writes
+	// nothing, so the window shows no gate — a confirmation in front of an
+	// action with no side effect teaches people to dismiss confirmations.
+	Destination string `json:"destination"`
+	NeedsCommit bool   `json:"needs_commit"`
+
+	// Kind is how the instruction was understood, and DecisionCalls what that
+	// understanding cost. Zero on a shape seen before.
+	Kind          string `json:"kind"`
+	DecisionCalls int    `json:"decision_calls"`
+}
+
+// Destination is somewhere an answer can be sent.
+type Destination struct {
+	Name         string `json:"name"`
+	Describe     string `json:"describe"`
+	TouchesWorld bool   `json:"touches_world"`
+}
+
+// UnroutableData is the runtime not understanding an instruction, with what it
+// can do — a refusal that names no alternative is a dead end.
+type UnroutableData struct {
+	Instruction string   `json:"instruction"`
+	Why         string   `json:"why"`
+	Can         []string `json:"can"`
 }
 
 // CommitParams confirms a plan. This is the only method with a side effect.

@@ -20,6 +20,14 @@ type NotesSink struct{ Notes appleevents.Notes }
 // returned as-is and deliberately not marked transient: a TCC prompt the user
 // has not answered is not something retrying will fix, and retrying it forever
 // is exactly how a runtime becomes a thing people force-quit.
+func (s NotesSink) Destination() Destination {
+	return Destination{
+		Name:         "notes",
+		Describe:     "Write it to a new note in Notes.",
+		TouchesWorld: true,
+	}
+}
+
 func (s NotesSink) Write(ctx context.Context, doc Document) (Receipt, error) {
 	note, err := s.Notes.CreateVerified(ctx, doc.HTML())
 	if err != nil {

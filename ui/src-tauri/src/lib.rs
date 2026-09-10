@@ -43,17 +43,27 @@ async fn check_notes(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("check_notes", None).await
 }
 
-/// Extracts and verifies. Touches nothing outside the browser.
+/// Works out what an instruction means and prepares it. Touches nothing
+/// outside the browser — the side effect, if the destination has one, waits
+/// for commit.
 #[tauri::command]
 async fn prepare(
     engine: State<'_, Engine>,
-    url: String,
-    intent: String,
-    title: String,
+    instruction: String,
+    destination: String,
 ) -> Result<Value, RpcError> {
     engine
-        .call("prepare", Some(json!({ "url": url, "intent": intent, "title": title })))
+        .call(
+            "prepare",
+            Some(json!({ "instruction": instruction, "destination": destination })),
+        )
         .await
+}
+
+/// Lists everywhere an answer can be sent.
+#[tauri::command]
+async fn destinations(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("destinations", None).await
 }
 
 /// Confirms a plan. The only command with a side effect, and it takes an id
@@ -144,6 +154,7 @@ pub fn run() {
             preflight,
             check_notes,
             prepare,
+            destinations,
             commit,
             dismiss,
             set_pinned,

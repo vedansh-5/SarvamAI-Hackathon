@@ -27,6 +27,22 @@ interface Plan {
   synthesis_calls: number;
   from_cache: boolean;
   elapsed_ms: number;
+  destination: string;
+  needs_commit: boolean;
+  kind: string;
+  decision_calls: number;
+}
+
+interface Destination {
+  name: string;
+  describe: string;
+  touches_world: boolean;
+}
+
+interface Unroutable {
+  instruction: string;
+  why: string;
+  can: string[];
 }
 
 interface Receipt {
@@ -120,7 +136,12 @@ function isRpcError(e: unknown): e is RpcError {
 
 // --- preflight ---
 
-async function runPreflight() {
+/// `advance` is false when the user asked to see this screen.
+///
+/// Preflight sends you on to the task form the moment everything is ready,
+/// which is right on launch and wrong when Setup was clicked deliberately: the
+/// screen appeared and vanished in the same frame, so the button looked dead.
+async function runPreflight(advance = true) {
   const checks = $("checks");
   clear(checks);
   checks.appendChild(el("p", "meta", "Checking…"));
@@ -147,7 +168,7 @@ async function runPreflight() {
     checks.appendChild(box);
   }
 
-  if (result.ready) {
+  if (result.ready && advance) {
     show("task");
   }
 }
@@ -176,12 +197,11 @@ async function checkNotes() {
 let currentPlan: Plan | null = null;
 
 async function extract() {
-  const url = ($("url") as HTMLInputElement).value.trim();
-  const intent = ($("intent") as HTMLInputElement).value.trim();
-  const title = ($("title") as HTMLInputElement).value.trim();
+  const instruction = ($("intent") as HTMLInputElement).value.trim();
+  const destination = chosen;
 
-  if (!url || !intent) {
-    $("status").textContent = "A page and a description are both required.";
+  if (!instruction) {
+    $("status").textContent = "Say what you want.";
     return;
   }
 
@@ -194,7 +214,7 @@ async function extract() {
   progress.hidden = false;
 
   try {
-    const plan = await invoke<Plan>("prepare", { url, intent, title });
+    const plan = await invoke<Plan>("prepare", { instruction, destination });
     currentPlan = plan;
     renderPlan(plan);
     show("plan");
@@ -208,13 +228,30 @@ async function extract() {
 }
 
 function renderPlan(plan: Plan) {
-  const cost = plan.from_cache
-    ? "from cache, no model call"
-    : `${plan.synthesis_calls} model call${plan.synthesis_calls === 1 ? "" : "s"}`;
+  const calls = plan.synthesis_calls + plan.decision_calls;
+  const cost = calls === 0
+    ? "no model calls"
+    : `${calls} model call${calls === 1 ? "" : "s"}`;
 
-  $("plan-meta").textContent =
-    `${plan.rows.length} rows from ${plan.page_url} — ${cost}, ${plan.elapsed_ms} ms. ` +
-    `Will be written as “${plan.title}”.`;
+  // A plan bound for the panel is the answer; one bound anywhere else is a
+  // proposal. Saying "review before writing" over something already delivered
+  // would be asking for permission that was never needed.
+  const gate = $("gate");
+  const gateNote = $("gate-note");
+  const doneRow = $("done-row");
+
+  gate.hidden = !plan.needs_commit;
+  gateNote.hidden = !plan.needs_commit;
+  doneRow.hidden = plan.needs_commit;
+
+  $("plan-heading").textContent = plan.needs_commit ? "Review before writing" : "Here it is";
+
+  let meta = `${plan.rows.length} rows from ${plan.page_url} — ${cost}, ${plan.elapsed_ms} ms.`;
+  if (plan.needs_commit) {
+    meta += ` Will be sent to ${plan.destination} as “${plan.title}”.`;
+    ($("confirm") as HTMLButtonElement).textContent = `Write to ${plan.destination}`;
+  }
+  $("plan-meta").textContent = meta;
 
   const table = $("rows");
   clear(table);
@@ -277,6 +314,17 @@ function renderFailure(e: unknown) {
       renderUnresolved(detail, e.data as Unresolved);
       break;
     }
+    case "unroutable": {
+      $("failure-title").textContent = "Not sure what you meant";
+      const data = e.data as Unroutable;
+      if (data?.can?.length) {
+        detail.appendChild(el("h3", undefined, "What VANS can do"));
+        const list = el("ul");
+        for (const c of data.can) list.appendChild(el("li", undefined, c));
+        detail.appendChild(list);
+      }
+      break;
+    }
     case "no_browser": {
       $("failure-title").textContent = "Chrome is not listening";
       detail.appendChild(
@@ -287,7 +335,7 @@ function renderFailure(e: unknown) {
       const toSetup = el("button", "secondary", "Show me how") as HTMLButtonElement;
       toSetup.addEventListener("click", () => {
         show("preflight");
-        runPreflight();
+        runPreflight(false);
       });
       detail.appendChild(toSetup);
       break;
@@ -431,6 +479,58 @@ async function refreshActiveContext() {
   }
 }
 
+// --- destinations ---
+
+/// The window asks the runtime what destinations exist rather than listing
+/// them, so adding a sink makes it appear here without a frontend change — and
+/// so the window can never offer one that is not there.
+let destinations: Destination[] = [];
+let chosen = "";
+
+async function loadDestinations() {
+  const group = $("destination");
+  try {
+    destinations = await invoke<Destination[]>("destinations");
+  } catch (e) {
+    console.error("failed to load destinations", e);
+    return;
+  }
+
+  clear(group);
+  for (const d of destinations) {
+    const label = el("label", undefined, d.name) as HTMLLabelElement;
+    label.setAttribute("role", "radio");
+    label.dataset.name = d.name;
+    label.addEventListener("click", () => pickDestination(d.name));
+    group.appendChild(label);
+  }
+
+  // The panel is first and safest, and starting anywhere else would mean a
+  // hurried Return lands on something that changes the world.
+  pickDestination(destinations[0]?.name ?? "");
+}
+
+function pickDestination(name: string) {
+  chosen = name;
+
+  for (const el of $("destination").children) {
+    const label = el as HTMLElement;
+    const on = label.dataset.name === name;
+    label.classList.toggle("on", on);
+    label.setAttribute("aria-checked", String(on));
+  }
+
+  const d = destinations.find((x) => x.name === name);
+  if (!d) return;
+
+  // Said plainly, before anything runs. Whether this changes something outside
+  // VANS is the only consequential thing on the screen, and it should not have
+  // to be learned by trying it.
+  $("destination-note").textContent = d.touches_world
+    ? `${d.describe} You will be asked to confirm first.`
+    : d.describe;
+}
+
 // --- theme ---
 
 /// Light unless the user has said otherwise.
@@ -558,10 +658,19 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
+$("ask-again").addEventListener("click", () => show("task"));
+$("to-task").addEventListener("click", () => show("task"));
+
+// Return runs it. A summoned panel you have to reach for the mouse in is a
+// window, not a shortcut.
+$("intent").addEventListener("keydown", (e) => {
+  if ((e as KeyboardEvent).key === "Enter") extract();
+});
+
 $("theme").addEventListener("click", () => applyTheme(!isDark(), true));
 
 $("run").addEventListener("click", extract);
-$("recheck").addEventListener("click", runPreflight);
+$("recheck").addEventListener("click", () => runPreflight(false));
 $("check-screen").addEventListener("click", checkScreenRecording);
 $("check-notes").addEventListener("click", checkNotes);
 $("confirm").addEventListener("click", confirmWrite);
@@ -572,7 +681,7 @@ $("cancel").addEventListener("click", () => {
 $("back").addEventListener("click", () => show("task"));
 $("setup").addEventListener("click", () => {
   show("preflight");
-  runPreflight();
+  runPreflight(false);
 });
 $("again").addEventListener("click", () => show("task"));
 
@@ -583,3 +692,4 @@ applyTheme(storedTheme() === "dark", false);
 show("preflight");
 runPreflight();
 refreshActiveContext();
+loadDestinations();

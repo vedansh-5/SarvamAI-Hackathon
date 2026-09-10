@@ -50,6 +50,10 @@ type fakeSink struct {
 	err    error
 }
 
+func (s *fakeSink) Destination() engine.Destination {
+	return engine.Destination{Name: "notes", Describe: "test sink", TouchesWorld: true}
+}
+
 func (s *fakeSink) Write(_ context.Context, doc engine.Document) (engine.Receipt, error) {
 	s.writes.Add(1)
 	if s.err != nil {
@@ -112,7 +116,7 @@ func run(t *testing.T, configure func(*Server, *session), reqs ...Request) *sess
 			Browser: &fakeBrowser{},
 			Store:   st,
 			Synth:   fakeSynth{program()},
-			Sink:    s.sink,
+			Sinks:   map[string]engine.Sink{"notes": s.sink},
 			Model:   "test",
 		},
 		Probe:    s.probe,
@@ -205,7 +209,13 @@ func decode[T any](t *testing.T, raw json.RawMessage) T {
 }
 
 func prepareParams() PrepareParams {
-	return PrepareParams{URL: "https://shop.example/search", Intent: "names and prices", Title: "Widgets"}
+	// A destination is named explicitly. Without one the plan goes to the
+	// panel, which writes nothing — so a commit test that omitted it would
+	// pass or fail for reasons unrelated to what it is checking.
+	return PrepareParams{
+		URL: "https://shop.example/search", Intent: "names and prices",
+		Title: "Widgets", Destination: "notes",
+	}
 }
 
 // --- the gate ---
@@ -251,7 +261,7 @@ func newLive(t *testing.T, configure func(*Server)) *live {
 	srv := &Server{
 		Engine: &engine.Engine{
 			Browser: &fakeBrowser{}, Store: st,
-			Synth: fakeSynth{program()}, Sink: sink, Model: "test",
+			Synth: fakeSynth{program()}, Sinks: map[string]engine.Sink{"notes": sink}, Model: "test",
 		},
 		Probe: &fakeProbe{}, HostPort: "127.0.0.1:9222",
 	}
@@ -384,7 +394,7 @@ func TestCommitIsOneShot(t *testing.T) {
 	srv := &Server{
 		Engine: &engine.Engine{
 			Browser: &fakeBrowser{}, Store: st,
-			Synth: fakeSynth{program()}, Sink: sink, Model: "test",
+			Synth: fakeSynth{program()}, Sinks: map[string]engine.Sink{"notes": sink}, Model: "test",
 		},
 		Probe: &fakeProbe{}, HostPort: "127.0.0.1:9222",
 	}
@@ -593,7 +603,7 @@ func TestMalformedLineDoesNotKillTheServer(t *testing.T) {
 	defer st.Close()
 
 	srv := &Server{
-		Engine: &engine.Engine{Browser: &fakeBrowser{}, Store: st, Synth: fakeSynth{program()}, Sink: &fakeSink{}},
+		Engine: &engine.Engine{Browser: &fakeBrowser{}, Store: st, Synth: fakeSynth{program()}, Sinks: map[string]engine.Sink{"notes": &fakeSink{}}},
 		Probe:  &fakeProbe{}, HostPort: "127.0.0.1:9222",
 	}
 

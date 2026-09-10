@@ -12,31 +12,30 @@
            fill the window, so its height says nothing about how tall the
            content wants to be; this wrapper is what the window is sized from. -->
       <div class="panel-body">
-        <header>
-          <div>
-            <h1>VANS</h1>
-            <p class="sub">Vedansh's Agent Navigation System</p>
+        <header data-tauri-drag-region>
+          <div class="wordmark" data-tauri-drag-region>
+            <span class="mark">VANS</span>
+            <span id="active-app-label" class="context">Ready</span>
           </div>
-          <button id="theme" class="theme-toggle" type="button">Dark</button>
+          <button id="theme" class="theme-toggle" type="button" title="Switch theme">Dark</button>
         </header>
 
         <!-- Preflight. Shown until the environment can actually run a task. -->
         <section id="preflight" hidden>
           <h2>Before you start</h2>
+          <p class="lede">VANS needs these to work. It will not start anything on your behalf.</p>
           <div id="checks"></div>
           <div class="row">
-            <button id="recheck" class="secondary">Check again</button>
-            <button id="check-screen" class="secondary">Check Screen Recording</button>
-            <button id="check-notes" class="secondary">Check Notes access</button>
+            <button id="recheck" class="primary">Check again</button>
+            <button id="check-screen" class="quiet">Screen Recording</button>
+            <button id="check-notes" class="quiet">Notes access</button>
+            <button id="to-task" class="quiet">Done</button>
           </div>
-          <p class="note">
+          <p class="footnote">
             Checking access opens applications and may ask macOS for
-            permissions. VANS never opens applications on its own without user
-            consent.
-          </p>
-          <p class="note">
-            This screen stays up while you click away, so you can follow the
-            instructions above without losing them.
+            permission. VANS never opens anything on its own. This screen stays
+            up while you click away, so you can follow the steps without losing
+            them.
           </p>
           <div id="screen-result"></div>
           <div id="notes-result"></div>
@@ -44,47 +43,48 @@
 
         <!-- The task form. -->
         <section id="task" hidden>
-          <div id="active-context-banner" class="context-banner">
-            <span class="context-icon">🎯</span>
-            <span id="active-app-label">Active: None</span>
-          </div>
-          <h2>Extract from a page</h2>
-          <label for="url">Page</label>
-          <input id="url" type="url" placeholder="https://news.ycombinator.com" />
-
-          <label for="intent">What do you want from it?</label>
+          <!-- The field is the interface. Everything else defers to it. -->
           <input
             id="intent"
+            class="ask"
             type="text"
-            placeholder="the title, link and score of each story"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Ask for anything…"
           />
 
-          <label for="title">Note title <span class="opt">optional</span></label>
-          <input id="title" type="text" placeholder="Hacker News" />
+          <div class="field">
+            <span class="field-label">Send it to</span>
+            <div id="destination" class="segmented" role="radiogroup"></div>
+            <p class="field-note" id="destination-note"></p>
+          </div>
 
           <div class="row">
-            <button id="run">Extract</button>
-            <button id="setup" class="secondary">Setup</button>
+            <button id="run" class="primary">Go</button>
             <span id="status" class="status"></span>
+            <button id="setup" class="quiet">Setup</button>
           </div>
           <pre id="progress" class="progress" hidden></pre>
         </section>
 
-        <!-- The gate. Nothing has been written at this point. -->
+        <!-- Results, and the gate when the destination has a side effect. -->
         <section id="plan" hidden>
-          <h2>Review before writing</h2>
+          <h2 id="plan-heading">Review before writing</h2>
           <p id="plan-meta" class="meta"></p>
           <div class="table-wrap">
             <table id="rows"></table>
           </div>
-          <div class="row gate">
-            <button id="confirm">Write to Notes</button>
-            <button id="cancel" class="secondary">Cancel</button>
+          <div class="row gate" id="gate">
+            <button id="confirm" class="danger">Write it</button>
+            <button id="cancel" class="quiet">Cancel</button>
           </div>
-          <p class="note">
+          <p class="note" id="gate-note">
             Nothing has been written yet. VANS cannot write without this
             confirmation.
           </p>
+          <div class="row" id="done-row" hidden>
+            <button id="ask-again" class="primary">Ask something else</button>
+          </div>
         </section>
 
         <!-- Rung 3, and any other failure with something to act on. -->
@@ -93,7 +93,7 @@
           <p id="failure-message" class="meta"></p>
           <div id="failure-detail"></div>
           <div class="row">
-            <button id="back" class="secondary">Back</button>
+            <button id="back" class="primary">Back</button>
           </div>
         </section>
 
@@ -102,7 +102,7 @@
           <h2>Written</h2>
           <p id="done-message" class="meta"></p>
           <div class="row">
-            <button id="again" class="secondary">Do another</button>
+            <button id="again" class="primary">Do another</button>
           </div>
         </section>
       </div>

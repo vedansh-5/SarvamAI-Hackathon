@@ -23,6 +23,7 @@ import (
 	"github.com/vedansh/vans/internal/adapter/cdp"
 	"github.com/vedansh/vans/internal/engine"
 	"github.com/vedansh/vans/internal/extract"
+	"github.com/vedansh/vans/internal/route"
 	"github.com/vedansh/vans/internal/rpc"
 	"github.com/vedansh/vans/internal/store"
 	"github.com/vedansh/vans/internal/synth"
@@ -66,12 +67,26 @@ func run() error {
 		synthesizer = unconfigured{err: synthErr}
 	}
 
+	// The router shares the store, so a routing decision and an extraction
+	// program for the same request live in one file and are backed up, moved
+	// or deleted together.
+	//
+	// Nil when the backend cannot also decide: routing is a different call
+	// shape from synthesis, and a backend that implements one need not
+	// implement the other. Ask reports the absence rather than the engine
+	// panicking on a nil router halfway through a request.
+	var router *route.Router
+	if decider, ok := synthesizer.(route.Decider); ok {
+		router = &route.Router{Decider: decider, Cache: st, Model: modelLabel()}
+	}
+
 	srv := &rpc.Server{
 		Engine: &engine.Engine{
 			Browser: browser,
 			Store:   st,
 			Synth:   synthesizer,
-			Sink:    engine.NotesSink{Notes: notes},
+			Router:  router,
+			Sinks:   engine.DefaultSinks(engine.NotesSink{Notes: notes}),
 			Model:   modelLabel(),
 		},
 		Probe: probe{

@@ -87,7 +87,7 @@ func run() error {
 		Browser: browser,
 		Store:   st,
 		Synth:   counted,
-		Sink:    engine.NotesSink{Notes: appleevents.Notes{Runner: appleevents.Osascript{}}},
+		Sinks:   engine.DefaultSinks(engine.NotesSink{Notes: appleevents.Notes{Runner: appleevents.Osascript{}}}),
 		Model:   modelLabel(),
 	}
 	if *verbose {
