@@ -1641,3 +1641,77 @@ it wants Screen Recording, and it sends an image of whatever is on screen to
 somebody else's computer. Reading the tree keeps both the permission and the
 data smaller, and an application that refuses to publish a tree is left to the
 page tier instead.
+
+## D-059 — The accessibility route to Electron applications is closed
+
+D-056 recorded that Electron applications publish windows with nothing inside
+them. Everything since has been an attempt to get past that, and all of it
+failed in ways worth writing down so the ground is not covered twice.
+
+**Both interfaces agree.** Read at the same moment, System Events and
+`AXUIElement` return identical numbers: Code, Notion and WhatsApp at zero
+windows, Notes at one window with seven children. An earlier reading that
+seemed to show the C API seeing more was two measurements taken minutes apart,
+not two interfaces disagreeing. There is no bridge problem to route around.
+
+**When they do publish windows, the windows are empty.** WhatsApp read as two
+windows with zero children across five consecutive passes. That is the actual
+shape of the problem: not a missing window, an empty one.
+
+**Neither flag opens them.** `AXManualAccessibility` does not exist on Chrome's
+process at all, and where it does exist — Code, Notion — setting it returns
+success and changes nothing, at one, three and six seconds, against freshly
+created elements rather than cached ones. `AXEnhancedUserInterface` exists
+everywhere and changes nothing either. Both were restored after testing.
+
+**What is left, and what is refused.** An Electron application will publish its
+tree if it is told to at launch, which is the user's business and not something
+VANS does (D-032). A screenshot and a model that can read it would work, and it
+is refused: it wants Screen Recording on top of Accessibility, and it sends a
+picture of whatever is on screen to somebody else's computer. The route that
+remains is the one already built — these applications nearly all have a web
+version, and the page tier drives pages.
+
+## D-060 — Reaching the applications that publish nothing, without taking more
+
+D-059 closed the accessibility route to Electron applications. This is the
+route that remains, and the three things that had to be fixed before it was
+safe to take.
+
+**The tab in front is not a fallback.** An application with no dictionary was
+sent to the page tier first, and the page tier acts on whatever tab is in
+front. So a request naming Spotify could synthesise a program against whatever
+happened to be open and, if it validated, act there. The front tab is the right
+target when the request is *about* the page in front, and never because an
+application was named. The page tier now refuses when the page in front does
+not belong to the application asked for.
+
+**Acting in our own tab needed its own door.** Navigating and reading already
+used the tab VANS opened for itself, but executing was hardcoded to
+`windows[0].activeTab`. Wiring a web application through that would have typed
+into whatever the user was reading — the same failure this project has been
+caught by once already. Own-tab execution is now a separate call, a plan says
+which tab it belongs to, and a test asserts an own-tab plan never reaches the
+tab in front.
+
+**The page tier was sending whole pages.** Up to sixty thousand bytes of raw
+HTML went into the prompt: on a mail page, the mail; on a chat page, the
+conversation. Choosing a control needs a way to name it and a label to
+recognise it by, not the page. The tier now sends a list of controls — a
+selector, what kind of thing it is, and its label from `aria-label`,
+placeholder, name or a button's own words — and never what a control holds.
+Input values are excluded by construction, and the tests assert that page text,
+field values and draft text cannot appear.
+
+**Then the route itself.** An application that publishes no tree usually has a
+web version, so VANS navigates its own tab there and drives it as a page. That
+costs no permission beyond the browser it already drives, sends no pictures
+anywhere, and is confirmed like any other page action. It sits between the
+window tier and working through a task on screen, because driving a known web
+application is cheaper and more predictable than clicking around a window.
+
+**What this does not do.** It reaches the applications in the table and no
+others; an unknown name still falls through to the tiers below. The table is a
+list of addresses, which is the honest shape for something that cannot be
+discovered — there is no way to ask a desktop application where its web version
+lives.

@@ -360,6 +360,30 @@ func (c *Chrome) Do(ctx context.Context, script string) error {
 	return nil
 }
 
+// DoOnOwnTab runs a program in the tab VANS opened for itself, never the one
+// in front. Acting in a web application VANS navigated to is not the same act
+// as acting in the page the user is reading, and the two must not share a
+// target.
+func (c *Chrome) DoOnOwnTab(ctx context.Context, script string) error {
+	source, err := jsLiteral(script)
+	if err != nil {
+		return err
+	}
+
+	var out struct {
+		OK    bool   `json:"ok"`
+		Error string `json:"error"`
+	}
+	if err := c.run(ctx, c.onTab(fmt.Sprintf(
+		"return JSON.parse(String(app.execute(tab, { javascript: %s })));", source)), &out); err != nil {
+		return err
+	}
+	if !out.OK {
+		return fmt.Errorf("appleevents: the page refused the program: %s", out.Error)
+	}
+	return nil
+}
+
 // Reachable reports whether this adapter can drive Chrome right now, and says
 // what to do if it cannot.
 func (c *Chrome) Reachable(ctx context.Context) error {

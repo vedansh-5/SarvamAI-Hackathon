@@ -133,7 +133,7 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 		return plan, nil
 
 	case route.KindPageAction:
-		plan, calls, err := e.actOnPage(ctx, res.Route, res.Shape)
+		plan, calls, err := e.actOnPage(ctx, res.Route, res.Shape, "")
 		if err != nil {
 			return nil, err
 		}

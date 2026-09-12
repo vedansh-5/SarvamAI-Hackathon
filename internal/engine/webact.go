@@ -10,6 +10,7 @@ import (
 	"github.com/vedansh/vans/internal/route"
 	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/webact"
+	"golang.org/x/net/html"
 )
 
 // WebActionWriter writes a program against a page. Implemented by the
@@ -31,6 +32,7 @@ type WebPlan struct {
 
 	program webact.Program
 	script  string
+	ownTab  bool
 }
 
 // actOnPage prepares an action in the page the user has open.
@@ -40,7 +42,7 @@ type WebPlan struct {
 // but Telegram, Notion, Discord and Slack ship none, and every one of them
 // has a web version already open in the browser VANS drives. Going through
 // the page costs no new permission and no new dependency.
-func (e *Engine) actOnPage(ctx context.Context, r route.Route, shape string) (*Plan, int, error) {
+func (e *Engine) actOnPage(ctx context.Context, r route.Route, shape, wantApp string) (*Plan, int, error) {
 	driver, ok := e.pageDriver()
 	if !ok || e.WebWriter == nil {
 		return nil, 0, fmt.Errorf("engine: this build cannot act in a page")
@@ -56,75 +58,42 @@ func (e *Engine) actOnPage(ctx context.Context, r route.Route, shape string) (*P
 		return nil, 0, fmt.Errorf("engine: read the page in front of you: %w", err)
 	}
 
+	if wantApp != "" && !pageBelongsTo(pageURL, wantApp) {
+		return nil, 0, fmt.Errorf(
+			"engine: the page in front is %s, not %s", hostOf(pageURL), wantApp)
+	}
+
 	doc, err := webact.Parse(src)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	action := r.Template("action")
-	if action == "" {
-		action = r.Slot("action")
-	}
+	controls := webact.ControlsText(webact.Controls(doc), webact.MaxControlsBytes)
 
-	var failures []string
-	budget := e.maxSynthesis()
-
-	for attempt := 1; attempt <= budget; attempt++ {
-		program, err := e.WebWriter.WriteWebAction(ctx, synth.WebActRequest{
-			Action:       action,
-			URL:          pageURL,
-			Page:         src,
-			Placeholders: route.PlaceholdersIn(shape),
-			Failures:     failures,
-		})
-		if err != nil {
-			return nil, attempt, err
-		}
-
-		var rejected []string
-		if err := webact.Validate(program, doc); err != nil {
-			var invalid *webact.InvalidError
-			if !errors.As(err, &invalid) {
-				return nil, attempt, err
+	filled, script, calls, err := e.writeWebProgram(ctx, r, shape, pageURL, controls, doc)
+	if err != nil {
+		if errors.Is(err, errNoWebProgram) {
+			return nil, calls, &UnroutableError{
+				Instruction: r.Slot("action"),
+				Why:         "no way to do that on this page survived being checked against it",
+				Can:         e.capabilities(),
 			}
-			rejected = invalid.Reasons
 		}
-		for _, baked := range webact.Baked(program, r.Literals) {
-			rejected = append(rejected, fmt.Sprintf(
-				"it types %q into the program instead of the placeholder standing for it; "+
-					"this program is reused for every request of this shape", baked))
-		}
-		if len(rejected) > 0 {
-			e.logf("page program rejected: %s", strings.Join(rejected, "; "))
-			failures = rejected
-			continue
-		}
-
-		filled := program.Fill(func(v string) string { return route.Fill(v, r.Literals) })
-		script, err := webact.Render(filled, doc)
-		if err != nil {
-			return nil, attempt, err
-		}
-
-		return &Plan{
-			Task:           Task{Intent: r.Slot("action"), Title: pageURL},
-			PageURL:        pageURL,
-			Destination:    hostOf(pageURL),
-			SynthesisCalls: attempt,
-			Web: &WebPlan{
-				URL:     pageURL,
-				Preview: webact.Preview(filled),
-				program: filled,
-				script:  script,
-			},
-		}, attempt, nil
+		return nil, calls, err
 	}
 
-	return nil, budget, &UnroutableError{
-		Instruction: r.Slot("action"),
-		Why:         "no way to do that on this page survived being checked against it",
-		Can:         e.capabilities(),
-	}
+	return &Plan{
+		Task:           Task{Intent: r.Slot("action"), Title: pageURL},
+		PageURL:        pageURL,
+		Destination:    hostOf(pageURL),
+		SynthesisCalls: calls,
+		Web: &WebPlan{
+			URL:     pageURL,
+			Preview: webact.Preview(filled),
+			program: filled,
+			script:  script,
+		},
+	}, calls, nil
 }
 
 // runWeb is the side effect. Reached only through Commit.
@@ -139,7 +108,15 @@ func (e *Engine) runWeb(ctx context.Context, plan *Plan) (Receipt, error) {
 		defer l.Unlock()
 	}
 
-	if err := driver.Do(ctx, plan.Web.script); err != nil {
+	if plan.Web.ownTab {
+		own, ok := e.ownTabDriver()
+		if !ok {
+			return Receipt{}, fmt.Errorf("engine: this build cannot act in its own tab")
+		}
+		if err := own.DoOnOwnTab(ctx, plan.Web.script); err != nil {
+			return Receipt{}, err
+		}
+	} else if err := driver.Do(ctx, plan.Web.script); err != nil {
 		return Receipt{}, err
 	}
 
@@ -170,4 +147,69 @@ func hostOf(pageURL string) string {
 		trimmed = trimmed[:i]
 	}
 	return strings.TrimPrefix(trimmed, "www.")
+}
+
+func pageBelongsTo(pageURL, app string) bool {
+	host := strings.ToLower(hostOf(pageURL))
+	host = strings.NewReplacer(".", "", "-", "", "_", "").Replace(host)
+
+	name := strings.ToLower(strings.TrimSpace(app))
+	name = strings.NewReplacer(" ", "", ".", "", "-", "", "_", "").Replace(name)
+	if name == "" {
+		return false
+	}
+	return strings.Contains(host, name)
+}
+
+var errNoWebProgram = errors.New("engine: no web program survived checking")
+
+func (e *Engine) writeWebProgram(ctx context.Context, r route.Route, shape, pageURL, controls string, doc *html.Node) (webact.Program, string, int, error) {
+	action := r.Template("action")
+	if action == "" {
+		action = r.Slot("action")
+	}
+
+	var failures []string
+	budget := e.maxSynthesis()
+
+	for attempt := 1; attempt <= budget; attempt++ {
+		program, err := e.WebWriter.WriteWebAction(ctx, synth.WebActRequest{
+			Action:       action,
+			URL:          pageURL,
+			Controls:     controls,
+			Placeholders: route.PlaceholdersIn(shape),
+			Failures:     failures,
+		})
+		if err != nil {
+			return webact.Program{}, "", attempt, err
+		}
+
+		var rejected []string
+		if err := webact.Validate(program, doc); err != nil {
+			var invalid *webact.InvalidError
+			if !errors.As(err, &invalid) {
+				return webact.Program{}, "", attempt, err
+			}
+			rejected = invalid.Reasons
+		}
+		for _, baked := range webact.Baked(program, r.Literals) {
+			rejected = append(rejected, fmt.Sprintf(
+				"it types %q into the program instead of the placeholder standing for it; "+
+					"this program is reused for every request of this shape", baked))
+		}
+		if len(rejected) > 0 {
+			e.logf("page program rejected: %s", strings.Join(rejected, "; "))
+			failures = rejected
+			continue
+		}
+
+		filled := program.Fill(func(v string) string { return route.Fill(v, r.Literals) })
+		script, err := webact.Render(filled, doc)
+		if err != nil {
+			return webact.Program{}, "", attempt, err
+		}
+		return filled, script, attempt, nil
+	}
+
+	return webact.Program{}, "", budget, errNoWebProgram
 }

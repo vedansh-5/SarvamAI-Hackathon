@@ -56,8 +56,8 @@ type WebActRequest struct {
 	Action string
 
 	// URL and Page are where it happens and what is there.
-	URL  string
-	Page string
+	URL      string
+	Controls string
 
 	// Placeholders stand for the values that differ between requests.
 	Placeholders []string
@@ -65,13 +65,6 @@ type WebActRequest struct {
 	// Failures are why the previous attempt was rejected.
 	Failures []string
 }
-
-// MaxPageBytes bounds how much of a page is sent.
-//
-// A modern application's DOM is megabytes, most of it inline styles and
-// framework bookkeeping. What matters for driving it is the interactive
-// elements, which is what the trimming keeps.
-const MaxPageBytes = 60000
 
 // BuildWebActPrompt renders the request.
 func BuildWebActPrompt(req WebActRequest) string {
@@ -89,8 +82,9 @@ func BuildWebActPrompt(req WebActRequest) string {
 		}
 	}
 
-	b.WriteString("\nTHE PAGE\n")
-	b.WriteString(truncate(req.Page, MaxPageBytes))
+	b.WriteString("\nTHE CONTROLS ON THE PAGE\n")
+	b.WriteString("Each line is a control you may address, by the selector on the left. What a control holds is deliberately not shown.\n\n")
+	b.WriteString(req.Controls)
 
 	if len(req.Failures) > 0 {
 		b.WriteString("\n\nYOUR PREVIOUS ANSWER WAS REJECTED\n")
