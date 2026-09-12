@@ -17,6 +17,7 @@ import (
 	"github.com/vedansh/vans/internal/engine"
 	"github.com/vedansh/vans/internal/extract"
 	"github.com/vedansh/vans/internal/runner"
+	"github.com/vedansh/vans/internal/uiact"
 )
 
 // Prober reports whether an environment prerequisite is satisfied. Preflight
@@ -326,6 +327,8 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 		action = plan.Action.Preview
 	case plan.Web != nil:
 		action = plan.Web.Preview
+	case plan.UI != nil:
+		action = plan.UI.Preview
 	}
 
 	answerText := ""
@@ -437,6 +440,10 @@ func asError(err error) *Error {
 			Data:    fixData(appleevents.Fix(err)),
 		}
 	}
+	if errors.Is(err, uiact.ErrNoAssistiveAccess) {
+		return &Error{Code: CodePermission, Message: err.Error(), Data: fixData(uiact.Fix(err))}
+	}
+
 	if errors.Is(err, appleevents.ErrNotRunning) {
 		return &Error{Code: CodeNoBrowser, Message: err.Error(), Data: fixData(appleevents.Fix(err))}
 	}

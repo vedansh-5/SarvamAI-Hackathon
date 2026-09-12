@@ -30,6 +30,7 @@ import (
 	"github.com/vedansh/vans/internal/runner"
 	"github.com/vedansh/vans/internal/store"
 	"github.com/vedansh/vans/internal/synth"
+	"github.com/vedansh/vans/internal/uiact"
 )
 
 // Browser is the page surface the engine drives.
@@ -107,6 +108,10 @@ type Engine struct {
 	WebWriter WebActionWriter
 	Actions   ActionCache
 	Runner    appact.Runner
+
+	UIWriter  UIActionWriter
+	UIRunner  uiact.Runner
+	UIActions UIActionCache
 
 	// Model labels which backend wrote a program, stored as provenance.
 	Model string
@@ -231,6 +236,8 @@ type Plan struct {
 	// extracting from a page. Rows are empty in that case: there is nothing
 	// to show as a table, and the preview is what gets confirmed.
 	Action *ActionPlan
+
+	UI *UIPlan
 
 	key       store.Key
 	programID int64
@@ -467,6 +474,11 @@ func (e *Engine) Commit(ctx context.Context, plan *Plan) (Receipt, error) {
 		return e.runWeb(ctx, plan)
 	}
 
+	if plan.UI != nil {
+		plan.committed = true
+		return e.runUI(ctx, plan)
+	}
+
 	if plan.Action != nil {
 		// Set before the call, not after: if the program panics or the
 		// process dies mid-flight the plan is still spent, because the change
@@ -528,6 +540,10 @@ func (p *Plan) NeedsCommit() bool {
 	// A page declares nothing, so there is no dictionary to ask whether a
 	// click sends a message or opens a menu. Every page program is confirmed.
 	if p.Web != nil {
+		return true
+	}
+
+	if p.UI != nil {
 		return true
 	}
 	return p.Destination != "" && p.Destination != PanelDestination

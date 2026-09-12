@@ -98,7 +98,7 @@ func Open(path string) (*Store, error) {
 // Close releases the database.
 func (s *Store) Close() error { return s.db.Close() }
 
-const schemaVersion = 4
+const schemaVersion = 5
 
 func (s *Store) migrate(ctx context.Context) error {
 	var v int
@@ -158,6 +158,17 @@ CREATE TABLE IF NOT EXISTS actions (
 -- Small durable facts that are not programs. Currently the id of the tab
 -- VANS opened for itself, so a restarted engine adopts it rather than opening
 -- another one every time.
+CREATE TABLE IF NOT EXISTS window_actions (
+	app          TEXT    NOT NULL,
+	shape        TEXT    NOT NULL,
+	program      TEXT    NOT NULL,
+	model        TEXT    NOT NULL DEFAULT '',
+	created_at   INTEGER NOT NULL,
+	last_used_at INTEGER NOT NULL DEFAULT 0,
+	uses         INTEGER NOT NULL DEFAULT 0,
+	PRIMARY KEY (app, shape)
+);
+
 CREATE TABLE IF NOT EXISTS settings (
 	key   TEXT PRIMARY KEY,
 	value TEXT NOT NULL

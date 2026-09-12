@@ -10,6 +10,7 @@ import (
 	"github.com/vedansh/vans/internal/capability"
 	"github.com/vedansh/vans/internal/route"
 	"github.com/vedansh/vans/internal/synth"
+	"github.com/vedansh/vans/internal/uiact"
 )
 
 // ActionWriter writes a program against an application's surface. Implemented
@@ -71,6 +72,17 @@ func (e *Engine) act(ctx context.Context, r route.Route, shape string) (*Plan, i
 			if plan, calls, pageErr := e.actOnPage(ctx, r, shape); pageErr == nil {
 				e.logf("%s has no scripting dictionary; acting on the page instead", name)
 				return plan, calls, nil
+			}
+			if e.canActOnUI() {
+				plan, calls, uiErr := e.actOnUI(ctx, r, shape, name)
+				if uiErr == nil {
+					e.logf("%s declares nothing and is not a page; acting through its window", name)
+					return plan, calls, nil
+				}
+				e.logf("could not act through %s's window: %v", name, uiErr)
+				if errors.Is(uiErr, uiact.ErrNoAssistiveAccess) {
+					return nil, 0, uiErr
+				}
 			}
 			return nil, 0, &UnknownAppError{Name: unknown.Name, Near: unknown.Near}
 		}

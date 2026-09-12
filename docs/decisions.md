@@ -1239,7 +1239,7 @@ and nothing to drive.
    declaration whether a command changes state.
 2. Its web version, in the browser already being driven. No new permission, no
    new dependency, and the user is already signed in.
-3. The accessibility tree. Not built; the only tier left for something with
+3. The accessibility tree (D-051). The only tier left for something with
    neither a dictionary nor a web version.
 
 An application name that resolves to no installed bundle now falls to rung 2
@@ -1269,3 +1269,83 @@ failure worth preventing. Text is set through the value setter and followed by
 input and change events, because every framework worth naming ignores a value
 that arrives without them — the box shows the text, the application never sees
 it, and the message sends empty.
+
+## D-051 — Acting through the accessibility tree
+
+D-050 left rung 3 unbuilt, so an application with no scripting dictionary and
+no web version was simply out of reach. Spotify, the desktop Discord build and
+every Electron application that declares nothing are that case, and between
+them they are most of what is actually on screen.
+
+**Through System Events, not the C API.** macOS exposes the accessibility tree
+twice: `AXUIElement` in ApplicationServices, and the Processes suite of System
+Events over Apple events. The C API is faster and wants cgo, a framework link
+and a second way of talking to the system. The Apple-event route goes through
+the same osascript runner every other tier already uses, so this costs no new
+dependency and no new build constraint. If walking a window ever gets too slow
+to sit through, that is the moment to reach for the C API — not before.
+
+**The permission is real and it is the user's.** System Events reports
+`uiElementsEnabled` false until VANS is ticked in System Settings › Privacy &
+Security › Accessibility, and until then every call comes back "not allowed
+assistive access". It gets its own sentinel and its own fix string, surfaced
+the way Chrome's scripting gate is: a permission whose remedy is a switch the
+runtime must not reach over and flip for itself (D-032).
+
+**The tree is the authority.** The same argument as the DOM in D-050, one tier
+down. A window declares nothing about what its buttons do, so every check is
+against what was captured: a selector must match exactly one control, text may
+only go into something that can hold it, and a disabled control is refused.
+Where several controls share a role and a title, the tree numbers them and the
+program has to say which one it means.
+
+**Resolved fresh, never remembered.** A control is reached by its index path,
+which is exact and cheap, but the path is not part of the program. The window
+is captured again when the plan is confirmed, the program is re-checked
+against that capture, and the paths are worked out from it. A window that was
+rearranged between the plan and the confirmation is followed rather than
+refused; a control that has genuinely gone is refused rather than resolved to
+whatever slid into its position. Clicking the wrong button reports success
+exactly as cheerfully as clicking the right one, which is why the check is on
+the role and the title and never on the position.
+
+**It caches, because the program is a shape after all.** The first cut of this
+tier cached nothing, reasoning that a control is addressed by an index path,
+and a path describes this window at this scroll position rather than a kind of
+request. That was the wrong level to look at: the model never writes a path.
+It writes a role and a title, which is exactly a shape, and the runtime
+resolves the rest. So a window program is cached by application and
+instruction shape like every other tier, and a warm run costs no model call.
+The same change retires the stale-path risk, because no path survives between
+the plan and the run.
+
+**What it costs instead is time.** Reading 218 controls out of a System
+Settings window takes about 24 seconds over Apple events, because every
+attribute read crosses a process boundary. Asking a whole collection for its
+roles in one event, rather than each element in turn, is what brought it back
+under the timeout it first blew through — and it is still the slowest thing in
+the runtime. That measurement is what decides when `AXUIElement` and cgo earn
+their cost; until a window like that reads in a second or two, this rung stays
+the last one tried.
+
+**Everything is confirmed, and typing is verified.** Nothing declares whether
+a click sends a message or opens a menu, so every program goes through the
+gate. After a type step the value is read back off the control and compared
+with what was meant to be there — more than the page tier can say (D-050),
+less than a dictionary's receipt (D-004).
+
+**Only the application in front exposes a window.** Measured on this machine,
+System Events lists windows for the frontmost process and reports zero for
+every other one: with the editor in front, System Settings, Notion, Telegram,
+WhatsApp, Chrome and Finder all read as zero windows, twice each, while each of
+them read as one when its turn came to be in front. The successful capture of
+218 controls happened to a window that was in front at the time, and the same
+call minutes later, backgrounded, refused.
+
+So this rung reaches what the user is looking at and nothing else. That is
+narrower than it first sounds and more coherent than it looks: it is the same
+premise as reading the page in front (D-049), and a request to drive a
+background application is refused with a reason rather than acted on blind.
+It also means the tier cannot be exercised against a safe application without
+that application being the one on screen, which is why typing through it is
+recorded here as unproven rather than quietly skipped.

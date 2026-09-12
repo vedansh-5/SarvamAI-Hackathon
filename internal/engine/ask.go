@@ -149,6 +149,17 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 			plan.SynthesisCalls = calls
 			return plan, nil
 		}
+		if e.canActOnUI() {
+			plan, calls, err := e.actOnUI(ctx, res.Route, res.Shape, res.Route.Slot("app"))
+			if err != nil {
+				return nil, err
+			}
+			r := res.Route
+			plan.Route = &r
+			plan.DecisionCalls = res.DecisionCalls
+			plan.SynthesisCalls = calls
+			return plan, nil
+		}
 	}
 
 	// A kind the router can choose but this build cannot run. Said plainly
@@ -188,7 +199,7 @@ func (e *Engine) runs(k route.Kind) bool {
 		_, ok := e.pageDriver()
 		return ok && e.WebWriter != nil
 	case route.KindAppAction:
-		return e.canAct()
+		return e.canAct() || e.canActOnUI()
 	default:
 		return false
 	}

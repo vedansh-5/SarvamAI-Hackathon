@@ -61,6 +61,10 @@ the largest remaining piece of work:
 
 1. Capability discovery — **done** (`internal/capability`, D-040). VANS can
    read what all 21 scriptable applications on this machine can do.
+
+The accessibility tier (D-051) now reaches applications that declare
+nothing, but it caches nothing and has not been exercised against a real
+window yet — it needs Accessibility permission granted first.
 2. Program synthesis against a real dictionary, validated and cached by
    instruction shape. Cold: one model call. Warm: none. Same primitive as the
    selector program, one level up.

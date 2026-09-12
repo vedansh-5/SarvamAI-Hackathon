@@ -105,6 +105,11 @@ func run() error {
 		webWriter = w
 	}
 
+	var uiWriter engine.UIActionWriter
+	if w, ok := synthesizer.(engine.UIActionWriter); ok {
+		uiWriter = w
+	}
+
 	var answers engine.Answerer
 	if a, ok := synthesizer.(engine.Answerer); ok {
 		answers = a
@@ -125,6 +130,9 @@ func run() error {
 			WebWriter: webWriter,
 			Actions:   st,
 			Runner:    appleevents.Osascript{},
+			UIWriter:  uiWriter,
+			UIActions: st,
+			UIRunner:  appleevents.Osascript{},
 		},
 		Probe: probe{
 			hostPort: *hostPort,
