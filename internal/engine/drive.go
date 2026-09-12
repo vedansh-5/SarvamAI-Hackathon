@@ -23,7 +23,7 @@ type DrivePlan struct {
 }
 
 func (e *Engine) canDrive() bool {
-	return e.Steps != nil && e.UIRunner != nil
+	return e.Steps != nil && e.UIScreen != nil
 }
 
 func (e *Engine) driveOn(ctx context.Context, app, task string) (*Plan, error) {
@@ -31,7 +31,7 @@ func (e *Engine) driveOn(ctx context.Context, app, task string) (*Plan, error) {
 		return nil, fmt.Errorf("engine: this build cannot work through a task on screen")
 	}
 
-	tree, err := uiact.Capture(ctx, e.UIRunner, app)
+	tree, err := e.UIScreen.Capture(ctx, app)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	var done []string
 
 	for i := 1; i <= MaxDriveSteps; i++ {
-		tree, err := uiact.Capture(ctx, e.UIRunner, d.App)
+		tree, err := e.UIScreen.Capture(ctx, d.App)
 		if err != nil {
 			return Receipt{}, err
 		}
@@ -101,7 +101,7 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 			}
 			e.logf("step %d: %s", i, describe)
 
-			if err := uiact.RunScreen(ctx, e.UIRunner, program, tree); err != nil {
+			if err := e.UIScreen.Act(ctx, program, tree); err != nil {
 				return Receipt{}, err
 			}
 

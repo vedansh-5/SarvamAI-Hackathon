@@ -31,29 +31,52 @@ func Fix(err error) string {
 }
 
 func Capture(ctx context.Context, r Runner, app string) (Tree, error) {
-	name, err := literal(app)
+	pid, err := pidFor(ctx, r, app)
 	if err != nil {
 		return Tree{}, err
 	}
+	return walkApp(pid, app)
+}
 
-	out, err := r.Run(ctx, fmt.Sprintf(captureScript, name, MaxElements, MaxDepth))
+func pidFor(ctx context.Context, r Runner, app string) (int, error) {
+	name, err := literal(app)
 	if err != nil {
-		return Tree{}, classify(err.Error(), err)
+		return 0, err
+	}
+
+	out, err := r.Run(ctx, fmt.Sprintf(pidScript, name))
+	if err != nil {
+		return 0, classify(err.Error(), err)
 	}
 
 	var envelope struct {
 		OK    bool   `json:"ok"`
 		Error string `json:"error"`
-		Value Tree   `json:"value"`
+		Value int    `json:"value"`
 	}
 	if err := json.Unmarshal(out, &envelope); err != nil {
-		return Tree{}, fmt.Errorf("uiact: unreadable reply (output %q): %w", truncate(string(out), 200), err)
+		return 0, fmt.Errorf("uiact: unreadable reply (output %q): %w", truncate(string(out), 200), err)
 	}
 	if !envelope.OK {
-		return Tree{}, classify(envelope.Error, fmt.Errorf("uiact: %s", envelope.Error))
+		return 0, classify(envelope.Error, fmt.Errorf("uiact: %s", envelope.Error))
+	}
+	if envelope.Value <= 0 {
+		return 0, fmt.Errorf("uiact: %s is not running", app)
 	}
 	return envelope.Value, nil
 }
+
+const pidScript = `(function () {
+  const se = Application('System Events');
+  function reply(f) {
+    try { return JSON.stringify({ ok: true, value: f() }); }
+    catch (e) { return JSON.stringify({ ok: false, error: String((e && e.message) || e) }); }
+  }
+  return reply(function () {
+    return se.applicationProcesses.byName(%s).unixId();
+  });
+})();
+`
 
 func classify(msg string, fallback error) error {
 	lower := strings.ToLower(msg)
@@ -66,67 +89,6 @@ func classify(msg string, fallback error) error {
 		return fallback
 	}
 }
-
-const captureScript = `(function () {
-  const se = Application('System Events');
-  function reply(f) {
-    try { return JSON.stringify({ ok: true, value: f() }); }
-    catch (e) { return JSON.stringify({ ok: false, error: String((e && e.message) || e) }); }
-  }
-  return reply(function () {
-    const proc = se.applicationProcesses.byName(%s);
-    if (proc.windows.length === 0) throw new Error('that application has no window open');
-    const win = proc.windows[0];
-    const limit = %d, maxDepth = %d;
-    const leaf = {
-      AXStaticText: true, AXButton: true, AXImage: true, AXMenuButton: true,
-      AXCheckBox: true, AXRadioButton: true, AXSlider: true, AXProgressIndicator: true,
-      AXValueIndicator: true, AXPopUpButton: true
-    };
-    const out = [];
-    function walk(el, path, depth) {
-      if (out.length >= limit || depth > maxDepth) return;
-      let kids, roles, n = 0;
-      try { kids = el.uiElements; roles = kids.role(); n = roles.length; } catch (e) { return; }
-      if (!n) return;
-      let titles = [], descs = [], values = [], enabled = [], focused = [];
-      let positions = [], sizes = [];
-      try { titles = kids.title(); } catch (e) {}
-      try { descs = kids.description(); } catch (e) {}
-      try { values = kids.value(); } catch (e) {}
-      try { enabled = kids.enabled(); } catch (e) {}
-      try { focused = kids.focused(); } catch (e) {}
-      try { positions = kids.position(); } catch (e) {}
-      try { sizes = kids.size(); } catch (e) {}
-      const mine = [];
-      for (let i = 0; i < n && out.length < limit; i++) {
-        try {
-          const r = String(roles[i] || '');
-          let title = titles[i] ? String(titles[i]) : '';
-          if (!title && descs[i]) title = String(descs[i]);
-          const v = values[i];
-          const value = (v === null || v === undefined) ? '' : String(v);
-          out.push({
-            role: r, title: title, value: value.slice(0, 120),
-            enabled: enabled[i] !== false, focused: focused[i] === true,
-            position: positions[i] || null, size: sizes[i] || null,
-            actions: [], path: path.concat([i])
-          });
-          mine.push([i, r]);
-        } catch (e) {}
-      }
-      for (let j = 0; j < mine.length && out.length < limit; j++) {
-        if (leaf[mine[j][1]]) continue;
-        try { walk(kids[mine[j][0]], path.concat([mine[j][0]]), depth + 1); } catch (e) {}
-      }
-    }
-    try { walk(win, [], 0); } catch (e) {}
-    let title = '';
-    try { title = String(win.title() || ''); } catch (e) {}
-    return { app: String(proc.name()), window: title, elements: out };
-  });
-})();
-`
 
 func Frontmost(ctx context.Context, r Runner) (string, error) {
 	out, err := r.Run(ctx, frontmostScript)

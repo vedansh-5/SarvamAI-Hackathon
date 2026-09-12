@@ -112,12 +112,8 @@ func TestLiveTypesIntoAWindow(t *testing.T) {
 	}
 	t.Logf("preview: %s", Preview(p))
 
-	got, err := Run(ctx, liveRunner(), p, tree)
-	if err != nil {
-		t.Fatalf("Run: %v", err)
+	if err := RunScreen(ctx, liveRunner(), p, tree); err != nil {
+		t.Fatalf("RunScreen: %v", err)
 	}
-	if !got.Verified {
-		t.Errorf("the text was typed but reading it back did not confirm it: %+v", got)
-	}
-	t.Logf("typed into %s %q, verified=%v", target.Role, target.Title, got.Verified)
+	t.Logf("typed into %s %q on screen", target.Role, target.Title)
 }

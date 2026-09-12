@@ -1277,13 +1277,12 @@ no web version was simply out of reach. Spotify, the desktop Discord build and
 every Electron application that declares nothing are that case, and between
 them they are most of what is actually on screen.
 
-**Through System Events, not the C API.** macOS exposes the accessibility tree
-twice: `AXUIElement` in ApplicationServices, and the Processes suite of System
-Events over Apple events. The C API is faster and wants cgo, a framework link
-and a second way of talking to the system. The Apple-event route goes through
-the same osascript runner every other tier already uses, so this costs no new
-dependency and no new build constraint. If walking a window ever gets too slow
-to sit through, that is the moment to reach for the C API — not before.
+**Through System Events, not the C API.** *(Reversed — see D-057.)* macOS
+exposes the accessibility tree twice: `AXUIElement` in ApplicationServices, and
+the Processes suite of System Events over Apple events. The Apple-event route
+went through the osascript runner every other tier already used, so it cost no
+new dependency. The condition set here for reaching for the C API — a window
+too slow to sit through — was met, and the decision went the other way.
 
 **The permission is real and it is the user's.** System Events reports
 `uiElementsEnabled` false until VANS is ticked in System Settings › Privacy &
@@ -1309,14 +1308,12 @@ position. Clicking the wrong button reports success exactly as cheerfully as
 clicking the right one, which is why the check is on the role and the title
 and never on the position.
 
-**The capture from preparing is reused while it is seconds old.** Reading a
-window costs around twenty seconds, and preparing a plan has just done it, so
-reading it again to confirm the same plan would make one action cost that
-twice. Within ten seconds the tree from preparing is used as it stands; past
-that it is read again. What makes the reuse safe is not the clock but the
-script: every step re-checks the role and the title at its path as it runs, so
-a tree that went stale in those seconds makes the step refuse rather than press
-whatever is now in that position.
+**The capture from preparing was reused while it was seconds old.**
+*(Removed — see D-057.)* It existed because reads cost twenty seconds, and it
+was safe because the renderer of the day re-checked the role and title at each
+path as it ran. Neither is true any more: a read costs under half a second, and
+the renderer that acts now clicks coordinates and re-checks nothing. The window
+is read again every time.
 
 **It caches, because the program is a shape after all.** The first cut of this
 tier cached nothing, reasoning that a control is addressed by an index path,
@@ -1328,14 +1325,10 @@ instruction shape like every other tier, and a warm run costs no model call.
 The same change retires the stale-path risk, because no path survives between
 the plan and the run.
 
-**What it costs instead is time.** Reading 218 controls out of a System
-Settings window takes about 24 seconds over Apple events, because every
-attribute read crosses a process boundary. Asking a whole collection for its
-roles in one event, rather than each element in turn, is what brought it back
-under the timeout it first blew through — and it is still the slowest thing in
-the runtime. That measurement is what decides when `AXUIElement` and cgo earn
-their cost; until a window like that reads in a second or two, this rung stays
-the last one tried.
+**What it costs instead is time.** *(Superseded by D-057.)* Over Apple events
+every attribute read crosses a process boundary, and 218 controls out of a
+System Settings window took about 24 seconds. That measurement is what decided
+when `AXUIElement` and cgo earned their cost. They earned it.
 
 **Everything is confirmed, and typing is verified.** Nothing declares whether
 a click sends a message or opens a menu, so every program goes through the
@@ -1556,3 +1549,44 @@ which is a different thing from asking System Events to set an attribute. That
 means cgo and a framework link, which this project has deliberately never had
 (D-051). It is a decision about what VANS is willing to become, not a detail to
 slip in behind a probe.
+
+## D-057 — Reading the tree through the C API
+
+D-051 said the C API was the thing to reach for if walking a window ever got
+too slow to sit through, and not before. It got too slow. Measured on the same
+machine: 119 controls out of a Notes window in 132 milliseconds through
+`AXUIElement`, against roughly 24 seconds for 218 controls through Apple
+events. That is not a tuning difference, and every argument for staying on the
+Apple-event route was an argument about cost that no longer holds.
+
+**cgo, and a build that fails honestly without it.** The walk lives behind
+`darwin && cgo`, with a fallback for every other build that refuses rather than
+returning an empty tree. A tier that silently sees nothing is worse than one
+that says it was built without the thing it needs.
+
+**The pid is still an Apple event.** `AXUIElementCreateApplication` wants a pid
+and the callers have a name, so one System Events call resolves it. That call
+is now most of the remaining cost — about 280ms of the 410ms a full capture
+takes — and it is the obvious next thing to remove if it ever matters.
+
+**The boundary moved, because the tests could not reach it.** The engine used
+to hold an osascript runner and hand it to `uiact.Capture`. Once the walk went
+through the C API there was nothing left for a fake runner to fake, and five
+tests failed for that reason alone. That is the useful kind of test failure: it
+was pointing at a dependency that had always been wrong. The engine now depends
+on `uiact.Screen` — capture, act, frontmost — and the osascript implementation
+is one of its satisfiers.
+
+**The path renderer is gone.** It re-addressed a control by walking
+`uiElements[i]` through System Events, using index paths recorded at capture.
+Those paths now come from the C API, whose child ordering need not agree with
+the Apple-event bridge's. Nothing in production used it any more, and a
+renderer that can quietly click the wrong control is not worth keeping for its
+tests.
+
+**Electron is still out of reach, and that was checked properly.** A single
+reading suggested Chromium windows had children after all; it did not survive
+five passes, and the stable answer is the one D-056 already recorded. Neither
+`AXManualAccessibility` nor `AXEnhancedUserInterface` changes it, through
+either interface. What this work bought is every native application, quickly —
+not the Electron ones, which still belong to the page tier.

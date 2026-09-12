@@ -9,10 +9,6 @@ import (
 	"github.com/vedansh/vans/internal/uiact"
 )
 
-const placedTextArea = `{"ok":true,"value":{"app":"Editor","window":"Editor","elements":[
-  {"role":"AXTextArea","title":"Message","enabled":true,"position":[100,200],"size":[80,40],"path":[0,1]}
-]}}`
-
 type scriptedSteps struct {
 	answers []synth.StepAnswer
 	calls   int
@@ -51,40 +47,40 @@ func drivePlan() *Plan {
 }
 
 func TestDriveStopsWhenTheTaskIsDone(t *testing.T) {
-	r := &countingRunner{tree: placedTextArea}
-	e := &Engine{UIRunner: r, Steps: &scriptedSteps{
+	f := &fakeScreen{tree: editorTree()}
+	e := &Engine{UIScreen: f, Steps: &scriptedSteps{
 		answers: []synth.StepAnswer{{Done: true, Why: "already finished"}},
 	}}
 
 	if _, err := e.runDrive(context.Background(), drivePlan()); err != nil {
 		t.Fatalf("runDrive: %v", err)
 	}
-	if r.runs != 0 {
-		t.Errorf("touched the screen %d time(s) for a task already done", r.runs)
+	if f.acts != 0 {
+		t.Errorf("touched the screen %d time(s) for a task already done", f.acts)
 	}
 }
 
 func TestDriveRunsAStepThenStops(t *testing.T) {
-	r := &countingRunner{tree: placedTextArea}
-	e := &Engine{UIRunner: r, Steps: &scriptedSteps{
+	f := &fakeScreen{tree: editorTree()}
+	e := &Engine{UIScreen: f, Steps: &scriptedSteps{
 		answers: []synth.StepAnswer{{Step: typeIntoMessage()}},
 	}}
 
 	if _, err := e.runDrive(context.Background(), drivePlan()); err != nil {
 		t.Fatalf("runDrive: %v", err)
 	}
-	if r.runs != 1 {
-		t.Errorf("ran %d step(s), want 1", r.runs)
+	if f.acts != 1 {
+		t.Errorf("ran %d step(s), want 1", f.acts)
 	}
-	if r.captures < 2 {
-		t.Errorf("read the screen %d time(s); it must be read again after acting", r.captures)
+	if f.captures < 2 {
+		t.Errorf("read the screen %d time(s); it must be read again after acting", f.captures)
 	}
 }
 
 func TestDriveStopsAtTheBudget(t *testing.T) {
-	r := &countingRunner{tree: placedTextArea}
+	f := &fakeScreen{tree: editorTree()}
 	w := &alwaysStep{step: typeIntoMessage()}
-	e := &Engine{UIRunner: r, Steps: w}
+	e := &Engine{UIScreen: f, Steps: w}
 
 	_, err := e.runDrive(context.Background(), drivePlan())
 	if err == nil {
@@ -93,26 +89,26 @@ func TestDriveStopsAtTheBudget(t *testing.T) {
 	if !strings.Contains(err.Error(), "stopped after") {
 		t.Errorf("err = %v", err)
 	}
-	if r.runs != MaxDriveSteps {
-		t.Errorf("ran %d steps, want the budget of %d", r.runs, MaxDriveSteps)
+	if f.acts != MaxDriveSteps {
+		t.Errorf("ran %d steps, want the budget of %d", f.acts, MaxDriveSteps)
 	}
 }
 
 func TestDriveAsksAgainWhenAStepDoesNotFitTheScreen(t *testing.T) {
-	r := &countingRunner{tree: placedTextArea}
+	f := &fakeScreen{tree: editorTree()}
 	missing := uiact.Step{
 		Do:       "click",
 		Target:   uiact.Selector{Role: "AXButton", Title: "Publish"},
 		Describe: "Click Publish",
 	}
-	e := &Engine{UIRunner: r, Steps: &scriptedSteps{
+	e := &Engine{UIScreen: f, Steps: &scriptedSteps{
 		answers: []synth.StepAnswer{{Step: missing}, {Step: typeIntoMessage()}},
 	}}
 
 	if _, err := e.runDrive(context.Background(), drivePlan()); err != nil {
 		t.Fatalf("runDrive: %v", err)
 	}
-	if r.runs != 1 {
-		t.Errorf("ran %d step(s); the rejected one must not reach the screen", r.runs)
+	if f.acts != 1 {
+		t.Errorf("ran %d step(s); the rejected one must not reach the screen", f.acts)
 	}
 }

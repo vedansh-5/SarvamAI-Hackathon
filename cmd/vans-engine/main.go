@@ -28,6 +28,7 @@ import (
 	"github.com/vedansh/vans/internal/rpc"
 	"github.com/vedansh/vans/internal/store"
 	"github.com/vedansh/vans/internal/synth"
+	"github.com/vedansh/vans/internal/uiact"
 )
 
 func main() {
@@ -139,7 +140,7 @@ func run() error {
 			UIActions: st,
 			Steps:     steps,
 			History:   st,
-			UIRunner:  appleevents.Osascript{},
+			UIScreen:  uiact.System{Runner: appleevents.Osascript{}},
 		},
 		Probe: probe{
 			hostPort: *hostPort,

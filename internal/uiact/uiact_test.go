@@ -12,12 +12,18 @@ func window() Tree {
 		App:    "Telegram",
 		Window: "Telegram",
 		Elements: []Element{
-			{Role: "AXTextArea", Title: "Message", Enabled: true, Path: []int{0, 1}},
-			{Role: "AXButton", Title: "Send", Enabled: true, Actions: []string{"AXPress"}, Path: []int{0, 2}},
-			{Role: "AXButton", Title: "Open", Enabled: true, Actions: []string{"AXPress"}, Path: []int{1, 0}},
-			{Role: "AXButton", Title: "Open", Enabled: true, Actions: []string{"AXPress"}, Path: []int{1, 1}},
-			{Role: "AXStaticText", Title: "Delivered", Enabled: true, Path: []int{2}},
-			{Role: "AXButton", Title: "Archive", Enabled: false, Actions: []string{"AXPress"}, Path: []int{3}},
+			{Role: "AXTextArea", Title: "Message", Enabled: true,
+				Position: []int{100, 200}, Size: []int{200, 40}, Path: []int{0, 1}},
+			{Role: "AXButton", Title: "Send", Enabled: true, Actions: []string{"AXPress"},
+				Position: []int{320, 200}, Size: []int{60, 40}, Path: []int{0, 2}},
+			{Role: "AXButton", Title: "Open", Enabled: true, Actions: []string{"AXPress"},
+				Position: []int{10, 300}, Size: []int{50, 20}, Path: []int{1, 0}},
+			{Role: "AXButton", Title: "Open", Enabled: true, Actions: []string{"AXPress"},
+				Position: []int{10, 330}, Size: []int{50, 20}, Path: []int{1, 1}},
+			{Role: "AXStaticText", Title: "Delivered", Enabled: true,
+				Position: []int{10, 360}, Size: []int{80, 16}, Path: []int{2}},
+			{Role: "AXButton", Title: "Archive", Enabled: false, Actions: []string{"AXPress"},
+				Position: []int{10, 380}, Size: []int{50, 20}, Path: []int{3}},
 		},
 	}
 }
@@ -51,15 +57,18 @@ func mentions(rs []string, want string) bool {
 }
 
 func TestAValidProgramRenders(t *testing.T) {
-	script, err := Render(send(), window())
+	script, err := RenderScreen(send(), window())
 	if err != nil {
-		t.Fatalf("Render: %v", err)
+		t.Fatalf("RenderScreen: %v", err)
 	}
-	if !strings.Contains(script, `typeInto([0,1], "AXTextArea", "Message", "on my way")`) {
-		t.Errorf("typing step missing or wrong:\n%s", script)
+	if !strings.Contains(script, "clickAt(200, 220)") {
+		t.Errorf("typing step did not click the message box:\n%s", script)
 	}
-	if !strings.Contains(script, `click([0,2], "AXButton", "Send")`) {
-		t.Errorf("click step missing or wrong:\n%s", script)
+	if !strings.Contains(script, `typeText("on my way")`) {
+		t.Errorf("typing step did not type:\n%s", script)
+	}
+	if !strings.Contains(script, "clickAt(350, 220)") {
+		t.Errorf("send step did not click Send:\n%s", script)
 	}
 }
 
@@ -77,12 +86,12 @@ func TestIndexResolvesAmbiguity(t *testing.T) {
 	p := Program{App: "Telegram", Steps: []Step{
 		{Do: "click", Target: Selector{Role: "AXButton", Title: "Open", Index: 2}},
 	}}
-	script, err := Render(p, window())
+	script, err := RenderScreen(p, window())
 	if err != nil {
-		t.Fatalf("Render: %v", err)
+		t.Fatalf("RenderScreen: %v", err)
 	}
-	if !strings.Contains(script, `click([1,1]`) {
-		t.Errorf("index picked the wrong element:\n%s", script)
+	if !strings.Contains(script, "clickAt(35, 340)") {
+		t.Errorf("index picked the wrong control:\n%s", script)
 	}
 }
 
@@ -141,13 +150,13 @@ func TestTooManyStepsAreRefused(t *testing.T) {
 func TestTextCannotCloseItsOwnLiteral(t *testing.T) {
 	p := Program{App: "Telegram", Steps: []Step{
 		{Do: "type", Target: Selector{Role: "AXTextArea", Title: "Message"},
-			Text: `"); proc.quit(); ("`},
+			Text: `"); se.keystroke("owned"); ("`},
 	}}
-	script, err := Render(p, window())
+	script, err := RenderScreen(p, window())
 	if err != nil {
-		t.Fatalf("Render: %v", err)
+		t.Fatalf("RenderScreen: %v", err)
 	}
-	if strings.Contains(script, "proc.quit();") && !strings.Contains(script, `\"`) {
+	if strings.Contains(script, `se.keystroke("owned")`) {
 		t.Errorf("text escaped its literal:\n%s", script)
 	}
 }
@@ -199,23 +208,23 @@ func TestAProgramFollowsItsControlsWhenTheyMove(t *testing.T) {
 
 	moved := window()
 	for i := range moved.Elements {
-		moved.Elements[i].Path = append([]int{4}, moved.Elements[i].Path...)
+		if len(moved.Elements[i].Position) == 2 {
+			moved.Elements[i].Position[1] += 300
+		}
 	}
 
-	script, err := Render(p, moved)
+	script, err := RenderScreen(p, moved)
 	if err != nil {
-		t.Fatalf("Render against the rearranged window: %v", err)
+		t.Fatalf("RenderScreen against the moved window: %v", err)
 	}
-	if !strings.Contains(script, `typeInto([4,0,1]`) {
+	if !strings.Contains(script, "clickAt(200, 520)") {
 		t.Errorf("typing did not follow its control:\n%s", script)
 	}
-	if !strings.Contains(script, `click([4,0,2]`) {
+	if !strings.Contains(script, "clickAt(350, 520)") {
 		t.Errorf("the click did not follow its control:\n%s", script)
 	}
 }
 
-// A control that is gone is refused rather than resolved to whatever now sits
-// at the remembered position.
 func TestAProgramIsRefusedWhenItsControlIsGone(t *testing.T) {
 	gone := window()
 	gone.Elements = gone.Elements[1:]

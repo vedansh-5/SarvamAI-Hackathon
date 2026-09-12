@@ -9,7 +9,7 @@ import (
 )
 
 type AppSink struct {
-	Runner uiact.Runner
+	Screen uiact.Screen
 
 	Self string
 }
@@ -30,11 +30,11 @@ func (s AppSink) self() string {
 }
 
 func (s AppSink) Write(ctx context.Context, doc Document) (Receipt, error) {
-	if s.Runner == nil {
+	if s.Screen == nil {
 		return Receipt{}, fmt.Errorf("engine: this build cannot type into another application")
 	}
 
-	app, err := uiact.Frontmost(ctx, s.Runner)
+	app, err := s.Screen.Frontmost(ctx)
 	if err != nil {
 		return Receipt{}, err
 	}
@@ -43,7 +43,7 @@ func (s AppSink) Write(ctx context.Context, doc Document) (Receipt, error) {
 			"engine: VANS is the application in front, so there is nothing behind it to type into")
 	}
 
-	tree, err := uiact.Capture(ctx, s.Runner, app)
+	tree, err := s.Screen.Capture(ctx, app)
 	if err != nil {
 		return Receipt{}, err
 	}
@@ -60,9 +60,8 @@ func (s AppSink) Write(ctx context.Context, doc Document) (Receipt, error) {
 		Describe: fmt.Sprintf("Type the answer into the %s in %s", target.Role, app),
 	}}}
 
-	receipt, err := uiact.Run(ctx, s.Runner, program, tree)
-	if err != nil {
+	if err := s.Screen.Act(ctx, program, tree); err != nil {
 		return Receipt{}, err
 	}
-	return Receipt{Title: app, Verified: receipt.Verified}, nil
+	return Receipt{Title: app, Verified: false}, nil
 }

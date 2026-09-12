@@ -6,6 +6,7 @@ import (
 	"os/exec"
 
 	"github.com/vedansh/vans/internal/adapter/appleevents"
+	"github.com/vedansh/vans/internal/uiact"
 	"sort"
 	"strings"
 )
@@ -149,7 +150,7 @@ func (d Document) Text() string {
 // they started it.
 func DefaultSinks(extra ...Sink) map[string]Sink {
 	out := map[string]Sink{}
-	base := []Sink{ClipboardSink{}, AppSink{Runner: appleevents.Osascript{}}}
+	base := []Sink{ClipboardSink{}, AppSink{Screen: uiact.System{Runner: appleevents.Osascript{}}}}
 	for _, s := range append(base, extra...) {
 		out[s.Destination().Name] = s
 	}

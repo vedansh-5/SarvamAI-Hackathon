@@ -5,14 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/vedansh/vans/internal/route"
 	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
 )
-
-const UIFreshness = 10 * time.Second
 
 type UIActionWriter interface {
 	WriteUIAction(ctx context.Context, req synth.UIActRequest) (uiact.Program, error)
@@ -29,12 +26,10 @@ type UIPlan struct {
 	Preview string
 
 	program uiact.Program
-	tree    uiact.Tree
-	taken   time.Time
 }
 
 func (e *Engine) canActOnUI() bool {
-	return e.UIWriter != nil && e.UIRunner != nil
+	return e.UIWriter != nil && e.UIScreen != nil
 }
 
 func (e *Engine) actOnUI(ctx context.Context, r route.Route, shape, app string) (*Plan, int, error) {
@@ -42,7 +37,7 @@ func (e *Engine) actOnUI(ctx context.Context, r route.Route, shape, app string) 
 		return nil, 0, fmt.Errorf("engine: this build cannot act through accessibility")
 	}
 
-	tree, err := uiact.Capture(ctx, e.UIRunner, app)
+	tree, err := e.UIScreen.Capture(ctx, app)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -69,8 +64,6 @@ func (e *Engine) actOnUI(ctx context.Context, r route.Route, shape, app string) 
 			App:     tree.App,
 			Preview: uiact.Preview(filled),
 			program: filled,
-			tree:    tree,
-			taken:   time.Now(),
 		},
 	}, calls, nil
 }
@@ -145,24 +138,18 @@ func (e *Engine) runUI(ctx context.Context, plan *Plan) (Receipt, error) {
 		return Receipt{}, fmt.Errorf("engine: this build cannot act through accessibility")
 	}
 
-	fresh := plan.UI.tree
-	if len(fresh.Elements) == 0 || time.Since(plan.UI.taken) > UIFreshness {
-		captured, err := uiact.Capture(ctx, e.UIRunner, plan.UI.App)
-		if err != nil {
-			return Receipt{}, err
-		}
-		fresh = captured
+	fresh, err := e.UIScreen.Capture(ctx, plan.UI.App)
+	if err != nil {
+		return Receipt{}, err
 	}
 	if err := uiact.Validate(plan.UI.program, fresh); err != nil {
 		return Receipt{}, fmt.Errorf("engine: %s's window changed after the plan was made: %w", plan.UI.App, err)
 	}
 
-	receipt, err := uiact.Run(ctx, e.UIRunner, plan.UI.program, fresh)
-	if err != nil {
+	if err := e.UIScreen.Act(ctx, plan.UI.program, fresh); err != nil {
 		return Receipt{}, err
 	}
 
-	e.logf("ran %d step(s) in %s's window, verified=%v",
-		len(plan.UI.program.Steps), plan.UI.App, receipt.Verified)
-	return Receipt{Title: plan.UI.App, Verified: receipt.Verified}, nil
+	e.logf("ran %d step(s) in %s's window", len(plan.UI.program.Steps), plan.UI.App)
+	return Receipt{Title: plan.UI.App, Verified: false}, nil
 }

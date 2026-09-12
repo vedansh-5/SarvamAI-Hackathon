@@ -110,7 +110,7 @@ type Engine struct {
 	Runner    appact.Runner
 
 	UIWriter  UIActionWriter
-	UIRunner  uiact.Runner
+	UIScreen  uiact.Screen
 	UIActions UIActionCache
 	Steps     StepWriter
 	History   History
