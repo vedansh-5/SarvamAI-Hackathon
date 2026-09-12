@@ -5,11 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/vedansh/vans/internal/route"
 	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
 )
+
+const UIFreshness = 10 * time.Second
 
 type UIActionWriter interface {
 	WriteUIAction(ctx context.Context, req synth.UIActRequest) (uiact.Program, error)
@@ -26,6 +29,8 @@ type UIPlan struct {
 	Preview string
 
 	program uiact.Program
+	tree    uiact.Tree
+	taken   time.Time
 }
 
 func (e *Engine) canActOnUI() bool {
@@ -64,6 +69,8 @@ func (e *Engine) actOnUI(ctx context.Context, r route.Route, shape, app string) 
 			App:     tree.App,
 			Preview: uiact.Preview(filled),
 			program: filled,
+			tree:    tree,
+			taken:   time.Now(),
 		},
 	}, calls, nil
 }
@@ -138,9 +145,13 @@ func (e *Engine) runUI(ctx context.Context, plan *Plan) (Receipt, error) {
 		return Receipt{}, fmt.Errorf("engine: this build cannot act through accessibility")
 	}
 
-	fresh, err := uiact.Capture(ctx, e.UIRunner, plan.UI.App)
-	if err != nil {
-		return Receipt{}, err
+	fresh := plan.UI.tree
+	if len(fresh.Elements) == 0 || time.Since(plan.UI.taken) > UIFreshness {
+		captured, err := uiact.Capture(ctx, e.UIRunner, plan.UI.App)
+		if err != nil {
+			return Receipt{}, err
+		}
+		fresh = captured
 	}
 	if err := uiact.Validate(plan.UI.program, fresh); err != nil {
 		return Receipt{}, fmt.Errorf("engine: %s's window changed after the plan was made: %w", plan.UI.App, err)

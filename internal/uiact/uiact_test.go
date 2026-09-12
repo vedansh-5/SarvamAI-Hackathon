@@ -1,6 +1,7 @@
 package uiact
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -307,5 +308,56 @@ func TestSelectorForNumbersOnlyDuplicates(t *testing.T) {
 	p := Program{App: w.App, Steps: []Step{{Do: "click", Target: w.SelectorFor(lastOpen)}}}
 	if err := Validate(p, w); err != nil {
 		t.Errorf("a selector built for a duplicate did not resolve: %v", err)
+	}
+}
+
+type replyRunner string
+
+func (r replyRunner) Run(context.Context, string) ([]byte, error) { return []byte(r), nil }
+
+func TestFrontmostReadsTheName(t *testing.T) {
+	got, err := Frontmost(context.Background(), replyRunner(`{"ok":true,"value":"Notes"}`))
+	if err != nil {
+		t.Fatalf("Frontmost: %v", err)
+	}
+	if got != "Notes" {
+		t.Errorf("got %q, want Notes", got)
+	}
+}
+
+func TestFrontmostSaysWhenNothingIsInFront(t *testing.T) {
+	_, err := Frontmost(context.Background(),
+		replyRunner(`{"ok":false,"error":"no application is in front"}`))
+	if err == nil {
+		t.Fatal("an empty answer was reported as success")
+	}
+}
+
+// The permission is the one failure with a fix the user can act on, so it has
+// to survive as itself rather than as a generic refusal.
+func TestFrontmostReportsTheMissingPermission(t *testing.T) {
+	_, err := Frontmost(context.Background(),
+		replyRunner(`{"ok":false,"error":"osascript is not allowed assistive access."}`))
+	if !errors.Is(err, ErrNoAssistiveAccess) {
+		t.Fatalf("err = %v, want the assistive access sentinel", err)
+	}
+	if Fix(err) == "" {
+		t.Error("the permission error carries no fix")
+	}
+}
+
+func TestCaptureReportsTheMissingPermission(t *testing.T) {
+	_, err := Capture(context.Background(),
+		replyRunner(`{"ok":false,"error":"osascript is not allowed assistive access."}`), "Notes")
+	if !errors.Is(err, ErrNoAssistiveAccess) {
+		t.Fatalf("err = %v, want the assistive access sentinel", err)
+	}
+}
+
+func TestCaptureReportsAWindowlessApplication(t *testing.T) {
+	_, err := Capture(context.Background(),
+		replyRunner(`{"ok":false,"error":"that application has no window open"}`), "Notes")
+	if !errors.Is(err, ErrNoWindow) {
+		t.Fatalf("err = %v, want the no-window sentinel", err)
 	}
 }

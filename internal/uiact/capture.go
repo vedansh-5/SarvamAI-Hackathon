@@ -151,9 +151,14 @@ const frontmostScript = `(function () {
     catch (e) { return JSON.stringify({ ok: false, error: String((e && e.message) || e) }); }
   }
   return reply(function () {
-    const front = se.applicationProcesses.whose({ frontmost: true })();
-    if (front.length === 0) throw new Error('no application is in front');
-    return String(front[0].name());
+    let front = [];
+    try { front = se.applicationProcesses.whose({ frontmost: true })(); } catch (e) {}
+    if (front.length > 0) return String(front[0].name());
+    const procs = se.applicationProcesses();
+    for (let i = 0; i < procs.length; i++) {
+      try { if (procs[i].frontmost()) return String(procs[i].name()); } catch (e) {}
+    }
+    throw new Error('no application is in front');
   });
 })();
 `

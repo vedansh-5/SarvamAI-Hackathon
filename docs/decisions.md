@@ -1300,14 +1300,23 @@ Where several controls share a role and a title, the tree numbers them and the
 program has to say which one it means.
 
 **Resolved fresh, never remembered.** A control is reached by its index path,
-which is exact and cheap, but the path is not part of the program. The window
-is captured again when the plan is confirmed, the program is re-checked
-against that capture, and the paths are worked out from it. A window that was
-rearranged between the plan and the confirmation is followed rather than
-refused; a control that has genuinely gone is refused rather than resolved to
-whatever slid into its position. Clicking the wrong button reports success
-exactly as cheerfully as clicking the right one, which is why the check is on
-the role and the title and never on the position.
+which is exact and cheap, but the path is not part of the program. The paths
+are worked out from a capture, and the program is re-checked against that
+capture before anything runs. A window that was rearranged between the plan
+and the confirmation is followed rather than refused; a control that has
+genuinely gone is refused rather than resolved to whatever slid into its
+position. Clicking the wrong button reports success exactly as cheerfully as
+clicking the right one, which is why the check is on the role and the title
+and never on the position.
+
+**The capture from preparing is reused while it is seconds old.** Reading a
+window costs around twenty seconds, and preparing a plan has just done it, so
+reading it again to confirm the same plan would make one action cost that
+twice. Within ten seconds the tree from preparing is used as it stands; past
+that it is read again. What makes the reuse safe is not the clock but the
+script: every step re-checks the role and the title at its path as it runs, so
+a tree that went stale in those seconds makes the step refuse rather than press
+whatever is now in that position.
 
 **It caches, because the program is a shape after all.** The first cut of this
 tier cached nothing, reasoning that a control is addressed by an index path,
@@ -1413,3 +1422,14 @@ what D-039 refuses. Turning a warm shape back into a sentence a person would
 recognise means storing what they typed, which is the most sensitive thing
 VANS would hold. That is a decision about retention, not a feature to slip in
 behind one, so it waits for an explicit answer.
+
+**A dead end worth naming, so it is not tried twice.** `entireContents()` looks
+like the answer to the round trips: one Apple event for every descendant of a
+window. It is not. What comes back is a plain array of specifiers rather than a
+collection, so it answers no bulk property read — `role()` on it is not a
+function — and every attribute goes back to one event per element, which is the
+cost being avoided. Measured against an Electron window it also returned
+nothing at all, for the same reason Chrome does: those applications do not
+publish a tree until something convinces them to. If this ever needs to be
+faster, the saving is in walking fewer containers, or in the C API, and not
+here.
