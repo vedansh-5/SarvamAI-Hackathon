@@ -6,13 +6,15 @@ import (
 )
 
 type Element struct {
-	Role    string   `json:"role"`
-	Title   string   `json:"title,omitempty"`
-	Value   string   `json:"value,omitempty"`
-	Enabled bool     `json:"enabled"`
-	Focused bool     `json:"focused,omitempty"`
-	Actions []string `json:"actions,omitempty"`
-	Path    []int    `json:"path"`
+	Role     string   `json:"role"`
+	Title    string   `json:"title,omitempty"`
+	Value    string   `json:"value,omitempty"`
+	Enabled  bool     `json:"enabled"`
+	Focused  bool     `json:"focused,omitempty"`
+	Position []int    `json:"position,omitempty"`
+	Size     []int    `json:"size,omitempty"`
+	Actions  []string `json:"actions,omitempty"`
+	Path     []int    `json:"path"`
 }
 
 type Tree struct {
@@ -168,4 +170,14 @@ func (t Tree) TypingTarget() (Element, string) {
 			"%d controls can hold typed text and none of them has the cursor, "+
 				"so there is no way to say which one was meant", len(typeables))
 	}
+}
+
+func (e Element) Center() (x, y int, ok bool) {
+	if len(e.Position) != 2 || len(e.Size) != 2 {
+		return 0, 0, false
+	}
+	if e.Size[0] <= 0 || e.Size[1] <= 0 {
+		return 0, 0, false
+	}
+	return e.Position[0] + e.Size[0]/2, e.Position[1] + e.Size[1]/2, true
 }

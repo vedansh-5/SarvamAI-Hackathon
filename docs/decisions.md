@@ -1433,3 +1433,54 @@ nothing at all, for the same reason Chrome does: those applications do not
 publish a tree until something convinces them to. If this ever needs to be
 faster, the saving is in walking fewer containers, or in the C API, and not
 here.
+
+## D-054 — Working through a task on screen, where it can be watched
+
+Every tier before this one drives an application through an interface: Apple
+events to its dictionary, JavaScript into its page, accessibility calls against
+its controls. They change things, and none of them is visible. Nothing moves,
+nothing is typed, and a request is one validated program rather than a task
+being worked through. That is the gap: a task like "reply to this and send it"
+is several steps, each one decided by what the last one put on screen.
+
+**Real input, not API calls.** A step now happens the way a person would do it:
+the pointer goes to the control and clicks, and text arrives as keystrokes.
+System Events synthesises both, so they are ordinary events as far as the
+application is concerned, and they are visible as far as the user is concerned
+— which is the whole point. Where to click comes from the same capture as
+everything else, since accessibility reports a position and a size for each
+control. A control that reports no box is refused rather than clicked at a
+guess.
+
+**One step at a time, because the screen answers back.** The model is given the
+task, what is on screen now, and what has already been done, and it chooses one
+step. Then the screen is read again. A whole sequence written up front is a
+sequence written against a screen that no longer exists by step three: the menu
+opened, the dialog appeared, the list scrolled. Deciding one step at a time is
+slower and it is the only version that is honest about what it can see.
+
+**Every step is still checked before it runs.** The tier is a loop, not a
+licence. Each step is validated against the capture it was chosen from — the
+control must exist, be enabled, match exactly one thing, and hold text if text
+is going into it (D-051). A step that fails is not executed; the model is told
+why and asked again, once. This is D-042's argument surviving contact with a
+loop: the program is data and it is checked, even when it is one step long.
+
+**Perception is the tree, not a picture.** The shell can already take a
+screenshot, and nothing consumes it: the synthesis client sends a plain string
+as message content, so images would need a different message shape and a model
+that reads them. The accessibility tree carries roles, titles, values, focus
+and now coordinates, which is what choosing a control actually requires. A
+picture would say what it looks like; the tree says what it is.
+
+**Confirmed once, then watched.** A plan says which application, the task in
+the user's words, and that it will take up to twelve steps on screen. That is
+the gate. After it, each step is logged as it happens and the panel already
+renders progress, so the run is narrated while it is visible. Twelve steps is
+where it stops and says it did not finish, rather than continuing to click.
+
+**Not yet proven.** No click and no keystroke has been synthesised on this
+machine. `se.click({ at: [x, y] })` is the documented bridge form, the
+permission is granted, and the argument above is untested against a real
+window — deliberately, because the first real click belongs in a supervised
+test rather than in a background probe.

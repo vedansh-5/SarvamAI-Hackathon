@@ -349,6 +349,8 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 		action = plan.Web.Preview
 	case plan.UI != nil:
 		action = plan.UI.Preview
+	case plan.Drive != nil:
+		action = plan.Drive.Preview
 	}
 
 	answerText := ""

@@ -110,6 +110,11 @@ func run() error {
 		uiWriter = w
 	}
 
+	var steps engine.StepWriter
+	if w, ok := synthesizer.(engine.StepWriter); ok {
+		steps = w
+	}
+
 	var answers engine.Answerer
 	if a, ok := synthesizer.(engine.Answerer); ok {
 		answers = a
@@ -132,6 +137,7 @@ func run() error {
 			Runner:    appleevents.Osascript{},
 			UIWriter:  uiWriter,
 			UIActions: st,
+			Steps:     steps,
 			UIRunner:  appleevents.Osascript{},
 		},
 		Probe: probe{

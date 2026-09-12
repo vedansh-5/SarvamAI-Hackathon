@@ -90,11 +90,14 @@ const captureScript = `(function () {
       try { kids = el.uiElements; roles = kids.role(); n = roles.length; } catch (e) { return; }
       if (!n) return;
       let titles = [], descs = [], values = [], enabled = [], focused = [];
+      let positions = [], sizes = [];
       try { titles = kids.title(); } catch (e) {}
       try { descs = kids.description(); } catch (e) {}
       try { values = kids.value(); } catch (e) {}
       try { enabled = kids.enabled(); } catch (e) {}
       try { focused = kids.focused(); } catch (e) {}
+      try { positions = kids.position(); } catch (e) {}
+      try { sizes = kids.size(); } catch (e) {}
       const mine = [];
       for (let i = 0; i < n && out.length < limit; i++) {
         try {
@@ -106,6 +109,7 @@ const captureScript = `(function () {
           out.push({
             role: r, title: title, value: value.slice(0, 120),
             enabled: enabled[i] !== false, focused: focused[i] === true,
+            position: positions[i] || null, size: sizes[i] || null,
             actions: [], path: path.concat([i])
           });
           mine.push([i, r]);

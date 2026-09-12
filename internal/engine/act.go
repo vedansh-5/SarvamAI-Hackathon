@@ -80,6 +80,12 @@ func (e *Engine) act(ctx context.Context, r route.Route, shape string) (*Plan, i
 					return plan, calls, nil
 				}
 				e.logf("could not act through %s's window: %v", name, uiErr)
+				if e.canDrive() && !errors.Is(uiErr, uiact.ErrNoAssistiveAccess) {
+					if plan, driveErr := e.driveOn(ctx, name, r.Slot("action")); driveErr == nil {
+						e.logf("%s needs more than one step; working through it on screen", name)
+						return plan, 0, nil
+					}
+				}
 				if errors.Is(uiErr, uiact.ErrNoAssistiveAccess) {
 					return nil, 0, uiErr
 				}

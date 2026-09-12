@@ -112,6 +112,7 @@ type Engine struct {
 	UIWriter  UIActionWriter
 	UIRunner  uiact.Runner
 	UIActions UIActionCache
+	Steps     StepWriter
 
 	// Model labels which backend wrote a program, stored as provenance.
 	Model string
@@ -238,6 +239,8 @@ type Plan struct {
 	Action *ActionPlan
 
 	UI *UIPlan
+
+	Drive *DrivePlan
 
 	key       store.Key
 	programID int64
@@ -479,6 +482,11 @@ func (e *Engine) Commit(ctx context.Context, plan *Plan) (Receipt, error) {
 		return e.runUI(ctx, plan)
 	}
 
+	if plan.Drive != nil {
+		plan.committed = true
+		return e.runDrive(ctx, plan)
+	}
+
 	if plan.Action != nil {
 		// Set before the call, not after: if the program panics or the
 		// process dies mid-flight the plan is still spent, because the change
@@ -544,6 +552,10 @@ func (p *Plan) NeedsCommit() bool {
 	}
 
 	if p.UI != nil {
+		return true
+	}
+
+	if p.Drive != nil {
 		return true
 	}
 	return p.Destination != "" && p.Destination != PanelDestination

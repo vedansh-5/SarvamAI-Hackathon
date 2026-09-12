@@ -361,3 +361,62 @@ func TestCaptureReportsAWindowlessApplication(t *testing.T) {
 		t.Fatalf("err = %v, want the no-window sentinel", err)
 	}
 }
+
+func placed(role, title string, x, y, w, h int) Element {
+	return Element{
+		Role: role, Title: title, Enabled: true,
+		Position: []int{x, y}, Size: []int{w, h}, Path: []int{0},
+	}
+}
+
+func TestCenterIsTheMiddleOfTheControl(t *testing.T) {
+	x, y, ok := placed("AXButton", "Send", 100, 200, 80, 40).Center()
+	if !ok || x != 140 || y != 220 {
+		t.Errorf("centre = (%d,%d) ok=%v, want (140,220)", x, y, ok)
+	}
+}
+
+func TestCenterRefusesAControlWithNoBox(t *testing.T) {
+	if _, _, ok := (Element{Role: "AXButton"}).Center(); ok {
+		t.Error("a control with no position reported a centre")
+	}
+	zero := placed("AXButton", "Send", 10, 10, 0, 0)
+	if _, _, ok := zero.Center(); ok {
+		t.Error("a control with no size reported a centre")
+	}
+}
+
+func TestRenderScreenClicksWhereTheControlIs(t *testing.T) {
+	tree := Tree{App: "Editor", Window: "Editor", Elements: []Element{
+		placed("AXTextArea", "Message", 100, 200, 80, 40),
+	}}
+	tree.Elements[0].Path = []int{0, 1}
+
+	p := Program{App: "Editor", Steps: []Step{
+		{Do: "type", Target: Selector{Role: "AXTextArea", Title: "Message"}, Text: "hello"},
+	}}
+
+	script, err := RenderScreen(p, tree)
+	if err != nil {
+		t.Fatalf("RenderScreen: %v", err)
+	}
+	if !strings.Contains(script, "clickAt(140, 220)") {
+		t.Errorf("did not click the control's centre:\n%s", script)
+	}
+	if !strings.Contains(script, `typeText("hello")`) {
+		t.Errorf("did not type the text:\n%s", script)
+	}
+}
+
+func TestRenderScreenRefusesAControlItCannotSee(t *testing.T) {
+	tree := Tree{App: "Editor", Window: "Editor", Elements: []Element{
+		{Role: "AXTextArea", Title: "Message", Enabled: true, Path: []int{0}},
+	}}
+	p := Program{App: "Editor", Steps: []Step{
+		{Do: "click", Target: Selector{Role: "AXTextArea", Title: "Message"}},
+	}}
+
+	if _, err := RenderScreen(p, tree); err == nil {
+		t.Fatal("a control with no position on screen was clicked anyway")
+	}
+}
