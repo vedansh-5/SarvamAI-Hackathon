@@ -1715,3 +1715,38 @@ others; an unknown name still falls through to the tiers below. The table is a
 list of addresses, which is the honest shape for something that cannot be
 discovered — there is no way to ask a desktop application where its web version
 lives.
+
+## D-061 — Answering about a window, and saying up front what is missing
+
+Two gaps that only showed up once the tiers below them worked.
+
+**"What does this say" only worked in a browser.** The request for the thing in
+front went through a reader that is the browser and nothing else, so asking
+about a note, a message or a PDF had nothing to read. That was never a decision;
+it was what existed when the question was first asked. Reading a window costs
+about a tenth of a second now (D-057), so the request looks at what is actually
+in front: if the frontmost application is not a browser, its window is captured
+and the answer is grounded in the controls that carry something — their kind,
+their label, and their text.
+
+It costs no synthesis to extract. There is no selector program, because there is
+no page: the tree is already a list of things with labels, which is what rows
+are. The only model call is the answer itself.
+
+**The text travels here, and not when acting.** D-058 withholds what a control
+holds, because choosing something to click needs its role and its label and
+nothing else. A question *about* the contents is the case that argument does not
+cover — the text is the answer, and withholding it would mean answering from
+labels alone. So values travel on the reading path and stay home on the acting
+path. That is the distinction worth keeping: not whether the data is sensitive,
+but whether the request is about it.
+
+**Accessibility is now reported before it is needed.** Nothing said the
+permission was missing until a task failed halfway through, which reads as the
+runtime being broken rather than a switch being off. Preflight asks whether the
+trust is in place and offers the fix. Asking does not prompt for it —
+`AXIsProcessTrusted` reports, and only the variant with options puts a dialog on
+screen — which is what makes it safe where probing Notes is not (D-032). The
+check is not required: reading pages, searching, and answering all work without
+it, and a build that cannot reach a window should say so rather than refuse to
+start.

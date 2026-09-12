@@ -30,6 +30,11 @@ type Prober interface {
 	// LLMConfigured reports whether a synthesis backend can be built.
 	LLMConfigured() error
 
+	// AccessibilityGranted reports whether VANS may read and drive other
+	// applications' windows. Asking does not raise a prompt, so unlike Notes
+	// this one is safe in an automatic preflight.
+	AccessibilityGranted() error
+
 	// NotesAccessible reports whether Notes can be driven. This one launches
 	// Notes.app and can raise a permission prompt, so it is only called when
 	// the user asks for it — never during an automatic preflight.
@@ -189,6 +194,10 @@ func (s *Server) preflight(ctx context.Context) (PreflightResult, error) {
 			Label:    "Chrome debugging endpoint",
 			Required: true,
 		},
+		{
+			Name:  "accessibility",
+			Label: "Accessibility access",
+		},
 	}
 
 	if err := s.Probe.LLMConfigured(); err != nil {
@@ -205,6 +214,14 @@ func (s *Server) preflight(ctx context.Context) (PreflightResult, error) {
 	} else {
 		checks[1].OK = true
 		checks[1].Detail = "Connected."
+	}
+
+	if err := s.Probe.AccessibilityGranted(); err != nil {
+		checks[2].Detail = err.Error()
+		checks[2].Fix = uiact.Fix(err)
+	} else {
+		checks[2].OK = true
+		checks[2].Detail = "Granted."
 	}
 
 	// Notes is deliberately absent. Probing it launches the app and can raise

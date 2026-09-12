@@ -76,3 +76,42 @@ func TestAButtonsOwnWordsAreItsLabel(t *testing.T) {
 		t.Errorf("a button's text is how a person names it:\n%s", got)
 	}
 }
+
+const noisyPage = `<html><body>
+  <form>
+    <input type="hidden" name="csrf" value="abc123">
+    <input type="hidden" name="we_started_at">
+    <input id="q" type="text" name="q" placeholder="Search">
+    <button class="btn-module-scss__aX91kZ__chip btn-module-scss__aX91kZ__chipSelected" type="submit">Go</button>
+    <input id="locked" type="text" name="locked" disabled>
+    <span aria-hidden="true" role="button">decorative</span>
+  </form>
+</body></html>`
+
+func TestHiddenAndDisabledControlsAreNotOffered(t *testing.T) {
+	got := controlsFor(t, noisyPage)
+
+	for _, unwanted := range []string{"csrf", "we_started_at", "locked", "decorative"} {
+		if strings.Contains(got, unwanted) {
+			t.Errorf("offered something nobody can click: %q\n%s", unwanted, got)
+		}
+	}
+	if !strings.Contains(got, "#q") {
+		t.Errorf("the real control is missing:\n%s", got)
+	}
+}
+
+func TestSelectorsStayShortEnoughToRead(t *testing.T) {
+	doc, err := Parse(noisyPage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range Controls(doc) {
+		if len(c.Selector) > MaxSelectorLength {
+			t.Errorf("selector is %d characters: %s", len(c.Selector), c.Selector)
+		}
+		if strings.Contains(c.Selector, "__") {
+			t.Errorf("selector leans on a generated class name: %s", c.Selector)
+		}
+	}
+}

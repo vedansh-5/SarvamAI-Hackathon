@@ -16,6 +16,7 @@ import (
 	"github.com/vedansh/vans/internal/extract"
 	"github.com/vedansh/vans/internal/store"
 	"github.com/vedansh/vans/internal/synth"
+	"github.com/vedansh/vans/internal/uiact"
 )
 
 const page = `<!doctype html><html><body><div id="main"><div class="results">
@@ -72,11 +73,13 @@ type fakeProbe struct {
 	browserErr error
 	llmErr     error
 	notesErr   error
+	accessErr  error
 	notesCalls atomic.Int32
 }
 
 func (p *fakeProbe) BrowserReachable(context.Context) error { return p.browserErr }
 func (p *fakeProbe) LLMConfigured() error                   { return p.llmErr }
+func (p *fakeProbe) AccessibilityGranted() error            { return p.accessErr }
 func (p *fakeProbe) NotesAccessible(context.Context) error {
 	p.notesCalls.Add(1)
 	return p.notesErr
@@ -671,5 +674,46 @@ func TestScreenContextHandlesFrontmostApp(t *testing.T) {
 	}
 	if res.Target != "Google Chrome" {
 		t.Errorf("expected target 'Google Chrome', got %q", res.Target)
+	}
+}
+
+func TestPreflightReportsAccessibilityWithItsFix(t *testing.T) {
+	s := run(t, func(_ *Server, sess *session) {
+		sess.probe.accessErr = uiact.ErrNoAssistiveAccess
+	}, req(1, "preflight", nil))
+
+	res := decode[PreflightResult](t, s.ok(1))
+
+	var found *Check
+	for i := range res.Checks {
+		if res.Checks[i].Name == "accessibility" {
+			found = &res.Checks[i]
+		}
+	}
+	if found == nil {
+		t.Fatal("preflight says nothing about accessibility")
+	}
+	if found.OK {
+		t.Error("reported granted while the probe refused")
+	}
+	if found.Fix == "" {
+		t.Error("no fix offered for a permission the user can grant")
+	}
+	if found.Required {
+		t.Error("accessibility is one tier of several, not a prerequisite for starting")
+	}
+	if !res.Ready {
+		t.Error("a missing optional permission blocked startup")
+	}
+}
+
+func TestPreflightReportsAccessibilityWhenGranted(t *testing.T) {
+	s := run(t, nil, req(1, "preflight", nil))
+
+	res := decode[PreflightResult](t, s.ok(1))
+	for _, c := range res.Checks {
+		if c.Name == "accessibility" && !c.OK {
+			t.Errorf("reported missing while the probe granted it: %+v", c)
+		}
 	}
 }

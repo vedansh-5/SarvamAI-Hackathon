@@ -164,6 +164,16 @@ type probe struct {
 
 func (p probe) LLMConfigured() error { return p.synthErr }
 
+// AccessibilityGranted asks whether the trust is in place, which does not
+// prompt for it. Nothing here asks for the permission: a window opening is not
+// a reason to put a system dialog in front of somebody (D-032).
+func (p probe) AccessibilityGranted() error {
+	if uiact.Trusted() {
+		return nil
+	}
+	return uiact.ErrNoAssistiveAccess
+}
+
 // BrowserReachable prefers the browser the user is actually in, and only
 // falls back to reporting on the debugged one. A ready live browser needs no
 // setup at all, so saying "start Chrome with these flags" when it is right

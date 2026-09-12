@@ -31,6 +31,19 @@ var webVersions = map[string]string{
 	"trello":    "https://trello.com",
 	"asana":     "https://app.asana.com",
 	"messenger": "https://www.messenger.com",
+
+	"teams":          "https://teams.microsoft.com",
+	"microsoftteams": "https://teams.microsoft.com",
+	"outlook":        "https://outlook.office.com/mail/",
+	"chatgpt":        "https://chatgpt.com",
+	"todoist":        "https://app.todoist.com/app",
+	"clickup":        "https://app.clickup.com",
+	"zoom":           "https://app.zoom.us/wc",
+	"youtube":        "https://www.youtube.com",
+	"drive":          "https://drive.google.com",
+	"googledrive":    "https://drive.google.com",
+	"airtable":       "https://airtable.com",
+	"linkedin":       "https://www.linkedin.com",
 }
 
 func webVersionOf(app string) (string, bool) {

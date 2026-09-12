@@ -12,6 +12,8 @@ const MaxControls = 120
 
 const MaxControlsBytes = 12000
 
+const MaxSelectorLength = 120
+
 type Control struct {
 	Selector string
 	Kind     string
@@ -28,6 +30,9 @@ func Controls(doc *html.Node) []Control {
 	for _, n := range cascadia.QueryAll(doc, interactive) {
 		if len(out) >= MaxControls {
 			break
+		}
+		if !offerable(n) {
+			continue
 		}
 		sel := selectorFor(doc, n)
 		if sel == "" || seen[sel] {
@@ -115,13 +120,14 @@ func selectorFor(doc *html.Node, n *html.Node) string {
 	if classes := strings.Fields(attr(n, "class")); len(classes) > 0 {
 		var parts []string
 		for _, c := range classes {
-			if safeValue(c) {
-				parts = append(parts, "."+c)
+			if len(parts) == 3 || !safeValue(c) || generatedClass(c) {
+				continue
 			}
+			parts = append(parts, "."+c)
 		}
 		if len(parts) > 0 {
 			sel := n.Data + strings.Join(parts, "")
-			if matchesOne(doc, sel) {
+			if len(sel) <= MaxSelectorLength && matchesOne(doc, sel) {
 				return sel
 			}
 		}
@@ -174,4 +180,39 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n] + "…"
+}
+
+func offerable(n *html.Node) bool {
+	if strings.EqualFold(attr(n, "type"), "hidden") {
+		return false
+	}
+	if strings.EqualFold(attr(n, "aria-hidden"), "true") {
+		return false
+	}
+	if _, disabled := lookup(n, "disabled"); disabled {
+		return false
+	}
+	return true
+}
+
+func lookup(n *html.Node, key string) (string, bool) {
+	for _, a := range n.Attr {
+		if strings.EqualFold(a.Key, key) {
+			return a.Val, true
+		}
+	}
+	return "", false
+}
+
+func generatedClass(c string) bool {
+	if len(c) > 30 || strings.Contains(c, "__") {
+		return true
+	}
+	digits := 0
+	for _, r := range c {
+		if r >= '0' && r <= '9' {
+			digits++
+		}
+	}
+	return digits >= 4
 }

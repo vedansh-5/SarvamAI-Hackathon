@@ -3,10 +3,13 @@ package engine
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/vedansh/vans/internal/extract"
+	"github.com/vedansh/vans/internal/runner"
 	"github.com/vedansh/vans/internal/store"
+	"github.com/vedansh/vans/internal/uiact"
 )
 
 // FrontReader reads the page the user is looking at, rather than the one the
@@ -22,6 +25,10 @@ type FrontReader interface {
 // state that made the page worth asking about: a search they had refined, a
 // list they had filtered, anything behind a login.
 func (e *Engine) here(ctx context.Context, intent string) (*Plan, error) {
+	if plan, ok := e.hereInFrontApp(ctx, intent); ok {
+		return plan, nil
+	}
+
 	reader, ok := e.Browser.(FrontReader)
 	if !ok {
 		if lf, isLive := e.Browser.(*LiveFirst); isLive {
@@ -56,4 +63,56 @@ func (e *Engine) here(ctx context.Context, intent string) (*Plan, error) {
 		URL:    pageURL,
 		Intent: intent,
 	})
+}
+
+var windowFields = []string{"kind", "label", "text"}
+
+func (e *Engine) hereInFrontApp(ctx context.Context, intent string) (*Plan, bool) {
+	if e.UIScreen == nil {
+		return nil, false
+	}
+
+	app, err := e.UIScreen.Frontmost(ctx)
+	if err != nil || strings.TrimSpace(app) == "" {
+		return nil, false
+	}
+	if browsers[strings.ToLower(strings.TrimSpace(app))] {
+		return nil, false
+	}
+
+	tree, err := e.UIScreen.Capture(ctx, app)
+	if err != nil {
+		e.logf("could not read %s's window: %v", app, err)
+		return nil, false
+	}
+
+	rows := windowRows(tree)
+	if len(rows) == 0 {
+		return nil, false
+	}
+
+	title := strings.TrimSpace(tree.Window)
+	if title == "" {
+		title = app
+	}
+	e.logf("reading %s, window %q, %d readable controls", app, title, len(rows))
+
+	return &Plan{
+		Task:   Task{Intent: intent, Title: title},
+		Fields: windowFields,
+		Rows:   rows,
+	}, true
+}
+
+func windowRows(t uiact.Tree) []runner.Row {
+	var rows []runner.Row
+	for _, el := range t.Elements {
+		label := strings.TrimSpace(el.Title)
+		text := strings.TrimSpace(el.Value)
+		if label == "" && text == "" {
+			continue
+		}
+		rows = append(rows, runner.Row{"kind": el.Role, "label": label, "text": text})
+	}
+	return rows
 }

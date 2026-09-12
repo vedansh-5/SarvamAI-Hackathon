@@ -2,6 +2,8 @@ package engine
 
 import (
 	"context"
+	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -80,6 +82,25 @@ func TestWebVersionOfKnowsTheApplicationsWithoutTrees(t *testing.T) {
 		}
 		if ok && got == "" {
 			t.Errorf("webVersionOf(%q) returned an empty address", c.app)
+		}
+	}
+}
+
+func TestEveryWebVersionIsAUsableAddress(t *testing.T) {
+	for app, target := range webVersions {
+		if app != strings.ToLower(app) {
+			t.Errorf("key %q is not the normalised form a lookup produces", app)
+		}
+		u, err := url.Parse(target)
+		if err != nil {
+			t.Errorf("%s: %q does not parse: %v", app, target, err)
+			continue
+		}
+		if u.Scheme != "https" {
+			t.Errorf("%s: %q is not https", app, target)
+		}
+		if u.Host == "" {
+			t.Errorf("%s: %q names no host", app, target)
 		}
 	}
 }

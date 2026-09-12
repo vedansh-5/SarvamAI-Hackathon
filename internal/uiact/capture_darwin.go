@@ -101,6 +101,8 @@ import (
 
 func trusted() bool { return C.axTrusted() == 1 }
 
+func Trusted() bool { return trusted() }
+
 func elementAt(pid, x, y int) (role, title string, owned bool, err error) {
 	var r, t [256]C.char
 	rc := C.axElementAt(C.pid_t(pid), C.double(x), C.double(y),
