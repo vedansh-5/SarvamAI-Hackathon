@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+
+	"github.com/vedansh/vans/internal/adapter/appleevents"
 	"sort"
 	"strings"
 )
@@ -147,7 +149,8 @@ func (d Document) Text() string {
 // they started it.
 func DefaultSinks(extra ...Sink) map[string]Sink {
 	out := map[string]Sink{}
-	for _, s := range append([]Sink{ClipboardSink{}}, extra...) {
+	base := []Sink{ClipboardSink{}, AppSink{Runner: appleevents.Osascript{}}}
+	for _, s := range append(base, extra...) {
 		out[s.Destination().Name] = s
 	}
 	return out

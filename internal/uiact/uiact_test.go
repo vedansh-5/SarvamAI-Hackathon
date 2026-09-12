@@ -223,3 +223,89 @@ func TestAProgramIsRefusedWhenItsControlIsGone(t *testing.T) {
 		t.Fatal("a program whose control disappeared was accepted")
 	}
 }
+
+func typingTree(controls ...Element) Tree {
+	return Tree{App: "Editor", Window: "Editor", Elements: controls}
+}
+
+func TestTypingTargetPrefersTheControlWithTheCursor(t *testing.T) {
+	tree := typingTree(
+		Element{Role: "AXTextField", Title: "Search", Enabled: true, Path: []int{0}},
+		Element{Role: "AXTextArea", Title: "Body", Enabled: true, Focused: true, Path: []int{1}},
+	)
+	got, why := tree.TypingTarget()
+	if why != "" {
+		t.Fatalf("refused a window with a cursor in it: %s", why)
+	}
+	if got.Title != "Body" {
+		t.Errorf("picked %q, want the control holding the cursor", got.Title)
+	}
+}
+
+func TestTypingTargetTakesTheOnlyCandidate(t *testing.T) {
+	tree := typingTree(
+		Element{Role: "AXTextArea", Title: "Body", Enabled: true, Path: []int{0}},
+		Element{Role: "AXButton", Title: "Send", Enabled: true, Path: []int{1}},
+	)
+	got, why := tree.TypingTarget()
+	if why != "" || got.Title != "Body" {
+		t.Errorf("got %+v, why %q", got, why)
+	}
+}
+
+// Two places the text could go and no cursor is exactly the case a
+// confirmation cannot catch: the preview names one and the other is filled.
+func TestTypingTargetRefusesWhenSeveralCouldBeMeant(t *testing.T) {
+	tree := typingTree(
+		Element{Role: "AXTextField", Title: "First", Enabled: true, Path: []int{0}},
+		Element{Role: "AXTextField", Title: "Second", Enabled: true, Path: []int{1}},
+	)
+	if _, why := tree.TypingTarget(); why == "" {
+		t.Fatal("two candidates and no cursor was accepted")
+	}
+}
+
+func TestTypingTargetIgnoresWhatCannotBeTypedInto(t *testing.T) {
+	tree := typingTree(
+		Element{Role: "AXTextField", Title: "Locked", Enabled: false, Path: []int{0}},
+		Element{Role: "AXTextArea", Title: "Body", Enabled: true, Path: []int{1}},
+	)
+	got, why := tree.TypingTarget()
+	if why != "" || got.Title != "Body" {
+		t.Errorf("got %+v, why %q", got, why)
+	}
+}
+
+func TestTypingTargetSaysWhenNothingCanHoldText(t *testing.T) {
+	tree := typingTree(Element{Role: "AXButton", Title: "Send", Enabled: true, Path: []int{0}})
+	if _, why := tree.TypingTarget(); why == "" {
+		t.Fatal("a window with no text control was accepted")
+	}
+}
+
+// A selector is only numbered when the number is what distinguishes it.
+func TestSelectorForNumbersOnlyDuplicates(t *testing.T) {
+	w := window()
+
+	var lastOpen, send Element
+	for _, el := range w.Elements {
+		if el.Title == "Open" {
+			lastOpen = el
+		}
+		if el.Title == "Send" {
+			send = el
+		}
+	}
+
+	if got := w.SelectorFor(lastOpen); got.Index != 2 {
+		t.Errorf("second duplicate got index %d, want 2", got.Index)
+	}
+	if got := w.SelectorFor(send); got.Index != 0 {
+		t.Errorf("a unique control was numbered: %+v", got)
+	}
+
+	p := Program{App: w.App, Steps: []Step{{Do: "click", Target: w.SelectorFor(lastOpen)}}}
+	if err := Validate(p, w); err != nil {
+		t.Errorf("a selector built for a duplicate did not resolve: %v", err)
+	}
+}

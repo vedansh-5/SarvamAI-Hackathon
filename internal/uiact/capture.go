@@ -89,11 +89,12 @@ const captureScript = `(function () {
       let kids, roles, n = 0;
       try { kids = el.uiElements; roles = kids.role(); n = roles.length; } catch (e) { return; }
       if (!n) return;
-      let titles = [], descs = [], values = [], enabled = [];
+      let titles = [], descs = [], values = [], enabled = [], focused = [];
       try { titles = kids.title(); } catch (e) {}
       try { descs = kids.description(); } catch (e) {}
       try { values = kids.value(); } catch (e) {}
       try { enabled = kids.enabled(); } catch (e) {}
+      try { focused = kids.focused(); } catch (e) {}
       const mine = [];
       for (let i = 0; i < n && out.length < limit; i++) {
         try {
@@ -104,7 +105,8 @@ const captureScript = `(function () {
           const value = (v === null || v === undefined) ? '' : String(v);
           out.push({
             role: r, title: title, value: value.slice(0, 120),
-            enabled: enabled[i] !== false, actions: [], path: path.concat([i])
+            enabled: enabled[i] !== false, focused: focused[i] === true,
+            actions: [], path: path.concat([i])
           });
           mine.push([i, r]);
         } catch (e) {}
@@ -118,6 +120,40 @@ const captureScript = `(function () {
     let title = '';
     try { title = String(win.title() || ''); } catch (e) {}
     return { app: String(proc.name()), window: title, elements: out };
+  });
+})();
+`
+
+func Frontmost(ctx context.Context, r Runner) (string, error) {
+	out, err := r.Run(ctx, frontmostScript)
+	if err != nil {
+		return "", classify(err.Error(), err)
+	}
+
+	var envelope struct {
+		OK    bool   `json:"ok"`
+		Error string `json:"error"`
+		Value string `json:"value"`
+	}
+	if err := json.Unmarshal(out, &envelope); err != nil {
+		return "", fmt.Errorf("uiact: unreadable reply (output %q): %w", truncate(string(out), 200), err)
+	}
+	if !envelope.OK {
+		return "", classify(envelope.Error, fmt.Errorf("uiact: %s", envelope.Error))
+	}
+	return envelope.Value, nil
+}
+
+const frontmostScript = `(function () {
+  const se = Application('System Events');
+  function reply(f) {
+    try { return JSON.stringify({ ok: true, value: f() }); }
+    catch (e) { return JSON.stringify({ ok: false, error: String((e && e.message) || e) }); }
+  }
+  return reply(function () {
+    const front = se.applicationProcesses.whose({ frontmost: true })();
+    if (front.length === 0) throw new Error('no application is in front');
+    return String(front[0].name());
   });
 })();
 `

@@ -10,6 +10,7 @@ type Element struct {
 	Title   string   `json:"title,omitempty"`
 	Value   string   `json:"value,omitempty"`
 	Enabled bool     `json:"enabled"`
+	Focused bool     `json:"focused,omitempty"`
 	Actions []string `json:"actions,omitempty"`
 	Path    []int    `json:"path"`
 }
@@ -109,4 +110,62 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n] + "…"
+}
+
+func samePath(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func (t Tree) SelectorFor(el Element) Selector {
+	sel := Selector{Role: el.Role, Title: el.Title}
+
+	var seen, total int
+	for _, other := range t.Elements {
+		if role(other.Role) != role(el.Role) {
+			continue
+		}
+		if !strings.EqualFold(strings.TrimSpace(other.Title), strings.TrimSpace(el.Title)) {
+			continue
+		}
+		total++
+		if samePath(other.Path, el.Path) {
+			seen = total
+		}
+	}
+	if total > 1 && seen > 0 {
+		sel.Index = seen
+	}
+	return sel
+}
+
+func (t Tree) TypingTarget() (Element, string) {
+	var typeables []Element
+	for _, el := range t.Elements {
+		if !el.Typeable() || !el.Enabled {
+			continue
+		}
+		if el.Focused {
+			return el, ""
+		}
+		typeables = append(typeables, el)
+	}
+
+	switch len(typeables) {
+	case 0:
+		return Element{}, "nothing on screen can hold typed text"
+	case 1:
+		return typeables[0], ""
+	default:
+		return Element{}, fmt.Sprintf(
+			"%d controls can hold typed text and none of them has the cursor, "+
+				"so there is no way to say which one was meant", len(typeables))
+	}
 }

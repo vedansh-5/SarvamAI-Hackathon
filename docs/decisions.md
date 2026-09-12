@@ -1349,3 +1349,33 @@ background application is refused with a reason rather than acted on blind.
 It also means the tier cannot be exercised against a safe application without
 that application being the one on screen, which is why typing through it is
 recorded here as unproven rather than quietly skipped.
+
+## D-052 — An answer that goes into the application in front
+
+B-002 asked for a destination that puts the answer into another application,
+the way Note puts it into Notes. "Whatever application makes sense" was never
+answerable in the abstract; what makes it answerable is D-051, which reaches
+exactly one application — the one in front. So that is what this destination
+means, and it is also what a person means when they say put it here.
+
+**The panel not taking focus is what makes it possible.** The overlay is a
+non-activating panel, so the application the user was working in stays the
+frontmost one while they type into VANS. Without that there would be nothing
+behind to write to. When VANS itself does come out in front, the sink refuses
+and says so, rather than typing the answer into its own window.
+
+**The cursor decides where the text lands.** The control holding focus gets it.
+With nothing focused and exactly one control on screen that can hold text, that
+one gets it. With several and no cursor, it refuses — that is the case a
+confirmation cannot save you from, because the preview names one control and a
+different one is filled, and a person confirming a plan reads the sentence, not
+the window.
+
+**Gated and verified.** Typing into somebody's editor changes something outside
+VANS, so it goes through the confirmation like the clipboard does, and the
+value is read back afterwards to say whether it landed (D-004). Reading back
+what was typed is the one verification this tier can honestly offer.
+
+**No change to the window.** Destinations are asked of the runtime rather than
+listed in the frontend, so registering the sink is what made the button appear
+— and a build that cannot reach the accessibility tree simply does not offer it.

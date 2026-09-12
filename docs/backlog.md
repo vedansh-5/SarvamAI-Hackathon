@@ -49,7 +49,8 @@ dynamic.
 
 The design canvas has four destinations: Here, Clipboard, Note, App. Three
 exist. "App" — put this answer into whatever application makes sense, the way
-Note puts it into Notes — does not.
+Note puts it into Notes — is built, as the text control in the application
+in front (D-052).
 
 The window asks the runtime what destinations exist rather than listing them
 (`destinations` in `internal/rpc/server.go`), so this cannot be faked in the
