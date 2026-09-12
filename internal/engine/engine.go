@@ -113,6 +113,7 @@ type Engine struct {
 	UIRunner  uiact.Runner
 	UIActions UIActionCache
 	Steps     StepWriter
+	History   History
 
 	// Model labels which backend wrote a program, stored as provenance.
 	Model string

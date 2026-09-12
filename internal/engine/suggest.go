@@ -1,9 +1,11 @@
 package engine
 
 import (
+	"context"
 	"strings"
 
 	"github.com/vedansh/vans/internal/route"
+	"github.com/vedansh/vans/internal/store"
 )
 
 type Suggestion struct {
@@ -23,7 +25,12 @@ var browsers = map[string]bool{
 	"brave browser":  true,
 }
 
-func (e *Engine) Suggestions(front string) []Suggestion {
+type History interface {
+	RecordInstruction(ctx context.Context, text, kind string) error
+	RecentInstructions(ctx context.Context) ([]store.Remembered, error)
+}
+
+func (e *Engine) Suggestions(ctx context.Context, front string) []Suggestion {
 	candidates := []Suggestion{
 		{Icon: "page", Text: "what is this page about", Kind: route.KindPageHere},
 		{Icon: "search", Text: "search for noise-cancelling headphones under $200", Kind: route.KindWebSearch},
@@ -41,6 +48,39 @@ func (e *Engine) Suggestions(front string) []Suggestion {
 
 	if browsers[strings.ToLower(strings.TrimSpace(front))] {
 		out = pageFirst(out)
+	}
+	return append(e.remembered(ctx, out), out...)
+}
+
+func (e *Engine) remembered(ctx context.Context, already []Suggestion) []Suggestion {
+	if e.History == nil {
+		return nil
+	}
+
+	recent, err := e.History.RecentInstructions(ctx)
+	if err != nil {
+		e.logf("could not read what was asked before: %v", err)
+		return nil
+	}
+
+	seen := map[string]bool{}
+	for _, s := range already {
+		seen[strings.ToLower(strings.TrimSpace(s.Text))] = true
+	}
+
+	var out []Suggestion
+	for _, r := range recent {
+		key := strings.ToLower(strings.TrimSpace(r.Text))
+		if key == "" || seen[key] {
+			continue
+		}
+		seen[key] = true
+
+		s := Suggestion{Icon: "search", Text: r.Text, Kind: route.Kind(r.Kind)}
+		if !e.offers(s) {
+			continue
+		}
+		out = append(out, s)
 	}
 	return out
 }

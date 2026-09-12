@@ -138,6 +138,7 @@ func run() error {
 			UIWriter:  uiWriter,
 			UIActions: st,
 			Steps:     steps,
+			History:   st,
 			UIRunner:  appleevents.Osascript{},
 		},
 		Probe: probe{

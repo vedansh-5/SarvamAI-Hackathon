@@ -69,6 +69,12 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 		return nil, err
 	}
 
+	if e.History != nil {
+		if err := e.History.RecordInstruction(ctx, in.Instruction, string(res.Route.Kind)); err != nil {
+			e.logf("could not remember the instruction: %v", err)
+		}
+	}
+
 	switch res.Route.Kind {
 	case route.KindWebExtract:
 		plan, err := e.Prepare(ctx, Task{

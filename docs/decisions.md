@@ -1484,3 +1484,39 @@ machine. `se.click({ at: [x, y] })` is the documented bridge form, the
 permission is granted, and the argument above is untested against a real
 window — deliberately, because the first real click belongs in a supervised
 test rather than in a background probe.
+
+## D-055 — Remembering the last three instructions
+
+D-053 stopped short of the thing B-001 actually wanted. Suggesting what is
+already warm in the cache is the strongest signal there is — a warm shape costs
+no model call — but the store keeps shapes and never the literals that filled
+them, so a warm entry reads `search {s0}` and cannot be shown to anyone. Making
+it readable means keeping what the user typed, and that was a decision to ask
+for rather than to make quietly. The answer was the last three.
+
+**A cap, not a policy.** Three is enough that the panel leads with something the
+person actually wants and small enough that it is not a record of anyone's day.
+It is also a number that can be checked by looking at the table, which a
+retention policy expressed in prose is not.
+
+**The kind is kept with the text.** A remembered instruction goes through the
+same mechanical check as a built-in one (D-053): it carries the kind it routed
+to, and it is only offered if this build still runs that kind. Trusting it
+because it worked once would be the same promise-by-memory that check exists to
+remove — an adapter can be absent from a build, and then the panel would be
+offering something it cannot do.
+
+**Asking twice does not fill the list.** Re-asking the same thing updates when
+it was last used rather than adding a row, so three repetitions of one request
+leave room for two others.
+
+**It can be forgotten.** Keeping what someone typed comes with a way to remove
+it, so the table can be emptied outright. That is the part of this that is not
+a feature.
+
+**It turns out to be the warm-cache version anyway.** Re-asking a remembered
+instruction lands on the shape it routed to the first time, which is cached, so
+it costs no routing call and usually no synthesis call either. B-001 wanted
+suggestions that are cheap because they are warm; these are, by the same
+mechanism, and they are readable because they are the sentence rather than the
+shape.

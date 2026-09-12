@@ -42,7 +42,9 @@ Cache-warm suggestions turned out *not* to be the no-new-data slice it looked
 like: the store keeps shapes and never the literals that filled them, so a warm
 entry reads `search {s0}` and cannot be shown to anyone. Making it readable
 means persisting what the user typed, which is the same retention decision
-history needs. It is therefore blocked on that decision, not on effort.
+history needs. That decision was asked for and given -- keep the last three -- so this is
+built as of D-055, with the kind stored alongside each instruction so a
+remembered one still passes the same runnable check.
 
 **Constraint.** Suggestions must only ever offer what is runnable. The list is
 a promise; offering `app.act` before the adapter exists makes the panel lie.

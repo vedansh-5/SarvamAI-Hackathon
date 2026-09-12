@@ -98,7 +98,7 @@ func Open(path string) (*Store, error) {
 // Close releases the database.
 func (s *Store) Close() error { return s.db.Close() }
 
-const schemaVersion = 5
+const schemaVersion = 6
 
 func (s *Store) migrate(ctx context.Context) error {
 	var v int
@@ -167,6 +167,12 @@ CREATE TABLE IF NOT EXISTS window_actions (
 	last_used_at INTEGER NOT NULL DEFAULT 0,
 	uses         INTEGER NOT NULL DEFAULT 0,
 	PRIMARY KEY (app, shape)
+);
+
+CREATE TABLE IF NOT EXISTS instructions (
+	text    TEXT    PRIMARY KEY,
+	kind    TEXT    NOT NULL DEFAULT '',
+	used_at INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS settings (
