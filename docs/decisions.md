@@ -1599,3 +1599,45 @@ five passes, and the stable answer is the one D-056 already recorded. Neither
 `AXManualAccessibility` nor `AXEnhancedUserInterface` changes it, through
 either interface. What this work bought is every native application, quickly —
 not the Electron ones, which still belong to the page tier.
+
+## D-058 — Checking what is under the cursor, and what leaves the machine
+
+Two things were wrong with acting on screen, and they are both about trust
+rather than capability.
+
+**A coordinate is not a control.** The visible renderer clicks a point, and a
+point is whatever happens to be there when the click lands. The capture said a
+button was at those coordinates; between the capture and the click a sheet can
+open, a list can scroll, another application can come forward. Clicking the
+wrong thing reports success exactly as cheerfully as clicking the right one,
+which is the failure this tier exists to make visible rather than to commit.
+
+So every step is now checked against the screen immediately before it runs.
+`AXUIElementCopyElementAtPosition` says what is actually at the point, and the
+step is refused unless that element has the role and title the plan named, and
+unless it belongs to the application being driven. A window that moved, a
+dialog that appeared, another application sitting over the target: all refused
+with the reason, rather than clicked.
+
+**The check has to come after the application is in front.** The first version
+verified before the script ran, and the script's own first action was to bring
+the application forward — so the target was routinely still behind something
+and every step would have been refused. Bringing the window forward is now a
+step of its own, and the check happens once it is there.
+
+**The window's contents were going to the model.** The captured tree carried
+every control's value, and the tree is what the prompt is built from. On a
+Notes window that is the text of the note; on a mail window, the message. None
+of it was needed: choosing a control needs its role and its title, not what it
+holds. Values are now withheld — a control that holds text is described as
+holding text — with one exception, the control that has the cursor, because a
+step that types into a field is often deciding what to do about what is
+already in it.
+
+**One permission, and no pictures.** The tier needs Accessibility and nothing
+else. The obvious way to reach applications that publish no tree is a
+screenshot and a model that can read it, and that is a worse trade twice over:
+it wants Screen Recording, and it sends an image of whatever is on screen to
+somebody else's computer. Reading the tree keeps both the permission and the
+data smaller, and an application that refuses to publish a tree is left to the
+page tier instead.

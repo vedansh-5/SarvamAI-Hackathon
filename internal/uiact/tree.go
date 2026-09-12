@@ -91,7 +91,11 @@ func (t Tree) TextWithin(budget int) string {
 			line += fmt.Sprintf(" (index %d of %d)", seen[key], counts[key])
 		}
 		if el.Value != "" {
-			line += fmt.Sprintf(" value=%q", truncate(el.Value, 60))
+			if el.Focused {
+				line += fmt.Sprintf(" value=%q", truncate(el.Value, 60))
+			} else {
+				line += " (holds text)"
+			}
 		}
 		if !el.Enabled {
 			line += " [disabled]"

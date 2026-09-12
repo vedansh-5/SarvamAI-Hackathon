@@ -56,6 +56,25 @@ static int axFlag(AXUIElementRef el, int focused) {
     return out;
 }
 
+static int axElementAt(pid_t want, double x, double y,
+                       char *role, int rlen, char *title, int tlen) {
+    role[0] = 0; title[0] = 0;
+    AXUIElementRef sys = AXUIElementCreateSystemWide();
+    if (!sys) return -1;
+    AXUIElementRef el = NULL;
+    AXError e = AXUIElementCopyElementAtPosition(sys, (float)x, (float)y, &el);
+    CFRelease(sys);
+    if (e != kAXErrorSuccess || !el) return -2;
+
+    pid_t owner = 0;
+    AXUIElementGetPid(el, &owner);
+    axText(el, 0, role, rlen);
+    axText(el, 1, title, tlen);
+    if (!title[0]) axText(el, 2, title, tlen);
+    CFRelease(el);
+    return (owner == want) ? 0 : 1;
+}
+
 static int axRect(AXUIElementRef el, double *x, double *y, double *w, double *h) {
     CGPoint p = {0,0}; CGSize s = {0,0};
     int got = 0;
@@ -81,6 +100,19 @@ import (
 )
 
 func trusted() bool { return C.axTrusted() == 1 }
+
+func elementAt(pid, x, y int) (role, title string, owned bool, err error) {
+	var r, t [256]C.char
+	rc := C.axElementAt(C.pid_t(pid), C.double(x), C.double(y),
+		&r[0], C.int(len(r)), &t[0], C.int(len(t)))
+	switch rc {
+	case -1:
+		return "", "", false, fmt.Errorf("uiact: the accessibility API is not answering")
+	case -2:
+		return "", "", false, fmt.Errorf("uiact: nothing is on screen at (%d,%d)", x, y)
+	}
+	return C.GoString(&r[0]), C.GoString(&t[0]), rc == 0, nil
+}
 
 func text(el C.AXUIElementRef, which C.int) string {
 	var buf [256]C.char
