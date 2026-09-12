@@ -1520,3 +1520,39 @@ it costs no routing call and usually no synthesis call either. B-001 wanted
 suggestions that are cheap because they are warm; these are, by the same
 mechanism, and they are readable because they are the sentence rather than the
 shape.
+
+## D-056 — What the screen tier can actually reach, measured
+
+D-054 was written without knowing which applications publish a tree at all.
+Measured on this machine, the answer splits cleanly and it decides what the
+tier is worth.
+
+**Native applications publish a real tree.** Notes reports one window with
+seven children, System Settings reported 218 controls when it was in front.
+Everything the tier does — choosing a control by role and title, clicking where
+it is, typing into it — works against these.
+
+**Electron applications publish windows and nothing inside them.** WhatsApp
+reports three windows with zero children; VS Code reports two with zero. The
+window is there and the contents are not, so there is nothing to choose a
+control from.
+
+**Three attempts to unlock them from Apple events, all negative.** Chrome's
+process does not expose `AXManualAccessibility` at all, so it cannot be set
+through System Events, which can address an attribute that exists but cannot
+create one. Where the attribute does exist — VS Code, Notion — setting it true
+left the children at zero. `AXEnhancedUserInterface` exists on every process
+checked, and setting it on Chrome changed nothing. Every flag was put back as
+it was found.
+
+**Zero windows usually is not gating.** Notion, Telegram and Finder all read as
+zero windows while something else was in front, and the same applications read
+as one when it was their turn. That is D-051's rule, not a locked tree, and the
+two are easy to confuse from a single reading.
+
+**What would reach Electron.** The flag is meant to be set by an assistive
+client through the accessibility C API against the application's AXUIElement,
+which is a different thing from asking System Events to set an attribute. That
+means cgo and a framework link, which this project has deliberately never had
+(D-051). It is a decision about what VANS is willing to become, not a detail to
+slip in behind a probe.
