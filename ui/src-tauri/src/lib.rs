@@ -66,6 +66,21 @@ async fn destinations(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("destinations", None).await
 }
 
+/// The things worth asking for, filtered by what this build can carry out and
+/// led by whatever the user is looking at.
+#[tauri::command]
+async fn suggestions(
+    engine: State<'_, Engine>,
+    app_name: Option<String>,
+) -> Result<Value, RpcError> {
+    engine
+        .call(
+            "suggestions",
+            Some(json!({ "app_name": app_name.unwrap_or_default() })),
+        )
+        .await
+}
+
 /// Confirms a plan. The only command with a side effect, and it takes an id
 /// the window cannot invent — the runtime issued it, and issues it once.
 #[tauri::command]
@@ -208,6 +223,7 @@ pub fn run() {
             check_notes,
             prepare,
             destinations,
+            suggestions,
             commit,
             dismiss,
             set_pinned,

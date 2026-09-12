@@ -37,11 +37,18 @@ panel, and what is currently cheap because it is already cached.
 screen context (data already arriving), then history (new storage, needs a
 decision about retention and whether it is ever sent anywhere).
 
+**Where it got to.** Screen context and the mechanical check are built (D-053).
+Cache-warm suggestions turned out *not* to be the no-new-data slice it looked
+like: the store keeps shapes and never the literals that filled them, so a warm
+entry reads `search {s0}` and cannot be shown to anyone. Making it readable
+means persisting what the user typed, which is the same retention decision
+history needs. It is therefore blocked on that decision, not on effort.
+
 **Constraint.** Suggestions must only ever offer what is runnable. The list is
 a promise; offering `app.act` before the adapter exists makes the panel lie.
-The current list is checked by hand against `runnable` in
-`internal/engine/ask.go` — that check should be mechanical before this becomes
-dynamic.
+That check is mechanical as of D-053: the runtime filters every suggestion
+through `runs` and through whether the destination it names exists, so the
+window can no longer offer what this build cannot do.
 
 ---
 

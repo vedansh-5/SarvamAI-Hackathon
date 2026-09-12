@@ -1379,3 +1379,37 @@ what was typed is the one verification this tier can honestly offer.
 **No change to the window.** Destinations are asked of the runtime rather than
 listed in the frontend, so registering the sink is what made the button appear
 — and a build that cannot reach the accessibility tree simply does not offer it.
+
+## D-053 — The runtime decides what to suggest
+
+The four "try asking" lines were hardcoded in the window, and correct only
+because someone checked them by hand against what the engine could carry out.
+That is a promise maintained by memory, and the failure mode is the panel
+offering something that then cannot be done — which reads to a user as the
+runtime being broken rather than the list being stale.
+
+**The check is mechanical now.** Every suggestion carries the kind of task it
+needs, and the runtime filters the list through the same `runs` test the router
+is answered with, plus a check that any destination it names actually exists.
+A build assembled without a Notes sink stops offering Notes without anybody
+remembering to edit a list, and a build that cannot reach the accessibility
+tree does not suggest typing into an application.
+
+**The window asks rather than knows.** Same shape as destinations: the panel
+fetches the list and renders whatever comes back. The built-in four remain as
+the fallback for a runtime that has not answered yet — never as a second
+opinion, because a window that can disagree with the runtime about what is
+possible is the problem this removes.
+
+**What is on screen leads.** The frontmost application already reaches the
+panel, so a browser in front puts "what is this page about" at the top. That
+is the whole of the context tier for now, and it needs no new storage.
+
+**What is deliberately not built.** B-001 wanted the strongest signal first:
+suggest what is already warm in the cache, since a warm shape costs no model
+call. The store cannot answer that in words. It keeps shapes — `search {s0}` —
+and never the literals that filled them, because persisting them is exactly
+what D-039 refuses. Turning a warm shape back into a sentence a person would
+recognise means storing what they typed, which is the most sensitive thing
+VANS would hold. That is a decision about retention, not a feature to slip in
+behind one, so it waits for an explicit answer.

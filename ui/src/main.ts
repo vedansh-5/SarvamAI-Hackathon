@@ -125,6 +125,25 @@ const SUGGESTIONS: Suggestion[] = [
   { icon: "pencil", text: "the top stories on news.ycombinator.com", destination: "notes" },
 ];
 
+let runtimeSuggestions: Suggestion[] | null = null;
+
+/// The runtime decides what to offer, because only it knows what this build can
+/// carry out. The built-in list is the fallback for a runtime that has not
+/// answered yet, never a second opinion.
+function currentSuggestions(): Suggestion[] {
+  return runtimeSuggestions?.length ? runtimeSuggestions : SUGGESTIONS;
+}
+
+async function loadSuggestions(appName?: string) {
+  try {
+    const got = await invoke<Suggestion[]>("suggestions", { appName: appName ?? "" });
+    if (got?.length) runtimeSuggestions = got;
+  } catch (e) {
+    console.error("failed to load suggestions", e);
+  }
+  renderSuggestions($("suggestions"), currentSuggestions());
+}
+
 function icon(name: string): SVGElement {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("width", "15");
@@ -630,7 +649,7 @@ function renderFailure(e: unknown) {
     const data = e.data as Unroutable;
     $("notunderstood-why").textContent = data?.why ?? "";
     $("notunderstood-why").hidden = !data?.why;
-    renderSuggestions($("can-do"), SUGGESTIONS);
+    renderSuggestions($("can-do"), currentSuggestions());
     return;
   }
 
@@ -1047,6 +1066,8 @@ listen<ScreenContext | undefined>("overlay://shown", (event) => {
     refreshActiveContext();
   }
 
+  void loadSuggestions(event.payload?.app_name);
+
   panel.scrollTop = 0;
 
   const ask = $("ask");
@@ -1226,7 +1247,7 @@ $("setup").addEventListener("click", () => {
 applyTheme(storedTheme() === "dark", false);
 applyLook(storedLook(), false);
 applyView(tableView(), false);
-renderSuggestions($("suggestions"), SUGGESTIONS);
+void loadSuggestions();
 
 show("preflight");
 runPreflight();

@@ -121,6 +121,8 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.commit(ctx, req)
 	case "destinations":
 		result = s.destinations()
+	case "suggestions":
+		result, err = s.suggestions(req)
 	case "screen_context":
 		result, err = s.screenContext(ctx, req)
 	default:
@@ -253,6 +255,24 @@ func (s *Server) checkNotes(ctx context.Context) (Check, error) {
 // Sent to the shell rather than hardcoded there, so adding a sink to the
 // runtime makes it appear in the window without a matching change in the
 // frontend — and so the window cannot offer a destination that does not exist.
+func (s *Server) suggestions(req Request) ([]Suggestion, error) {
+	var params SuggestionsParams
+	if len(req.Params) > 0 {
+		if err := json.Unmarshal(req.Params, &params); err != nil {
+			return nil, &Error{
+				Code:    CodeBadRequest,
+				Message: fmt.Sprintf("invalid suggestions params: %v", err),
+			}
+		}
+	}
+
+	out := []Suggestion{}
+	for _, sg := range s.Engine.Suggestions(params.AppName) {
+		out = append(out, Suggestion{Icon: sg.Icon, Text: sg.Text, Destination: sg.Destination})
+	}
+	return out, nil
+}
+
 func (s *Server) destinations() []Destination {
 	var out []Destination
 	for _, d := range s.Engine.Destinations() {

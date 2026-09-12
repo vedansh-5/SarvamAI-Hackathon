@@ -144,6 +144,19 @@ type PrepareResult struct {
 }
 
 // Destination is somewhere an answer can be sent.
+type Suggestion struct {
+	Icon        string `json:"icon"`
+	Text        string `json:"text"`
+	Destination string `json:"destination,omitempty"`
+}
+
+// SuggestionsParams carries what the user is looking at, so the list can lead
+// with what is useful there. Optional: the panel works before the shell can
+// read the screen.
+type SuggestionsParams struct {
+	AppName string `json:"app_name"`
+}
+
 type Destination struct {
 	Name         string `json:"name"`
 	Describe     string `json:"describe"`
