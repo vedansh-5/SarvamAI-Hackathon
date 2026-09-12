@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -39,6 +41,34 @@ func Capture(ctx context.Context, r Runner, app string) (Tree, error) {
 }
 
 func pidFor(ctx context.Context, r Runner, app string) (int, error) {
+	if pid, ok := pidByProcessName(ctx, app); ok {
+		return pid, nil
+	}
+	return pidViaEvents(ctx, r, app)
+}
+
+func pidByProcessName(ctx context.Context, app string) (int, bool) {
+	out, err := exec.CommandContext(ctx, "pgrep", "-x", app).Output()
+	if err != nil {
+		return 0, false
+	}
+	pid, err := firstPID(out)
+	if err != nil {
+		return 0, false
+	}
+	return pid, true
+}
+
+func firstPID(out []byte) (int, error) {
+	for _, field := range strings.Fields(string(out)) {
+		if pid, err := strconv.Atoi(field); err == nil && pid > 0 {
+			return pid, nil
+		}
+	}
+	return 0, fmt.Errorf("uiact: no process id in %q", truncate(string(out), 60))
+}
+
+func pidViaEvents(ctx context.Context, r Runner, app string) (int, error) {
 	name, err := literal(app)
 	if err != nil {
 		return 0, err

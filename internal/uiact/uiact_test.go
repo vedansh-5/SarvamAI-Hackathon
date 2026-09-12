@@ -320,6 +320,8 @@ func TestSelectorForNumbersOnlyDuplicates(t *testing.T) {
 	}
 }
 
+const notRunning = "VansNoSuchApplication"
+
 type replyRunner string
 
 func (r replyRunner) Run(context.Context, string) ([]byte, error) { return []byte(r), nil }
@@ -357,7 +359,7 @@ func TestFrontmostReportsTheMissingPermission(t *testing.T) {
 
 func TestCaptureReportsTheMissingPermission(t *testing.T) {
 	_, err := Capture(context.Background(),
-		replyRunner(`{"ok":false,"error":"osascript is not allowed assistive access."}`), "Notes")
+		replyRunner(`{"ok":false,"error":"osascript is not allowed assistive access."}`), notRunning)
 	if !errors.Is(err, ErrNoAssistiveAccess) {
 		t.Fatalf("err = %v, want the assistive access sentinel", err)
 	}
@@ -365,7 +367,7 @@ func TestCaptureReportsTheMissingPermission(t *testing.T) {
 
 func TestCaptureReportsAWindowlessApplication(t *testing.T) {
 	_, err := Capture(context.Background(),
-		replyRunner(`{"ok":false,"error":"that application has no window open"}`), "Notes")
+		replyRunner(`{"ok":false,"error":"that application has no window open"}`), notRunning)
 	if !errors.Is(err, ErrNoWindow) {
 		t.Fatalf("err = %v, want the no-window sentinel", err)
 	}
@@ -427,5 +429,21 @@ func TestRenderScreenRefusesAControlItCannotSee(t *testing.T) {
 
 	if _, err := RenderScreen(p, tree); err == nil {
 		t.Fatal("a control with no position on screen was clicked anyway")
+	}
+}
+
+func TestFirstPIDTakesTheFirstOne(t *testing.T) {
+	pid, err := firstPID([]byte("4321\n9876\n"))
+	if err != nil || pid != 4321 {
+		t.Errorf("pid = %d, err = %v", pid, err)
+	}
+}
+
+func TestFirstPIDRefusesNothingUsable(t *testing.T) {
+	if _, err := firstPID([]byte("   \n")); err == nil {
+		t.Error("empty output produced a process id")
+	}
+	if _, err := firstPID([]byte("not-a-pid\n")); err == nil {
+		t.Error("garbage produced a process id")
 	}
 }

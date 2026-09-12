@@ -1564,10 +1564,19 @@ Apple-event route was an argument about cost that no longer holds.
 returning an empty tree. A tier that silently sees nothing is worse than one
 that says it was built without the thing it needs.
 
-**The pid is still an Apple event.** `AXUIElementCreateApplication` wants a pid
-and the callers have a name, so one System Events call resolves it. That call
-is now most of the remaining cost — about 280ms of the 410ms a full capture
-takes — and it is the obvious next thing to remove if it ever matters.
+**The pid comes from the process table first.** `AXUIElementCreateApplication`
+wants a pid and the callers have a name. `pgrep` answers that in 12 to 15
+milliseconds where an Apple event took 101 to 146, so it is asked first. It
+matches the executable rather than the application, though, and the two differ
+— Visual Studio Code runs as Code — so a miss falls back to the System Events
+lookup, which knows an application by the name every other tier uses. A full
+capture of a Notes window is now 117 milliseconds, against 410 when every
+lookup crossed a process boundary.
+
+The fast path also made two error tests stop testing anything: they fed a
+canned refusal through a fake runner for an application that happens to be
+running, so `pgrep` answered and the fake was never reached. They name
+something nothing runs under now, which is the path they were always about.
 
 **The boundary moved, because the tests could not reach it.** The engine used
 to hold an osascript runner and hand it to `uiact.Capture`. Once the walk went
