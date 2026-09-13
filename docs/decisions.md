@@ -1750,3 +1750,37 @@ screen — which is what makes it safe where probing Notes is not (D-032). The
 check is not required: reading pages, searching, and answering all work without
 it, and a build that cannot reach a window should say so rather than refuse to
 start.
+
+## D-062 — Clicking where the control actually is, and asking the right question about what is on top
+
+Three faults, all on the path between a captured window and a click that lands.
+
+**Nothing on screen could be paused.** Every rendered action called `delay`
+through the current application's standard additions, and that command answers
+`-1708` here. It sits after every click, keystroke and key press, so the whole
+renderer failed on its first step and had never once run to completion. The
+pause is now `NSThread.sleepForTimeInterval`, which is in the process rather
+than across an Apple Event, and is cheaper than what it replaced. An earlier
+reading blamed the `frontmost` assignment for the same number; that was wrong,
+and the assignment works.
+
+**The middle of a control is not a place you can click.** A note longer than
+its window makes the text area 22468 points tall, so its centre sits ten screen
+heights below the desktop. The click point is now the middle of the part that
+is showing: the control's rectangle clipped by every ancestor that encloses it
+— a scroll area clips its contents — and by the bounds of the displays. A
+control scrolled out of view has no visible rectangle and is refused rather
+than clicked at a coordinate in space.
+
+**"Is something covering this point" was asked of the wrong API.** The check
+compared the owner of the accessibility element at the point against the
+application being driven. With Stage Manager running, that element belongs to
+`WindowManager` at every point on screen, so the comparison was false
+everywhere and the guard refused every click it was ever asked about. Window
+stacking is what the question is about, so it is now asked of the window list:
+the frontmost ordinary window containing the point must belong to the target.
+The accessibility hit test still checks that the control there is the one that
+was planned, but only when it answers with the application's own element —
+when Stage Manager answers instead, the control check is skipped rather than
+the click refused, because the window list has already settled the question
+that matters, which is whether the click reaches the right application.

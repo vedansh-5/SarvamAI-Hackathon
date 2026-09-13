@@ -185,3 +185,80 @@ func (e Element) Center() (x, y int, ok bool) {
 	}
 	return e.Position[0] + e.Size[0]/2, e.Position[1] + e.Size[1]/2, true
 }
+
+type box struct{ x0, y0, x1, y1 int }
+
+func (b box) valid() bool { return b.x1 > b.x0 && b.y1 > b.y0 }
+
+func (b box) clip(o box) box {
+	if o.x0 > b.x0 {
+		b.x0 = o.x0
+	}
+	if o.y0 > b.y0 {
+		b.y0 = o.y0
+	}
+	if o.x1 < b.x1 {
+		b.x1 = o.x1
+	}
+	if o.y1 < b.y1 {
+		b.y1 = o.y1
+	}
+	return b
+}
+
+func (e Element) box() (box, bool) {
+	if len(e.Position) != 2 || len(e.Size) != 2 {
+		return box{}, false
+	}
+	if e.Size[0] <= 0 || e.Size[1] <= 0 {
+		return box{}, false
+	}
+	return box{
+		e.Position[0], e.Position[1],
+		e.Position[0] + e.Size[0], e.Position[1] + e.Size[1],
+	}, true
+}
+
+var displays = displayBounds
+
+func encloses(prefix, path []int) bool {
+	if len(prefix) >= len(path) {
+		return false
+	}
+	for i := range prefix {
+		if prefix[i] != path[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func (t Tree) visibleBox(el Element) (box, bool) {
+	b, ok := el.box()
+	if !ok {
+		return box{}, false
+	}
+	for _, a := range t.Elements {
+		if !encloses(a.Path, el.Path) {
+			continue
+		}
+		if ab, ok := a.box(); ok {
+			b = b.clip(ab)
+		}
+	}
+	if d, ok := displays(); ok {
+		b = b.clip(d)
+	}
+	if !b.valid() {
+		return box{}, false
+	}
+	return b, true
+}
+
+func (t Tree) ClickPoint(el Element) (x, y int, ok bool) {
+	b, ok := t.visibleBox(el)
+	if !ok {
+		return 0, 0, false
+	}
+	return b.x0 + (b.x1-b.x0)/2, b.y0 + (b.y1-b.y0)/2, true
+}

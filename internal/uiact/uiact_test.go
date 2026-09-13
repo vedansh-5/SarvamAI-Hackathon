@@ -447,3 +447,81 @@ func TestFirstPIDRefusesNothingUsable(t *testing.T) {
 		t.Error("garbage produced a process id")
 	}
 }
+
+func withDisplay(t *testing.T, b box) {
+	t.Helper()
+	original := displays
+	displays = func() (box, bool) { return b, true }
+	t.Cleanup(func() { displays = original })
+}
+
+func notesTree() Tree {
+	return Tree{App: "Notes", Window: "Notes", Elements: []Element{
+		{Role: "AXSplitGroup", Enabled: true,
+			Position: []int{202, 131}, Size: []int{1000, 660}, Path: []int{0}},
+		{Role: "AXTextArea", Enabled: true,
+			Position: []int{711, 167}, Size: []int{474, 22468}, Path: []int{0, 5, 0}},
+	}}
+}
+
+// A note longer than the window makes the text area 22468pt tall, so its
+// middle is thousands of points below the screen. The click has to land in the
+// part that is actually showing.
+func TestClickPointStaysInsideTheVisiblePartOfATallControl(t *testing.T) {
+	withDisplay(t, box{0, 0, 1710, 1112})
+
+	tree := notesTree()
+	x, y, ok := tree.ClickPoint(tree.Elements[1])
+	if !ok {
+		t.Fatal("a control that is on screen reported no click point")
+	}
+	if x != 948 || y != 479 {
+		t.Errorf("click point = (%d,%d), want (948,479)", x, y)
+	}
+}
+
+func TestClickPointRefusesAControlScrolledOutOfView(t *testing.T) {
+	withDisplay(t, box{0, 0, 1710, 1112})
+
+	tree := notesTree()
+	tree.Elements[1].Position = []int{711, -5000}
+	tree.Elements[1].Size = []int{474, 1000}
+
+	if _, _, ok := tree.ClickPoint(tree.Elements[1]); ok {
+		t.Error("a control scrolled above the window reported a click point")
+	}
+}
+
+func TestClickPointClipsToTheDisplay(t *testing.T) {
+	withDisplay(t, box{0, 0, 1710, 1112})
+
+	tree := Tree{App: "Editor", Window: "Editor", Elements: []Element{
+		{Role: "AXTextArea", Title: "Message", Enabled: true,
+			Position: []int{1600, 100}, Size: []int{400, 40}, Path: []int{0}},
+	}}
+
+	x, _, ok := tree.ClickPoint(tree.Elements[0])
+	if !ok {
+		t.Fatal("a control half on screen reported no click point")
+	}
+	if x != 1655 {
+		t.Errorf("x = %d, want 1655 — the middle of the part on screen", x)
+	}
+}
+
+func TestRenderScreenClicksTheVisiblePartOfATallControl(t *testing.T) {
+	withDisplay(t, box{0, 0, 1710, 1112})
+
+	tree := notesTree()
+	p := Program{App: "Notes", Steps: []Step{
+		{Do: "type", Target: Selector{Role: "AXTextArea"}, Text: "hello"},
+	}}
+
+	script, err := RenderScreen(p, tree)
+	if err != nil {
+		t.Fatalf("RenderScreen: %v", err)
+	}
+	if !strings.Contains(script, "clickAt(948, 479)") {
+		t.Errorf("did not click the visible part:\n%s", script)
+	}
+}

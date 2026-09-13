@@ -91,6 +91,50 @@ static int axRect(AXUIElementRef el, double *x, double *y, double *w, double *h)
     *x = p.x; *y = p.y; *w = s.width; *h = s.height;
     return got;
 }
+static int axDisplayBounds(double *x, double *y, double *w, double *h) {
+    uint32_t count = 0;
+    if (CGGetActiveDisplayList(0, NULL, &count) != kCGErrorSuccess || count == 0) return 0;
+    if (count > 16) count = 16;
+    CGDirectDisplayID ids[16];
+    if (CGGetActiveDisplayList(count, ids, &count) != kCGErrorSuccess || count == 0) return 0;
+    CGRect u = CGDisplayBounds(ids[0]);
+    for (uint32_t i = 1; i < count; i++) u = CGRectUnion(u, CGDisplayBounds(ids[i]));
+    *x = u.origin.x; *y = u.origin.y; *w = u.size.width; *h = u.size.height;
+    return 1;
+}
+static int cgFrontOwnerAt(double x, double y, int *owner, char *name, int nlen) {
+    *owner = -1; name[0] = 0;
+    CFArrayRef list = CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly, kCGNullWindowID);
+    if (!list) return 0;
+    int found = 0;
+    CFIndex n = CFArrayGetCount(list);
+    for (CFIndex i = 0; i < n && !found; i++) {
+        CFDictionaryRef d = (CFDictionaryRef)CFArrayGetValueAtIndex(list, i);
+        CFNumberRef v;
+        int layer = 0;
+        if ((v = (CFNumberRef)CFDictionaryGetValue(d, kCGWindowLayer)))
+            CFNumberGetValue(v, kCFNumberIntType, &layer);
+        if (layer != 0) continue;
+        double alpha = 1.0;
+        if ((v = (CFNumberRef)CFDictionaryGetValue(d, kCGWindowAlpha)))
+            CFNumberGetValue(v, kCFNumberDoubleType, &alpha);
+        if (alpha <= 0.01) continue;
+        CFDictionaryRef bd = (CFDictionaryRef)CFDictionaryGetValue(d, kCGWindowBounds);
+        if (!bd) continue;
+        CGRect r;
+        if (!CGRectMakeWithDictionaryRepresentation(bd, &r)) continue;
+        if (!CGRectContainsPoint(r, CGPointMake(x, y))) continue;
+        int pid = 0;
+        if ((v = (CFNumberRef)CFDictionaryGetValue(d, kCGWindowOwnerPID)))
+            CFNumberGetValue(v, kCFNumberIntType, &pid);
+        CFStringRef on = (CFStringRef)CFDictionaryGetValue(d, kCGWindowOwnerName);
+        if (on) CFStringGetCString(on, name, nlen, kCFStringEncodingUTF8);
+        *owner = pid;
+        found = 1;
+    }
+    CFRelease(list);
+    return found;
+}
 */
 import "C"
 
@@ -128,6 +172,23 @@ func rect(el C.AXUIElementRef) ([]int, []int) {
 		return nil, nil
 	}
 	return []int{int(x), int(y)}, []int{int(w), int(h)}
+}
+
+func frontWindowAt(x, y int) (pid int, name string, ok bool) {
+	var owner C.int
+	var buf [256]C.char
+	if C.cgFrontOwnerAt(C.double(x), C.double(y), &owner, &buf[0], C.int(len(buf))) != 1 {
+		return 0, "", false
+	}
+	return int(owner), C.GoString(&buf[0]), true
+}
+
+func displayBounds() (box, bool) {
+	var x, y, w, h C.double
+	if C.axDisplayBounds(&x, &y, &w, &h) != 1 {
+		return box{}, false
+	}
+	return box{int(x), int(y), int(x + w), int(y + h)}, true
 }
 
 func walkElement(el C.AXUIElementRef, path []int, depth int, out *[]Element) {

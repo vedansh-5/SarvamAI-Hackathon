@@ -30,10 +30,10 @@ func RenderScreen(p Program, t Tree) (string, error) {
 
 		switch verb(s.Do) {
 		case "click", "type":
-			x, y, ok := el.Center()
+			x, y, ok := t.ClickPoint(el)
 			if !ok {
 				return "", &InvalidError{App: t.App, Reasons: []string{fmt.Sprintf(
-					"step %d: the %s %q reports no position on screen, so it cannot be clicked",
+					"step %d: no part of the %s %q is visible on screen, so it cannot be clicked",
 					i+1, el.Role, el.Title)}}
 			}
 			fmt.Fprintf(&b, "    clickAt(%d, %d);\n", x, y)
@@ -56,28 +56,30 @@ func RenderScreen(p Program, t Tree) (string, error) {
 }
 
 const screenPreamble = `(function () {
+  ObjC.import('Foundation');
   const se = Application('System Events');
-  const sa = Application.currentApplication();
-  sa.includeStandardAdditions = true;
   const pause = %[2]s;
+  function wait(seconds) {
+    $.NSThread.sleepForTimeInterval(seconds);
+  }
   function bringForward() {
     const proc = se.applicationProcesses.byName(%[1]s);
-    if (!proc.frontmost()) {
-      proc.frontmost = true;
-      sa.delay(0.4);
-    }
+    if (proc.frontmost()) return;
+    try { Application(%[1]s).activate(); }
+    catch (e) { proc.frontmost = true; }
+    wait(0.5);
   }
   function clickAt(x, y) {
     se.click({ at: [x, y] });
-    sa.delay(pause);
+    wait(pause);
   }
   function typeText(text) {
     se.keystroke(text);
-    sa.delay(pause);
+    wait(pause);
   }
   function pressKey(code) {
     se.keyCode(code);
-    sa.delay(pause);
+    wait(pause);
   }
   try {
     bringForward();
@@ -126,7 +128,10 @@ func RunScreen(ctx context.Context, r Runner, p Program, t Tree) error {
 	return nil
 }
 
-var lookupAt = elementAt
+var (
+	lookupAt     = elementAt
+	frontOwnerAt = frontWindowAt
+)
 
 func VerifyTargets(pid int, p Program, t Tree) error {
 	for i, step := range p.Steps {
@@ -138,21 +143,23 @@ func VerifyTargets(pid int, p Program, t Tree) error {
 		if why != "" {
 			return &InvalidError{App: t.App, Reasons: []string{why}}
 		}
-		x, y, ok := want.Center()
+		x, y, ok := t.ClickPoint(want)
 		if !ok {
 			continue
+		}
+
+		if owner, name, known := frontOwnerAt(x, y); known && owner != pid {
+			return &InvalidError{App: t.App, Reasons: []string{fmt.Sprintf(
+				"step %d: (%d,%d) is inside %s's window, which is in front of %s, "+
+					"so clicking there would not reach it",
+				i+1, x, y, name, t.App)}}
 		}
 
 		role, title, owned, err := lookupAt(pid, x, y)
 		if err != nil {
 			return fmt.Errorf("step %d: %w", i+1, err)
 		}
-		if !owned {
-			return &InvalidError{App: t.App, Reasons: []string{fmt.Sprintf(
-				"step %d: (%d,%d) is covered by another application, so clicking there would not reach %s",
-				i+1, x, y, t.App)}}
-		}
-		if !sameControl(want, role, title) {
+		if owned && !sameControl(want, role, title) {
 			return &InvalidError{App: t.App, Reasons: []string{fmt.Sprintf(
 				"step %d: expected the %s %q at (%d,%d) and found a %s %q",
 				i+1, want.Role, want.Title, x, y, role, title)}}
@@ -196,19 +203,22 @@ func bringForward(ctx context.Context, r Runner, app string) error {
 }
 
 const forwardScript = `(function () {
+  ObjC.import('Foundation');
   const se = Application('System Events');
-  const sa = Application.currentApplication();
-  sa.includeStandardAdditions = true;
+  function wait(seconds) {
+    $.NSThread.sleepForTimeInterval(seconds);
+  }
   function reply(f) {
     try { return JSON.stringify({ ok: true, value: f() }); }
     catch (e) { return JSON.stringify({ ok: false, error: String((e && e.message) || e) }); }
   }
   return reply(function () {
-    const proc = se.applicationProcesses.byName(%s);
-    if (!proc.frontmost()) {
-      proc.frontmost = true;
-      sa.delay(0.4);
-    }
+    const proc = se.applicationProcesses.byName(%[1]s);
+    if (proc.frontmost()) return 'front';
+    try { Application(%[1]s).activate(); }
+    catch (e) { proc.frontmost = true; }
+    wait(0.5);
+    if (!proc.frontmost()) throw new Error('could not bring that application to the front');
     return 'front';
   });
 })();
