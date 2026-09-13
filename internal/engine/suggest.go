@@ -46,10 +46,47 @@ func (e *Engine) Suggestions(ctx context.Context, front string) []Suggestion {
 		}
 	}
 
+	if s, ok := e.appExample(); ok {
+		out = append(out, s)
+	}
+
 	if browsers[strings.ToLower(strings.TrimSpace(front))] {
 		out = pageFirst(out)
 	}
 	return append(e.remembered(ctx, out), out...)
+}
+
+var appExamples = []Suggestion{
+	{Icon: "pencil", Text: "make a note titled Groceries in Notes", Kind: route.KindAppAction},
+	{Icon: "pencil", Text: "add a reminder to call the dentist tomorrow in Reminders", Kind: route.KindAppAction},
+}
+
+func (e *Engine) appExample() (Suggestion, bool) {
+	if !e.runs(route.KindAppAction) || e.Apps == nil {
+		return Suggestion{}, false
+	}
+
+	var installed []string
+	for _, a := range e.Apps.Scriptable() {
+		installed = append(installed, a.Name)
+	}
+	return appExampleFor(installed)
+}
+
+func appExampleFor(installed []string) (Suggestion, bool) {
+	have := map[string]bool{}
+	for _, name := range installed {
+		have[strings.ToLower(strings.TrimSpace(name))] = true
+	}
+
+	for _, s := range appExamples {
+		fields := strings.Fields(s.Text)
+		app := strings.ToLower(fields[len(fields)-1])
+		if have[app] {
+			return s, true
+		}
+	}
+	return Suggestion{}, false
 }
 
 func (e *Engine) remembered(ctx context.Context, already []Suggestion) []Suggestion {

@@ -32,6 +32,7 @@ interface Plan {
   kind: string;
   decision_calls: number;
   action: string;
+  app: string;
   answer: string;
   answer_cites: number[];
   answer_calls: number;
@@ -474,7 +475,9 @@ function renderCards(into: HTMLElement, fields: string[], rows: Record<string, s
 
 function renderResults(plan: Plan) {
   if (plan.action) {
-    $("results-kicker").textContent = `${plan.destination} — nothing to change`;
+    $("results-kicker").textContent = plan.app
+      ? `${plan.app} — nothing to change`
+      : "nothing to change";
     clear($("cards"));
     $("cards").appendChild(el("p", "card-text", plan.action));
     clear($("rows"));
@@ -551,7 +554,7 @@ function firstLink(row: Record<string, string>, fields: string[]): string {
 
 function renderConfirm(plan: Plan) {
   if (plan.action) {
-    $("confirm-title").textContent = `Do this in ${plan.destination}?`;
+    $("confirm-title").textContent = plan.app ? `Do this in ${plan.app}?` : "Do this?";
     $("confirm-preview").textContent = plan.action;
   } else {
     const n = plan.rows.length;
@@ -559,7 +562,9 @@ function renderConfirm(plan: Plan) {
       `Write ${n} result${n === 1 ? "" : "s"} to ${label(plan.destination)}?`;
     $("confirm-preview").textContent = documentText(plan);
   }
-  ($("commit") as HTMLButtonElement).textContent = "Confirm & write";
+  ($("commit") as HTMLButtonElement).textContent = plan.action
+    ? "Confirm & do"
+    : "Confirm & write";
 }
 
 function documentText(plan: Plan): string {
@@ -583,14 +588,19 @@ function timing(plan: Plan): string {
 async function confirmWrite() {
   if (!currentPlan) return;
 
-  const where = label(currentPlan.destination);
+  const acting = !!currentPlan.action;
+  const where = acting && currentPlan.app ? currentPlan.app : label(currentPlan.destination);
   const button = $("commit") as HTMLButtonElement;
   button.disabled = true;
-  button.textContent = "Writing…";
+  button.textContent = acting ? "Doing…" : "Writing…";
 
   try {
     const receipt = await invoke<Receipt>("commit", { planId: currentPlan.plan_id });
-    toast(receipt.verified ? `Saved to ${where}` : `Written to ${where}, unverified`);
+    if (acting) {
+      toast(receipt.verified ? `Done in ${where}` : `Done in ${where}, unverified`);
+    } else {
+      toast(receipt.verified ? `Saved to ${where}` : `Written to ${where}, unverified`);
+    }
     ($("intent") as HTMLInputElement).value = "";
     show("ask");
   } catch (e) {

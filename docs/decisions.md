@@ -1784,3 +1784,28 @@ was planned, but only when it answers with the application's own element —
 when Stage Manager answers instead, the control check is skipped rather than
 the click refused, because the window list has already settled the question
 that matters, which is whether the click reaches the right application.
+
+## D-063 — Saying which application an action happens in
+
+Acting in an application has worked from typed text for a while, and the window
+never mentioned it. Nothing in the panel said it was possible, and the one place
+an action did appear read as though it were about to happen somewhere else.
+
+**The gate named the wrong thing.** A plan carries the application it acts in —
+the dictionary tier, the window tier and the driving tier all record it — and
+that name stopped at the runtime boundary. The window had only the destination,
+which is where an *answer* goes, so the confirmation in front of an action in
+Notes asked whether to do it in "panel". The application now travels with the
+plan, and the gate, the result line, the button and the receipt all say where
+the thing will happen.
+
+**Nothing offered an action.** The suggestions under the ask field are what
+tells a person what this is for, and every one of them read a page or searched.
+One example that acts in an application is offered now, and only when this build
+can carry it out — the same test the other suggestions pass.
+
+**The example names an application that is actually installed.** The list of
+what can be driven is discovered from the scripting dictionaries on the machine
+rather than written down, so the suggestion is chosen against that list. A
+suggestion naming something that is not there is the same failure as offering a
+destination that does not exist: the panel promising what it cannot do.

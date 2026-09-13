@@ -359,15 +359,19 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 	}
 
 	action := ""
+	app := ""
 	switch {
 	case plan.Action != nil:
 		action = plan.Action.Preview
+		app = plan.Action.App
 	case plan.Web != nil:
 		action = plan.Web.Preview
 	case plan.UI != nil:
 		action = plan.UI.Preview
+		app = plan.UI.App
 	case plan.Drive != nil:
 		action = plan.Drive.Preview
+		app = plan.Drive.App
 	}
 
 	answerText := ""
@@ -394,6 +398,7 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 		Destination:    plan.Destination,
 		NeedsCommit:    plan.NeedsCommit(),
 		Kind:           kind,
+		App:            app,
 		DecisionCalls:  plan.DecisionCalls,
 	}, nil
 }

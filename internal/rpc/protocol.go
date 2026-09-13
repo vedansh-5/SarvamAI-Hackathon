@@ -141,6 +141,8 @@ type PrepareResult struct {
 	// application's own words. Empty for a plan that reads a page: those are
 	// confirmed against the rows themselves.
 	Action string `json:"action"`
+
+	App string `json:"app"`
 }
 
 // Destination is somewhere an answer can be sent.

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/vedansh/vans/internal/route"
@@ -116,5 +117,43 @@ func TestARememberedInstructionIsNotOfferedTwice(t *testing.T) {
 	}
 	if seen != 1 {
 		t.Errorf("offered %d times, want once", seen)
+	}
+}
+
+// Naming an application in a suggestion is a claim that it is there. Offering
+// an action in something this machine does not have is the panel lying, the
+// same way offering a destination that does not exist would be.
+func TestAnAppExampleNamesSomethingInstalled(t *testing.T) {
+	got, ok := appExampleFor([]string{"Notes", "Safari"})
+	if !ok {
+		t.Fatal("Notes is installed and no action was offered")
+	}
+	if !strings.Contains(got.Text, "Notes") {
+		t.Errorf("offered %q, which does not name Notes", got.Text)
+	}
+	if got.Kind != route.KindAppAction {
+		t.Errorf("kind = %q, want an application action", got.Kind)
+	}
+}
+
+func TestAnAppExampleFallsBackToWhatIsInstalled(t *testing.T) {
+	got, ok := appExampleFor([]string{"Safari", "Reminders"})
+	if !ok || !strings.Contains(got.Text, "Reminders") {
+		t.Errorf("offered %q (ok=%v), want the Reminders example", got.Text, ok)
+	}
+}
+
+func TestNothingIsOfferedWhenNeitherApplicationIsThere(t *testing.T) {
+	if got, ok := appExampleFor([]string{"Safari", "Terminal"}); ok {
+		t.Errorf("offered %q with neither application installed", got.Text)
+	}
+}
+
+// A build that cannot act in an application must not advertise that it can,
+// and one with no catalogue has no way to know what is installed.
+func TestNoAppExampleWithoutTheMeansToAct(t *testing.T) {
+	e := &Engine{Sinks: DefaultSinks()}
+	if got, ok := e.appExample(); ok {
+		t.Errorf("offered %q from a build that cannot act in an application", got.Text)
 	}
 }
