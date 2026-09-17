@@ -35,11 +35,44 @@ func TestCommitReadsTheWindowAgainBeforeActing(t *testing.T) {
 	if _, err := e.runUI(context.Background(), uiPlan()); err != nil {
 		t.Fatalf("runUI: %v", err)
 	}
-	if f.captures != 1 {
-		t.Errorf("read the window %d time(s) before acting, want 1", f.captures)
+	// Once before acting, to check the control is still there, and once after,
+	// to see what the action did.
+	if f.captures != 2 {
+		t.Errorf("read the window %d time(s), want 2", f.captures)
 	}
 	if f.acts != 1 {
 		t.Errorf("acted %d time(s), want 1", f.acts)
+	}
+}
+
+// A receipt that says a thing was done has to rest on something. The window is
+// read back and the typed text either turned up in it or it did not.
+func TestCommitConfirmsTheTextArrived(t *testing.T) {
+	landed := editorTree()
+	landed.Elements[0].Value = "hello"
+
+	f := &fakeScreen{tree: editorTree(), afterwards: &landed}
+	e := &Engine{UIScreen: f, UIWriter: stubUIWriter{}}
+
+	receipt, err := e.runUI(context.Background(), uiPlan())
+	if err != nil {
+		t.Fatalf("runUI: %v", err)
+	}
+	if !receipt.Verified {
+		t.Error("the text arrived in the window and the receipt did not say so")
+	}
+}
+
+func TestCommitDoesNotClaimAnActionThatChangedNothing(t *testing.T) {
+	f := &fakeScreen{tree: editorTree()}
+	e := &Engine{UIScreen: f, UIWriter: stubUIWriter{}}
+
+	receipt, err := e.runUI(context.Background(), uiPlan())
+	if err != nil {
+		t.Fatalf("runUI: %v", err)
+	}
+	if receipt.Verified {
+		t.Error("nothing in the window changed and the receipt claimed it was done")
 	}
 }
 

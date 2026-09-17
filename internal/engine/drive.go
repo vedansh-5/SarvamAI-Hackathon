@@ -105,7 +105,7 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 				return Receipt{}, err
 			}
 
-			done = append(done, describe)
+			done = append(done, describe+" — "+effect(ctx, e, d.App, tree))
 			acted = true
 			break
 		}
@@ -118,4 +118,16 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	}
 
 	return Receipt{}, fmt.Errorf("engine: stopped after %d steps without finishing", MaxDriveSteps)
+}
+
+func effect(ctx context.Context, e *Engine, app string, before uiact.Tree) string {
+	after, err := e.UIScreen.Capture(ctx, app)
+	if err != nil {
+		return "could not read the window back"
+	}
+	changes := uiact.Changes(before, after)
+	if len(changes) == 0 {
+		return "nothing in the window changed"
+	}
+	return strings.Join(changes, "; ")
 }

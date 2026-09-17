@@ -1885,3 +1885,28 @@ move from refusing outright to working the way the destination is described.
 The gate is unchanged and still stands in front of it. "Where the cursor is" is
 confirmed by the person who can see the screen, which is the only place that
 judgement can honestly be made.
+
+## D-067 — Reading the window back
+
+Every receipt for an action said `Verified: false`, because nothing ever looked.
+The runtime checked that a control was where it expected *before* clicking and
+then reported success on the strength of having sent the events. A step that
+landed somewhere harmless and a step that did exactly what was asked produced
+the same answer.
+
+The window is read again after acting now, and the two readings are compared.
+What changed is said in plain terms — a control appeared, one is gone, one holds
+different text — and that is what a person sees rather than "done".
+
+**What can honestly be confirmed depends on the verb.** Typing has an intent
+that can be checked: the text either turned up in the window or it did not. A
+click does not — nothing says what a button was supposed to do — so the only
+truthful test is whether the window moved at all. A click that changed nothing
+is reported as not confirmed, which is the useful half of the distinction: it is
+the signature of a click that missed.
+
+**The driving loop gets this as feedback.** Each step it takes now carries the
+effect it had into the next request, so the model is told "nothing in the window
+changed" rather than being left to assume its last instruction worked. A loop
+that cannot tell a successful step from a wasted one spends its steps repeating
+the wasted one.

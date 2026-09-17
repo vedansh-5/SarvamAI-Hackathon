@@ -151,5 +151,23 @@ func (e *Engine) runUI(ctx context.Context, plan *Plan) (Receipt, error) {
 	}
 
 	e.logf("ran %d step(s) in %s's window", len(plan.UI.program.Steps), plan.UI.App)
-	return Receipt{Title: plan.UI.App, Verified: false}, nil
+
+	after, err := e.UIScreen.Capture(ctx, plan.UI.App)
+	if err != nil {
+		e.logf("could not read %s's window back: %v", plan.UI.App, err)
+		return Receipt{Title: plan.UI.App, Verified: false}, nil
+	}
+
+	changes := uiact.Changes(fresh, after)
+	if len(changes) == 0 {
+		e.logf("nothing in %s's window changed", plan.UI.App)
+	}
+	for _, c := range changes {
+		e.logf("  %s", c)
+	}
+
+	return Receipt{
+		Title:    plan.UI.App,
+		Verified: uiact.Landed(fresh, after, plan.UI.program),
+	}, nil
 }

@@ -13,10 +13,15 @@ type fakeScreen struct {
 	front    string
 	typed    []string
 	typeErr  error
+
+	afterwards *uiact.Tree
 }
 
 func (f *fakeScreen) Capture(context.Context, string) (uiact.Tree, error) {
 	f.captures++
+	if f.acts > 0 && f.afterwards != nil {
+		return *f.afterwards, nil
+	}
 	return f.tree, nil
 }
 
