@@ -13,3 +13,15 @@ func Trusted() bool { return false }
 func elementAt(int, int, int) (string, string, bool, error) {
 	return "", "", false, errNoAccessibilityAPI
 }
+
+func frontWindowAt(int, int) (int, string, bool) { return 0, "", false }
+
+func windowOnScreen(int) bool { return true }
+
+func displayBounds() (box, bool) { return box{}, false }
+
+func postClick(int, int) {}
+
+func postKey(int) {}
+
+func postText(string) {}

@@ -8,93 +8,50 @@ import (
 	"time"
 )
 
-const StepPause = "0.35"
+const StepPause = 350 * time.Millisecond
 
-func RenderScreen(p Program, t Tree) (string, error) {
+type Act struct {
+	Step int
+	Do   string
+	X, Y int
+	Text string
+	Code int
+}
+
+func Plan(p Program, t Tree) ([]Act, error) {
 	if err := Validate(p, t); err != nil {
-		return "", err
+		return nil, err
 	}
 
-	app, err := literal(t.App)
-	if err != nil {
-		return "", err
-	}
-
-	var b strings.Builder
-	fmt.Fprintf(&b, screenPreamble, app, StepPause)
-
-	for i, s := range p.Steps {
-		el, why := t.resolve(s.Target)
+	var out []Act
+	for i, step := range p.Steps {
+		el, why := t.resolve(step.Target)
 		if why != "" {
-			return "", &InvalidError{App: t.App, Reasons: []string{why}}
+			return nil, &InvalidError{App: t.App, Reasons: []string{why}}
 		}
 
-		switch verb(s.Do) {
+		switch verb(step.Do) {
 		case "click", "type":
 			x, y, ok := t.ClickPoint(el)
 			if !ok {
-				return "", &InvalidError{App: t.App, Reasons: []string{fmt.Sprintf(
+				return nil, &InvalidError{App: t.App, Reasons: []string{fmt.Sprintf(
 					"step %d: no part of the %s %q is visible on screen, so it cannot be clicked",
 					i+1, el.Role, el.Title)}}
 			}
-			fmt.Fprintf(&b, "    clickAt(%d, %d);\n", x, y)
-
-			if verb(s.Do) == "type" {
-				text, err := literal(s.Text)
-				if err != nil {
-					return "", err
-				}
-				fmt.Fprintf(&b, "    typeText(%s);\n", text)
+			out = append(out, Act{Step: i, Do: "click", X: x, Y: y})
+			if verb(step.Do) == "type" {
+				out = append(out, Act{Step: i, Do: "type", X: x, Y: y, Text: step.Text})
 			}
 
 		case "press":
-			fmt.Fprintf(&b, "    pressKey(%d);\n", Keys[s.Key])
+			out = append(out, Act{Step: i, Do: "press", Code: Keys[step.Key]})
 		}
 	}
-
-	b.WriteString(screenPostamble)
-	return b.String(), nil
+	return out, nil
 }
 
-const screenPreamble = `(function () {
-  ObjC.import('Foundation');
-  const se = Application('System Events');
-  const pause = %[2]s;
-  function wait(seconds) {
-    $.NSThread.sleepForTimeInterval(seconds);
-  }
-  function bringForward() {
-    const proc = se.applicationProcesses.byName(%[1]s);
-    if (proc.frontmost()) return;
-    try { Application(%[1]s).activate(); }
-    catch (e) { proc.frontmost = true; }
-    wait(0.5);
-  }
-  function clickAt(x, y) {
-    se.click({ at: [x, y] });
-    wait(pause);
-  }
-  function typeText(text) {
-    se.keystroke(text);
-    wait(pause);
-  }
-  function pressKey(code) {
-    se.keyCode(code);
-    wait(pause);
-  }
-  try {
-    bringForward();
-`
-
-const screenPostamble = `    return JSON.stringify({ ok: true });
-  } catch (e) {
-    return JSON.stringify({ ok: false, error: String((e && e.message) || e) });
-  }
-})();
-`
-
 func RunScreen(ctx context.Context, r Runner, p Program, t Tree) error {
-	script, err := RenderScreen(p, t)
+	acts, err := Plan(p, t)
 	if err != nil {
 		return err
 	}
@@ -110,23 +67,29 @@ func RunScreen(ctx context.Context, r Runner, p Program, t Tree) error {
 		return err
 	}
 
-	out, err := r.Run(ctx, script)
-	if err != nil {
-		return classify(err.Error(), fmt.Errorf("uiact: %s refused the step: %w", t.App, err))
-	}
-
-	var result struct {
-		OK    bool   `json:"ok"`
-		Error string `json:"error"`
-	}
-	if err := json.Unmarshal(out, &result); err != nil {
-		return fmt.Errorf("uiact: could not read back what happened (output %q): %w",
-			truncate(string(out), 200), err)
-	}
-	if !result.OK {
-		return classify(result.Error, fmt.Errorf("uiact: the step did not go through: %s", result.Error))
+	for _, a := range acts {
+		switch a.Do {
+		case "click":
+			postClick(a.X, a.Y)
+		case "type":
+			postText(a.Text)
+		case "press":
+			postKey(a.Code)
+		}
+		if !pause(ctx, StepPause) {
+			return ctx.Err()
+		}
 	}
 	return nil
+}
+
+func pause(ctx context.Context, d time.Duration) bool {
+	select {
+	case <-ctx.Done():
+		return false
+	case <-time.After(d):
+		return true
+	}
 }
 
 var (

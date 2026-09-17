@@ -47,6 +47,25 @@ func reasons(t *testing.T, err error) []string {
 	return invalid.Reasons
 }
 
+func clicked(acts []Act, x, y int) bool {
+	for _, a := range acts {
+		if a.Do == "click" && a.X == x && a.Y == y {
+			return true
+		}
+	}
+	return false
+}
+
+func typed(acts []Act) []string {
+	var out []string
+	for _, a := range acts {
+		if a.Do == "type" {
+			out = append(out, a.Text)
+		}
+	}
+	return out
+}
+
 func mentions(rs []string, want string) bool {
 	for _, r := range rs {
 		if strings.Contains(r, want) {
@@ -56,19 +75,19 @@ func mentions(rs []string, want string) bool {
 	return false
 }
 
-func TestAValidProgramRenders(t *testing.T) {
-	script, err := RenderScreen(send(), window())
+func TestAValidProgramPlans(t *testing.T) {
+	acts, err := Plan(send(), window())
 	if err != nil {
-		t.Fatalf("RenderScreen: %v", err)
+		t.Fatalf("Plan: %v", err)
 	}
-	if !strings.Contains(script, "clickAt(200, 220)") {
-		t.Errorf("typing step did not click the message box:\n%s", script)
+	if !clicked(acts, 200, 220) {
+		t.Errorf("typing step did not click the message box: %+v", acts)
 	}
-	if !strings.Contains(script, `typeText("on my way")`) {
-		t.Errorf("typing step did not type:\n%s", script)
+	if got := typed(acts); len(got) != 1 || got[0] != "on my way" {
+		t.Errorf("typing step did not type: %+v", acts)
 	}
-	if !strings.Contains(script, "clickAt(350, 220)") {
-		t.Errorf("send step did not click Send:\n%s", script)
+	if !clicked(acts, 350, 220) {
+		t.Errorf("send step did not click Send: %+v", acts)
 	}
 }
 
@@ -86,12 +105,12 @@ func TestIndexResolvesAmbiguity(t *testing.T) {
 	p := Program{App: "Telegram", Steps: []Step{
 		{Do: "click", Target: Selector{Role: "AXButton", Title: "Open", Index: 2}},
 	}}
-	script, err := RenderScreen(p, window())
+	acts, err := Plan(p, window())
 	if err != nil {
-		t.Fatalf("RenderScreen: %v", err)
+		t.Fatalf("Plan: %v", err)
 	}
-	if !strings.Contains(script, "clickAt(35, 340)") {
-		t.Errorf("index picked the wrong control:\n%s", script)
+	if !clicked(acts, 35, 340) {
+		t.Errorf("index picked the wrong control: %+v", acts)
 	}
 }
 
@@ -147,17 +166,20 @@ func TestTooManyStepsAreRefused(t *testing.T) {
 	}
 }
 
-func TestTextCannotCloseItsOwnLiteral(t *testing.T) {
+// Text is carried as data and posted as key events, so there is no script for
+// it to break out of. It arrives exactly as it was written, quotes and all.
+func TestTextIsCarriedAsDataNotAsScript(t *testing.T) {
+	const hostile = `"); se.keystroke("owned"); ("`
 	p := Program{App: "Telegram", Steps: []Step{
-		{Do: "type", Target: Selector{Role: "AXTextArea", Title: "Message"},
-			Text: `"); se.keystroke("owned"); ("`},
+		{Do: "type", Target: Selector{Role: "AXTextArea", Title: "Message"}, Text: hostile},
 	}}
-	script, err := RenderScreen(p, window())
+	acts, err := Plan(p, window())
 	if err != nil {
-		t.Fatalf("RenderScreen: %v", err)
+		t.Fatalf("Plan: %v", err)
 	}
-	if strings.Contains(script, `se.keystroke("owned")`) {
-		t.Errorf("text escaped its literal:\n%s", script)
+	got := typed(acts)
+	if len(got) != 1 || got[0] != hostile {
+		t.Errorf("text did not survive as written: %+v", acts)
 	}
 }
 
@@ -213,15 +235,15 @@ func TestAProgramFollowsItsControlsWhenTheyMove(t *testing.T) {
 		}
 	}
 
-	script, err := RenderScreen(p, moved)
+	acts, err := Plan(p, moved)
 	if err != nil {
-		t.Fatalf("RenderScreen against the moved window: %v", err)
+		t.Fatalf("Plan against the moved window: %v", err)
 	}
-	if !strings.Contains(script, "clickAt(200, 520)") {
-		t.Errorf("typing did not follow its control:\n%s", script)
+	if !clicked(acts, 200, 520) {
+		t.Errorf("typing did not follow its control: %+v", acts)
 	}
-	if !strings.Contains(script, "clickAt(350, 520)") {
-		t.Errorf("the click did not follow its control:\n%s", script)
+	if !clicked(acts, 350, 520) {
+		t.Errorf("the click did not follow its control: %+v", acts)
 	}
 }
 
@@ -407,15 +429,15 @@ func TestRenderScreenClicksWhereTheControlIs(t *testing.T) {
 		{Do: "type", Target: Selector{Role: "AXTextArea", Title: "Message"}, Text: "hello"},
 	}}
 
-	script, err := RenderScreen(p, tree)
+	acts, err := Plan(p, tree)
 	if err != nil {
-		t.Fatalf("RenderScreen: %v", err)
+		t.Fatalf("Plan: %v", err)
 	}
-	if !strings.Contains(script, "clickAt(140, 220)") {
-		t.Errorf("did not click the control's centre:\n%s", script)
+	if !clicked(acts, 140, 220) {
+		t.Errorf("did not click the control's centre: %+v", acts)
 	}
-	if !strings.Contains(script, `typeText("hello")`) {
-		t.Errorf("did not type the text:\n%s", script)
+	if got := typed(acts); len(got) != 1 || got[0] != "hello" {
+		t.Errorf("did not type the text: %+v", acts)
 	}
 }
 
@@ -427,7 +449,7 @@ func TestRenderScreenRefusesAControlItCannotSee(t *testing.T) {
 		{Do: "click", Target: Selector{Role: "AXTextArea", Title: "Message"}},
 	}}
 
-	if _, err := RenderScreen(p, tree); err == nil {
+	if _, err := Plan(p, tree); err == nil {
 		t.Fatal("a control with no position on screen was clicked anyway")
 	}
 }
@@ -517,11 +539,11 @@ func TestRenderScreenClicksTheVisiblePartOfATallControl(t *testing.T) {
 		{Do: "type", Target: Selector{Role: "AXTextArea"}, Text: "hello"},
 	}}
 
-	script, err := RenderScreen(p, tree)
+	acts, err := Plan(p, tree)
 	if err != nil {
-		t.Fatalf("RenderScreen: %v", err)
+		t.Fatalf("Plan: %v", err)
 	}
-	if !strings.Contains(script, "clickAt(948, 479)") {
-		t.Errorf("did not click the visible part:\n%s", script)
+	if !clicked(acts, 948, 479) {
+		t.Errorf("did not click the visible part: %+v", acts)
 	}
 }

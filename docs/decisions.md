@@ -1833,3 +1833,33 @@ The question is really whether reading the window will work, so it is asked of
 the same accessibility windows the capture itself needs. An application that
 publishes a window with nothing in it — which is what Chromium does (D-056) — is
 a different failure and keeps its own.
+
+## D-065 — Input is posted, not scripted
+
+Every click, keystroke and key press was rendered into JXA and handed to
+System Events. None of it ever worked: `click at` answers -1700 here, so the
+renderer failed on its first step in every run it ever made.
+
+The fallback was worse than the bug. Driving the screen through System Events
+means the Accessibility grant has to go to `osascript` — a binary any script on
+the machine can use — rather than to VANS. That is the opposite of asking for
+as little as possible, and it is not a trade worth making to keep a rendering
+strategy.
+
+Input is now posted as CoreGraphics events from the runtime itself, under the
+accessibility trust it already holds to read a window. Three things follow.
+
+**It is faster by the whole cost of the old path.** A step no longer spawns a
+process and crosses an Apple Event boundary; posting an event is a function
+call. The pause between steps is what remains, and that exists for the
+application's benefit, not the runtime's.
+
+**Text stops being part of a script.** It used to be interpolated into a JXA
+string literal, which is why there was a test for text closing its own quote
+and appending a keystroke. Nothing is parsed now — the characters are posted as
+key events — so the escape hatch is gone rather than guarded.
+
+**A program renders to data.** `Plan` turns a program and a window into a list
+of acts with resolved coordinates, which is what the tests now read. The
+verification in front of a click is unchanged and still runs against the window
+as it is at that moment.
