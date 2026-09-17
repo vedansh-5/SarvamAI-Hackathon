@@ -134,8 +134,7 @@ static int cgFrontOwnerAt(double x, double y, int *owner, char *name, int nlen) 
     }
     CFRelease(list);
     return found;
-}
-*/
+}*/
 import "C"
 
 import (
@@ -172,6 +171,22 @@ func rect(el C.AXUIElementRef) ([]int, []int) {
 		return nil, nil
 	}
 	return []int{int(x), int(y)}, []int{int(w), int(h)}
+}
+
+func windowOnScreen(pid int) bool {
+	app := C.axApp(C.pid_t(pid))
+	if app == 0 {
+		return false
+	}
+	defer C.axRelease(C.CFTypeRef(app))
+
+	windows := C.axCopyList(app, 1)
+	if windows == 0 {
+		return false
+	}
+	defer C.axRelease(C.CFTypeRef(windows))
+
+	return C.axCount(windows) > 0
 }
 
 func frontWindowAt(x, y int) (pid int, name string, ok bool) {

@@ -1809,3 +1809,27 @@ what can be driven is discovered from the scripting dictionaries on the machine
 rather than written down, so the suggestion is chosen against that list. A
 suggestion naming something that is not there is the same failure as offering a
 destination that does not exist: the panel promising what it cannot do.
+
+## D-064 — Being in front is not the same as being on screen
+
+Bringing an application forward reported success as soon as the process was
+frontmost. That is not what the caller needs to know. A window is brought
+forward so it can be read and clicked, and a process can be frontmost while none
+of its windows is anywhere on screen — Stage Manager does exactly this to the
+windows of applications that are not active. The failure then surfaced three
+steps later as the accessibility API declining to list a window, which reads as
+the runtime being broken rather than a window being hidden.
+
+Forwarding now waits for a window to actually appear, briefly, and says plainly
+what happened when none does, with the setting that most often causes it.
+
+**The window list was the wrong place to ask.** It was the first answer tried,
+and it failed every application it was pointed at: the only window of some is at
+the desktop layer rather than the ordinary one, and for a Chromium application
+the process that owns the window is not the one its name resolves to. Both would
+have made forwarding refuse windows that were plainly on screen.
+
+The question is really whether reading the window will work, so it is asked of
+the same accessibility windows the capture itself needs. An application that
+publishes a window with nothing in it — which is what Chromium does (D-056) — is
+a different failure and keeps its own.

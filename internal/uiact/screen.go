@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 )
 
 const StepPause = "0.35"
@@ -102,7 +103,7 @@ func RunScreen(ctx context.Context, r Runner, p Program, t Tree) error {
 	if err != nil {
 		return err
 	}
-	if err := bringForward(ctx, r, t.App); err != nil {
+	if err := bringForward(ctx, r, t.App, pid); err != nil {
 		return err
 	}
 	if err := VerifyTargets(pid, p, t); err != nil {
@@ -131,7 +132,10 @@ func RunScreen(ctx context.Context, r Runner, p Program, t Tree) error {
 var (
 	lookupAt     = elementAt
 	frontOwnerAt = frontWindowAt
+	onScreen     = windowOnScreen
 )
+
+var windowWait = 1200 * time.Millisecond
 
 func VerifyTargets(pid int, p Program, t Tree) error {
 	for i, step := range p.Steps {
@@ -178,7 +182,7 @@ func sameControl(want Element, role, title string) bool {
 	return strings.EqualFold(strings.TrimSpace(title), strings.TrimSpace(want.Title))
 }
 
-func bringForward(ctx context.Context, r Runner, app string) error {
+func bringForward(ctx context.Context, r Runner, app string, pid int) error {
 	name, err := literal(app)
 	if err != nil {
 		return err
@@ -199,7 +203,28 @@ func bringForward(ctx context.Context, r Runner, app string) error {
 	if !envelope.OK {
 		return classify(envelope.Error, fmt.Errorf("uiact: %s", envelope.Error))
 	}
+
+	if !waitForWindow(ctx, pid) {
+		return fmt.Errorf("%w — %s", ErrWindowHidden, app)
+	}
 	return nil
+}
+
+func waitForWindow(ctx context.Context, pid int) bool {
+	deadline := time.Now().Add(windowWait)
+	for {
+		if onScreen(pid) {
+			return true
+		}
+		if time.Now().After(deadline) {
+			return false
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
 }
 
 const forwardScript = `(function () {

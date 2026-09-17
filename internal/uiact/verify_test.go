@@ -1,8 +1,11 @@
 package uiact
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 func withLookup(t *testing.T, role, title string, owned bool) {
@@ -87,5 +90,50 @@ func TestTreeTextWithholdsValuesExceptWhereTheCursorIs(t *testing.T) {
 	}
 	if !strings.Contains(got, "typed query") {
 		t.Errorf("the focused control's value was withheld, which the model needs:\n%s", got)
+	}
+}
+
+type frontRunner struct{}
+
+func (frontRunner) Run(context.Context, string) ([]byte, error) {
+	return []byte(`{"ok":true,"value":"front"}`), nil
+}
+
+func withOnScreen(t *testing.T, there bool) {
+	t.Helper()
+	original := onScreen
+	originalWait := windowWait
+	onScreen = func(int) bool { return there }
+	windowWait = 20 * time.Millisecond
+	t.Cleanup(func() {
+		onScreen = original
+		windowWait = originalWait
+	})
+}
+
+// Bringing an application forward is only done so its window can be read and
+// clicked. Reporting success when the process is frontmost and nothing of it
+// is on screen sends the failure somewhere further along, where it arrives as
+// the accessibility API being unhelpful rather than a window being hidden.
+func TestBringForwardRefusesWhenNoWindowReachesTheScreen(t *testing.T) {
+	withOnScreen(t, false)
+
+	err := bringForward(context.Background(), frontRunner{}, "Notes", 42)
+	if !errors.Is(err, ErrWindowHidden) {
+		t.Fatalf("err = %v, want the hidden-window sentinel", err)
+	}
+	if !strings.Contains(err.Error(), "Notes") {
+		t.Errorf("err = %v, which does not say which application", err)
+	}
+	if Fix(err) == "" {
+		t.Error("a hidden window came with no way to fix it")
+	}
+}
+
+func TestBringForwardAcceptsAWindowThatIsOnScreen(t *testing.T) {
+	withOnScreen(t, true)
+
+	if err := bringForward(context.Background(), frontRunner{}, "Notes", 42); err != nil {
+		t.Errorf("refused a window that is on screen: %v", err)
 	}
 }

@@ -23,11 +23,18 @@ var ErrNoAssistiveAccess = errors.New("uiact: VANS has not been allowed to contr
 
 var ErrNoWindow = errors.New("uiact: that application is not showing a window to the accessibility API, which only lists windows for the application in front")
 
+var ErrWindowHidden = errors.New("uiact: the application is in front but none of its windows is on screen")
+
 const assistiveFix = "Grant access in System Settings › Privacy & Security › Accessibility, then ask again."
+
+const hiddenFix = "Something is keeping the window off screen. Stage Manager does this to the windows of applications that are not active — turn it off in System Settings › Desktop & Dock, or bring the window onto this desktop, then ask again."
 
 func Fix(err error) string {
 	if errors.Is(err, ErrNoAssistiveAccess) {
 		return assistiveFix
+	}
+	if errors.Is(err, ErrWindowHidden) {
+		return hiddenFix
 	}
 	return ""
 }

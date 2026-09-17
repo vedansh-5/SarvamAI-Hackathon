@@ -132,7 +132,14 @@ func TestLiveTypesIntoTheControlTheRuntimePicks(t *testing.T) {
 	// The window is only published to the accessibility API while its
 	// application is in front (D-051), so the proof brings it there itself
 	// rather than depending on the desktop having been arranged by hand.
-	if err := bringForward(ctx, liveRunner(), app); err != nil {
+	pid, err := pidFor(ctx, liveRunner(), app)
+	if err != nil {
+		t.Fatalf("pidFor: %v", err)
+	}
+	if err := bringForward(ctx, liveRunner(), app, pid); err != nil {
+		if Fix(err) != "" {
+			t.Fatalf("bring %s to the front: %v — %s", app, err, Fix(err))
+		}
 		t.Fatalf("bring %s to the front: %v", app, err)
 	}
 
