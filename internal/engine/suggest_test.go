@@ -124,7 +124,7 @@ func TestARememberedInstructionIsNotOfferedTwice(t *testing.T) {
 // an action in something this machine does not have is the panel lying, the
 // same way offering a destination that does not exist would be.
 func TestAnAppExampleNamesSomethingInstalled(t *testing.T) {
-	got, ok := appExampleFor([]string{"Notes", "Safari"})
+	got, ok := appExampleFor([]string{"Notes", "Safari"}, "")
 	if !ok {
 		t.Fatal("Notes is installed and no action was offered")
 	}
@@ -137,14 +137,14 @@ func TestAnAppExampleNamesSomethingInstalled(t *testing.T) {
 }
 
 func TestAnAppExampleFallsBackToWhatIsInstalled(t *testing.T) {
-	got, ok := appExampleFor([]string{"Safari", "Reminders"})
+	got, ok := appExampleFor([]string{"Safari", "Reminders"}, "")
 	if !ok || !strings.Contains(got.Text, "Reminders") {
 		t.Errorf("offered %q (ok=%v), want the Reminders example", got.Text, ok)
 	}
 }
 
 func TestNothingIsOfferedWhenNeitherApplicationIsThere(t *testing.T) {
-	if got, ok := appExampleFor([]string{"Safari", "Terminal"}); ok {
+	if got, ok := appExampleFor([]string{"Safari", "Terminal"}, ""); ok {
 		t.Errorf("offered %q with neither application installed", got.Text)
 	}
 }
@@ -153,7 +153,26 @@ func TestNothingIsOfferedWhenNeitherApplicationIsThere(t *testing.T) {
 // and one with no catalogue has no way to know what is installed.
 func TestNoAppExampleWithoutTheMeansToAct(t *testing.T) {
 	e := &Engine{Sinks: DefaultSinks()}
-	if got, ok := e.appExample(); ok {
+	if got, ok := e.appExample(""); ok {
 		t.Errorf("offered %q from a build that cannot act in an application", got.Text)
+	}
+}
+
+// The application someone is looking at is the one an example is most likely to
+// be about, so it wins over the order the examples happen to be written in.
+func TestAnAppExamplePrefersWhatIsInFront(t *testing.T) {
+	got, ok := appExampleFor([]string{"Notes", "Reminders"}, "Reminders")
+	if !ok {
+		t.Fatal("nothing offered with both installed")
+	}
+	if !strings.Contains(got.Text, "Reminders") {
+		t.Errorf("offered %q with Reminders in front", got.Text)
+	}
+}
+
+func TestTheFrontApplicationIsIgnoredWhenItIsNotInstalled(t *testing.T) {
+	got, ok := appExampleFor([]string{"Notes"}, "Reminders")
+	if !ok || !strings.Contains(got.Text, "Notes") {
+		t.Errorf("offered %q (ok=%v), want the installed application", got.Text, ok)
 	}
 }

@@ -553,6 +553,7 @@ function firstLink(row: Record<string, string>, fields: string[]): string {
 }
 
 function renderConfirm(plan: Plan) {
+  $("confirm-tag").textContent = plan.action ? "ACTION" : "WRITE";
   if (plan.action) {
     $("confirm-title").textContent = plan.app ? `Do this in ${plan.app}?` : "Do this?";
     $("confirm-preview").textContent = plan.action;
