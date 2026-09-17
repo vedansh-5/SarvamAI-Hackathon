@@ -50,6 +50,12 @@ func (e *Engine) Suggestions(ctx context.Context, front string) []Suggestion {
 		out = append(out, s)
 	}
 
+	if e.canStyle() {
+		out = append(out,
+			Suggestion{Icon: "pencil", Text: "highlight the headings on this page", Kind: route.KindPageStyle},
+			Suggestion{Icon: "page", Text: "clear the highlighting from this page", Kind: route.KindPageStyle})
+	}
+
 	if browsers[strings.ToLower(strings.TrimSpace(front))] {
 		out = pageFirst(out)
 	}

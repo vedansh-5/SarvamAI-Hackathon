@@ -1910,3 +1910,37 @@ effect it had into the next request, so the model is told "nothing in the window
 changed" rather than being left to assume its last instruction worked. A loop
 that cannot tell a successful step from a wasted one spends its steps repeating
 the wasted one.
+
+## D-068 — Restyling a page, and the runtime owning how it looks
+
+A restyle marks what the user asked about on the page in front of them. The
+program is a list of rules, and a rule is a selector and an emphasis — nothing
+else. The model chooses what to point at and how strongly; every colour, radius
+and duration is the runtime's.
+
+**No value from the model ever reaches the page.** The first version let it write
+declarations, which meant validating strings: an allowlist of properties, a
+character class for values, and a ban on `url(`, because a stylesheet can
+exfiltrate what its selector matched by asking for a background image. Emphases
+removed the question rather than answering it. There is no value to check
+because there is no value.
+
+**A mark is a tint, not a border.** An outline around a thing reads as a
+debugging tool, and a border changes an element's size, which moves the page
+under the reader. Every emphasis is a background tint with a small radius, and
+the one exception marks an edge rather than enclosing anything.
+
+**The palette is chosen on the page.** Only the page knows what it is wearing,
+so the injected script walks up from the body until it finds a background that
+is not transparent, measures its luminance, and picks the set that will sit on
+it. Tints go *down* on a dark page rather than up: a wash that reads as soft on
+white glows on black.
+
+**Contents stay on the page.** The model is given selectors and counts, never
+text. The page in front of someone is as likely to be their mail or a
+conversation as a shop, and a restyle decides which elements change rather than
+what they say. That is D-058 applied to a second tier.
+
+**Taking it off is not a thing to confirm.** Clearing puts the page back, so it
+skips the gate, and it is recognised in Go rather than by the model: "clear the
+highlighting" costs no call and cannot be misread.

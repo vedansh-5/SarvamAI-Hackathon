@@ -109,6 +109,7 @@ type Engine struct {
 	Actions   ActionCache
 	Runner    appact.Runner
 
+	Styler    StyleWriter
 	UIWriter  UIActionWriter
 	UIScreen  uiact.Screen
 	UIActions UIActionCache
@@ -242,6 +243,9 @@ type Plan struct {
 	UI *UIPlan
 
 	Drive *DrivePlan
+
+	// Style is set when this plan changes how the page in front looks.
+	Style *StylePlan
 
 	key       store.Key
 	programID int64
@@ -478,6 +482,11 @@ func (e *Engine) Commit(ctx context.Context, plan *Plan) (Receipt, error) {
 		return e.runWeb(ctx, plan)
 	}
 
+	if plan.Style != nil {
+		plan.committed = true
+		return e.runStyle(ctx, plan)
+	}
+
 	if plan.UI != nil {
 		plan.committed = true
 		return e.runUI(ctx, plan)
@@ -550,6 +559,12 @@ func (p *Plan) NeedsCommit() bool {
 	// click sends a message or opens a menu. Every page program is confirmed.
 	if p.Web != nil {
 		return true
+	}
+
+	// Putting a restyle on changes what the page looks like. Taking it off
+	// puts the page back, which is not a thing to confirm.
+	if p.Style != nil {
+		return !p.Style.Clears
 	}
 
 	if p.UI != nil {

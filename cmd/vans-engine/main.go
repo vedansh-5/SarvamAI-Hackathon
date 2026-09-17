@@ -116,6 +116,11 @@ func run() error {
 		steps = w
 	}
 
+	var styler engine.StyleWriter
+	if w, ok := synthesizer.(engine.StyleWriter); ok {
+		styler = w
+	}
+
 	var answers engine.Answerer
 	if a, ok := synthesizer.(engine.Answerer); ok {
 		answers = a
@@ -139,6 +144,7 @@ func run() error {
 			UIWriter:  uiWriter,
 			UIActions: st,
 			Steps:     steps,
+			Styler:    styler,
 			History:   st,
 			UIScreen:  uiact.System{Runner: appleevents.Osascript{}},
 		},

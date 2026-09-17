@@ -101,6 +101,11 @@ type PrepareParams struct {
 	Title  string `json:"title"`
 }
 
+// ClearStyleResult reports that the page was put back.
+type ClearStyleResult struct {
+	Cleared bool `json:"cleared"`
+}
+
 // PrepareResult is a plan awaiting confirmation.
 type PrepareResult struct {
 	// PlanID is what Commit takes. The rows are not sent back on commit —

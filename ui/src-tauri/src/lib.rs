@@ -62,6 +62,11 @@ async fn prepare(
 
 /// Lists everywhere an answer can be sent.
 #[tauri::command]
+async fn clear_style(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("clear_style", None).await
+}
+
+#[tauri::command]
 async fn destinations(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("destinations", None).await
 }
@@ -225,6 +230,7 @@ pub fn run() {
             destinations,
             suggestions,
             commit,
+            clear_style,
             dismiss,
             set_pinned,
             begin_drag,

@@ -130,6 +130,8 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.suggestions(ctx, req)
 	case "screen_context":
 		result, err = s.screenContext(ctx, req)
+	case "clear_style":
+		result, err = s.clearStyle(ctx)
 	default:
 		err = &Error{Code: CodeBadRequest, Message: fmt.Sprintf("unknown method %q", req.Method)}
 	}
@@ -372,6 +374,8 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 	case plan.Drive != nil:
 		action = plan.Drive.Preview
 		app = plan.Drive.App
+	case plan.Style != nil:
+		action = plan.Style.Preview
 	}
 
 	answerText := ""
@@ -557,6 +561,13 @@ func fixData(fix string) json.RawMessage {
 		return nil
 	}
 	return raw
+}
+
+func (s *Server) clearStyle(ctx context.Context) (ClearStyleResult, error) {
+	if err := s.Engine.ClearStyle(ctx); err != nil {
+		return ClearStyleResult{}, err
+	}
+	return ClearStyleResult{Cleared: true}, nil
 }
 
 func (s *Server) screenContext(ctx context.Context, req Request) (ScreenContextResult, error) {

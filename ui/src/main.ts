@@ -296,6 +296,30 @@ async function checkNotes() {
 
 let currentPlan: Plan | null = null;
 
+/// Whether a restyle is sitting on a page right now.
+///
+/// The panel offers to take it off only while there is something to take off,
+/// because a button that does nothing is worse than no button.
+let styleApplied = false;
+
+function showClearStyle(on: boolean) {
+  styleApplied = on;
+  const button = $("clear-style");
+  if (button) button.hidden = !on;
+}
+
+async function clearStyle() {
+  if (!styleApplied) return;
+  try {
+    await invoke("clear_style");
+    showClearStyle(false);
+    toast("Highlighting cleared");
+  } catch (e) {
+    renderFailure(e);
+    show("failure");
+  }
+}
+
 async function extract() {
   const instruction = ($("intent") as HTMLInputElement).value.trim();
   const destination = chosen;
@@ -597,6 +621,9 @@ async function confirmWrite() {
 
   try {
     const receipt = await invoke<Receipt>("commit", { planId: currentPlan.plan_id });
+    if (currentPlan.kind === "page.style") {
+      showClearStyle(!/\b(clear|remove|undo|reset|revert)\b/i.test(currentPlan.title ?? ""));
+    }
     if (acting) {
       toast(receipt.verified ? `Done in ${where}` : `Done in ${where}, unverified`);
     } else {
@@ -1134,6 +1161,7 @@ $("view-cards").addEventListener("click", () => applyView(false, true));
 $("view-table").addEventListener("click", () => applyView(true, true));
 
 $("ask-again").addEventListener("click", backToAsk);
+$("clear-style").addEventListener("click", clearStyle);
 $("to-task").addEventListener("click", backToAsk);
 $("back").addEventListener("click", backToAsk);
 $("back-from-unknown").addEventListener("click", backToAsk);

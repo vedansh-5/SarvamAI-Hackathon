@@ -44,6 +44,11 @@ const (
 	// the user did supply the page, by having it open.
 	KindPageHere Kind = "page.here"
 
+	// KindPageStyle restyles the page already on screen so that what the user
+	// asked about is visible on it. It changes how the page looks and nothing
+	// else — no navigation, no typing, no clicking.
+	KindPageStyle Kind = "page.style"
+
 	// KindUnknown is the honest answer. The router is allowed to say it does
 	// not know, and saying so is better than routing to the nearest kind and
 	// failing somewhere the user cannot interpret.
@@ -102,6 +107,13 @@ var Specs = []Spec{
 		Describe: "Do something on the page the user has open — type into it, click something in it.",
 		Slots: []Slot{
 			{"action", "what to do on that page, in plain words", true},
+		},
+	},
+	{
+		Kind:     KindPageStyle,
+		Describe: "Restyle the page the user has open so something on it stands out — highlight, dim, mark, colour, show which ones match — or take that highlighting back off.",
+		Slots: []Slot{
+			{"intent", "what to make stand out, or that the highlighting should be cleared, in plain words", true},
 		},
 	},
 	{
