@@ -1863,3 +1863,25 @@ key events — so the escape hatch is gone rather than guarded.
 of acts with resolved coordinates, which is what the tests now read. The
 verification in front of a click is unchanged and still runs against the window
 as it is at that moment.
+
+## D-066 — Typing where the cursor is needs no tree
+
+The destination that types an answer into the application in front required a
+typeable control in that application's accessibility tree. It refused Chrome
+with "nothing on screen can hold typed text", which is true of what Chromium
+publishes and false of what is on the screen.
+
+That requirement was an artefact of how typing used to work. Text was delivered
+by clicking a control and then sending keystrokes, so a control had to be found
+and its coordinates resolved. Posting key events (D-065) does not need a target:
+the characters go wherever the focus already is, which is what the destination
+has always said it does.
+
+So the precise path is tried first — find the control, address it, type into it,
+which is the better outcome when the application describes itself — and the
+cursor is the fallback when it does not. Chrome and the Electron applications
+move from refusing outright to working the way the destination is described.
+
+The gate is unchanged and still stands in front of it. "Where the cursor is" is
+confirmed by the person who can see the screen, which is the only place that
+judgement can honestly be made.

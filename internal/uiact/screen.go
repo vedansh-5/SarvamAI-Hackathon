@@ -83,6 +83,15 @@ func RunScreen(ctx context.Context, r Runner, p Program, t Tree) error {
 	return nil
 }
 
+func TypeHere(ctx context.Context, text string) error {
+	if strings.TrimSpace(text) == "" {
+		return fmt.Errorf("uiact: nothing to type")
+	}
+	postText(text)
+	pause(ctx, StepPause)
+	return nil
+}
+
 func pause(ctx context.Context, d time.Duration) bool {
 	select {
 	case <-ctx.Done():

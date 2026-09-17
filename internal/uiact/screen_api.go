@@ -6,6 +6,7 @@ type Screen interface {
 	Capture(ctx context.Context, app string) (Tree, error)
 	Act(ctx context.Context, p Program, t Tree) error
 	Frontmost(ctx context.Context) (string, error)
+	Type(ctx context.Context, text string) error
 }
 
 type System struct{ Runner Runner }
@@ -20,4 +21,8 @@ func (s System) Act(ctx context.Context, p Program, t Tree) error {
 
 func (s System) Frontmost(ctx context.Context) (string, error) {
 	return Frontmost(ctx, s.Runner)
+}
+
+func (s System) Type(ctx context.Context, text string) error {
+	return TypeHere(ctx, text)
 }

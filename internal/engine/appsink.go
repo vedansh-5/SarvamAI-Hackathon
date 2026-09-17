@@ -45,12 +45,12 @@ func (s AppSink) Write(ctx context.Context, doc Document) (Receipt, error) {
 
 	tree, err := s.Screen.Capture(ctx, app)
 	if err != nil {
-		return Receipt{}, err
+		return s.typeWhereTheCursorIs(ctx, app, doc)
 	}
 
 	target, why := tree.TypingTarget()
 	if why != "" {
-		return Receipt{}, fmt.Errorf("engine: %s: %s", app, why)
+		return s.typeWhereTheCursorIs(ctx, app, doc)
 	}
 
 	program := uiact.Program{App: tree.App, Steps: []uiact.Step{{
@@ -62,6 +62,13 @@ func (s AppSink) Write(ctx context.Context, doc Document) (Receipt, error) {
 
 	if err := s.Screen.Act(ctx, program, tree); err != nil {
 		return Receipt{}, err
+	}
+	return Receipt{Title: app, Verified: false}, nil
+}
+
+func (s AppSink) typeWhereTheCursorIs(ctx context.Context, app string, doc Document) (Receipt, error) {
+	if err := s.Screen.Type(ctx, doc.Text()); err != nil {
+		return Receipt{}, fmt.Errorf("engine: %s: %w", app, err)
 	}
 	return Receipt{Title: app, Verified: false}, nil
 }

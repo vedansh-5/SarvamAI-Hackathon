@@ -11,6 +11,8 @@ type fakeScreen struct {
 	captures int
 	acts     int
 	front    string
+	typed    []string
+	typeErr  error
 }
 
 func (f *fakeScreen) Capture(context.Context, string) (uiact.Tree, error) {
@@ -28,6 +30,11 @@ func (f *fakeScreen) Frontmost(context.Context) (string, error) {
 		return "Editor", nil
 	}
 	return f.front, nil
+}
+
+func (f *fakeScreen) Type(_ context.Context, text string) error {
+	f.typed = append(f.typed, text)
+	return f.typeErr
 }
 
 func editorTree() uiact.Tree {
