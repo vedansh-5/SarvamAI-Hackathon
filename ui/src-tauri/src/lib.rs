@@ -1,3 +1,4 @@
+mod coach;
 mod engine;
 mod overlay;
 pub mod screen;
@@ -61,6 +62,16 @@ async fn prepare(
 }
 
 /// Lists everywhere an answer can be sent.
+#[tauri::command]
+fn point_at(app: tauri::AppHandle, x: f64, y: f64, w: f64, h: f64, label: String, step: String) {
+    coach::point_at(&app, coach::Pointer { x, y, w, h, label, step });
+}
+
+#[tauri::command]
+fn clear_pointer(app: tauri::AppHandle) {
+    coach::clear(&app);
+}
+
 #[tauri::command]
 async fn clear_style(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("clear_style", None).await
@@ -231,6 +242,8 @@ pub fn run() {
             suggestions,
             commit,
             clear_style,
+            point_at,
+            clear_pointer,
             dismiss,
             set_pinned,
             begin_drag,

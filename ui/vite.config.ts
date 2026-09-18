@@ -10,6 +10,18 @@ export default defineConfig(async () => ({
   //
   // 1. prevent Vite from obscuring rust errors
   clearScreen: false,
+
+  // The panel and the on-screen coach are two pages in one bundle. Without
+  // naming both here, only index.html is built and the coach window loads
+  // nothing in a release build.
+  build: {
+    rollupOptions: {
+      input: {
+        main: "index.html",
+        coach: "coach.html",
+      },
+    },
+  },
   // 2. tauri expects a fixed port, fail if that port is not available
   server: {
     port: 1420,
