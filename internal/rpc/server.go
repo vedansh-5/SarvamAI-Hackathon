@@ -132,6 +132,8 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.screenContext(ctx, req)
 	case "clear_style":
 		result, err = s.clearStyle(ctx)
+	case "guide":
+		result, err = s.guide(ctx, req)
 	default:
 		err = &Error{Code: CodeBadRequest, Message: fmt.Sprintf("unknown method %q", req.Method)}
 	}
@@ -173,13 +175,17 @@ func (s *Server) reply(r Response) {
 
 // notify pushes a progress line for a request already in flight.
 func (s *Server) notify(id int, format string, args ...any) {
-	raw, err := json.Marshal(LogParams{Message: fmt.Sprintf(format, args...)})
+	s.push(id, "log", LogParams{Message: fmt.Sprintf(format, args...)})
+}
+
+func (s *Server) push(id int, method string, params any) {
+	raw, err := json.Marshal(params)
 	if err != nil {
 		return
 	}
 	s.outMu.Lock()
 	defer s.outMu.Unlock()
-	_ = s.out.Encode(Notification{Method: "log", For: id, Params: raw})
+	_ = s.out.Encode(Notification{Method: method, For: id, Params: raw})
 }
 
 // --- methods ---
@@ -376,6 +382,9 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 		app = plan.Drive.App
 	case plan.Style != nil:
 		action = plan.Style.Preview
+	case plan.Guide != nil:
+		action = plan.Guide.Preview
+		app = plan.Guide.App
 	}
 
 	answerText := ""
@@ -561,6 +570,35 @@ func fixData(fix string) json.RawMessage {
 		return nil
 	}
 	return raw
+}
+
+func (s *Server) guide(ctx context.Context, req Request) (GuideResult, error) {
+	var p GuideParams
+	if err := json.Unmarshal(req.Params, &p); err != nil {
+		return GuideResult{}, &Error{Code: CodeBadRequest, Message: err.Error()}
+	}
+
+	s.mu.Lock()
+	plan := s.plans[p.PlanID]
+	s.mu.Unlock()
+
+	if plan == nil || plan.Guide == nil {
+		return GuideResult{}, &Error{
+			Code:    CodeBadRequest,
+			Message: "no such guide; ask again",
+		}
+	}
+
+	steps, err := s.Engine.RunGuide(ctx, plan, func(g engine.GuideStep) {
+		s.push(req.ID, "guide", GuideStepParams{
+			Number: g.Number, Label: g.Label,
+			X: g.X, Y: g.Y, W: g.W, H: g.H,
+		})
+	})
+	if err != nil {
+		return GuideResult{}, err
+	}
+	return GuideResult{Steps: steps}, nil
 }
 
 func (s *Server) clearStyle(ctx context.Context) (ClearStyleResult, error) {

@@ -49,6 +49,10 @@ const (
 	// else — no navigation, no typing, no clicking.
 	KindPageStyle Kind = "page.style"
 
+	// KindAppGuide shows the user what to do rather than doing it: the control
+	// to use is pointed at on screen, a step at a time.
+	KindAppGuide Kind = "app.guide"
+
 	// KindUnknown is the honest answer. The router is allowed to say it does
 	// not know, and saying so is better than routing to the nearest kind and
 	// failing somewhere the user cannot interpret.
@@ -114,6 +118,13 @@ var Specs = []Spec{
 		Describe: "Restyle the page the user has open so something on it stands out — highlight, dim, mark, colour, show which ones match — or take that highlighting back off.",
 		Slots: []Slot{
 			{"intent", "what to make stand out, or that the highlighting should be cleared, in plain words", true},
+		},
+	},
+	{
+		Kind:     KindAppGuide,
+		Describe: "Show the user how to do something in the application they are looking at — point at the control on screen and say what it is for, a step at a time, without touching anything.",
+		Slots: []Slot{
+			{"intent", "what they want to do or find, in plain words", true},
 		},
 	},
 	{

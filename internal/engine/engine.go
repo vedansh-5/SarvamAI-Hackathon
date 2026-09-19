@@ -247,6 +247,8 @@ type Plan struct {
 	// Style is set when this plan changes how the page in front looks.
 	Style *StylePlan
 
+	Guide *GuidePlan
+
 	key       store.Key
 	programID int64
 	committed bool

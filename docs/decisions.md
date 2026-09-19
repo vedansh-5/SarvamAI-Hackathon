@@ -1944,3 +1944,36 @@ what they say. That is D-058 applied to a second tier.
 **Taking it off is not a thing to confirm.** Clearing puts the page back, so it
 skips the gate, and it is recognised in Go rather than by the model: "clear the
 highlighting" costs no call and cannot be misread.
+
+## D-069 — Showing is the same loop as doing
+
+Asking "how do I do this here" and asking VANS to do it are the same problem
+read twice. Both need the window, a step written against it, and a check that
+the step fits. They differ in one place: one clicks the control, and the other
+points at it and waits for the person.
+
+So there is one loop, and the caller passes in what happens to each step.
+Driving hands it to the screen; coaching hands it to the overlay and then waits.
+Everything else — capture, the step, the two attempts, the record of what has
+been done, the effect read back afterwards — is written once.
+
+**The wait is the interesting part.** Nothing tells the runtime that a person
+has clicked something, so the window is read every half second and compared with
+how it looked when the tip went up. A change means they acted, and the next step
+is worked out from the window as it is now rather than as it was predicted to
+be. Forty-five seconds without a change ends it, because a dimmed screen left
+over someone who walked away is worse than stopping early.
+
+**A step is pointed at where it is visible, not where it is.** The rectangle
+comes from the same clipping the click point uses (D-062), so a control scrolled
+half out of view is ringed around the part that shows.
+
+**Nothing is confirmed, because nothing is done.** Pointing at a control changes
+nothing, so it skips the gate — the same reason reading a page does. The guide
+is driven by its own call rather than by `Commit`, which is where side effects
+live.
+
+**The panel must not take the overlay down when it dismisses.** It dismisses on
+a click outside, and during a guide the first thing the person does is click
+outside — on the control they were just shown. The overlay ends with the guide,
+not with the panel.

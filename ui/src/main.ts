@@ -338,7 +338,9 @@ async function extract() {
     const plan = await invoke<Plan>("prepare", { instruction, destination });
     setProgress(100);
     currentPlan = plan;
-    if (plan.needs_commit) {
+    if (plan.kind === "app.guide") {
+      await showTheWay(plan);
+    } else if (plan.needs_commit) {
       renderConfirm(plan);
       show("confirm");
     } else {
@@ -350,6 +352,43 @@ async function extract() {
     show(isRpcError(e) && e.code === "unroutable" ? "notunderstood" : "failure");
   }
 }
+
+/// Walks the person through the steps, pointing at each control in turn.
+///
+/// The runtime pushes one step at a time and waits for them to act before
+/// working out the next, so this returns only once they are done or it gives up.
+async function showTheWay(plan: Plan) {
+  $("results-kicker").textContent = plan.app ? `Showing you — ${plan.app}` : "Showing you";
+  clear($("cards"));
+  $("cards").appendChild(el("p", "card-text", plan.action));
+  clear($("rows"));
+  show("results");
+
+  try {
+    await invoke("guide", { planId: plan.plan_id });
+    toast("That is all of it");
+  } catch (e) {
+    renderFailure(e);
+    show("failure");
+  } finally {
+    invoke("clear_pointer").catch(console.error);
+  }
+}
+
+listen<{ params: { number: number; label: string; x: number; y: number; w: number; h: number } }>(
+  "engine://guide",
+  (event) => {
+    const s = event.payload.params;
+    invoke("point_at", {
+      x: s.x,
+      y: s.y,
+      w: s.w,
+      h: s.h,
+      label: s.label,
+      step: `Step ${s.number}`,
+    }).catch(console.error);
+  },
+);
 
 let progressAt = 0;
 

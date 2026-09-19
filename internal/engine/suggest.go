@@ -50,6 +50,14 @@ func (e *Engine) Suggestions(ctx context.Context, front string) []Suggestion {
 		out = append(out, s)
 	}
 
+	if e.canGuide() {
+		out = append(out, Suggestion{
+			Icon: "page",
+			Text: "show me where the search box is",
+			Kind: route.KindAppGuide,
+		})
+	}
+
 	if e.canStyle() {
 		out = append(out,
 			Suggestion{Icon: "pencil", Text: "highlight the headings on this page", Kind: route.KindPageStyle},

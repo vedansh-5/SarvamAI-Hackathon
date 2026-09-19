@@ -14,12 +14,13 @@ type fakeScreen struct {
 	typed    []string
 	typeErr  error
 
-	afterwards *uiact.Tree
+	afterwards   *uiact.Tree
+	changesAfter int
 }
 
 func (f *fakeScreen) Capture(context.Context, string) (uiact.Tree, error) {
 	f.captures++
-	if f.acts > 0 && f.afterwards != nil {
+	if f.afterwards != nil && (f.acts > 0 || (f.changesAfter > 0 && f.captures > f.changesAfter)) {
 		return *f.afterwards, nil
 	}
 	return f.tree, nil

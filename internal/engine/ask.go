@@ -132,6 +132,16 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 		e.answerFor(ctx, in.Instruction, plan)
 		return plan, nil
 
+	case route.KindAppGuide:
+		plan, err := e.planGuide(ctx, res.Route.Slot("intent"))
+		if err != nil {
+			return nil, err
+		}
+		r := res.Route
+		plan.Route = &r
+		plan.DecisionCalls = res.DecisionCalls
+		return plan, nil
+
 	case route.KindPageStyle:
 		plan, calls, err := e.stylePage(ctx, res.Route)
 		if err != nil {
@@ -217,6 +227,8 @@ func (e *Engine) runs(k route.Kind) bool {
 		return ok && e.WebWriter != nil
 	case route.KindPageStyle:
 		return e.canStyle()
+	case route.KindAppGuide:
+		return e.canGuide()
 	case route.KindAppAction:
 		return e.canAct() || e.canActOnUI()
 	default:

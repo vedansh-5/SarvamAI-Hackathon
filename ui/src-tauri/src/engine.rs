@@ -95,15 +95,21 @@ impl Engine {
 
                 // Progress arrives unsolicited and carries the request it
                 // belongs to, so a window running several calls can route it.
-                if value.get("method").and_then(Value::as_str) == Some("log") {
-                    let message = value
-                        .get("params")
-                        .and_then(|p| p.get("message"))
-                        .and_then(Value::as_str)
-                        .unwrap_or_default()
-                        .to_string();
-                    let for_request = value.get("for").and_then(Value::as_i64).unwrap_or(0);
-                    let _ = app.emit("engine://progress", Progress { for_request, message });
+                if let Some(method) = value.get("method").and_then(Value::as_str) {
+                    if method == "log" {
+                        let message = value
+                            .get("params")
+                            .and_then(|p| p.get("message"))
+                            .and_then(Value::as_str)
+                            .unwrap_or_default()
+                            .to_string();
+                        let for_request = value.get("for").and_then(Value::as_i64).unwrap_or(0);
+                        let _ = app.emit("engine://progress", Progress { for_request, message });
+                    } else {
+                        // Anything else the runtime pushes reaches the window
+                        // under its own name, so a new one needs no change here.
+                        let _ = app.emit(&format!("engine://{method}"), value.clone());
+                    }
                     continue;
                 }
 

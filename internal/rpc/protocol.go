@@ -101,6 +101,24 @@ type PrepareParams struct {
 	Title  string `json:"title"`
 }
 
+// GuideParams names the guide to run; GuideStepParams is one thing to point at.
+type GuideParams struct {
+	PlanID string `json:"plan_id"`
+}
+
+type GuideResult struct {
+	Steps int `json:"steps"`
+}
+
+type GuideStepParams struct {
+	Number int    `json:"number"`
+	Label  string `json:"label"`
+	X      int    `json:"x"`
+	Y      int    `json:"y"`
+	W      int    `json:"w"`
+	H      int    `json:"h"`
+}
+
 // ClearStyleResult reports that the page was put back.
 type ClearStyleResult struct {
 	Cleared bool `json:"cleared"`

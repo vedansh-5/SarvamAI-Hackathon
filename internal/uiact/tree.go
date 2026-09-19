@@ -262,3 +262,15 @@ func (t Tree) ClickPoint(el Element) (x, y int, ok bool) {
 	}
 	return b.x0 + (b.x1-b.x0)/2, b.y0 + (b.y1-b.y0)/2, true
 }
+
+func (t Tree) RectFor(sel Selector) (x, y, w, h int, why string) {
+	el, why := t.resolve(sel)
+	if why != "" {
+		return 0, 0, 0, 0, why
+	}
+	b, ok := t.visibleBox(el)
+	if !ok {
+		return 0, 0, 0, 0, fmt.Sprintf("no part of the %s %q is visible on screen", el.Role, el.Title)
+	}
+	return b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0, ""
+}

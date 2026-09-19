@@ -57,38 +57,52 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	}
 
 	d := plan.Drive
+	act := func(ctx context.Context, tree uiact.Tree, program uiact.Program, _ int, _ string) error {
+		return e.UIScreen.Act(ctx, program, tree)
+	}
+	if _, err := e.stepThroughTask(ctx, d.App, d.Task, MaxDriveSteps, act); err != nil {
+		return Receipt{}, err
+	}
+	return Receipt{Title: d.App, Verified: false}, nil
+}
+
+type stepHandler func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) error
+
+func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit int, handle stepHandler) (int, error) {
 	var done []string
 
-	for i := 1; i <= MaxDriveSteps; i++ {
-		tree, err := e.UIScreen.Capture(ctx, d.App)
+	for i := 1; i <= limit; i++ {
+		tree, err := e.UIScreen.Capture(ctx, app)
 		if err != nil {
-			return Receipt{}, err
+			return len(done), err
 		}
 
 		var failures []string
 		acted := false
 
+		// Twice, not once: a step refused by the window is worth re-asking with
+		// the reasons in hand, and a third try has never turned one around.
 		for attempt := 1; attempt <= 2; attempt++ {
 			answer, err := e.Steps.WriteStep(ctx, synth.StepRequest{
-				Task:     d.Task,
+				Task:     task,
 				Tree:     tree,
 				Done:     done,
 				Failures: failures,
 			})
 			if err != nil {
-				return Receipt{}, err
+				return len(done), err
 			}
 
 			if answer.Done {
 				e.logf("finished after %d step(s): %s", len(done), answer.Why)
-				return Receipt{Title: d.App, Verified: false}, nil
+				return len(done), nil
 			}
 
 			program := uiact.Program{App: tree.App, Steps: []uiact.Step{answer.Step}}
 			if err := uiact.Validate(program, tree); err != nil {
 				var invalid *uiact.InvalidError
 				if !errors.As(err, &invalid) {
-					return Receipt{}, err
+					return len(done), err
 				}
 				failures = invalid.Reasons
 				e.logf("step %d rejected: %s", i, strings.Join(invalid.Reasons, "; "))
@@ -101,26 +115,26 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 			}
 			e.logf("step %d: %s", i, describe)
 
-			if err := e.UIScreen.Act(ctx, program, tree); err != nil {
-				return Receipt{}, err
+			if err := handle(ctx, tree, program, i, describe); err != nil {
+				return len(done), err
 			}
 
-			done = append(done, describe+" — "+effect(ctx, e, d.App, tree))
+			done = append(done, describe+" — "+describeEffect(ctx, e, app, tree))
 			acted = true
 			break
 		}
 
 		if !acted {
-			return Receipt{}, fmt.Errorf(
+			return len(done), fmt.Errorf(
 				"engine: nothing that fits %s's window survived being checked against it, after %d step(s)",
-				d.App, len(done))
+				app, len(done))
 		}
 	}
 
-	return Receipt{}, fmt.Errorf("engine: stopped after %d steps without finishing", MaxDriveSteps)
+	return len(done), fmt.Errorf("engine: stopped after %d steps without finishing", limit)
 }
 
-func effect(ctx context.Context, e *Engine, app string, before uiact.Tree) string {
+func describeEffect(ctx context.Context, e *Engine, app string, before uiact.Tree) string {
 	after, err := e.UIScreen.Capture(ctx, app)
 	if err != nil {
 		return "could not read the window back"
