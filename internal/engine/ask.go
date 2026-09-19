@@ -121,7 +121,7 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 		return plan, err
 
 	case route.KindPageHere:
-		plan, err := e.here(ctx, res.Route.Slot("intent"))
+		plan, err := e.readWhatIsInFront(ctx, res.Route.Slot("intent"))
 		if err != nil {
 			return nil, err
 		}
@@ -166,7 +166,7 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 
 	case route.KindAppAction:
 		if e.canAct() {
-			plan, calls, err := e.act(ctx, res.Route, res.Shape)
+			plan, calls, err := e.actInApplication(ctx, res.Route, res.Shape)
 			if err != nil {
 				return nil, err
 			}
@@ -210,7 +210,7 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 func (e *Engine) capabilities() []string {
 	var out []string
 	for _, spec := range route.Specs {
-		if !e.runs(spec.Kind) {
+		if !e.canRun(spec.Kind) {
 			continue
 		}
 		out = append(out, spec.Describe)
@@ -218,7 +218,7 @@ func (e *Engine) capabilities() []string {
 	return out
 }
 
-func (e *Engine) runs(k route.Kind) bool {
+func (e *Engine) canRun(k route.Kind) bool {
 	switch k {
 	case route.KindWebExtract, route.KindWebSearch, route.KindPageHere:
 		return true

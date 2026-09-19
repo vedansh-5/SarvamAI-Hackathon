@@ -114,13 +114,9 @@ func (c *OpenAICompatible) WriteStep(ctx context.Context, req StepRequest) (Step
 		maxTokens = int(DefaultMaxTokens)
 	}
 
-	system := driveSystemPrompt
-	if c.SchemaMode != SchemaJSON {
-		schema, err := json.MarshalIndent(driveSchema(), "", "  ")
-		if err != nil {
-			return StepAnswer{}, fmt.Errorf("synth: encode step schema: %w", err)
-		}
-		system += "\n\nReply with a single JSON object and nothing else — no prose, no markdown fences. It must satisfy this JSON Schema:\n\n" + string(schema)
+	system, err := c.systemFor(driveSystemPrompt, "step", driveSchema)
+	if err != nil {
+		return StepAnswer{}, err
 	}
 
 	raw, err := c.post(ctx, chatRequest{
@@ -130,7 +126,7 @@ func (c *OpenAICompatible) WriteStep(ctx context.Context, req StepRequest) (Step
 			{Role: "system", Content: system},
 			{Role: "user", Content: BuildStepPrompt(req)},
 		},
-		ResponseFormat: c.driveResponseFormat(),
+		ResponseFormat: c.responseFormat("next_step", driveSchema, false),
 	})
 	if err != nil {
 		return StepAnswer{}, err
@@ -158,28 +154,4 @@ func (c *OpenAICompatible) WriteStep(ctx context.Context, req StepRequest) (Step
 		return StepAnswer{}, fmt.Errorf("synth: neither a step nor a reason to stop")
 	}
 	return out, nil
-}
-
-func (c *OpenAICompatible) driveResponseFormat() json.RawMessage {
-	var v any
-	switch c.SchemaMode {
-	case SchemaJSON:
-		v = map[string]any{
-			"type": "json_schema",
-			"json_schema": map[string]any{
-				"name":   "next_step",
-				"strict": false,
-				"schema": driveSchema(),
-			},
-		}
-	case SchemaObject:
-		v = map[string]any{"type": "json_object"}
-	default:
-		return nil
-	}
-	b, err := json.Marshal(v)
-	if err != nil {
-		return nil
-	}
-	return b
 }

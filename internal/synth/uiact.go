@@ -120,13 +120,9 @@ func (c *OpenAICompatible) WriteUIAction(ctx context.Context, req UIActRequest) 
 		maxTokens = int(DefaultMaxTokens)
 	}
 
-	system := uiActSystemPrompt
-	if c.SchemaMode != SchemaJSON {
-		schema, err := json.MarshalIndent(uiActSchema(), "", "  ")
-		if err != nil {
-			return uiact.Program{}, fmt.Errorf("synth: encode program schema: %w", err)
-		}
-		system += "\n\nReply with a single JSON object and nothing else — no prose, no markdown fences. It must satisfy this JSON Schema:\n\n" + string(schema)
+	system, err := c.systemFor(uiActSystemPrompt, "program", uiActSchema)
+	if err != nil {
+		return uiact.Program{}, err
 	}
 
 	body := chatRequest{
@@ -136,7 +132,7 @@ func (c *OpenAICompatible) WriteUIAction(ctx context.Context, req UIActRequest) 
 			{Role: "system", Content: system},
 			{Role: "user", Content: BuildUIActPrompt(req)},
 		},
-		ResponseFormat: c.uiActResponseFormat(),
+		ResponseFormat: c.responseFormat("ui_action", uiActSchema, false),
 	}
 
 	raw, err := c.post(ctx, body)
@@ -162,28 +158,4 @@ func (c *OpenAICompatible) WriteUIAction(ctx context.Context, req UIActRequest) 
 	}
 
 	return uiact.Program{App: req.Tree.App, Steps: answer.Steps}, nil
-}
-
-func (c *OpenAICompatible) uiActResponseFormat() json.RawMessage {
-	var v any
-	switch c.SchemaMode {
-	case SchemaJSON:
-		v = map[string]any{
-			"type": "json_schema",
-			"json_schema": map[string]any{
-				"name":   "ui_action",
-				"strict": false,
-				"schema": uiActSchema(),
-			},
-		}
-	case SchemaObject:
-		v = map[string]any{"type": "json_object"}
-	default:
-		return nil
-	}
-	b, err := json.Marshal(v)
-	if err != nil {
-		return nil
-	}
-	return b
 }

@@ -108,13 +108,9 @@ func (c *OpenAICompatible) Decide(ctx context.Context, req route.Request) (route
 		maxTokens = int(DefaultMaxTokens)
 	}
 
-	system := routeSystemPrompt
-	if c.SchemaMode != SchemaJSON {
-		schema, err := json.MarshalIndent(routeSchema(), "", "  ")
-		if err != nil {
-			return route.Decision{}, fmt.Errorf("synth: encode routing schema: %w", err)
-		}
-		system += "\n\nReply with a single JSON object and nothing else — no prose, no markdown fences. It must satisfy this JSON Schema:\n\n" + string(schema)
+	system, err := c.systemFor(routeSystemPrompt, "routing", routeSchema)
+	if err != nil {
+		return route.Decision{}, err
 	}
 
 	body := chatRequest{
@@ -124,7 +120,7 @@ func (c *OpenAICompatible) Decide(ctx context.Context, req route.Request) (route
 			{Role: "system", Content: system},
 			{Role: "user", Content: BuildRoutePrompt(req)},
 		},
-		ResponseFormat: c.routeResponseFormat(),
+		ResponseFormat: c.responseFormat("routing_decision", routeSchema, false),
 	}
 
 	raw, err := c.post(ctx, body)
@@ -147,29 +143,4 @@ func (c *OpenAICompatible) Decide(ctx context.Context, req route.Request) (route
 	// being sent back with the reason. Decoding is this function's job;
 	// judging is the router's.
 	return d, nil
-}
-
-func (c *OpenAICompatible) routeResponseFormat() json.RawMessage {
-	switch c.SchemaMode {
-	case SchemaJSON:
-		b, err := json.Marshal(map[string]any{
-			"type": "json_schema",
-			"json_schema": map[string]any{
-				"name": "routing_decision",
-				// Not strict. strict mode forbids open maps, and slots must
-				// stay open because each kind carries its own set — pinning
-				// them here would be a second copy of route.Specs.
-				"strict": false,
-				"schema": routeSchema(),
-			},
-		})
-		if err != nil {
-			return nil
-		}
-		return b
-	case SchemaObject:
-		return json.RawMessage(`{"type":"json_object"}`)
-	default:
-		return nil
-	}
 }

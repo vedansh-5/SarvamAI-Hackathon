@@ -90,7 +90,7 @@ func (d Document) Preview(maxRows int) string {
 	}
 	for _, row := range shown {
 		for i, f := range d.Fields {
-			if n := len(truncate(row[f], 48)); n > widths[i] {
+			if n := len(cellText(row[f], 48)); n > widths[i] {
 				widths[i] = n
 			}
 		}
@@ -107,7 +107,7 @@ func (d Document) Preview(maxRows int) string {
 
 	for _, row := range shown {
 		for i, f := range d.Fields {
-			fmt.Fprintf(&b, "%-*s  ", widths[i], truncate(row[f], 48))
+			fmt.Fprintf(&b, "%-*s  ", widths[i], cellText(row[f], 48))
 		}
 		b.WriteString("\n")
 	}
@@ -118,10 +118,10 @@ func (d Document) Preview(maxRows int) string {
 	return b.String()
 }
 
-func truncate(s string, n int) string {
+func cellText(s string, width int) string {
 	s = strings.Join(strings.Fields(s), " ")
-	if len([]rune(s)) <= n {
+	if len([]rune(s)) <= width {
 		return s
 	}
-	return string([]rune(s)[:n-1]) + "…"
+	return string([]rune(s)[:width-1]) + "…"
 }

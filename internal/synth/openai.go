@@ -136,15 +136,9 @@ func (c *OpenAICompatible) Synthesize(ctx context.Context, req Request) (extract
 		maxTokens = int(DefaultMaxTokens)
 	}
 
-	system := systemPrompt
-	if c.SchemaMode != SchemaJSON {
-		// Without API-level schema enforcement the shape has to be carried by
-		// the prompt instead.
-		schema, err := json.MarshalIndent(extract.ProgramSchema(), "", "  ")
-		if err != nil {
-			return extract.Program{}, fmt.Errorf("synth: encode schema: %w", err)
-		}
-		system += "\n\nReply with a single JSON object and nothing else — no prose, no markdown fences. It must satisfy this JSON Schema:\n\n" + string(schema)
+	system, err := c.systemFor(systemPrompt, "extraction", extract.ProgramSchema)
+	if err != nil {
+		return extract.Program{}, err
 	}
 
 	body := chatRequest{
@@ -154,7 +148,7 @@ func (c *OpenAICompatible) Synthesize(ctx context.Context, req Request) (extract
 			{Role: "system", Content: system},
 			{Role: "user", Content: BuildPrompt(req)},
 		},
-		ResponseFormat: c.responseFormat(),
+		ResponseFormat: c.responseFormat("extraction_program", extract.ProgramSchema, true),
 	}
 
 	raw, err := c.post(ctx, body)
@@ -177,18 +171,33 @@ func (c *OpenAICompatible) Synthesize(ctx context.Context, req Request) (extract
 	return p, nil
 }
 
-func (c *OpenAICompatible) responseFormat() json.RawMessage {
+// post sends the request, retrying transient failures with backoff.
+const schemaPreamble = "\n\nReply with a single JSON object and nothing else — no prose, no markdown fences. It must satisfy this JSON Schema:\n\n"
+
+// Providers differ on which response_format values they accept, so a build
+// that cannot enforce a schema at the API level carries it in the prompt.
+func (c *OpenAICompatible) systemFor(base, label string, schema func() map[string]any) (string, error) {
+	if c.SchemaMode == SchemaJSON {
+		return base, nil
+	}
+	encoded, err := json.MarshalIndent(schema(), "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("synth: encode %s schema: %w", label, err)
+	}
+	return base + schemaPreamble + string(encoded), nil
+}
+
+func (c *OpenAICompatible) responseFormat(name string, schema func() map[string]any, strict bool) json.RawMessage {
 	switch c.SchemaMode {
 	case SchemaJSON:
-		wrapper := map[string]any{
+		b, err := json.Marshal(map[string]any{
 			"type": "json_schema",
 			"json_schema": map[string]any{
-				"name":   "extraction_program",
-				"strict": true,
-				"schema": extract.ProgramSchema(),
+				"name":   name,
+				"strict": strict,
+				"schema": schema(),
 			},
-		}
-		b, err := json.Marshal(wrapper)
+		})
 		if err != nil {
 			return nil
 		}
@@ -202,7 +211,6 @@ func (c *OpenAICompatible) responseFormat() json.RawMessage {
 	}
 }
 
-// post sends the request, retrying transient failures with backoff.
 func (c *OpenAICompatible) post(ctx context.Context, body chatRequest) (string, error) {
 	retries := c.Retries
 	if retries == 0 {

@@ -20,7 +20,7 @@ func TestSuggestionsOnlyOfferWhatThisBuildCanRun(t *testing.T) {
 	}
 
 	for _, s := range got {
-		if !e.runs(s.Kind) {
+		if !e.canRun(s.Kind) {
 			t.Errorf("offers %q, which this build cannot run", s.Text)
 		}
 		if s.Destination == "" {

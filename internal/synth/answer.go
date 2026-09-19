@@ -93,13 +93,9 @@ func (c *OpenAICompatible) Answer(ctx context.Context, req AnswerRequest) (answe
 		maxTokens = int(DefaultMaxTokens)
 	}
 
-	system := answerSystemPrompt
-	if c.SchemaMode != SchemaJSON {
-		schema, err := json.MarshalIndent(answerSchema(), "", "  ")
-		if err != nil {
-			return answer.Answer{}, fmt.Errorf("synth: encode answer schema: %w", err)
-		}
-		system += "\n\nReply with a single JSON object and nothing else — no prose, no markdown fences. It must satisfy this JSON Schema:\n\n" + string(schema)
+	system, err := c.systemFor(answerSystemPrompt, "answer", answerSchema)
+	if err != nil {
+		return answer.Answer{}, err
 	}
 
 	body := chatRequest{
@@ -109,7 +105,7 @@ func (c *OpenAICompatible) Answer(ctx context.Context, req AnswerRequest) (answe
 			{Role: "system", Content: system},
 			{Role: "user", Content: BuildAnswerPrompt(req)},
 		},
-		ResponseFormat: c.answerResponseFormat(),
+		ResponseFormat: c.responseFormat("answer", answerSchema, false),
 	}
 
 	raw, err := c.post(ctx, body)
@@ -127,28 +123,4 @@ func (c *OpenAICompatible) Answer(ctx context.Context, req AnswerRequest) (answe
 		return answer.Answer{}, fmt.Errorf("synth: decode answer: %w (from %q)", err, truncate(text, 300))
 	}
 	return a, nil
-}
-
-func (c *OpenAICompatible) answerResponseFormat() json.RawMessage {
-	var v any
-	switch c.SchemaMode {
-	case SchemaJSON:
-		v = map[string]any{
-			"type": "json_schema",
-			"json_schema": map[string]any{
-				"name":   "answer",
-				"strict": false,
-				"schema": answerSchema(),
-			},
-		}
-	case SchemaObject:
-		v = map[string]any{"type": "json_object"}
-	default:
-		return nil
-	}
-	b, err := json.Marshal(v)
-	if err != nil {
-		return nil
-	}
-	return b
 }

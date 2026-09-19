@@ -76,7 +76,7 @@ var appExamples = []Suggestion{
 }
 
 func (e *Engine) appExample(front string) (Suggestion, bool) {
-	if !e.runs(route.KindAppAction) || e.Apps == nil {
+	if !e.canRun(route.KindAppAction) || e.Apps == nil {
 		return Suggestion{}, false
 	}
 
@@ -151,7 +151,7 @@ func (e *Engine) remembered(ctx context.Context, already []Suggestion) []Suggest
 }
 
 func (e *Engine) offers(s Suggestion) bool {
-	if !e.runs(s.Kind) {
+	if !e.canRun(s.Kind) {
 		return false
 	}
 	if s.Destination == "" {

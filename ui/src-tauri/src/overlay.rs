@@ -71,15 +71,6 @@ pub fn show(app: &AppHandle) {
     let _ = win.emit("overlay://shown", &context);
 }
 
-/// Dismisses the panel and hands focus back.
-///
-/// Returning to Accessory is what returns the user to the application they
-/// were in. Without it the empty VANS process stays frontmost and they have to
-/// click their own window again.
-pub fn hide(app: &AppHandle) {
-    hide_because(app, "unspecified");
-}
-
 /// Every path that puts the panel away, with why.
 ///
 /// The panel was dismissing itself with nobody touching it, and three guesses
@@ -170,7 +161,7 @@ fn dismiss_on_click_outside(app: &AppHandle) {
             return;
         }
 
-        let at = unsafe { NSEvent::mouseLocation() };
+        let at = NSEvent::mouseLocation();
 
         let Ok(ptr) = win.ns_window() else { return };
         if ptr.is_null() {
@@ -196,11 +187,9 @@ fn dismiss_on_click_outside(app: &AppHandle) {
     let mask = NSEventMask::LeftMouseDown
         | NSEventMask::RightMouseDown
         | NSEventMask::OtherMouseDown;
-    unsafe {
-        // The returned token is deliberately dropped: the monitor lives as
-        // long as the process, which is as long as the panel can be shown.
-        let _ = NSEvent::addGlobalMonitorForEventsMatchingMask_handler(mask, &block);
-    }
+    // The returned token is deliberately dropped: the monitor lives as long as
+    // the process, which is as long as the panel can be shown.
+    let _ = NSEvent::addGlobalMonitorForEventsMatchingMask_handler(mask, &block);
     std::mem::forget(block);
 }
 

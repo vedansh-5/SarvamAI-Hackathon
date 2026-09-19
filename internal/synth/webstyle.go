@@ -107,13 +107,9 @@ func (c *OpenAICompatible) WriteStyle(ctx context.Context, req StyleRequest) (St
 		maxTokens = int(DefaultMaxTokens)
 	}
 
-	system := styleSystemPrompt
-	if c.SchemaMode != SchemaJSON {
-		schema, err := json.MarshalIndent(styleSchema(), "", "  ")
-		if err != nil {
-			return StyleAnswer{}, fmt.Errorf("synth: encode style schema: %w", err)
-		}
-		system += "\n\nReply with a single JSON object and nothing else — no prose, no markdown fences. It must satisfy this JSON Schema:\n\n" + string(schema)
+	system, err := c.systemFor(styleSystemPrompt, "style", styleSchema)
+	if err != nil {
+		return StyleAnswer{}, err
 	}
 
 	body := chatRequest{
@@ -123,7 +119,7 @@ func (c *OpenAICompatible) WriteStyle(ctx context.Context, req StyleRequest) (St
 			{Role: "system", Content: system},
 			{Role: "user", Content: BuildStylePrompt(req)},
 		},
-		ResponseFormat: c.styleResponseFormat(),
+		ResponseFormat: c.responseFormat("restyle", styleSchema, false),
 	}
 
 	raw, err := c.post(ctx, body)
@@ -141,28 +137,4 @@ func (c *OpenAICompatible) WriteStyle(ctx context.Context, req StyleRequest) (St
 		return StyleAnswer{}, fmt.Errorf("synth: decode restyle: %w (from %q)", err, truncate(text, 300))
 	}
 	return a, nil
-}
-
-func (c *OpenAICompatible) styleResponseFormat() json.RawMessage {
-	var v any
-	switch c.SchemaMode {
-	case SchemaJSON:
-		v = map[string]any{
-			"type": "json_schema",
-			"json_schema": map[string]any{
-				"name":   "restyle",
-				"strict": false,
-				"schema": styleSchema(),
-			},
-		}
-	case SchemaObject:
-		v = map[string]any{"type": "json_object"}
-	default:
-		return nil
-	}
-	b, err := json.Marshal(v)
-	if err != nil {
-		return nil
-	}
-	return b
 }

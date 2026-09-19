@@ -23,7 +23,7 @@ func TestAskingAboutWhatIsInFrontReadsANativeWindow(t *testing.T) {
 	screen := &fakeScreen{tree: notesWindow(), front: "Notes"}
 	e := &Engine{UIScreen: screen}
 
-	plan, err := e.here(context.Background(), "what does this say")
+	plan, err := e.readWhatIsInFront(context.Background(), "what does this say")
 	if err != nil {
 		t.Fatalf("here: %v", err)
 	}
@@ -58,7 +58,7 @@ func TestABrowserInFrontIsLeftToThePageTier(t *testing.T) {
 	screen := &fakeScreen{tree: notesWindow(), front: "Google Chrome"}
 	e := &Engine{UIScreen: screen}
 
-	if _, err := e.here(context.Background(), "what is this page about"); err == nil {
+	if _, err := e.readWhatIsInFront(context.Background(), "what is this page about"); err == nil {
 		t.Fatal("a browser page was answered from the window tier")
 	}
 	if screen.captures != 0 {

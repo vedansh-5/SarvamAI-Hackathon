@@ -60,7 +60,7 @@ func (e *UnknownAppError) Error() string {
 }
 
 // act prepares an action inside an application. It never runs it.
-func (e *Engine) act(ctx context.Context, r route.Route, shape string) (*Plan, int, error) {
+func (e *Engine) actInApplication(ctx context.Context, r route.Route, shape string) (*Plan, int, error) {
 	name := r.Slot("app")
 
 	app, err := e.Apps.Find(name)

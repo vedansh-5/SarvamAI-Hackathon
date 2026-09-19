@@ -147,13 +147,9 @@ func (c *OpenAICompatible) WriteAction(ctx context.Context, req AppActRequest) (
 		maxTokens = int(DefaultMaxTokens)
 	}
 
-	system := appActSystemPrompt
-	if c.SchemaMode != SchemaJSON {
-		schema, err := json.MarshalIndent(appActSchema(), "", "  ")
-		if err != nil {
-			return appact.Program{}, fmt.Errorf("synth: encode program schema: %w", err)
-		}
-		system += "\n\nReply with a single JSON object and nothing else — no prose, no markdown fences. It must satisfy this JSON Schema:\n\n" + string(schema)
+	system, err := c.systemFor(appActSystemPrompt, "program", appActSchema)
+	if err != nil {
+		return appact.Program{}, err
 	}
 
 	body := chatRequest{
@@ -163,7 +159,7 @@ func (c *OpenAICompatible) WriteAction(ctx context.Context, req AppActRequest) (
 			{Role: "system", Content: system},
 			{Role: "user", Content: BuildAppActPrompt(req)},
 		},
-		ResponseFormat: c.appActResponseFormat(),
+		ResponseFormat: c.responseFormat("app_action", appActSchema, false),
 	}
 
 	raw, err := c.post(ctx, body)
@@ -194,28 +190,4 @@ func (c *OpenAICompatible) WriteAction(ctx context.Context, req AppActRequest) (
 	// a different one here would otherwise be choosing which application to
 	// act in.
 	return appact.Program{App: req.Surface.App, Steps: answer.Steps}, nil
-}
-
-func (c *OpenAICompatible) appActResponseFormat() json.RawMessage {
-	var v any
-	switch c.SchemaMode {
-	case SchemaJSON:
-		v = map[string]any{
-			"type": "json_schema",
-			"json_schema": map[string]any{
-				"name":   "app_action",
-				"strict": false,
-				"schema": appActSchema(),
-			},
-		}
-	case SchemaObject:
-		v = map[string]any{"type": "json_object"}
-	default:
-		return nil
-	}
-	b, err := json.Marshal(v)
-	if err != nil {
-		return nil
-	}
-	return b
 }

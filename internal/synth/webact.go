@@ -109,13 +109,9 @@ func (c *OpenAICompatible) WriteWebAction(ctx context.Context, req WebActRequest
 		maxTokens = int(DefaultMaxTokens)
 	}
 
-	system := webActSystemPrompt
-	if c.SchemaMode != SchemaJSON {
-		schema, err := json.MarshalIndent(webActSchema(), "", "  ")
-		if err != nil {
-			return webact.Program{}, fmt.Errorf("synth: encode program schema: %w", err)
-		}
-		system += "\n\nReply with a single JSON object and nothing else — no prose, no markdown fences. It must satisfy this JSON Schema:\n\n" + string(schema)
+	system, err := c.systemFor(webActSystemPrompt, "program", webActSchema)
+	if err != nil {
+		return webact.Program{}, err
 	}
 
 	body := chatRequest{
@@ -125,7 +121,7 @@ func (c *OpenAICompatible) WriteWebAction(ctx context.Context, req WebActRequest
 			{Role: "system", Content: system},
 			{Role: "user", Content: BuildWebActPrompt(req)},
 		},
-		ResponseFormat: c.webActResponseFormat(),
+		ResponseFormat: c.responseFormat("web_action", webActSchema, false),
 	}
 
 	raw, err := c.post(ctx, body)
@@ -150,28 +146,4 @@ func (c *OpenAICompatible) WriteWebAction(ctx context.Context, req WebActRequest
 	}
 
 	return webact.Program{URL: req.URL, Steps: answer.Steps}, nil
-}
-
-func (c *OpenAICompatible) webActResponseFormat() json.RawMessage {
-	var v any
-	switch c.SchemaMode {
-	case SchemaJSON:
-		v = map[string]any{
-			"type": "json_schema",
-			"json_schema": map[string]any{
-				"name":   "web_action",
-				"strict": false,
-				"schema": webActSchema(),
-			},
-		}
-	case SchemaObject:
-		v = map[string]any{"type": "json_object"}
-	default:
-		return nil
-	}
-	b, err := json.Marshal(v)
-	if err != nil {
-		return nil
-	}
-	return b
 }

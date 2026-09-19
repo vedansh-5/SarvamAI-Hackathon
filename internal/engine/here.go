@@ -24,7 +24,7 @@ type FrontReader interface {
 // going anywhere would be answering a different question — and would lose the
 // state that made the page worth asking about: a search they had refined, a
 // list they had filtered, anything behind a login.
-func (e *Engine) here(ctx context.Context, intent string) (*Plan, error) {
+func (e *Engine) readWhatIsInFront(ctx context.Context, intent string) (*Plan, error) {
 	if plan, ok := e.hereInFrontApp(ctx, intent); ok {
 		return plan, nil
 	}
