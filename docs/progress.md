@@ -32,7 +32,7 @@ A durable record of implementation progress, completed milestones, and immediate
 | **Phase 2** | Screen context | Complete | Active app & window title metadata, Screen Recording preflight, silent display capture |
 | **Phase 3 (Input & AX)** | AX tree walker, CoreGraphics events, read-back | Merged (#40–#46) | Fast C-API tree walking (~130ms), visible-box clipping, `CGEvent` posting, `Changes(before, after)` |
 | **Phase 3 (Styling)** | Live page restyling | Merged (#47) | Structural CSS injection with dark-mode background sensing and zero data leakage |
-| **Phase 3 (Coach)** | On-screen coach overlay & guide flow | Merged (#48–#54) | `app.guide` route, overlay HUD, 500ms change polling loop, question-as-task framing |
+| **Phase 3 (Coach)** | On-screen coach overlay, multi-step guide & non-activating panel | Merged (#48–#61) | `app.guide` route, overlay HUD, 500ms polling, advance channel, non-activating panel, context forwarding |
 
 ---
 

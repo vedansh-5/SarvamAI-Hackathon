@@ -186,6 +186,7 @@ as the fallback.
 | #58 | Bring the record up to date with the panel fix |
 | #59 | Detect frontmost application via CGWindowListCopyWindowInfo without Apple Events |
 | #60 | Multi-step coaching progression, session advance channel, and clean cancellation |
+| #61 | Keep panel non-activating, forward screen context, and compact HUD |
 
 
 
@@ -416,43 +417,24 @@ not "is this sensitive" but "is the request about it":
 
 In order. Each item says what it is and how it gets built.
 
-### 9.0 In flight — the panel was stealing the front window (uncommitted, on `main`)
+### 9.0 The panel was stealing the front window (Resolved and merged in #61)
 
-Reported: multi-step coaching does not work, and VANS is the active window while
-it is showing instructions. Both are one bug.
+Fixed: summoning the panel no longer calls `win.set_focus()` on macOS, allowing
+the non-activating panel to receive keyboard input without activating the process.
+Context is passed to `prepare` and `appInQuestion` ignores VANS. `Capture` retries
+through `bringForward` when a window was off-stage. Panel shrinks to a 380pt HUD
+while coaching and routes diagnostics to `#guiding-step`. Live measurement
+confirmed 176 controls captured in 868ms on `System Settings`.
 
-**Diagnosis.** `overlay::show` called `win.set_focus()` after `win.show()`. On
-macOS that activates the VANS process (see §6), and with Stage Manager on the
-application the user asked about immediately stops publishing any accessibility
-window. So `planGuide` captured an empty tree, or step 1 landed and every
-re-read in `waitForTheUserToAct` failed until the three-failure guard reported
-the window closed. Measured, not guessed: the probe in §6 shows System Settings
-at 0 elements while another application is active.
+### 9.1 Multi-step coaching live validation
 
-**Changed so far** (`go build ./...` passes, `gofmt` clean, nothing else run):
-
-| File | Change |
-| --- | --- |
-| `ui/src-tauri/src/overlay.rs` | `set_focus` disabled on macOS so panel remains non-activating; `set_compact` resizes to 380pt HUD. |
-| `ui/src-tauri/src/lib.rs` | `prepare` accepts `context`; added `compact_panel` command. |
-| `ui/src/main.ts` | Records `activeContext`, passes to `prepare`; contracts panel in `showTheWay` and restores on exit; routes `engine://progress` to `#guiding-step`. |
-| `internal/uiact/capture.go` | `Capture` retries once through `bringForward` when window list is empty. |
-| `internal/engine/guide.go` | `appInQuestion` prefers frontmost context and refuses VANS; logs step progress. |
-| `internal/engine/drive.go` | Emits progress line at start of each step attempt. |
-| `internal/engine/here.go` | `readWhatIsInFront` and `hereInFrontApp` use `appInQuestion`. |
-| `internal/engine/ask.go` | Passes `in.Context` down. |
-| `internal/rpc/protocol.go` | `PrepareParams.Context *screen.Context`. |
-| `internal/rpc/server.go` | Hands context to `engine.Ask`. |
-| `instructions.md` | Rebuild-and-restart rule tightened. |
-
-**Status.**
-- [x] 1. **The shell sends context**: `prepare` in `lib.rs` forwards `context: Option<Value>` to RPC; `main.ts` stores `activeContext` and passes it.
-- [x] 2. **Shrink the panel while coaching**: `overlay::set_compact` resizes panel to 380pt logical width during `#guiding`, restoring 720pt on exit/stop/escape.
-- [x] 3. **Route progress into guiding HUD**: `engine://progress` updates `#guiding-step` while guiding; step progress is logged by `drive.go` and `guide.go`.
-- [x] 4. **Proved by measurement**: `System.Capture` against running System Settings successfully retried via `bringForward` and captured all 176 controls live in 868ms.
-- [x] 6. **Hermetic tests added**: `TestAppInQuestionPrefersContextAndRefusesVANS` in `guide_test.go`; `TestCaptureRetriesAfterBringingAppForward` in `verify_test.go`.
-- [x] 7. **Full gate passed**: `go build ./...`, `CGO_ENABLED=0 go build ./...`, `go vet ./...`, `go test ./...`, `gofmt -l .`, `npx tsc --noEmit`, `cargo check`.
-- [ ] 5. **Live multi-step verification**: VANS restarted live with fresh engine binary and frontend bundle. Ready for interactive multi-step run.
+Now that the front window is preserved under Stage Manager and the panel shrinks
+out of the way, the coaching loop can be driven live across multi-step flows
+(e.g., System Settings). Verify:
+1. "How do I turn on Dark Mode" or "where is the display setting"
+2. Spotlight ring points at the control, HUD displays step text
+3. User acts or clicks "Next", coach polls changes and advances to step 2
+4. "Stop" or Escape cleanly closes the coach and restores panel width
 
 **Reading Clicky is not a problem and it does not need installing.** The DMG in
 Downloads was already inspected: ScreenCaptureKit plus a Screen Recording grant,
