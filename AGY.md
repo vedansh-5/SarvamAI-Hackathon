@@ -5,7 +5,7 @@ something to learn, and what happens next. Written to be read cold, six months
 from now, by someone who has forgotten all of it.
 
 Companion documents: `docs/decisions.md` is the reasoning behind each choice
-(68 records, D-001 to D-068); `docs/roadmap.md` is the phase plan;
+(71 records, D-001 to D-071); `docs/roadmap.md` is the phase plan;
 `docs/backlog.md` is decided-but-unbuilt work. This file is the state of play.
 
 **Part I — The record**
@@ -174,6 +174,12 @@ as the fallback.
 | #46 | Read the window back and say what changed |
 | #47 | Restyle the page in front, and take it back off |
 | #48 | Write down what this is (this file, the README), and add the on-screen coach |
+| #49 | Add the working guidelines to the record, and bring it up to date |
+| #50 | Show me what to do, a step at a time (coach loop, AX change polling) |
+| #51 | Write the model plumbing once |
+| #52 | Tell showing from styling, and drop decisions the kinds outgrew |
+| #53 | Ask the coach a question it can answer (frame questions as tasks) |
+| #54 | Shrink the panel while the coach is pointing |
 
 ### Before this session
 
@@ -198,6 +204,8 @@ routing. `docs/decisions.md` carries the reasoning for all of it.
   — it measured `rgb(0,0,0)` and chose the dark palette by measurement, not by
   guessing.
 - **Clearing a restyle costs no model call at all.** It is recognised in Go.
+- **Pointing at a control on question works.** "where is the search bar" in
+  System Settings pointed at the search field at (459, 100 195x28) (D-071).
 
 ### Not proven
 
@@ -208,10 +216,10 @@ routing. `docs/decisions.md` carries the reasoning for all of it.
   input layer and died there, which is exactly what #44 replaced.
 - **The drive loop has never completed a task.** It could not, because until
   #44 no click could land.
-- **The coach overlay has been verified as a window on screen** — full display,
-  window level 26 (one above the panel), click-through — and it is now in the
-  repo. Its visual design has not yet been reviewed, and nothing drives it: the
-  probe that proved it draws was removed before the commit.
+- **The coach overlay is now wired to the engine** (`app.guide` route, #50) and
+  responds to single-step questions (#53) with HUD shrinking (#54). A multi-step
+  interaction across changing window states has not yet been watched live, and its
+  visual design has not been reviewed.
 
 ---
 
@@ -348,8 +356,9 @@ not "is this sensitive" but "is the request about it":
    persists it.
 5. **Nothing is packaged.** There is no built `.app`; it runs from a checkout
    through `npm run tauri dev`.
-6. **The coach overlay has no engine behind it yet.** It draws where it is told
-   to; nothing decides what to point at.
+6. **Multi-step coaching has not been exercised across real state transitions.**
+   The engine now points at controls on screen, but a user clicking through a
+   complex multi-step task has not been tested live.
 
 ---
 
@@ -357,49 +366,34 @@ not "is this sensitive" but "is the request about it":
 
 In order. Each item says what it is and how it gets built.
 
-### 8.1 The coach flow, end to end — "show me what to do"
+### 9.1 The coach flow, end to end — "show me what to do" (Built)
 
-The overlay exists and draws. What is missing is the part that decides what to
-point at.
+Wired and working in #50, #52, #53, #54. The engine brings the application
+forward, captures controls, passes roles/labels to the step writer, checks the
+target's visible rectangle, and commands the overlay while shrinking the panel
+HUD. Verified single-step against System Settings ("where is the search bar").
 
-- Add a route kind `app.guide` — "how do I X in Y", "where is the setting for Z".
-- On that kind: bring the application forward, capture its window (already
-  ~130 ms), and hand the model the control list — roles and labels only, the
-  same withholding the acting tier does.
-- The model returns a control selector and one line of instruction. Both are
-  checked: the control must exist in the tree, and its visible rectangle must be
-  on screen.
-- Resolve the rectangle through `Tree.ClickPoint` / `visibleBox`, and call
-  `point_at` with it. Clear on Escape, on the panel dismissing, or when the
-  window changes underneath.
-
-This is wiring, not new capability: the rectangles already come out of capture,
-and the overlay already takes a rectangle and a label.
-
-### 8.2 Multi-step coaching
+### 9.2 Multi-step coaching (Loop built; live validation remaining)
 
 Point at the first control; the *person* clicks it; re-read the window; point at
-the next. This reuses the drive loop's structure with the click removed — and
-it is the honest version of the agent workflow, because the user stays in
-control and can stop at any step.
+the next. This reuses the drive loop's structure with the click removed (`#50`)
+and polls every 500ms for window changes (`Changes(before, after)`, D-067).
+Needs live multi-step task testing on a real application.
 
-`Changes(before, after)` (D-067) already provides the "did that do anything"
-signal the loop needs.
-
-### 8.3 Prove the full click loop
+### 9.3 Prove the full click loop
 
 The single most important missing piece of evidence. Needs a target application
 that is willing to be touched and a desktop where the window is actually
 visible. The run to make: bring the app forward, capture, plan, verify, click,
 read back, report what changed.
 
-### 8.4 The app agent workflow
+### 9.4 The app agent workflow
 
 With input posting and read-back both working, the drive loop can finally be
 exercised. Each step already carries its effect into the next request, so the
 model is told "nothing in the window changed" rather than assuming success.
 
-### 8.5 Smaller, worth doing
+### 9.5 Smaller, worth doing
 
 - Persist settings and the key, so the app does not depend on the launching
   shell.

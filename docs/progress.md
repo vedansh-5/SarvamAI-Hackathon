@@ -6,9 +6,9 @@ A durable record of implementation progress, completed milestones, and immediate
 
 ## Current Status Overview
 
-* **Current Phase:** Phase 2 (Screen Context) — **Complete**
-* **Active Branch:** `phase-2-screen-context`
-* **Next Phase:** Phase 3 (Acting on the machine — Accessibility & Synthetic Input)
+* **Current Phase:** Phase 3 (Acting on the machine & On-Screen Coach) — **Infrastructure Merged, Live Verification Pending**
+* **Active Branch:** `main`
+* **Next Phase / Milestones:** Live Click Loop Proof, Live Multi-Step Coaching, Phase 4 (Vision Tier)
 
 ---
 
@@ -30,6 +30,9 @@ A durable record of implementation progress, completed milestones, and immediate
 | **Router** | Free-text instructions (D-039) | Complete, wired | Shape-keyed routing cache; cold 1 call, warm 0. `Engine.Ask` routes it; the panel is one field |
 | **Sinks** | Destinations for an answer | Complete | panel / clipboard / notes. The gate follows the destination rather than being a fixed step |
 | **Phase 2** | Screen context | Complete | Active app & window title metadata, Screen Recording preflight, silent display capture |
+| **Phase 3 (Input & AX)** | AX tree walker, CoreGraphics events, read-back | Merged (#40–#46) | Fast C-API tree walking (~130ms), visible-box clipping, `CGEvent` posting, `Changes(before, after)` |
+| **Phase 3 (Styling)** | Live page restyling | Merged (#47) | Structural CSS injection with dark-mode background sensing and zero data leakage |
+| **Phase 3 (Coach)** | On-screen coach overlay & guide flow | Merged (#48–#54) | `app.guide` route, overlay HUD, 500ms change polling loop, question-as-task framing |
 
 ---
 
@@ -55,8 +58,32 @@ A durable record of implementation progress, completed milestones, and immediate
 
 ---
 
-## Next Steps: Phase 3 (Acting on the machine)
+## Phase 3 Implementation Details (Acting on the machine & On-Screen Coach)
 
-1. Read the macOS Accessibility tree (`AXUIElement`) to find real, addressable UI elements.
-2. Post synthetic input (`CGEvent`) for clicks, typing, and scrolling.
-3. Establish bidirectional RPC between Go runtime and Rust shell.
+1. **Accessibility Tree Walking & Target Resolution (`internal/uiact`):**
+   * Migrated window capture from slow AppleEvents (23.9s) to direct C-API accessibility walker via cgo (~130ms, D-057).
+   * Clipped control bounding boxes to ancestor frames and screen bounds so long text controls have click points on screen (D-062).
+   * Window occlusion verification via `CGWindowListCopyWindowInfo` (D-062, D-064).
+
+2. **Direct Synthetic Input Posting (`internal/uiact/input_darwin.go`):**
+   * Moved input synthesis to `CGEventPost` to avoid granting broad permissions to `osascript` (D-065, #44).
+   * Built read-back verification comparing pre- and post-action AX snapshots via `Changes(before, after)` (D-067, #46).
+
+3. **Live Web Page Restyling (`internal/webstyle`):**
+   * Implemented soft background tinting for web pages based on ambient background luminance measurement (D-068, #47).
+   * Restyle clear operations recognized deterministically in Go at zero LLM cost.
+
+4. **On-Screen Coach Flow (`internal/engine/guide.go`, `ui/src/coach.ts`, `ui/src/main.ts`):**
+   * Transparent, click-through full-display overlay window at window level 26 (#48).
+   * `app.guide` route kind, separated from `web.style` with cache fingerprinting (D-070, #52).
+   * Question framing prompt turning "where is X" into a next-step target (D-071, #53).
+   * 500ms polling loop detecting user AX state changes, with a 45s timeout (D-069, #50).
+   * 1-line HUD panel shrink during active guidance (#54).
+
+---
+
+## Next Steps
+
+1. **Prove the full click loop live on an actual application** (capture -> visibleBox -> verify occlusion -> CGEvent click -> read back).
+2. **Exercise multi-step coaching live** on a real workflow to verify human-in-the-loop state transitions.
+3. **Exercise the App Agent Drive loop** to execute multi-step tasks autonomously.
