@@ -225,12 +225,32 @@ pub fn end_drag() {
     *DRAG_ORIGIN.lock().unwrap() = None;
 }
 
+/// Whether the panel is the narrow strip it becomes while the coach is pointing.
 static COMPACT: AtomicBool = AtomicBool::new(false);
 
+/// Full width is the panel reading results; compact is a strip beside the ring,
+/// wide enough for a step and the two buttons that move through them.
+const FULL_WIDTH: f64 = 720.0;
+const COMPACT_WIDTH: f64 = 380.0;
+
+/// The width the panel should currently have.
+///
+/// Asked rather than remembered, because the content height changes constantly
+/// while the coach is up and every one of those resizes has to keep the width
+/// the coach asked for.
+fn panel_width() -> f64 {
+    if COMPACT.load(Ordering::Relaxed) {
+        COMPACT_WIDTH
+    } else {
+        FULL_WIDTH
+    }
+}
+
+/// Shrinks the panel to a strip while the coach is pointing, and back after.
 pub fn set_compact(app: &AppHandle, compact: bool) {
     COMPACT.store(compact, Ordering::Relaxed);
     let Some(win) = window(app) else { return };
-    let width = if compact { 380.0 } else { 720.0 };
+    let width = panel_width();
     let height = win
         .inner_size()
         .map(|s| s.to_logical::<f64>(win.scale_factor().unwrap_or(1.0)).height)
@@ -262,11 +282,7 @@ pub fn resize(app: &AppHandle, content_height: f64) {
     // than MIN_HEIGHT/MAX_SCREEN_FRACTION.
     let height = content_height.clamp(MIN_HEIGHT, ceiling.max(MIN_HEIGHT));
 
-    let width = if COMPACT.load(Ordering::Relaxed) {
-        380.0
-    } else {
-        720.0
-    };
+    let width = panel_width();
 
     let _ = win.set_size(LogicalSize::new(width, height));
     keep_on_screen(&win, height);
@@ -302,11 +318,7 @@ fn keep_on_screen(win: &WebviewWindow, height: f64) {
     };
     let position = position.to_logical::<f64>(win.scale_factor().unwrap_or(scale));
 
-    let width = if COMPACT.load(Ordering::Relaxed) {
-        380.0
-    } else {
-        720.0
-    };
+    let width = panel_width();
 
     let bottom = origin.y + area.height;
     let lowest = bottom - height - EDGE_MARGIN;

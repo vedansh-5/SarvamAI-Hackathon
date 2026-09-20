@@ -30,6 +30,50 @@ func liveApp(t *testing.T) (string, context.Context) {
 	return app, ctx
 }
 
+// The panel must not blind the runtime (D-075).
+//
+// Summon VANS over the application named by VANS_LIVE_APP, leave it up, and run
+// this. `walkApp` is called directly rather than `Capture`, because Capture
+// recovers by bringing the window forward and would hide exactly the failure
+// being measured: the panel activating VANS, and macOS withdrawing every other
+// application's windows from the accessibility API in response.
+func TestLiveTheSummonedPanelLeavesTheWindowReadable(t *testing.T) {
+	app, ctx := liveApp(t)
+
+	vans, running := pidByProcessName(ctx, "vans")
+	if !running {
+		t.Skip("VANS is not running; start it and summon the panel first")
+	}
+	// Without this the test passes for the trivial reason that there is no panel.
+	if !onScreen(vans) {
+		t.Skip("the panel is not on screen; summon it with the hotkey and run this again")
+	}
+
+	front, ok := frontmostApp()
+	if !ok {
+		t.Fatal("the window list named no application in front")
+	}
+	t.Logf("front application while the panel is up: %q", front)
+	if strings.EqualFold(front, "vans") {
+		t.Fatalf("the panel took the front window from %s", app)
+	}
+
+	pid, found := pidByProcessName(ctx, app)
+	if !found {
+		t.Skipf("%s is not running", app)
+	}
+
+	tree, err := walkApp(pid, app)
+	if err != nil {
+		t.Fatalf("%s published nothing with the panel up: %v", app, err)
+	}
+	if len(tree.Elements) == 0 {
+		t.Fatalf("%s published a window with no controls in it", app)
+	}
+	t.Logf("%s — window %q, %d controls, still readable with the panel up",
+		tree.App, tree.Window, len(tree.Elements))
+}
+
 func TestLiveCaptureReadsAWindow(t *testing.T) {
 	app, ctx := liveApp(t)
 

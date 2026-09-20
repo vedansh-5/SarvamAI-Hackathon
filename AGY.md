@@ -187,6 +187,9 @@ as the fallback.
 | #59 | Detect frontmost application via CGWindowListCopyWindowInfo without Apple Events |
 | #60 | Multi-step coaching progression, session advance channel, and clean cancellation |
 | #61 | Keep panel non-activating, forward screen context, and compact HUD |
+| #62 | Update the record with #61 |
+| #63 | Prove the full click loop: hermetic target resolution, click posting, context app inference |
+| #64 | Progress while committing, retry a refused step with its reason, receipt rests on the window |
 
 
 
@@ -417,30 +420,43 @@ not "is this sensitive" but "is the request about it":
 
 In order. Each item says what it is and how it gets built.
 
-### 9.0 The panel was stealing the front window (Resolved and merged in #61)
+### 9.0 The panel was stealing the front window (fixed in #61; one measurement left)
 
-Fixed: summoning the panel no longer calls `win.set_focus()` on macOS, allowing
-the non-activating panel to receive keyboard input without activating the process.
-Context is passed to `prepare` and `appInQuestion` ignores VANS. `Capture` retries
-through `bringForward` when a window was off-stage. Panel shrinks to a 380pt HUD
-while coaching and routes diagnostics to `#guiding-step`. Live measurement
-confirmed 176 controls captured in 868ms on `System Settings`.
+Summoning the panel called `win.set_focus()`, which on macOS reaches
+`activateIgnoringOtherApps` and makes VANS the active application — and with
+Stage Manager on, every other application then withdraws its windows from the
+accessibility API. That is why the coach pointed at nothing and why multi-step
+never advanced: each re-read came back empty until the three-failure guard
+reported the window closed. Recorded as D-075.
 
-### 9.1 Multi-step coaching live validation
+Fixed: `set_focus` is non-macOS only, and `show()` alone makes the non-activating
+panel key without activating the process. `Capture` retries once through
+`bringForward` when the window list comes back empty. `appInQuestion` takes the
+application from the context the shell captured when the hotkey was pressed —
+`prepare` carries it end to end — and refuses VANS itself; `planGuide` and
+`readWhatIsInFront` share it. The panel shrinks to a 380pt strip while the coach
+points and goes back on every exit path, and guide progress is written into the
+coaching line, the only place it is visible while the coach is up. 176 controls
+captured from System Settings in 868ms.
 
-Now that the front window is preserved under Stage Manager and the panel shrinks
-out of the way, the coaching loop can be driven live across multi-step flows
-(e.g., System Settings). Verify:
-1. "How do I turn on Dark Mode" or "where is the display setting"
-2. Spotlight ring points at the control, HUD displays step text
-3. User acts or clicks "Next", coach polls changes and advances to step 2
-4. "Stop" or Escape cleanly closes the coach and restores panel width
+**Left:** that capture has not been measured with the panel actually on screen,
+which is the condition that used to break it.
+`TestLiveTheSummonedPanelLeavesTheWindowReadable` does it properly — it calls
+`walkApp` rather than `Capture`, because `Capture` now recovers and would hide the
+failure, and it skips unless VANS is running *and* its panel is on screen, so it
+cannot pass for the trivial reason that there is no panel. Summon the panel over
+System Settings, leave it up, then:
+
+```bash
+VANS_LIVE=1 VANS_LIVE_APP="System Settings" \
+  go test -tags integration ./internal/uiact -run TestLiveTheSummonedPanel -v
+```
 
 **Reading Clicky is not a problem and it does not need installing.** The DMG in
 Downloads was already inspected: ScreenCaptureKit plus a Screen Recording grant,
 ten `AXUIElement*` symbols, frames posted to `api.heyclicky.com`, 787MB,
 `LSUIElement=true`. Mounting it again would only help for watching its runtime
-behaviour, which is not what is blocked.
+behaviour, which is not what was blocked.
 
 ### 9.1 The coach flow, end to end — "show me what to do" (Built)
 
@@ -449,31 +465,40 @@ forward, captures controls, passes roles/labels to the step writer, checks the
 target's visible rectangle, and commands the overlay while shrinking the panel
 HUD. Verified single-step against System Settings ("where is the search bar").
 
-### 9.2 Multi-step coaching (Loop, advance channel, cancellation built; live validation remaining)
+### 9.2 Multi-step coaching (built; the live run is what is left)
 
 Point at the first control; the *person* clicks it; re-read the window; point at
-the next. This reuses the drive loop's structure with the click removed (`#50`)
-and polls every 500ms for window changes (`Changes(before, after)`, D-067, D-073).
-Wired session-scoped advance channel ("Next" HUD button, #60), clean cancellation
-lifecycle ("Stop" HUD button, Escape key), and 3-failure window closure guards.
-Distinguishes locational questions ("where is X") which stop once pointed out from
-procedural tasks ("how to do X") which continue up to 12 steps.
-Could not work at all until the activation bug in §9.0 was found; live multi-step
-testing on a real application is still outstanding.
+the next. This reuses the drive loop's structure with the click removed (#50) and
+polls every 500ms for window changes (`Changes(before, after)`, D-067, D-073).
+Session-scoped advance channel behind the "Next" button, clean cancellation behind
+"Stop" and Escape, three-failure window guards (#60). A locational question
+("where is X") stops once the control has been pointed at; a procedural one ("how
+do I X") continues up to 12 steps.
 
+It could not work at all until the activation bug in §9.0 was found, so the loop
+has still never been watched across a real state transition. The run to make, on
+System Settings:
 
-### 9.3 Prove the full click loop
+1. Ask something with more than one step — "how do I turn on Dark Mode".
+2. The ring lands on the first control and the strip names the step.
+3. Act, or press Next: the coach notices and moves to step 2.
+4. Stop, or Escape: the coach closes and the panel goes back to full width.
 
-The single most important missing piece of evidence. Needs a target application
-that is willing to be touched and a desktop where the window is actually
-visible. The run to make: bring the app forward, capture, plan, verify, click,
-read back, report what changed.
+### 9.3 Prove the full click loop (done in #63)
 
-### 9.4 The app agent workflow
+Bring the application forward, capture, plan, verify, click, read back, report
+what changed — with hermetic target resolution and click posting under test.
 
-With input posting and read-back both working, the drive loop can finally be
-exercised. Each step already carries its effect into the next request, so the
-model is told "nothing in the window changed" rather than assuming success.
+### 9.4 The app agent workflow (built; one live run left)
+
+With input posting and read-back both working (#63), the drive loop is wired end
+to end (#64): progress reaches the window while a plan is committed, a step the
+window refuses is re-asked with the reason in hand, and the receipt is verified
+only when every step performed was seen to change the window (D-076). Each step
+carries its effect into the next request, so the model is told "nothing in the
+window changed" rather than assuming success. `TestLiveDriveTask` drives it
+against a real application behind `-tags integration` and `VANS_LIVE_DRIVE_OK=1`;
+that run has not happened yet.
 
 ### 9.5 Smaller, worth doing
 
