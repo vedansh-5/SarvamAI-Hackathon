@@ -45,24 +45,21 @@ func Fix(err error) string {
 
 var walker = walkApp
 
+// Capture reads a window and changes nothing.
+//
+// Deliberately not self-healing. Stage Manager withdraws the windows of every
+// application that is not the active one, and the recovery for that is to bring
+// the application forward — which is a change to the world, and wrong to make
+// from inside a read: the coach reads the window twice a second while waiting for
+// someone to act, and a read that raises would drag them back every time they
+// looked at something else. `BringToFront` is asked for by name, by the callers
+// that mean it.
 func Capture(ctx context.Context, r Runner, app string) (Tree, error) {
 	pid, err := pidFor(ctx, r, app)
 	if err != nil {
 		return Tree{}, err
 	}
 
-	tree, err := walker(pid, app)
-	if !errors.Is(err, ErrNoWindow) {
-		return tree, err
-	}
-
-	// Stage Manager withdraws the windows of every application that is not the
-	// active one, so a window the user is looking at publishes nothing the
-	// moment anything else takes over. Putting it back in front is the only way
-	// to read it, and it is where the user wants it anyway.
-	if err := bringForward(ctx, r, app, pid); err != nil {
-		return Tree{}, err
-	}
 	return walker(pid, app)
 }
 

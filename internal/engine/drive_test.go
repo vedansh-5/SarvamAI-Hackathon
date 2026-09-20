@@ -208,3 +208,41 @@ func TestDriveRetriesWhenStepExecutionFails(t *testing.T) {
 		t.Errorf("failure reason = %q, want mention of missed click", steps.requests[1].Failures[0])
 	}
 }
+
+// A window withdrawn between steps is brought back, once, by the step that needs
+// it — not by the read, which the coach runs twice a second while waiting.
+type withdrawnWindowScreen struct {
+	fakeScreen
+	withheld int
+}
+
+func (s *withdrawnWindowScreen) Capture(ctx context.Context, app string) (uiact.Tree, error) {
+	if s.withheld > 0 {
+		s.withheld--
+		return uiact.Tree{}, uiact.ErrNoWindow
+	}
+	return s.fakeScreen.Capture(ctx, app)
+}
+
+func TestDriveBringsBackAWindowThatStoppedPublishing(t *testing.T) {
+	typed := editorTree()
+	typed.Elements[0].Value = "hello"
+
+	f := &withdrawnWindowScreen{
+		fakeScreen: fakeScreen{tree: editorTree(), afterwards: &typed},
+		withheld:   1,
+	}
+	e := &Engine{UIScreen: f, Steps: &scriptedSteps{
+		answers: []synth.StepAnswer{{Step: typeIntoMessage()}},
+	}}
+
+	if _, err := e.runDrive(context.Background(), drivePlan()); err != nil {
+		t.Fatalf("runDrive: %v", err)
+	}
+	if len(f.raised) != 1 {
+		t.Errorf("brought the application forward %d time(s), want 1", len(f.raised))
+	}
+	if f.acts != 1 {
+		t.Errorf("ran %d step(s), want 1 once the window came back", f.acts)
+	}
+}

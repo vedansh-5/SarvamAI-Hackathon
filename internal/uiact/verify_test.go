@@ -147,9 +147,13 @@ func (c *countingRunner) Run(context.Context, string) ([]byte, error) {
 }
 
 func withRaise(t *testing.T, err error) {
+	withRaiseFunc(t, func(int) error { return err })
+}
+
+func withRaiseFunc(t *testing.T, fn func(int) error) {
 	t.Helper()
 	original := raise
-	raise = func(int) error { return err }
+	raise = fn
 	t.Cleanup(func() { raise = original })
 }
 
@@ -211,30 +215,25 @@ func withWalker(t *testing.T, fn func(int, string) (Tree, error)) {
 	t.Cleanup(func() { walker = original })
 }
 
-func TestCaptureRetriesAfterBringingAppForward(t *testing.T) {
+// Reading is passive. The coach reads twice a second while it waits for someone
+// to act, so a read that brought the application back would undo every switch
+// away from it.
+func TestCaptureDoesNotBringTheApplicationForward(t *testing.T) {
 	withOnScreen(t, true)
 	withFront(t, "Something Else")
-	withRaise(t, nil)
 
-	calls := 0
-	expectedTree := Tree{App: "Notes", Window: "Notes"}
-	withWalker(t, func(pid int, app string) (Tree, error) {
-		calls++
-		if calls == 1 {
-			return Tree{}, ErrNoWindow
-		}
-		return expectedTree, nil
+	raises := 0
+	withRaiseFunc(t, func(int) error {
+		raises++
+		return nil
 	})
+	withWalker(t, func(int, string) (Tree, error) { return Tree{}, ErrNoWindow })
 
-	tree, err := Capture(context.Background(), &pidRunner{pid: 42}, "Notes")
-	if err != nil {
-		t.Fatalf("Capture: %v", err)
+	if _, err := Capture(context.Background(), &pidRunner{pid: 42}, "Notes"); err == nil {
+		t.Fatal("a window that published nothing was reported as read")
 	}
-	if calls != 2 {
-		t.Errorf("walked %d times, want 2", calls)
-	}
-	if tree.App != "Notes" {
-		t.Errorf("tree.App = %q, want Notes", tree.App)
+	if raises != 0 {
+		t.Errorf("raised the application %d time(s) from inside a read", raises)
 	}
 }
 

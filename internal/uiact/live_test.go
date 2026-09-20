@@ -33,10 +33,9 @@ func liveApp(t *testing.T) (string, context.Context) {
 // The panel must not blind the runtime (D-075).
 //
 // Summon VANS over the application named by VANS_LIVE_APP, leave it up, and run
-// this. `walkApp` is called directly rather than `Capture`, because Capture
-// recovers by bringing the window forward and would hide exactly the failure
-// being measured: the panel activating VANS, and macOS withdrawing every other
-// application's windows from the accessibility API in response.
+// this. `walkApp` is called directly, below the pid lookup, so what is measured is
+// the one thing in question: whether the panel being on screen costs the
+// application behind it its accessibility window.
 func TestLiveTheSummonedPanelLeavesTheWindowReadable(t *testing.T) {
 	app, ctx := liveApp(t)
 

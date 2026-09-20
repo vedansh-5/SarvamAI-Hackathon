@@ -2177,6 +2177,19 @@ The coach overlay is ordered on screen with `orderFrontRegardless` after `show()
 for the same reason: it has to appear above the active application without VANS
 becoming active to get there.
 
+## D-080a — A read does not change the world
+
+`Capture` briefly recovered from an empty window list by bringing the application
+forward and reading again. It is the wrong place for it: the coach reads the
+window twice a second while waiting for someone to act, so a read that raises
+would drag them back to the coached application every time they looked at
+something else — and the guard that ends a guide when the window is gone would
+never fire, because the read would keep resurrecting it.
+
+Recovery moved to `windowToWorkFrom`, used by the one caller that insists on a
+window: the step about to be planned against it. `RunGuide` also brings the
+application forward once at the start. Everything else reads passively.
+
 ## D-080 — Naming an application costs no Automation grant
 
 `pidFor` fell through to System Events whenever `pgrep -x` missed, which raises

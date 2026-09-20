@@ -78,7 +78,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 	landed = true
 
 	for i := 1; i <= limit; i++ {
-		tree, err := e.UIScreen.Capture(ctx, app)
+		tree, err := e.windowToWorkFrom(ctx, app)
 		if err != nil {
 			return len(done), landed, err
 		}
@@ -151,6 +151,25 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 	}
 
 	return len(done), landed, fmt.Errorf("engine: stopped after %d steps without finishing", limit)
+}
+
+// The window a step is planned against, brought back if something withdrew it.
+//
+// Reading is passive, so the one place that insists on a window is the one about
+// to plan a step against it. Stage Manager is why it can be missing: whatever the
+// person did between steps may have made another application the active one, and
+// then the window publishes nothing at all (D-075).
+func (e *Engine) windowToWorkFrom(ctx context.Context, app string) (uiact.Tree, error) {
+	tree, err := e.UIScreen.Capture(ctx, app)
+	if !errors.Is(err, uiact.ErrNoWindow) {
+		return tree, err
+	}
+
+	e.logf("%s is not showing a window; bringing it forward", app)
+	if err := e.UIScreen.BringToFront(ctx, app); err != nil {
+		return uiact.Tree{}, err
+	}
+	return e.UIScreen.Capture(ctx, app)
 }
 
 func describeEffect(ctx context.Context, e *Engine, app string, before uiact.Tree) (string, bool) {
