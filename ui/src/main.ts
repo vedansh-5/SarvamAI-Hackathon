@@ -358,15 +358,14 @@ async function extract() {
 /// The runtime pushes one step at a time and waits for them to act before
 /// working out the next, so this returns only once they are done or it gives up.
 async function showTheWay(plan: Plan) {
-  $("results-kicker").textContent = plan.app ? `Showing you — ${plan.app}` : "Showing you";
-  clear($("cards"));
-  $("cards").appendChild(el("p", "card-text", plan.action));
-  clear($("rows"));
-  show("results");
+  $("guiding-where").textContent = plan.app ? `Showing you — ${plan.app}` : "Showing you";
+  $("guiding-step").textContent = "Looking at the window…";
+  show("guiding");
 
   try {
     await invoke("guide", { planId: plan.plan_id });
     toast("That is all of it");
+    show("ask");
   } catch (e) {
     renderFailure(e);
     show("failure");
@@ -379,6 +378,7 @@ listen<{ params: { number: number; label: string; x: number; y: number; w: numbe
   "engine://guide",
   (event) => {
     const s = event.payload.params;
+    $("guiding-step").textContent = `${s.number}. ${s.label}`;
     invoke("point_at", {
       x: s.x,
       y: s.y,
@@ -1201,6 +1201,10 @@ $("view-table").addEventListener("click", () => applyView(true, true));
 
 $("ask-again").addEventListener("click", backToAsk);
 $("clear-style").addEventListener("click", clearStyle);
+$("guiding-stop").addEventListener("click", () => {
+  invoke("clear_pointer").catch(console.error);
+  show("ask");
+});
 $("to-task").addEventListener("click", backToAsk);
 $("back").addEventListener("click", backToAsk);
 $("back-from-unknown").addEventListener("click", backToAsk);
