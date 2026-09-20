@@ -2107,3 +2107,19 @@ captures the frontmost application context at the moment the hotkey is pressed a
 passes it through `prepare` to the engine (`appInQuestion`), preventing the panel itself
 from ever being mistaken for the target application.
 
+
+## D-076 — A drive receipt rests on the window, not on the model's word
+
+`runDrive` returned `Verified: true` whenever the step loop finished without an
+error. That loop finishes when the model answers "done", so the receipt was the
+model marking its own homework — the exact failure D-004 exists to prevent.
+
+Verified now means every step VANS performed was followed by a change in the
+window it was aimed at, read back through `Changes(before, after)`. A step that
+left the window untouched makes the receipt unverified even when the model is
+confident the task is complete, which is the same bar `Landed` sets for a single
+app action and `string(out) == text` sets for a write.
+
+This is evidence that the actions took effect, not proof that the task was the
+right one. Nothing on screen can supply the latter, so the receipt does not
+claim it.

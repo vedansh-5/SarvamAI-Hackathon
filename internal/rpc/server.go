@@ -440,7 +440,10 @@ func (s *Server) commit(ctx context.Context, req Request) (CommitResult, error) 
 		}
 	}
 
-	receipt, err := s.Engine.Commit(ctx, plan)
+	eng := *s.Engine
+	eng.Log = func(format string, args ...any) { s.notify(req.ID, format, args...) }
+
+	receipt, err := eng.Commit(ctx, plan)
 	if err != nil {
 		return CommitResult{}, err
 	}

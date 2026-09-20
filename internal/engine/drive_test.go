@@ -112,3 +112,99 @@ func TestDriveAsksAgainWhenAStepDoesNotFitTheScreen(t *testing.T) {
 		t.Errorf("ran %d step(s); the rejected one must not reach the screen", f.acts)
 	}
 }
+
+type failingActScreen struct {
+	fakeScreen
+	actFailures int
+}
+
+func (s *failingActScreen) Act(ctx context.Context, p uiact.Program, t uiact.Tree) error {
+	if s.actFailures > 0 {
+		s.actFailures--
+		return &uiact.InvalidError{App: t.App, Reasons: []string{"click missed target control"}}
+	}
+	return s.fakeScreen.Act(ctx, p, t)
+}
+
+type recordedSteps struct {
+	answers  []synth.StepAnswer
+	requests []synth.StepRequest
+}
+
+func (r *recordedSteps) WriteStep(_ context.Context, req synth.StepRequest) (synth.StepAnswer, error) {
+	r.requests = append(r.requests, req)
+	if len(r.requests) <= len(r.answers) {
+		return r.answers[len(r.requests)-1], nil
+	}
+	return synth.StepAnswer{Done: true}, nil
+}
+
+func TestDriveVerifiesTheReceiptAgainstTheWindow(t *testing.T) {
+	typed := editorTree()
+	typed.Elements[0].Value = "hello"
+
+	f := &fakeScreen{tree: editorTree(), afterwards: &typed}
+	e := &Engine{UIScreen: f, Steps: &scriptedSteps{
+		answers: []synth.StepAnswer{{Step: typeIntoMessage()}},
+	}}
+
+	receipt, err := e.runDrive(context.Background(), drivePlan())
+	if err != nil {
+		t.Fatalf("runDrive: %v", err)
+	}
+	if !receipt.Verified {
+		t.Error("the step landed in the window and the receipt did not say so")
+	}
+}
+
+// The model declaring the task finished is the claim under test, so it cannot
+// be the evidence for it. A window that never moved is an unverified receipt,
+// however confident the model was.
+func TestDriveWillNotCallATaskVerifiedWhenTheWindowNeverMoved(t *testing.T) {
+	f := &fakeScreen{tree: editorTree()}
+	e := &Engine{UIScreen: f, Steps: &scriptedSteps{
+		answers: []synth.StepAnswer{{Step: typeIntoMessage()}},
+	}}
+
+	receipt, err := e.runDrive(context.Background(), drivePlan())
+	if err != nil {
+		t.Fatalf("runDrive: %v", err)
+	}
+	if receipt.Verified {
+		t.Error("nothing in the window changed and the receipt claimed it was verified")
+	}
+}
+
+func TestDriveRetriesWhenStepExecutionFails(t *testing.T) {
+	typed := editorTree()
+	typed.Elements[0].Value = "hello"
+
+	f := &failingActScreen{
+		fakeScreen:  fakeScreen{tree: editorTree(), afterwards: &typed},
+		actFailures: 1,
+	}
+	steps := &recordedSteps{
+		answers: []synth.StepAnswer{
+			{Step: typeIntoMessage()},
+			{Step: typeIntoMessage()},
+		},
+	}
+	e := &Engine{UIScreen: f, Steps: steps}
+
+	receipt, err := e.runDrive(context.Background(), drivePlan())
+	if err != nil {
+		t.Fatalf("runDrive: %v", err)
+	}
+	if !receipt.Verified {
+		t.Error("the recovered step landed and the receipt did not say so")
+	}
+	if len(steps.requests) < 2 {
+		t.Fatalf("model called %d times, want >= 2", len(steps.requests))
+	}
+	if len(steps.requests[1].Failures) == 0 {
+		t.Fatal("attempt 2 was not told why attempt 1 failed")
+	}
+	if !strings.Contains(steps.requests[1].Failures[0], "click missed") {
+		t.Errorf("failure reason = %q, want mention of missed click", steps.requests[1].Failures[0])
+	}
+}

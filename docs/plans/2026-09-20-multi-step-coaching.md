@@ -1,7 +1,5 @@
 # Multi-Step Coaching Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Implement robust multi-step coaching with automatic change detection (focus, value, window title), manual step advance ("Next"), clean cancellation lifecycle ("Stop"), and consecutive-failure window guards.
 
 **Architecture:** The Go engine retains single-source-of-truth task progression via `stepThroughTask` and `RunGuide`. The session-scoped advance channel and cancellation func are owned by `rpc.Server` under `s.mu`. Tauri shell exposes `advance_guide` and `stop_guide` commands to the HUD.

@@ -248,6 +248,7 @@ type live struct {
 	in   *io.PipeWriter
 	dec  *json.Decoder
 	sink *fakeSink
+	logs map[int][]string
 	done chan struct{}
 }
 
@@ -275,7 +276,7 @@ func newLive(t *testing.T, configure func(*Server)) *live {
 	inR, inW := io.Pipe()
 	outR, outW := io.Pipe()
 
-	l := &live{t: t, in: inW, dec: json.NewDecoder(outR), sink: sink, done: make(chan struct{})}
+	l := &live{t: t, in: inW, dec: json.NewDecoder(outR), sink: sink, logs: map[int][]string{}, done: make(chan struct{})}
 
 	go func() {
 		defer close(l.done)
@@ -302,10 +303,13 @@ func (l *live) call(id int, method string, params any) Response {
 			l.t.Fatalf("receive: %v", err)
 		}
 		var probe struct {
-			Method string `json:"method"`
+			Method string    `json:"method"`
+			For    int       `json:"for"`
+			Params LogParams `json:"params"`
 		}
 		_ = json.Unmarshal(raw, &probe)
 		if probe.Method == "log" {
+			l.logs[probe.For] = append(l.logs[probe.For], probe.Params.Message)
 			continue
 		}
 		var resp Response
@@ -643,6 +647,23 @@ func TestProgressIsReported(t *testing.T) {
 	joined := strings.Join(s.logs[1], " ")
 	if !strings.Contains(joined, "signature") {
 		t.Errorf("progress did not mention the page: %v", s.logs[1])
+	}
+}
+
+func TestCommitEmitsProgress(t *testing.T) {
+	l := newLive(t, nil)
+	resp := l.call(1, "prepare", prepareParams())
+	if resp.Error != nil {
+		t.Fatalf("prepare: %v", resp.Error)
+	}
+	plan := decode[PrepareResult](t, resp.Result)
+
+	resp = l.call(2, "commit", CommitParams{PlanID: plan.PlanID})
+	if resp.Error != nil {
+		t.Fatalf("commit: %v", resp.Error)
+	}
+	if len(l.logs[2]) == 0 {
+		t.Fatal("no progress was reported during commit")
 	}
 }
 

@@ -1140,6 +1140,10 @@ listen<{ for_request: number; message: string }>("engine://progress", (event) =>
   if (!$("guiding").hidden) {
     $("guiding-step").textContent = text;
   }
+  const commitBtn = $("commit") as HTMLButtonElement | null;
+  if (commitBtn && commitBtn.disabled) {
+    commitBtn.textContent = text;
+  }
   advanceProgress();
 });
 
@@ -1155,7 +1159,7 @@ function humanise(message: string): string {
   if (message.startsWith("instruction shape")) return "Working out what you meant";
   if (message.startsWith("routed to")) return "Got it — going to work";
   if (message.includes("synthesized a working program")) return "Worked out how to read it";
-  if (message.startsWith("step ") || message.startsWith("finished after")) return message;
+  if (message.startsWith("step ") || message.startsWith("finished after") || message.startsWith("working out step")) return message;
   if (message.includes("rejected")) return "That did not work — trying again";
   return message;
 }

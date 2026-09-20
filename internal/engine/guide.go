@@ -100,7 +100,8 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 		// worked out once the window shows they have done this one.
 		return e.waitForTheUserToAct(ctx, g.App, tree, advance)
 	}
-	return e.stepThroughTask(ctx, g.App, asTask(g.Task), MaxGuideSteps, point)
+	steps, _, err := e.stepThroughTask(ctx, g.App, asTask(g.Task), MaxGuideSteps, point)
+	return steps, err
 }
 
 // The step writer works out the next thing to do; a question is not a thing to
