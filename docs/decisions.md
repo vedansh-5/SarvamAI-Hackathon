@@ -2146,3 +2146,44 @@ verifier rejects is a step thrown away for no reason.
 Modifiers stay out of the page tier. A synthetic keydown with `metaKey` set does
 not reach a browser's own shortcuts from inside the page, so offering them there
 would promise something the tier cannot do.
+
+## D-078 — A step nobody has done yet is still the step
+
+The coach pointed at a control, waited 45 seconds for the window to change, and
+then failed the whole run with "nothing happened". Anyone who took longer than
+that to find a control lost the sequence and had to ask again from the beginning.
+
+Waiting now returns `errStillWaiting` rather than an error, and the coach points
+at the same step again — same number, same rectangle, same words. Three quiet
+spells in a row is when it accepts that nobody is coming back.
+
+Repeating costs no model call. The step already exists; the model is asked for
+the next one only once the window shows the current one was done. This is the
+same principle as the program cache one tier down: work already done is not done
+again because time passed.
+
+## D-079 — The application being coached holds the keyboard
+
+The panel holds the keyboard while the question is typed, and the person is then
+told to click something in another application. Two things followed from leaving
+it that way: their first keystroke went to VANS, and — because macOS withdraws
+the windows of an application that is not active (D-075) — the window being
+coached stopped publishing controls, so the next step could not be worked out.
+
+`RunGuide` brings the application forward before pointing at anything. The panel
+keeps floating above it; it simply stops being the window with the keyboard.
+
+The coach overlay is ordered on screen with `orderFrontRegardless` after `show()`
+for the same reason: it has to appear above the active application without VANS
+becoming active to get there.
+
+## D-080 — Naming an application costs no Automation grant
+
+`pidFor` fell through to System Events whenever `pgrep -x` missed, which raises
+the Automation prompt — the one that had been blocking coaching runs. The window
+list already knows the pid of every application with something on screen, keyed
+by the same owner name, and asking it needs no permission VANS does not hold.
+
+The order is now: the process name, then the window list, then System Events.
+The whole coaching path — resolve, raise, capture, read back — no longer touches
+Apple Events at all.

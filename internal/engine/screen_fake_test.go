@@ -16,6 +16,9 @@ type fakeScreen struct {
 
 	afterwards   *uiact.Tree
 	changesAfter int
+
+	raised   []string
+	raiseErr error
 }
 
 func (f *fakeScreen) Capture(context.Context, string) (uiact.Tree, error) {
@@ -29,6 +32,11 @@ func (f *fakeScreen) Capture(context.Context, string) (uiact.Tree, error) {
 func (f *fakeScreen) Act(_ context.Context, p uiact.Program, t uiact.Tree) error {
 	f.acts++
 	return uiact.Validate(p, t)
+}
+
+func (f *fakeScreen) BringToFront(_ context.Context, app string) error {
+	f.raised = append(f.raised, app)
+	return f.raiseErr
 }
 
 func (f *fakeScreen) Frontmost(context.Context) (string, error) {

@@ -5,6 +5,7 @@ package uiact
 /*
 #cgo LDFLAGS: -framework ApplicationServices -framework CoreFoundation
 #include <ApplicationServices/ApplicationServices.h>
+#include <stdlib.h>
 #include <string.h>
 
 static int axTrusted(void) { return AXIsProcessTrusted() ? 1 : 0; }
@@ -160,6 +161,28 @@ static int cgFrontmostApp(char *name, int len) {
     return found;
 }
 
+static int cgPidForOwner(const char *want, int *pid) {
+    *pid = 0;
+    CFArrayRef list = CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly, kCGNullWindowID);
+    if (!list) return 0;
+    int found = 0;
+    char name[256];
+    CFIndex n = CFArrayGetCount(list);
+    for (CFIndex i = 0; i < n && !found; i++) {
+        CFDictionaryRef d = (CFDictionaryRef)CFArrayGetValueAtIndex(list, i);
+        CFStringRef on = (CFStringRef)CFDictionaryGetValue(d, kCGWindowOwnerName);
+        if (!on) continue;
+        if (!CFStringGetCString(on, name, sizeof(name), kCFStringEncodingUTF8)) continue;
+        if (strcasecmp(name, want) != 0) continue;
+        CFNumberRef v = (CFNumberRef)CFDictionaryGetValue(d, kCGWindowOwnerPID);
+        if (!v) continue;
+        CFNumberGetValue(v, kCFNumberIntType, pid);
+        found = *pid > 0;
+    }
+    CFRelease(list);
+    return found;
+}
+
 static int axRaise(int pid) {
     AXUIElementRef app = AXUIElementCreateApplication((pid_t)pid);
     if (!app) return -1;
@@ -210,6 +233,22 @@ func raiseApp(pid int) error {
 		return fmt.Errorf("uiact: could not raise the application (accessibility error %d)", rc)
 	}
 	return nil
+}
+
+// The pid of the application publishing a window under this name.
+//
+// The window list knows every application with something on screen and needs no
+// permission VANS does not already hold. System Events knows it too and costs an
+// Automation grant, which is why this is asked first.
+func pidByWindowList(app string) (int, bool) {
+	name := C.CString(app)
+	defer C.free(unsafe.Pointer(name))
+
+	var pid C.int
+	if C.cgPidForOwner(name, &pid) != 1 {
+		return 0, false
+	}
+	return int(pid), true
 }
 
 func frontmostApp() (string, bool) {

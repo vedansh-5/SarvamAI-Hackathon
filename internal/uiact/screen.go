@@ -174,6 +174,19 @@ func bringForward(ctx context.Context, r Runner, app string, pid int) error {
 	return forwardWithEvents(ctx, r, app, pid)
 }
 
+// BringToFront gives an application the keyboard and waits for its window.
+//
+// The coach needs this before it points at anything: the panel holds the
+// keyboard while the question is being typed, and the person is about to act in
+// the application, not in VANS.
+func BringToFront(ctx context.Context, r Runner, app string) error {
+	pid, err := pidFor(ctx, r, app)
+	if err != nil {
+		return err
+	}
+	return bringForward(ctx, r, app, pid)
+}
+
 func alreadyInFront(app string) bool {
 	name, ok := askTheWindowList()
 	return ok && strings.EqualFold(strings.TrimSpace(name), strings.TrimSpace(app))

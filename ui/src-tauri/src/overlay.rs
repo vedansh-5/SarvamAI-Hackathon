@@ -22,6 +22,11 @@ static PINNED: AtomicBool = AtomicBool::new(false);
 /// Below this the panel reads as a glitch rather than a window.
 const MIN_HEIGHT: f64 = 180.0;
 
+/// The floor while the coach is pointing, where the panel is a caption for a step
+/// and two buttons. Holding it at the full floor leaves a mostly empty box next
+/// to the ring.
+const COMPACT_MIN_HEIGHT: f64 = 96.0;
+
 /// The panel is an overlay, not a full-screen app: past this fraction of the
 /// display it stops looking like something summoned over your work.
 const MAX_SCREEN_FRACTION: f64 = 0.85;
@@ -233,6 +238,15 @@ static COMPACT: AtomicBool = AtomicBool::new(false);
 const FULL_WIDTH: f64 = 720.0;
 const COMPACT_WIDTH: f64 = 380.0;
 
+/// The shortest the panel may be right now.
+fn panel_min_height() -> f64 {
+    if COMPACT.load(Ordering::Relaxed) {
+        COMPACT_MIN_HEIGHT
+    } else {
+        MIN_HEIGHT
+    }
+}
+
 /// The width the panel should currently have.
 ///
 /// Asked rather than remembered, because the content height changes constantly
@@ -247,16 +261,56 @@ fn panel_width() -> f64 {
 }
 
 /// Shrinks the panel to a strip while the coach is pointing, and back after.
+///
+/// Animated, because this one is a change of purpose rather than content
+/// settling: the panel stops being the thing you are reading and becomes a
+/// caption next to the ring. A jump cut there reads as a glitch.
 pub fn set_compact(app: &AppHandle, compact: bool) {
     COMPACT.store(compact, Ordering::Relaxed);
     let Some(win) = window(app) else { return };
-    let width = panel_width();
     let height = win
         .inner_size()
         .map(|s| s.to_logical::<f64>(win.scale_factor().unwrap_or(1.0)).height)
         .unwrap_or(MIN_HEIGHT);
-    let _ = win.set_size(LogicalSize::new(width, height));
+
+    if !resize_smoothly(&win, panel_width(), height) {
+        let _ = win.set_size(LogicalSize::new(panel_width(), height));
+    }
     keep_on_screen(&win, height);
+}
+
+/// Resizes by asking AppKit to animate the frame, keeping the top-left corner
+/// where it is.
+///
+/// AppKit's own animation rather than a loop of `set_size` calls: the window
+/// server interpolates the frame, so it stays smooth while the webview inside is
+/// laying out. Returns false where there is no native window to ask.
+#[cfg(target_os = "macos")]
+fn resize_smoothly(win: &WebviewWindow, width: f64, height: f64) -> bool {
+    use objc2_app_kit::NSWindow;
+    use objc2_foundation::{NSPoint, NSRect, NSSize};
+
+    let Ok(ptr) = win.ns_window() else { return false };
+    if ptr.is_null() {
+        return false;
+    }
+    let ns: &NSWindow = unsafe { &*(ptr as *const NSWindow) };
+
+    let frame = ns.frame();
+    // Cocoa measures from the bottom-left, so growing downwards means moving the
+    // origin down by the difference rather than leaving it alone.
+    let top = frame.origin.y + frame.size.height;
+    let target = NSRect::new(
+        NSPoint::new(frame.origin.x, top - height),
+        NSSize::new(width, height),
+    );
+    ns.setFrame_display_animate(target, true, true);
+    true
+}
+
+#[cfg(not(target_os = "macos"))]
+fn resize_smoothly(_win: &WebviewWindow, _width: f64, _height: f64) -> bool {
+    false
 }
 
 /// Sizes the window to the height its content asked for.
@@ -280,7 +334,8 @@ pub fn resize(app: &AppHandle, content_height: f64) {
 
     // clamp panics if the bounds cross, which they do on a display shorter
     // than MIN_HEIGHT/MAX_SCREEN_FRACTION.
-    let height = content_height.clamp(MIN_HEIGHT, ceiling.max(MIN_HEIGHT));
+    let floor = panel_min_height();
+    let height = content_height.clamp(floor, ceiling.max(floor));
 
     let width = panel_width();
 

@@ -25,6 +25,8 @@ var ErrNoWindow = errors.New("uiact: that application is not showing a window to
 
 var askTheWindowList = frontmostApp
 
+var askTheWindowListForPid = pidByWindowList
+
 var ErrWindowHidden = errors.New("uiact: the application is in front but none of its windows is on screen")
 
 const assistiveFix = "Grant access in System Settings › Privacy & Security › Accessibility, then ask again."
@@ -64,8 +66,14 @@ func Capture(ctx context.Context, r Runner, app string) (Tree, error) {
 	return walker(pid, app)
 }
 
+// Two ways that cost nothing, then the one that costs a permission. System Events
+// is the only path here that raises an Automation prompt, and an application with
+// a window on screen can almost always be named without it.
 func pidFor(ctx context.Context, r Runner, app string) (int, error) {
 	if pid, ok := pidByProcessName(ctx, app); ok {
+		return pid, nil
+	}
+	if pid, ok := askTheWindowListForPid(app); ok {
 		return pid, nil
 	}
 	return pidViaEvents(ctx, r, app)

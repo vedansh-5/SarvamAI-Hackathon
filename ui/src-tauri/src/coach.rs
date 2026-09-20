@@ -131,10 +131,37 @@ fn draw(app: &AppHandle, mut p: Pointer) {
         p.y -= origin.y as f64 / scale;
     }
 
-    let _ = win.show();
+    show_without_taking_the_keyboard(&win);
     if let Err(e) = win.emit_to(LABEL, "coach:point", p) {
         eprintln!("[vans] could not draw the tip: {e}");
     }
+}
+
+/// Puts the coach on screen over whatever application is active.
+///
+/// Both calls, and in this order. `show()` is what tells Tauri the window is up,
+/// and without it the webview has no reason to paint. `orderFrontRegardless` is
+/// then what guarantees it is ordered above the active application's windows
+/// without VANS having to become active to get there — which it must not do,
+/// because an application that is not active stops publishing its window to the
+/// accessibility API (D-075).
+#[cfg(target_os = "macos")]
+fn show_without_taking_the_keyboard(win: &WebviewWindow) {
+    use objc2_app_kit::NSWindow;
+
+    let _ = win.show();
+
+    let Ok(ptr) = win.ns_window() else { return };
+    if ptr.is_null() {
+        return;
+    }
+    let ns: &NSWindow = unsafe { &*(ptr as *const NSWindow) };
+    ns.orderFrontRegardless();
+}
+
+#[cfg(not(target_os = "macos"))]
+fn show_without_taking_the_keyboard(win: &WebviewWindow) {
+    let _ = win.show();
 }
 
 /// clear takes the coach off the screen.

@@ -194,6 +194,7 @@ func (f *failureScreen) Capture(context.Context, string) (uiact.Tree, error) {
 
 func (f *failureScreen) Act(context.Context, uiact.Program, uiact.Tree) error { return nil }
 func (f *failureScreen) Frontmost(context.Context) (string, error)            { return "Editor", nil }
+func (f *failureScreen) BringToFront(context.Context, string) error           { return nil }
 func (f *failureScreen) Type(context.Context, string) error                   { return nil }
 
 func TestGuideToleratesTransientCaptureFailures(t *testing.T) {
@@ -313,5 +314,61 @@ func TestTheCoachIsToldToPointRatherThanDescribe(t *testing.T) {
 		if !strings.Contains(task, must) {
 			t.Errorf("the task no longer says %q:\n%s", must, task)
 		}
+	}
+}
+
+// A step nobody has got to yet is still that step. The coach points at it again,
+// with no new model call, rather than starting the task over from step one.
+func TestGuideStaysOnTheStepNobodyHasDoneYet(t *testing.T) {
+	poll, timeout := guidePoll, guideStepTimeout
+	guidePoll, guideStepTimeout = 5*time.Millisecond, 40*time.Millisecond
+	t.Cleanup(func() { guidePoll, guideStepTimeout = poll, timeout })
+
+	acted := editorTree()
+	acted.Elements[0].Value = "hello"
+
+	// More captures than one quiet spell can hold, so the window moves only after
+	// the step has been pointed at again.
+	screen := &fakeScreen{tree: editorTree(), afterwards: &acted, changesAfter: 12}
+	writer := &scriptedSteps{answers: []synth.StepAnswer{{Step: typeIntoMessage()}}}
+	e := &Engine{UIScreen: screen, Steps: writer}
+
+	var shown []GuideStep
+	_, err := e.RunGuide(context.Background(), guidePlan(), func(g GuideStep) {
+		shown = append(shown, g)
+	}, nil)
+	if err != nil {
+		t.Fatalf("RunGuide: %v", err)
+	}
+
+	if len(shown) < 2 {
+		t.Fatalf("pointed %d time(s); an unfinished step has to be pointed at again", len(shown))
+	}
+	for i, g := range shown {
+		if g.Number != 1 {
+			t.Fatalf("pointed at step %d on showing %d; the step number must not move on", g.Number, i+1)
+		}
+	}
+	// One step was written, however many times it had to be pointed at.
+	if writer.calls != 1 {
+		t.Errorf("model wrote %d step(s), want 1; repeating a step costs no call", writer.calls)
+	}
+}
+
+func TestGuideHandsTheKeyboardToTheApplicationFirst(t *testing.T) {
+	quickGuide(t)
+
+	moved := editorTree()
+	moved.Elements[0].Value = "hello"
+	screen := &fakeScreen{tree: editorTree(), afterwards: &moved, changesAfter: 1}
+	e := &Engine{UIScreen: screen, Steps: &scriptedSteps{
+		answers: []synth.StepAnswer{{Step: typeIntoMessage()}, {Done: true, Why: "that is all"}},
+	}}
+
+	if _, err := e.RunGuide(context.Background(), guidePlan(), func(GuideStep) {}, nil); err != nil {
+		t.Fatalf("RunGuide: %v", err)
+	}
+	if len(screen.raised) == 0 || screen.raised[0] != "Editor" {
+		t.Errorf("brought %v to the front; the application being coached has to hold the keyboard", screen.raised)
 	}
 }

@@ -102,7 +102,11 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 /// Preflight prints a command to run in a terminal. With dismiss-on-blur and
 /// nothing else, clicking the terminal destroys the instructions telling you
 /// to click the terminal.
-const PINNED = new Set(["preflight"]);
+// Screens that survive a click somewhere else. Preflight sends you to a terminal;
+// coaching sends you to the control it is pointing at — and a panel that closes
+// on that click takes Next and Stop with it, leaving the coach running with
+// nothing to drive it.
+const PINNED = new Set(["preflight", "guiding"]);
 
 const ICONS: Record<string, string> = {
   rss: '<path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.6"/>',

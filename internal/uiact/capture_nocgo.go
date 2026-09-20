@@ -28,4 +28,6 @@ func postText(string) {}
 
 func frontmostApp() (string, bool) { return "", false }
 
+func pidByWindowList(string) (int, bool) { return 0, false }
+
 func raiseApp(int) error { return errNoAccessibilityAPI }

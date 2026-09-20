@@ -6,6 +6,7 @@ type Screen interface {
 	Capture(ctx context.Context, app string) (Tree, error)
 	Act(ctx context.Context, p Program, t Tree) error
 	Frontmost(ctx context.Context) (string, error)
+	BringToFront(ctx context.Context, app string) error
 	Type(ctx context.Context, text string) error
 }
 
@@ -17,6 +18,10 @@ func (s System) Capture(ctx context.Context, app string) (Tree, error) {
 
 func (s System) Act(ctx context.Context, p Program, t Tree) error {
 	return RunScreen(ctx, s.Runner, p, t)
+}
+
+func (s System) BringToFront(ctx context.Context, app string) error {
+	return BringToFront(ctx, s.Runner, app)
 }
 
 func (s System) Frontmost(ctx context.Context) (string, error) {

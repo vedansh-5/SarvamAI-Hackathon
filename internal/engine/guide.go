@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -19,6 +20,12 @@ var (
 	guidePoll        = 500 * time.Millisecond
 	guideStepTimeout = 45 * time.Second
 )
+
+// How many quiet spells one step is pointed at through before the coach accepts
+// that nobody is coming back. Three is a couple of minutes: long enough to find
+// a control, short enough not to leave a dimmed screen up for someone who walked
+// away.
+const timesToRepeatAStep = 3
 
 type GuidePlan struct {
 	App     string
@@ -89,16 +96,38 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 	}
 
 	g := plan.Guide
+
+	// The panel held the keyboard while the question was typed, and the person is
+	// about to act in their own application rather than in VANS. Handing it back
+	// is also what keeps the window readable: macOS withdraws the windows of an
+	// application that is not the active one (D-075).
+	if err := e.UIScreen.BringToFront(ctx, g.App); err != nil {
+		return 0, err
+	}
+
 	point := func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) error {
 		x, y, w, h, why := tree.RectFor(program.Steps[0].Target)
 		if why != "" {
 			return fmt.Errorf("engine: %s", why)
 		}
-		show(GuideStep{Number: number, Label: describe, X: x, Y: y, W: w, H: h})
 
-		// The hand is theirs. Nothing is clicked here — the next step is only
-		// worked out once the window shows they have done this one.
-		return e.waitForTheUserToAct(ctx, g.App, tree, advance)
+		// A step nobody has done yet is still the step. Pointing at it again
+		// costs nothing and asks the model for nothing; starting over from the
+		// first step because someone was slow is the behaviour being avoided.
+		for attempt := 1; ; attempt++ {
+			show(GuideStep{Number: number, Label: describe, X: x, Y: y, W: w, H: h})
+
+			// The hand is theirs. Nothing is clicked here — the next step is only
+			// worked out once the window shows they have done this one.
+			err := e.waitForTheUserToAct(ctx, g.App, tree, advance)
+			if !errors.Is(err, errStillWaiting) {
+				return err
+			}
+			if attempt >= timesToRepeatAStep {
+				return fmt.Errorf("engine: nothing happened in %s, so the steps stopped", g.App)
+			}
+			e.logf("still on step %d: %s", number, describe)
+		}
 	}
 	steps, _, err := e.stepThroughTask(ctx, g.App, asTask(g.Task), MaxGuideSteps, point)
 	return steps, err
@@ -120,6 +149,10 @@ func asTask(question string) string {
 			"If they asked how to accomplish something, mark done only when it is fully accomplished or nothing further is needed.",
 		question)
 }
+
+// Nothing has happened yet, which is not a failure until it has gone on long
+// enough that nobody is there.
+var errStillWaiting = errors.New("engine: the window has not changed yet")
 
 func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uiact.Tree, advance <-chan struct{}) error {
 	deadline := time.Now().Add(guideStepTimeout)
@@ -157,7 +190,7 @@ func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uia
 		}
 
 		if time.Now().After(deadline) {
-			return fmt.Errorf("engine: nothing happened in %s, so the steps stopped", app)
+			return errStillWaiting
 		}
 	}
 }
