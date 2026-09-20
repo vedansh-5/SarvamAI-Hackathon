@@ -616,7 +616,13 @@ func (s *Server) guide(ctx context.Context, req Request) (GuideResult, error) {
 		s.mu.Unlock()
 	}()
 
-	steps, err := s.Engine.RunGuide(guideCtx, plan, func(g engine.GuideStep) {
+	// Progress goes back to the window, the same way prepare does it. Without
+	// this the coach runs with no diagnostics at all: a guide that stops with
+	// no steps says nothing about why.
+	eng := *s.Engine
+	eng.Log = func(format string, args ...any) { s.notify(req.ID, format, args...) }
+
+	steps, err := eng.RunGuide(guideCtx, plan, func(g engine.GuideStep) {
 		s.push(req.ID, "guide", GuideStepParams{
 			Number: g.Number, Label: g.Label,
 			X: g.X, Y: g.Y, W: g.W, H: g.H,

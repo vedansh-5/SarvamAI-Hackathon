@@ -95,8 +95,10 @@ func asTask(question string) string {
 			"Work out which control on screen answers that, or the next step in completing it, and give it as the step to take. "+
 			"Describe it as you would to someone who cannot find it. "+
 			"They are performing the actions themselves. "+
-			"If they asked where a control or item is located, pointing to it is all they asked for — mark done once it has been pointed out. "+
-			"If they asked how to accomplish a task, only mark done when what they asked for is fully accomplished or no further action is needed.",
+			"Pointing at a control is the only way you can answer: describing where something is in words reaches nobody. "+
+			"Never mark done on the first turn — the control has not been pointed at yet. "+
+			"If they asked where something is, point at it, and mark done on the next turn, once it appears in what has been done so far. "+
+			"If they asked how to accomplish something, mark done only when it is fully accomplished or nothing further is needed.",
 		question)
 }
 

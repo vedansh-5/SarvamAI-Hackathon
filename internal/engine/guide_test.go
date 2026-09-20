@@ -276,3 +276,20 @@ func TestGuideIgnoresAnAdvanceFromBeforeTheStep(t *testing.T) {
 		t.Errorf("err = %v, want the step to have waited and timed out", err)
 	}
 }
+
+// The coach answers by pointing. A prompt that lets the model answer in words
+// instead produces a guide that finishes with no steps and no error, which is
+// silent and took a live run to notice — so the clauses that prevent it are
+// pinned here.
+func TestTheCoachIsToldToPointRatherThanDescribe(t *testing.T) {
+	task := asTask("where is the search bar")
+
+	for _, must := range []string{
+		"Pointing at a control is the only way you can answer",
+		"Never mark done on the first turn",
+	} {
+		if !strings.Contains(task, must) {
+			t.Errorf("the task no longer says %q:\n%s", must, task)
+		}
+	}
+}
