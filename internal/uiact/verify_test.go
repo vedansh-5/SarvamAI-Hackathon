@@ -245,3 +245,73 @@ type pidRunner struct {
 func (p *pidRunner) Run(context.Context, string) ([]byte, error) {
 	return []byte(fmt.Sprintf(`{"ok":true,"value":%d}`, p.pid)), nil
 }
+
+func withClickPoster(t *testing.T, fn func(int, int)) {
+	t.Helper()
+	original := clickPoster
+	clickPoster = fn
+	t.Cleanup(func() { clickPoster = original })
+}
+
+func withTextPoster(t *testing.T, fn func(string)) {
+	t.Helper()
+	original := textPoster
+	textPoster = fn
+	t.Cleanup(func() { textPoster = original })
+}
+
+func withKeyPoster(t *testing.T, fn func(int)) {
+	t.Helper()
+	original := keyPoster
+	keyPoster = fn
+	t.Cleanup(func() { keyPoster = original })
+}
+
+func TestRunScreenExecutesClickOnTargetControl(t *testing.T) {
+	withOnScreen(t, true)
+	withFront(t, "Telegram")
+	withFrontOwner(t, 42, "Telegram", true)
+	withLookup(t, "AXButton", "Send", true)
+
+	var clicks []struct{ x, y int }
+	withClickPoster(t, func(x, y int) {
+		clicks = append(clicks, struct{ x, y int }{x, y})
+	})
+
+	tree := window()
+	p := clickSend()
+
+	if err := RunScreen(context.Background(), &pidRunner{pid: 42}, p, tree); err != nil {
+		t.Fatalf("RunScreen: %v", err)
+	}
+
+	if len(clicks) != 1 {
+		t.Fatalf("clicks = %d, want 1", len(clicks))
+	}
+	if clicks[0].x != 350 || clicks[0].y != 220 {
+		t.Errorf("clicked at (%d, %d), want (350, 220)", clicks[0].x, clicks[0].y)
+	}
+}
+
+func TestRunScreenRefusesClickWhenTargetVerificationFails(t *testing.T) {
+	withOnScreen(t, true)
+	withFront(t, "Telegram")
+	withFrontOwner(t, 42, "Telegram", true)
+	withLookup(t, "AXButton", "Delete", true)
+
+	var clicks []struct{ x, y int }
+	withClickPoster(t, func(x, y int) {
+		clicks = append(clicks, struct{ x, y int }{x, y})
+	})
+
+	tree := window()
+	p := clickSend()
+
+	err := RunScreen(context.Background(), &pidRunner{pid: 42}, p, tree)
+	if err == nil {
+		t.Fatal("RunScreen succeeded when target verification should have failed")
+	}
+	if len(clicks) != 0 {
+		t.Errorf("click was posted despite verification failure: %+v", clicks)
+	}
+}

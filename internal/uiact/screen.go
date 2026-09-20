@@ -70,11 +70,11 @@ func RunScreen(ctx context.Context, r Runner, p Program, t Tree) error {
 	for _, a := range acts {
 		switch a.Do {
 		case "click":
-			postClick(a.X, a.Y)
+			clickPoster(a.X, a.Y)
 		case "type":
-			postText(a.Text)
+			textPoster(a.Text)
 		case "press":
-			postKey(a.Code)
+			keyPoster(a.Code)
 		}
 		if !pause(ctx, StepPause) {
 			return ctx.Err()
@@ -106,6 +106,9 @@ var (
 	frontOwnerAt = frontWindowAt
 	onScreen     = windowOnScreen
 	raise        = raiseApp
+	clickPoster  = postClick
+	textPoster   = postText
+	keyPoster    = postKey
 )
 
 var windowWait = 1200 * time.Millisecond

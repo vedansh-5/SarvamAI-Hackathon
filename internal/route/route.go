@@ -133,7 +133,7 @@ var Specs = []Spec{
 		Kind:     KindAppAction,
 		Describe: "Do something inside a running macOS application, the way a person would.",
 		Slots: []Slot{
-			{"app", "the application to act in", true},
+			{"app", "the application to act in, if named; otherwise the application in front", false},
 			{"action", "what to do there, in plain words", true},
 			{"target", "the specific thing to act on, if the instruction names one", false},
 		},

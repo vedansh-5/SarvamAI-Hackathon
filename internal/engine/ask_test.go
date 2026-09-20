@@ -8,7 +8,10 @@ import (
 
 	"github.com/vedansh/vans/internal/route"
 	"github.com/vedansh/vans/internal/runner"
+	"github.com/vedansh/vans/internal/screen"
 	"github.com/vedansh/vans/internal/store"
+	"github.com/vedansh/vans/internal/synth"
+	"github.com/vedansh/vans/internal/uiact"
 )
 
 // fixedDecider answers with one decision, whatever it is asked.
@@ -199,5 +202,44 @@ func TestClipboardTextCannotForgeColumns(t *testing.T) {
 	}
 	if n := strings.Count(lines[1], "\t"); n != 1 {
 		t.Errorf("a tab in a cell created %d separators, want 1: %q", n, lines[1])
+	}
+}
+
+type fixedUIWriter struct {
+	p uiact.Program
+}
+
+func (f fixedUIWriter) WriteUIAction(context.Context, synth.UIActRequest) (uiact.Program, error) {
+	return f.p, nil
+}
+
+func TestAskInfersFrontmostAppWhenAppActionOmitsSlot(t *testing.T) {
+	h := newHarness(t, always(goodProgram()))
+	h.engine.UIScreen = &fakeScreen{tree: editorTree(), front: "Editor"}
+	h.engine.UIWriter = fixedUIWriter{p: uiact.Program{
+		App: "Editor",
+		Steps: []uiact.Step{{
+			Do:     "type",
+			Target: uiact.Selector{Role: "AXTextArea", Title: "Message"},
+			Text:   "hello",
+		}},
+	}}
+	withRouter(t, h, route.Decision{
+		Kind:  route.KindAppAction,
+		Slots: map[string]string{"action": "type hello"},
+	})
+
+	plan, err := h.engine.Ask(context.Background(), Ask{
+		Instruction: "type hello",
+		Context:     &screen.Context{AppName: "Editor"},
+	})
+	if err != nil {
+		t.Fatalf("Ask: %v", err)
+	}
+	if plan.Route == nil || plan.Route.Slot("app") != "Editor" {
+		t.Fatalf("route app slot = %q, want Editor", plan.Route.Slot("app"))
+	}
+	if plan.UI == nil || plan.UI.App != "Editor" {
+		t.Fatalf("plan.UI.App = %v, want Editor", plan.UI)
 	}
 }

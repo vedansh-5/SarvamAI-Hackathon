@@ -168,19 +168,27 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 		return plan, nil
 
 	case route.KindAppAction:
+		r := res.Route
+		if strings.TrimSpace(r.Slot("app")) == "" {
+			if front, err := e.appInQuestion(ctx, in.Context); err == nil && front != "" {
+				if r.Slots == nil {
+					r.Slots = make(map[string]string)
+				}
+				r.Slots["app"] = front
+			}
+		}
 		if e.canAct() {
-			plan, calls, err := e.actInApplication(ctx, res.Route, res.Shape)
+			plan, calls, err := e.actInApplication(ctx, r, res.Shape)
 			if err != nil {
 				return nil, err
 			}
-			r := res.Route
 			plan.Route = &r
 			plan.DecisionCalls = res.DecisionCalls
 			plan.SynthesisCalls = calls
 			return plan, nil
 		}
 		if e.canActOnUI() {
-			plan, calls, err := e.actOnUI(ctx, res.Route, res.Shape, res.Route.Slot("app"))
+			plan, calls, err := e.actOnUI(ctx, r, res.Shape, r.Slot("app"))
 			if err != nil {
 				return nil, err
 			}

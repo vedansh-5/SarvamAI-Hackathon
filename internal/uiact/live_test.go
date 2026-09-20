@@ -184,3 +184,75 @@ func TestLiveTypesIntoTheControlTheRuntimePicks(t *testing.T) {
 	}
 	t.Logf("read back from the live window: %q", landed.Value)
 }
+
+func TestLiveClicksAControl(t *testing.T) {
+	app, ctx := liveApp(t)
+	if os.Getenv("VANS_LIVE_CLICK_OK") == "" {
+		t.Skip("set VANS_LIVE_CLICK_OK=1 to click in a real window")
+	}
+
+	title := os.Getenv("VANS_LIVE_CLICK")
+	if title == "" {
+		t.Skip("set VANS_LIVE_CLICK to the title of a control to click")
+	}
+
+	screen := System{Runner: liveRunner()}
+
+	pid, err := pidFor(ctx, liveRunner(), app)
+	if err != nil {
+		t.Fatalf("pidFor: %v", err)
+	}
+	if err := bringForward(ctx, liveRunner(), app, pid); err != nil {
+		if Fix(err) != "" {
+			t.Fatalf("bring %s to the front: %v — %s", app, err, Fix(err))
+		}
+		t.Fatalf("bring %s to the front: %v", app, err)
+	}
+
+	tree, err := screen.Capture(ctx, app)
+	if err != nil {
+		t.Fatalf("Capture: %v", err)
+	}
+
+	var target Element
+	for _, el := range tree.Elements {
+		if strings.EqualFold(strings.TrimSpace(el.Title), title) {
+			target = el
+			break
+		}
+	}
+	if target.Role == "" {
+		t.Fatalf("%s has no control named %q", app, title)
+	}
+	pos := target.Position
+	if len(pos) < 2 {
+		pos = []int{0, 0}
+	}
+	size := target.Size
+	if len(size) < 2 {
+		size = []int{0, 0}
+	}
+	t.Logf("target: %s %q at (%d, %d %dx%d)", target.Role, target.Title, pos[0], pos[1], size[0], size[1])
+
+	p := Program{App: tree.App, Steps: []Step{{
+		Do:       "click",
+		Target:   tree.SelectorFor(target),
+		Describe: "Click " + target.Title,
+	}}}
+
+	if err := Validate(p, tree); err != nil {
+		t.Fatalf("refused before running: %v", err)
+	}
+	t.Logf("preview: %s", Preview(p))
+
+	if err := screen.Act(ctx, p, tree); err != nil {
+		t.Fatalf("Act: %v", err)
+	}
+
+	after, err := screen.Capture(ctx, app)
+	if err != nil {
+		t.Fatalf("re-read the window: %v", err)
+	}
+	diff := Changes(tree, after)
+	t.Logf("changes after click: %s", diff)
+}
