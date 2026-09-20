@@ -180,6 +180,9 @@ as the fallback.
 | #52 | Tell showing from styling, and drop decisions the kinds outgrew |
 | #53 | Ask the coach a question it can answer (frame questions as tasks) |
 | #54 | Shrink the panel while the coach is pointing |
+| #55 | Bring the record and progress log up to date with the coach |
+| #56 | Smoothly morph the coach spotlight and glide the tooltip |
+| #57 | Keep the panel on the screen, and build the engine with the app |
 
 ### Before this session
 
@@ -216,6 +219,9 @@ routing. `docs/decisions.md` carries the reasoning for all of it.
   input layer and died there, which is exactly what #44 replaced.
 - **The drive loop has never completed a task.** It could not, because until
   #44 no click could land.
+- **The panel can no longer be stranded off screen** (#57), which is what made
+  the coach look broken: the keystrokes were reaching a window above the menu
+  bar.
 - **The coach overlay is now wired to the engine** (`app.guide` route, #50) and
   responds to single-step questions (#53) with HUD shrinking (#54). A multi-step
   interaction across changing window states has not yet been watched live, and its
@@ -282,6 +288,24 @@ for at least an hour.
   `doShellScript` when debugging a script that may throw.
 - **`proc.frontmost = true` works.** An earlier reading blamed it for a `-1708`
   that `delay` was actually causing.
+
+### Windows, and losing them
+
+- **A window that is entirely off screen belongs to no monitor.**
+  `current_monitor()` returns nothing, so every correction that starts by asking
+  for one gives up before it does anything. A panel dragged above the menu bar
+  could not be brought back by any means the application had, and summoning it
+  did nothing visible while the keyboard went to it anyway — which reads exactly
+  like a hotkey that has stopped working.
+- **Dragging had no bounds at all.** Position was set from the drag delta with
+  nothing holding the edges, which is how the panel got somewhere it could not
+  come back from. It stops at the edge now, the correction falls back to the
+  primary display, and it runs on every show rather than only on resize.
+- **A dev command that does not build the runtime will hide every fix you make.**
+  `npm run dev` started the app against whatever engine binary happened to be on
+  disk, so several rounds of testing ran against code that did not contain the
+  change being tested. It builds the runtime first now. A rule in a document
+  asking someone to remember this is not the same as the command doing it.
 
 ### AppKit
 
@@ -352,13 +376,17 @@ not "is this sensitive" but "is the request about it":
    the cursor is, which works, but the ladder could be more decisive.
 3. **Clearing a restyle acts on the tab in front.** Highlight one tab, switch
    tabs, clear — and the first tab stays highlighted.
-4. **The API key lives only in the launching shell's environment.** Nothing
-   persists it.
+4. **Credentials load from a `.env` file** next to the runtime, so the app no
+   longer depends on the shell that launched it.
 5. **Nothing is packaged.** There is no built `.app`; it runs from a checkout
    through `npm run tauri dev`.
 6. **Multi-step coaching has not been exercised across real state transitions.**
-   The engine now points at controls on screen, but a user clicking through a
-   complex multi-step task has not been tested live.
+   The engine points at controls on screen, but nobody has clicked through a
+   several-step task and watched it keep up.
+7. **The keyboard cannot be driven from outside.** A synthetic Option+Space does
+   not reach the global shortcut, so the path from a real keypress to the panel
+   is the one link in the coach that has never been exercised without a person
+   at the keyboard. Both ends of it are proven separately.
 
 ---
 
