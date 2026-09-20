@@ -18,14 +18,21 @@ import (
 
 // Route returns the decision cached for a shape.
 func (s *Store) Route(ctx context.Context, shape string) (route.Decision, bool, error) {
-	var raw string
+	var raw, specs string
 	err := s.db.QueryRowContext(ctx,
-		`SELECT decision FROM routes WHERE shape = ?`, shape).Scan(&raw)
+		`SELECT decision, specs FROM routes WHERE shape = ?`, shape).Scan(&raw, &specs)
 	if errors.Is(err, sql.ErrNoRows) {
 		return route.Decision{}, false, nil
 	}
 	if err != nil {
 		return route.Decision{}, false, fmt.Errorf("store: look up route: %w", err)
+	}
+
+	if specs != route.SpecsFingerprint() {
+		if err := s.ForgetRoute(ctx, shape); err != nil {
+			return route.Decision{}, false, err
+		}
+		return route.Decision{}, false, nil
 	}
 
 	var d route.Decision
@@ -58,13 +65,14 @@ func (s *Store) SaveRoute(ctx context.Context, shape string, d route.Decision, m
 		return fmt.Errorf("store: encode decision: %w", err)
 	}
 	_, err = s.db.ExecContext(ctx, `
-INSERT INTO routes (shape, decision, model, created_at, last_used_at, uses)
-VALUES (?, ?, ?, ?, ?, 0)
+INSERT INTO routes (shape, decision, model, created_at, last_used_at, uses, specs)
+VALUES (?, ?, ?, ?, ?, 0, ?)
 ON CONFLICT(shape) DO UPDATE SET
 	decision   = excluded.decision,
 	model      = excluded.model,
-	created_at = excluded.created_at`,
-		shape, string(raw), model, time.Now().Unix(), 0)
+	created_at = excluded.created_at,
+	specs      = excluded.specs`,
+		shape, string(raw), model, time.Now().Unix(), 0, route.SpecsFingerprint())
 	if err != nil {
 		return fmt.Errorf("store: save route: %w", err)
 	}

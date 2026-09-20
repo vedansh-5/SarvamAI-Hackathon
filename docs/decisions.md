@@ -1977,3 +1977,33 @@ live.
 a click outside, and during a guide the first thing the person does is click
 outside — on the control they were just shown. The overlay ends with the guide,
 not with the panel.
+
+## D-070 — Telling "show me where" from "make it stand out"
+
+"Show me where the search bar is" was routed to the tier that restyles a web
+page. Both kinds had been described in the same words — something on screen
+standing out — and the router had nothing else to separate them, because it is
+given the instruction and no idea what is in front of the person.
+
+The descriptions now say what each is *about* rather than what it looks like:
+one changes how a web page appears, the other answers a question about the
+application on screen by pointing at a control. That alone routes "where is",
+"how do I" and "which button" correctly, and leaves "highlight the headings"
+where it was.
+
+**A decision is only as good as the list it was made against.** The routing
+cache is keyed by the shape of the instruction, so the corrected descriptions
+would have changed nothing for anyone who had already asked — the wrong
+decision was cached, and a cached decision was replayed without asking whether
+the kinds had moved underneath it. The list of kinds is now fingerprinted and
+stored with each decision, and a decision taken against a different list is
+dropped rather than replayed. That is what made the fix reach an existing
+install rather than only a fresh one.
+
+**Two things recorded earlier turned out to be wrong.** Stage Manager does not
+prevent a window from being read: with it on, the frontmost application
+captures normally. And D-051's "only the frontmost application publishes
+accessibility windows" is false — Finder published its window while another
+application was frontmost. What is true is narrower: an application whose
+window is not on screen at all publishes nothing, which is what the earlier
+readings were actually seeing.

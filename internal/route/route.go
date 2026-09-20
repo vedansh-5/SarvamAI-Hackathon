@@ -1,6 +1,8 @@
 package route
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"sort"
 	"strings"
@@ -115,14 +117,14 @@ var Specs = []Spec{
 	},
 	{
 		Kind:     KindPageStyle,
-		Describe: "Restyle the page the user has open so something on it stands out — highlight, dim, mark, colour, show which ones match — or take that highlighting back off.",
+		Describe: "Change how the web page open in the browser looks: tint, highlight, dim or colour parts of it so they stand out, or clear that styling again. Web pages only, and only about appearance — never about where something is or how to do something.",
 		Slots: []Slot{
 			{"intent", "what to make stand out, or that the highlighting should be cleared, in plain words", true},
 		},
 	},
 	{
 		Kind:     KindAppGuide,
-		Describe: "Show the user how to do something in the application they are looking at — point at the control on screen and say what it is for, a step at a time, without touching anything.",
+		Describe: "Answer a question about the application on screen by pointing at the control: where something is, how to do something, which button to press. The user is shown what to do and does it themselves. Use this for \"where is\", \"how do I\", \"show me how\" and \"show me where\" about an application.",
 		Slots: []Slot{
 			{"intent", "what they want to do or find, in plain words", true},
 		},
@@ -136,6 +138,20 @@ var Specs = []Spec{
 			{"target", "the specific thing to act on, if the instruction names one", false},
 		},
 	},
+}
+
+// A decision is only as good as the list of kinds it was made against, so the
+// list is fingerprinted and stored with it. Change a description and every
+// decision taken under the old one is dropped rather than replayed.
+func SpecsFingerprint() string {
+	h := sha256.New()
+	for _, spec := range Specs {
+		fmt.Fprintf(h, "%s|%s|", spec.Kind, spec.Describe)
+		for _, slot := range spec.Slots {
+			fmt.Fprintf(h, "%s,%s,%v;", slot.Name, slot.Describe, slot.Required)
+		}
+	}
+	return hex.EncodeToString(h.Sum(nil))[:16]
 }
 
 func specOf(k Kind) (Spec, bool) {

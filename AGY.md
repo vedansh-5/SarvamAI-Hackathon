@@ -222,9 +222,10 @@ for at least an hour.
 
 ### macOS and the accessibility API
 
-- **Only the frontmost application publishes AX windows.** Capture of a
-  background application returns nothing. Everything that reads a window has to
-  bring it forward first (D-051).
+- **An application whose window is not on screen publishes nothing.** This was
+  recorded as "only the frontmost application publishes AX windows" (D-051) and
+  that is false: Finder published its window while another application was
+  frontmost. What matters is whether the window is on screen, not whose it is.
 - **Being frontmost is not the same as being on screen.** A process can be
   frontmost while Stage Manager keeps its window off-stage. Forwarding now waits
   for a window to actually appear and says what is probably hiding it (D-064).
@@ -332,10 +333,11 @@ not "is this sensitive" but "is the request about it":
 
 ## 8. Known problems
 
-1. **Stage Manager breaks the accessibility tier on this machine.** Activating
-   an application brings the process forward but leaves its window off-stage,
-   so capture fails. The failure is now legible rather than mysterious, but the
-   tier does not work while Stage Manager is on.
+1. **Chromium and Electron applications cannot be read at all.** Chrome, VS
+   Code, Telegram and Slack publish a window with zero children.
+   `AXManualAccessibility` is unsupported on Chrome and accepted-but-useless on
+   Electron — the tree is still empty eight seconds later. Native applications
+   are fine. Reaching these needs a vision tier or their web versions (D-060).
 2. **Chrome's accessibility tree comes back empty** (0 elements), so anything
    routed to the accessibility tier for a browser fails. Browsers should route
    to the page tier consistently; the app sink now falls back to typing where

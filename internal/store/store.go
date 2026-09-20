@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite" // pure-Go driver: no cgo, so the desktop build cross-compiles
@@ -98,7 +99,7 @@ func Open(path string) (*Store, error) {
 // Close releases the database.
 func (s *Store) Close() error { return s.db.Close() }
 
-const schemaVersion = 6
+const schemaVersion = 7
 
 func (s *Store) migrate(ctx context.Context) error {
 	var v int
@@ -137,7 +138,8 @@ CREATE TABLE IF NOT EXISTS routes (
 	model        TEXT    NOT NULL DEFAULT '',
 	created_at   INTEGER NOT NULL,
 	last_used_at INTEGER NOT NULL DEFAULT 0,
-	uses         INTEGER NOT NULL DEFAULT 0
+	uses         INTEGER NOT NULL DEFAULT 0,
+	specs        TEXT    NOT NULL DEFAULT ''
 );
 
 -- Programs that act inside an application, keyed by the application and the
@@ -183,6 +185,13 @@ CREATE TABLE IF NOT EXISTS settings (
 	if _, err := s.db.ExecContext(ctx, ddl); err != nil {
 		return fmt.Errorf("store: create schema: %w", err)
 	}
+	// Older databases predate the column; adding it is the whole migration.
+	if _, err := s.db.ExecContext(ctx,
+		`ALTER TABLE routes ADD COLUMN specs TEXT NOT NULL DEFAULT ''`); err != nil &&
+		!strings.Contains(err.Error(), "duplicate column name") {
+		return fmt.Errorf("store: add routes.specs: %w", err)
+	}
+
 	if _, err := s.db.ExecContext(ctx, fmt.Sprintf("PRAGMA user_version = %d", schemaVersion)); err != nil {
 		return fmt.Errorf("store: set schema version: %w", err)
 	}
