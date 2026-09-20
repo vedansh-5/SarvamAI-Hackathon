@@ -82,7 +82,20 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep))
 		// worked out once the window shows they have done this one.
 		return e.waitForTheUserToAct(ctx, g.App, tree)
 	}
-	return e.stepThroughTask(ctx, g.App, g.Task, MaxGuideSteps, point)
+	return e.stepThroughTask(ctx, g.App, asTask(g.Task), MaxGuideSteps, point)
+}
+
+// The step writer works out the next thing to do; a question is not a thing to
+// do, and left as one it answers "nothing to do" and stops. Asking which
+// control answers the question turns it back into a step, and the step's target
+// is what gets pointed at.
+func asTask(question string) string {
+	return fmt.Sprintf(
+		"The person is looking at this window and asked: %q\n\n"+
+			"Work out which control on screen answers that, and give it as the next step — "+
+			"the one they should use. Describe it as you would to someone who cannot find it. "+
+			"They will use it themselves, so never assume it has already been used.",
+		question)
 }
 
 func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uiact.Tree) error {

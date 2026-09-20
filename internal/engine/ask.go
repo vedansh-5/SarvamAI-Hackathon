@@ -133,7 +133,10 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 		return plan, nil
 
 	case route.KindAppGuide:
-		plan, err := e.planGuide(ctx, res.Route.Slot("intent"))
+		// The user's own words, not the slot: routing reduces "where is the
+		// search bar" to "the search bar", and a noun is not a task anyone can
+		// work out the next step of.
+		plan, err := e.planGuide(ctx, in.Instruction)
 		if err != nil {
 			return nil, err
 		}

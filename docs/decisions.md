@@ -2007,3 +2007,22 @@ accessibility windows" is false — Finder published its window while another
 application was frontmost. What is true is narrower: an application whose
 window is not on screen at all publishes nothing, which is what the earlier
 readings were actually seeing.
+
+## D-071 — A question is not a task
+
+The coach reuses the step writer that drives an application, which is right:
+both need the next control to use. But it was handed the routing slot rather
+than the words that were typed, and then the words as they stood.
+
+Routing reduces "where is the search bar" to its slot, which is "the search
+bar" — a noun. The coach now takes the instruction as the person wrote it.
+
+That was not enough on its own. The step writer is told it is working through a
+task and to stop when the task is finished, so a question handed to it straight
+comes back as "nothing to do" — which is what it did, twice, silently, with no
+step and no error. The question is wrapped as the thing it actually implies:
+work out which control answers this and give it as the next step. The step's
+target is then what gets pointed at.
+
+Wrapping rather than writing a second prompt keeps one step writer. The two
+callers differ in what they do with the step, not in what they need from it.
