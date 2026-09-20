@@ -348,7 +348,15 @@ type replyRunner string
 
 func (r replyRunner) Run(context.Context, string) ([]byte, error) { return []byte(r), nil }
 
+func withoutTheWindowList(t *testing.T) {
+	t.Helper()
+	original := askTheWindowList
+	askTheWindowList = func() (string, bool) { return "", false }
+	t.Cleanup(func() { askTheWindowList = original })
+}
+
 func TestFrontmostReadsTheName(t *testing.T) {
+	withoutTheWindowList(t)
 	got, err := Frontmost(context.Background(), replyRunner(`{"ok":true,"value":"Notes"}`))
 	if err != nil {
 		t.Fatalf("Frontmost: %v", err)
@@ -359,6 +367,7 @@ func TestFrontmostReadsTheName(t *testing.T) {
 }
 
 func TestFrontmostSaysWhenNothingIsInFront(t *testing.T) {
+	withoutTheWindowList(t)
 	_, err := Frontmost(context.Background(),
 		replyRunner(`{"ok":false,"error":"no application is in front"}`))
 	if err == nil {
@@ -369,6 +378,7 @@ func TestFrontmostSaysWhenNothingIsInFront(t *testing.T) {
 // The permission is the one failure with a fix the user can act on, so it has
 // to survive as itself rather than as a generic refusal.
 func TestFrontmostReportsTheMissingPermission(t *testing.T) {
+	withoutTheWindowList(t)
 	_, err := Frontmost(context.Background(),
 		replyRunner(`{"ok":false,"error":"osascript is not allowed assistive access."}`))
 	if !errors.Is(err, ErrNoAssistiveAccess) {
@@ -545,5 +555,21 @@ func TestRenderScreenClicksTheVisiblePartOfATallControl(t *testing.T) {
 	}
 	if !clicked(acts, 948, 479) {
 		t.Errorf("did not click the visible part: %+v", acts)
+	}
+}
+
+// The window list answers without an Automation grant, so it is asked first and
+// the script is never reached when it can.
+func TestFrontmostPrefersTheWindowList(t *testing.T) {
+	original := askTheWindowList
+	askTheWindowList = func() (string, bool) { return "Notes", true }
+	t.Cleanup(func() { askTheWindowList = original })
+
+	got, err := Frontmost(context.Background(), replyRunner(`{"ok":true,"value":"Something Else"}`))
+	if err != nil {
+		t.Fatalf("Frontmost: %v", err)
+	}
+	if got != "Notes" {
+		t.Errorf("got %q, want the window list's answer", got)
 	}
 }

@@ -134,6 +134,30 @@ static int cgFrontOwnerAt(double x, double y, int *owner, char *name, int nlen) 
     }
     CFRelease(list);
     return found;
+}
+
+static int cgFrontmostApp(char *name, int len) {
+    name[0] = 0;
+    CFArrayRef list = CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly, kCGNullWindowID);
+    if (!list) return 0;
+    int found = 0;
+    CFIndex n = CFArrayGetCount(list);
+    for (CFIndex i = 0; i < n && !found; i++) {
+        CFDictionaryRef d = (CFDictionaryRef)CFArrayGetValueAtIndex(list, i);
+        CFNumberRef v;
+        int layer = 0;
+        if ((v = (CFNumberRef)CFDictionaryGetValue(d, kCGWindowLayer)))
+            CFNumberGetValue(v, kCFNumberIntType, &layer);
+        if (layer != 0) continue;
+        double alpha = 1.0;
+        if ((v = (CFNumberRef)CFDictionaryGetValue(d, kCGWindowAlpha)))
+            CFNumberGetValue(v, kCFNumberDoubleType, &alpha);
+        if (alpha <= 0.01) continue;
+        CFStringRef on = (CFStringRef)CFDictionaryGetValue(d, kCGWindowOwnerName);
+        if (on && CFStringGetCString(on, name, len, kCFStringEncodingUTF8) && name[0]) found = 1;
+    }
+    CFRelease(list);
+    return found;
 }*/
 import "C"
 
@@ -171,6 +195,14 @@ func rect(el C.AXUIElementRef) ([]int, []int) {
 		return nil, nil
 	}
 	return []int{int(x), int(y)}, []int{int(w), int(h)}
+}
+
+func frontmostApp() (string, bool) {
+	var buf [256]C.char
+	if C.cgFrontmostApp(&buf[0], C.int(len(buf))) != 1 {
+		return "", false
+	}
+	return C.GoString(&buf[0]), true
 }
 
 func windowOnScreen(pid int) bool {

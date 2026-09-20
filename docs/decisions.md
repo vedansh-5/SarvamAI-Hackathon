@@ -2026,3 +2026,21 @@ target is then what gets pointed at.
 
 Wrapping rather than writing a second prompt keeps one step writer. The two
 callers differ in what they do with the step, not in what they need from it.
+
+## D-072 — Asking who is in front without asking permission
+
+"Which application is in front" was answered by System Events, which means an
+Apple Event, which means macOS asks the user to grant Automation — and refuses
+the call until they do. That refusal arrives as "macOS blocked the write" on a
+request that never intended to write anything, because the destination that
+types into the application in front has to know which one that is before it can
+do anything at all.
+
+The window list already knows. The frontmost ordinary window is the first
+on-screen window at layer zero with any opacity, and its owner is the
+application the user is looking at — the same list that answers whether a point
+is covered (D-062). Reading it needs no grant of any kind.
+
+So it is asked first, and System Events is the fallback for the case where the
+list cannot answer. One fewer permission on the common path, and the panel stops
+demanding Automation to do something that does not automate anything.

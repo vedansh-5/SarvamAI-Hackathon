@@ -23,6 +23,8 @@ var ErrNoAssistiveAccess = errors.New("uiact: VANS has not been allowed to contr
 
 var ErrNoWindow = errors.New("uiact: that application is not showing a window to the accessibility API, which only lists windows for the application in front")
 
+var askTheWindowList = frontmostApp
+
 var ErrWindowHidden = errors.New("uiact: the application is in front but none of its windows is on screen")
 
 const assistiveFix = "Grant access in System Settings › Privacy & Security › Accessibility, then ask again."
@@ -127,7 +129,15 @@ func classify(msg string, fallback error) error {
 	}
 }
 
+// Which application is in front is a question the window list can answer, and
+// asking it that way needs no Automation grant. System Events can answer it
+// too, and asking it costs a permission the user has to be talked into — so it
+// is the fallback here, not the first move.
 func Frontmost(ctx context.Context, r Runner) (string, error) {
+	if name, ok := askTheWindowList(); ok {
+		return name, nil
+	}
+
 	out, err := r.Run(ctx, frontmostScript)
 	if err != nil {
 		return "", classify(err.Error(), err)

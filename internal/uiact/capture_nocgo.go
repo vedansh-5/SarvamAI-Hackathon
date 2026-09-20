@@ -25,3 +25,5 @@ func postClick(int, int) {}
 func postKey(int) {}
 
 func postText(string) {}
+
+func frontmostApp() (string, bool) { return "", false }
