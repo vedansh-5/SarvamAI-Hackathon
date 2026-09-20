@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev": "go build -o vans-engine ../cmd/vans-engine && vite",
+    "build": "go build -o vans-engine ../cmd/vans-engine && tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri"
   },

@@ -65,6 +65,15 @@ pub fn show(app: &AppHandle) {
     if !PLACED.swap(true, Ordering::Relaxed) {
         let _ = win.center();
     }
+
+    // Every time, not only on resize: a panel that was left off screen must
+    // come back when it is summoned, or the hotkey appears to do nothing.
+    let height = win
+        .outer_size()
+        .map(|s| s.to_logical::<f64>(win.scale_factor().unwrap_or(1.0)).height)
+        .unwrap_or(MIN_HEIGHT);
+    keep_on_screen(&win, height);
+
     let _ = win.show();
     let _ = win.set_focus();
 
@@ -133,6 +142,15 @@ pub fn drag_by(app: &AppHandle, dx: f64, dy: f64) {
         return;
     }
     let _ = win.set_position(LogicalPosition::new(origin.0 + dx, origin.1 + dy));
+
+    // Dragging stops at the edge rather than off it. A panel dragged past the
+    // top cannot be dragged back, because a window that is fully off screen
+    // belongs to no monitor and every correction that asks for one gives up.
+    let height = win
+        .outer_size()
+        .map(|s| s.to_logical::<f64>(win.scale_factor().unwrap_or(1.0)).height)
+        .unwrap_or(MIN_HEIGHT);
+    keep_on_screen(&win, height);
 }
 
 /// Dismisses the panel when a click lands outside it.
@@ -238,8 +256,17 @@ pub fn resize(app: &AppHandle, content_height: f64) {
 /// it look as though it could not be moved at all. The only exception is
 /// falling off the display, which is corrected by the smallest shift that
 /// puts it back.
+// A window that has drifted entirely off screen reports no current monitor, so
+// asking only for that one is how a panel gets stuck where it cannot be seen.
+fn monitor_for(win: &WebviewWindow) -> Option<tauri::Monitor> {
+    if let Ok(Some(m)) = win.current_monitor() {
+        return Some(m);
+    }
+    win.primary_monitor().ok().flatten()
+}
+
 fn keep_on_screen(win: &WebviewWindow, height: f64) {
-    let Ok(Some(monitor)) = win.current_monitor() else {
+    let Some(monitor) = monitor_for(win) else {
         return;
     };
     let scale = monitor.scale_factor();
@@ -251,12 +278,20 @@ fn keep_on_screen(win: &WebviewWindow, height: f64) {
     };
     let position = position.to_logical::<f64>(win.scale_factor().unwrap_or(scale));
 
+    let width = win
+        .outer_size()
+        .map(|s| s.to_logical::<f64>(win.scale_factor().unwrap_or(scale)).width)
+        .unwrap_or(720.0);
+
     let bottom = origin.y + area.height;
     let lowest = bottom - height - EDGE_MARGIN;
     let y = position.y.min(lowest).max(origin.y + EDGE_MARGIN);
 
-    if (y - position.y).abs() > 1.0 {
-        let _ = win.set_position(LogicalPosition::new(position.x, y));
+    let rightmost = origin.x + area.width - width - EDGE_MARGIN;
+    let x = position.x.min(rightmost).max(origin.x + EDGE_MARGIN);
+
+    if (y - position.y).abs() > 1.0 || (x - position.x).abs() > 1.0 {
+        let _ = win.set_position(LogicalPosition::new(x, y));
     }
 }
 
