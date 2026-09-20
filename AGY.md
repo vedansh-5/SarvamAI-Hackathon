@@ -150,7 +150,8 @@ as the fallback.
    ship no dictionary, and every one of them has a web version already open in
    the browser. Costs no new permission.
 3. **The accessibility tree** (`uiact`) — read the window, find the control,
-   click it where it actually is. Works for native applications.
+   click it where it actually is, type into it, or press a key with modifiers
+   held (Command-S, Shift-Tab). Works for native applications.
 4. **Its web version** (`webversion`) — for an application that publishes
    nothing useful, open the site that does the same job.
 5. **Driving it step by step** (`drive`) — read the window, take one step, read
@@ -190,6 +191,8 @@ as the fallback.
 | #62 | Update the record with #61 |
 | #63 | Prove the full click loop: hermetic target resolution, click posting, context app inference |
 | #64 | Progress while committing, retry a refused step with its reason, receipt rests on the window |
+| #65 | Measure that the panel leaves the window readable; one name for the panel's two widths |
+| #66 | Let a step hold modifiers down, from one key vocabulary instead of four |
 
 
 
@@ -409,10 +412,17 @@ not "is this sensitive" but "is the request about it":
    now is in §9.0: summoning the panel activated VANS, and under Stage Manager
    that withdraws the target window from the accessibility API, so every re-read
    after the first step came back empty.
-7. **The keyboard cannot be driven from outside.** A synthetic Option+Space does
-   not reach the global shortcut, so the path from a real keypress to the panel
-   is the one link in the coach that has never been exercised without a person
-   at the keyboard. Both ends of it are proven separately.
+7. **The keyboard cannot be driven from outside.** Tried again on 2026-09-21 with
+   the new modifier support — `CGEventPost` to `kCGHIDEventTap` with
+   `CGEventSetFlags(Option)` on the Space key did not bring the panel up within
+   three seconds. The measurement is not conclusive: the detector asks the
+   accessibility API whether VANS publishes a window, and a non-activating panel
+   belonging to an application that is deliberately never active is exactly the
+   case macOS withholds (§6). Either the shortcut does not see posted events or
+   the panel was up and could not be seen. Settling it needs the screen, or the
+   app's own log. So the path from a real keypress to the panel is still the one
+   link in the coach never exercised without a person at the keyboard; both ends
+   of it are proven separately.
 
 ---
 
