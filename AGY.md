@@ -194,6 +194,7 @@ as the fallback.
 | #65 | Measure that the panel leaves the window readable; one name for the panel's two widths |
 | #66 | Let a step hold modifiers down, from one key vocabulary instead of four |
 | #67 | Coach a step at a time without taking the screen over |
+| #68 | Keep reading the window passive; recovery belongs to the step that needs one |
 
 
 
@@ -256,6 +257,10 @@ for at least an hour.
 - **Being frontmost is not the same as being on screen.** A process can be
   frontmost while Stage Manager keeps its window off-stage. Forwarding now waits
   for a window to actually appear and says what is probably hiding it (D-064).
+- **A read must not raise.** Recovering from a withdrawn window inside `Capture`
+  meant the coach raised the coached application twice a second while waiting for
+  someone to act, undoing every switch away from it, and the guard that ends a
+  guide when the window is gone could never fire (D-080a).
 - **With Stage Manager on, only the *active application* publishes anything.**
   Measured on 2026-09-20 with Chrome active: System Settings 0 elements, Preview
   0 elements, Finder 1 (the desktop), each with `onScreen = false` and
