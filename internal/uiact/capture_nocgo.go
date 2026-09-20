@@ -22,7 +22,7 @@ func displayBounds() (box, bool) { return box{}, false }
 
 func postClick(int, int) {}
 
-func postKey(int) {}
+func postKey(int, uint64) {}
 
 func postText(string) {}
 

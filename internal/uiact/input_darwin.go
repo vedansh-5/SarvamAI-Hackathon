@@ -31,11 +31,19 @@ static void cgTypeChunk(UniChar *chars, int n) {
     }
 }
 
-static void cgKey(int code) {
+static void cgKey(int code, unsigned long long flags) {
     CGEventRef down = CGEventCreateKeyboardEvent(NULL, (CGKeyCode)code, true);
-    if (down) { CGEventPost(kCGHIDEventTap, down); CFRelease(down); }
+    if (down) {
+        if (flags) CGEventSetFlags(down, (CGEventFlags)flags);
+        CGEventPost(kCGHIDEventTap, down);
+        CFRelease(down);
+    }
     CGEventRef up = CGEventCreateKeyboardEvent(NULL, (CGKeyCode)code, false);
-    if (up) { CGEventPost(kCGHIDEventTap, up); CFRelease(up); }
+    if (up) {
+        if (flags) CGEventSetFlags(up, (CGEventFlags)flags);
+        CGEventPost(kCGHIDEventTap, up);
+        CFRelease(up);
+    }
 }
 */
 import "C"
@@ -47,7 +55,7 @@ import (
 
 func postClick(x, y int) { C.cgClick(C.double(x), C.double(y)) }
 
-func postKey(code int) { C.cgKey(C.int(code)) }
+func postKey(code int, flags uint64) { C.cgKey(C.int(code), C.ulonglong(flags)) }
 
 const typeChunk = 16
 

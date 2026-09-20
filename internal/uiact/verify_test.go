@@ -260,7 +260,7 @@ func withTextPoster(t *testing.T, fn func(string)) {
 	t.Cleanup(func() { textPoster = original })
 }
 
-func withKeyPoster(t *testing.T, fn func(int)) {
+func withKeyPoster(t *testing.T, fn func(int, uint64)) {
 	t.Helper()
 	original := keyPoster
 	keyPoster = fn
@@ -313,5 +313,73 @@ func TestRunScreenRefusesClickWhenTargetVerificationFails(t *testing.T) {
 	}
 	if len(clicks) != 0 {
 		t.Errorf("click was posted despite verification failure: %+v", clicks)
+	}
+}
+
+// A step that names a key combination has to arrive as one keystroke with the
+// modifiers held, not as a bare key with the modifiers dropped on the floor.
+func TestRunScreenHoldsTheModifiersDownForAKeyCombination(t *testing.T) {
+	withOnScreen(t, true)
+	withFront(t, "Telegram")
+	withFrontOwner(t, 42, "Telegram", true)
+	withLookup(t, "AXTextArea", "Message", true)
+
+	var pressed []struct {
+		code  int
+		flags uint64
+	}
+	withKeyPoster(t, func(code int, flags uint64) {
+		pressed = append(pressed, struct {
+			code  int
+			flags uint64
+		}{code, flags})
+	})
+
+	p := Program{App: "Telegram", Steps: []Step{{
+		Do:        "press",
+		Target:    Selector{Role: "AXTextArea", Title: "Message"},
+		Key:       "Enter",
+		Modifiers: []string{"Command", "Shift"},
+	}}}
+
+	if err := RunScreen(context.Background(), &pidRunner{pid: 42}, p, window()); err != nil {
+		t.Fatalf("RunScreen: %v", err)
+	}
+	if len(pressed) != 1 {
+		t.Fatalf("posted %d keystroke(s), want 1", len(pressed))
+	}
+	if pressed[0].code != Keys["Enter"] {
+		t.Errorf("key code = %d, want %d", pressed[0].code, Keys["Enter"])
+	}
+	want := Modifiers["Command"] | Modifiers["Shift"]
+	if pressed[0].flags != want {
+		t.Errorf("flags = %#x, want %#x", pressed[0].flags, want)
+	}
+}
+
+func TestValidateRefusesAModifierVANSCannotHold(t *testing.T) {
+	p := Program{App: "Telegram", Steps: []Step{{
+		Do:        "press",
+		Target:    Selector{Role: "AXTextArea", Title: "Message"},
+		Key:       "Enter",
+		Modifiers: []string{"Hyper"},
+	}}}
+
+	err := Validate(p, window())
+	if err == nil {
+		t.Fatal("a modifier that does not exist was accepted")
+	}
+	if got := strings.Join(reasons(t, err), "; "); !strings.Contains(got, "Hyper") {
+		t.Errorf("reasons = %q, want the unknown modifier named", got)
+	}
+}
+
+func TestAKeyCombinationReadsBackTheWayAPersonSaysIt(t *testing.T) {
+	step := Step{Do: "press", Key: "S", Modifiers: []string{"Command"}}
+	if got := step.Chord(); got != "Command-S" {
+		t.Errorf("Chord() = %q, want %q", got, "Command-S")
+	}
+	if got := (Step{Do: "press", Key: "Enter"}).Chord(); got != "Enter" {
+		t.Errorf("Chord() = %q, want %q for a key with nothing held", got, "Enter")
 	}
 }

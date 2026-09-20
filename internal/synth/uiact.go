@@ -9,7 +9,9 @@ import (
 	"github.com/vedansh/vans/internal/uiact"
 )
 
-const uiActSystemPrompt = `You write a program that does one thing inside a macOS window, by driving the controls a person would click.
+var uiActSystemPrompt = fmt.Sprintf(uiActSystemPromptFormat, pressingAKey())
+
+const uiActSystemPromptFormat = `You write a program that does one thing inside a macOS window, by driving the controls a person would click.
 
 You are given the window's accessibility tree: every control on screen, what kind it is, what it is called, and what it currently holds. That list is what exists. Everything you write is checked against it before anything runs, so a control that is not listed is not a near miss — it is a program that will be thrown away.
 
@@ -19,7 +21,7 @@ What you may do:
 
 - click a control
 - type text into a control that can hold text
-- press Enter, Escape or Tab
+- %s
 
 Rules that decide whether your answer is usable:
 
@@ -34,34 +36,10 @@ Rules that decide whether your answer is usable:
 If the window genuinely does not contain what the request needs, return no steps and say why in one line. That is a useful answer. A program built from controls you hoped were there is not.`
 
 func uiActSchema() map[string]any {
-	selector := map[string]any{
-		"type": "object",
-		"properties": map[string]any{
-			"role":  map[string]any{"type": "string"},
-			"title": map[string]any{"type": "string"},
-			"index": map[string]any{"type": "integer"},
-		},
-		"required":             []string{"role"},
-		"additionalProperties": false,
-	}
-
-	step := map[string]any{
-		"type": "object",
-		"properties": map[string]any{
-			"do":       map[string]any{"type": "string", "enum": []string{"click", "type", "press"}},
-			"target":   selector,
-			"text":     map[string]any{"type": "string"},
-			"key":      map[string]any{"type": "string", "enum": []string{"Enter", "Escape", "Tab"}},
-			"describe": map[string]any{"type": "string"},
-		},
-		"required":             []string{"do", "target"},
-		"additionalProperties": false,
-	}
-
 	return map[string]any{
 		"type": "object",
 		"properties": map[string]any{
-			"steps": map[string]any{"type": "array", "items": step},
+			"steps": map[string]any{"type": "array", "items": screenStepSchema("do", "target")},
 			"why":   map[string]any{"type": "string"},
 		},
 		"required":             []string{"steps", "why"},

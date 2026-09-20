@@ -11,11 +11,12 @@ import (
 const StepPause = 350 * time.Millisecond
 
 type Act struct {
-	Step int
-	Do   string
-	X, Y int
-	Text string
-	Code int
+	Step  int
+	Do    string
+	X, Y  int
+	Text  string
+	Code  int
+	Flags uint64
 }
 
 func Plan(p Program, t Tree) ([]Act, error) {
@@ -44,7 +45,7 @@ func Plan(p Program, t Tree) ([]Act, error) {
 			}
 
 		case "press":
-			out = append(out, Act{Step: i, Do: "press", Code: Keys[step.Key]})
+			out = append(out, Act{Step: i, Do: "press", Code: Keys[step.Key], Flags: step.HeldDown()})
 		}
 	}
 	return out, nil
@@ -74,7 +75,7 @@ func RunScreen(ctx context.Context, r Runner, p Program, t Tree) error {
 		case "type":
 			textPoster(a.Text)
 		case "press":
-			keyPoster(a.Code)
+			keyPoster(a.Code, a.Flags)
 		}
 		if !pause(ctx, StepPause) {
 			return ctx.Err()

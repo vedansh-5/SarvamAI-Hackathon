@@ -2123,3 +2123,26 @@ app action and `string(out) == text` sets for a write.
 This is evidence that the actions took effect, not proof that the task was the
 right one. Nothing on screen can supply the latter, so the receipt does not
 claim it.
+
+## D-077 — A step can hold modifiers down
+
+A step could press Enter, Escape or Tab and nothing else, so no task needing
+Command-S, Command-Return, Shift-Tab or Command-F could be expressed at all —
+the drive loop would work around it with clicks, or stop and say the window did
+not contain what it needed.
+
+A step now carries `modifiers` alongside `key`: named modifiers from a fixed set,
+validated against it before anything is posted, and combined into the
+`CGEventFlags` mask held down for that one keystroke. Named rather than free
+text, because a combination the runtime cannot press has to be a refused step the
+model is told about, not a keystroke that silently arrives without its modifier.
+
+The vocabulary lives in `uiact` — `Keys`, `Modifiers`, and the two name lists the
+schemas are built from — so the three copies of the key enum the tiers had
+collapsed into one, and the sentence in the prompts that lists what can be
+pressed is generated from the same source. A prompt that offers a key the
+verifier rejects is a step thrown away for no reason.
+
+Modifiers stay out of the page tier. A synthetic keydown with `metaKey` set does
+not reach a browser's own shortcuts from inside the page, so offering them there
+would promise something the tier cannot do.

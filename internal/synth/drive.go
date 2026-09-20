@@ -9,7 +9,9 @@ import (
 	"github.com/vedansh/vans/internal/uiact"
 )
 
-const driveSystemPrompt = `You are working through a task on someone's Mac, one step at a time, by using the controls on screen exactly as a person would.
+var driveSystemPrompt = fmt.Sprintf(driveSystemPromptFormat, pressingAKey())
+
+const driveSystemPromptFormat = `You are working through a task on someone's Mac, one step at a time, by using the controls on screen exactly as a person would.
 
 You are shown the task, what is on screen right now, and what has already been done. You choose the single next step. You will be shown the screen again after it happens, so do not plan ahead and do not batch actions.
 
@@ -17,7 +19,7 @@ What a step may be:
 
 - click a control
 - type text into a control, which clicks it first
-- press Enter, Escape or Tab
+- %s
 
 Rules that decide whether your step is usable:
 
@@ -35,27 +37,7 @@ func driveSchema() map[string]any {
 		"properties": map[string]any{
 			"done": map[string]any{"type": "boolean"},
 			"why":  map[string]any{"type": "string"},
-			"step": map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"do": map[string]any{"type": "string", "enum": []string{"click", "type", "press"}},
-					"target": map[string]any{
-						"type": "object",
-						"properties": map[string]any{
-							"role":  map[string]any{"type": "string"},
-							"title": map[string]any{"type": "string"},
-							"index": map[string]any{"type": "integer"},
-						},
-						"required":             []string{"role"},
-						"additionalProperties": false,
-					},
-					"text":     map[string]any{"type": "string"},
-					"key":      map[string]any{"type": "string", "enum": []string{"Enter", "Escape", "Tab"}},
-					"describe": map[string]any{"type": "string"},
-				},
-				"required":             []string{"do", "target", "describe"},
-				"additionalProperties": false,
-			},
+			"step": screenStepSchema("do", "target", "describe"),
 		},
 		"required":             []string{"done", "why"},
 		"additionalProperties": false,

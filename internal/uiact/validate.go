@@ -95,6 +95,11 @@ func Validate(p Program, t Tree) error {
 			if _, ok := Keys[s.Key]; !ok {
 				add("%s: %q is not a key VANS presses", where, s.Key)
 			}
+			for _, name := range s.Modifiers {
+				if _, ok := Modifiers[name]; !ok {
+					add("%s: %q is not a modifier VANS holds down", where, name)
+				}
+			}
 		}
 	}
 
