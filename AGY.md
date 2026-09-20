@@ -193,6 +193,7 @@ as the fallback.
 | #64 | Progress while committing, retry a refused step with its reason, receipt rests on the window |
 | #65 | Measure that the panel leaves the window readable; one name for the panel's two widths |
 | #66 | Let a step hold modifiers down, from one key vocabulary instead of four |
+| #67 | Coach a step at a time without taking the screen over |
 
 
 
@@ -485,9 +486,17 @@ Session-scoped advance channel behind the "Next" button, clean cancellation behi
 ("where is X") stops once the control has been pointed at; a procedural one ("how
 do I X") continues up to 12 steps.
 
-It could not work at all until the activation bug in §9.0 was found, so the loop
-has still never been watched across a real state transition. The run to make, on
-System Settings:
+Four things then stood between it and being usable, all fixed in #67: the panel
+closed itself on the very click it had asked for, taking Next and Stop with it
+(coaching is now a pinned screen); the application being coached did not hold the
+keyboard, so the first keystroke went to VANS and the window stopped publishing
+controls (D-079); a step nobody had done yet failed the whole run after forty
+seconds instead of being pointed at again (D-078); and naming an application fell
+through to System Events, which is the Automation prompt that had been blocking
+runs (D-080).
+
+The loop has still never been watched across a real state transition. The run to
+make, on System Settings:
 
 1. Ask something with more than one step — "how do I turn on Dark Mode".
 2. The ring lands on the first control and the strip names the step.
