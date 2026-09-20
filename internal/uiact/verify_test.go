@@ -3,6 +3,7 @@ package uiact
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -201,4 +202,46 @@ func TestBringForwardDoesNothingWhenItIsAlreadyInFront(t *testing.T) {
 	if r.calls != 0 {
 		t.Errorf("raised an application that was already in front")
 	}
+}
+
+func withWalker(t *testing.T, fn func(int, string) (Tree, error)) {
+	t.Helper()
+	original := walker
+	walker = fn
+	t.Cleanup(func() { walker = original })
+}
+
+func TestCaptureRetriesAfterBringingAppForward(t *testing.T) {
+	withOnScreen(t, true)
+	withFront(t, "Something Else")
+	withRaise(t, nil)
+
+	calls := 0
+	expectedTree := Tree{App: "Notes", Window: "Notes"}
+	withWalker(t, func(pid int, app string) (Tree, error) {
+		calls++
+		if calls == 1 {
+			return Tree{}, ErrNoWindow
+		}
+		return expectedTree, nil
+	})
+
+	tree, err := Capture(context.Background(), &pidRunner{pid: 42}, "Notes")
+	if err != nil {
+		t.Fatalf("Capture: %v", err)
+	}
+	if calls != 2 {
+		t.Errorf("walked %d times, want 2", calls)
+	}
+	if tree.App != "Notes" {
+		t.Errorf("tree.App = %q, want Notes", tree.App)
+	}
+}
+
+type pidRunner struct {
+	pid int
+}
+
+func (p *pidRunner) Run(context.Context, string) ([]byte, error) {
+	return []byte(fmt.Sprintf(`{"ok":true,"value":%d}`, p.pid)), nil
 }

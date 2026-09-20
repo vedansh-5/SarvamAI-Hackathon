@@ -11,7 +11,11 @@
 // something the user never started.
 package rpc
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/vedansh/vans/internal/screen"
+)
 
 // Request is one call from the shell.
 type Request struct {
@@ -99,6 +103,11 @@ type PrepareParams struct {
 	URL    string `json:"url"`
 	Intent string `json:"intent"`
 	Title  string `json:"title"`
+
+	// Context is what the user was looking at when they summoned the panel.
+	// Optional: the runtime falls back to asking the window list who is in
+	// front, which is the right answer whenever the shell has not said.
+	Context *screen.Context `json:"context,omitempty"`
 }
 
 // GuideParams names the guide to run; GuideStepParams is one thing to point at.

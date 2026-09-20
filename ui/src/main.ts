@@ -335,7 +335,11 @@ async function extract() {
   show("working");
 
   try {
-    const plan = await invoke<Plan>("prepare", { instruction, destination });
+    const plan = await invoke<Plan>("prepare", {
+      instruction,
+      destination,
+      context: activeContext,
+    });
     setProgress(100);
     currentPlan = plan;
     if (plan.kind === "app.guide") {
@@ -363,10 +367,10 @@ interface GuideResult {
 /// The runtime pushes one step at a time and waits for them to act before
 /// working out the next, so this returns only once they are done or it gives up.
 async function showTheWay(plan: Plan) {
-
   $("guiding-where").textContent = plan.app ? `Showing you — ${plan.app}` : "Showing you";
   $("guiding-step").textContent = "Looking at the window…";
   show("guiding");
+  invoke("compact_panel", { compact: true }).catch(console.error);
 
   try {
     const res = await invoke<GuideResult>("guide", { planId: plan.plan_id });
@@ -380,6 +384,7 @@ async function showTheWay(plan: Plan) {
     renderFailure(e);
     show("failure");
   } finally {
+    invoke("compact_panel", { compact: false }).catch(console.error);
     invoke("clear_pointer").catch(console.error);
   }
 }
@@ -864,7 +869,10 @@ async function checkScreenRecording() {
 /// banner with innerHTML let a visited page put markup into the panel just by
 /// being frontmost when the hotkey was pressed. Text nodes, like everything
 /// else that reaches this DOM.
+let activeContext: ScreenContext | null = null;
+
 function updateActiveContext(ctx?: ScreenContext) {
+  activeContext = ctx ?? null;
   const label = $("active-app-label");
   if (!label) return;
   clear(label);
@@ -1127,7 +1135,11 @@ new ResizeObserver(fitWindow).observe(panelBody);
 // --- wiring ---
 
 listen<{ for_request: number; message: string }>("engine://progress", (event) => {
-  $("progress").textContent = humanise(event.payload.message);
+  const text = humanise(event.payload.message);
+  $("progress").textContent = text;
+  if (!$("guiding").hidden) {
+    $("guiding-step").textContent = text;
+  }
   advanceProgress();
 });
 
@@ -1143,6 +1155,7 @@ function humanise(message: string): string {
   if (message.startsWith("instruction shape")) return "Working out what you meant";
   if (message.startsWith("routed to")) return "Got it — going to work";
   if (message.includes("synthesized a working program")) return "Worked out how to read it";
+  if (message.startsWith("step ") || message.startsWith("finished after")) return message;
   if (message.includes("rejected")) return "That did not work — trying again";
   return message;
 }
@@ -1169,6 +1182,7 @@ listen<ScreenContext | undefined>("overlay://shown", (event) => {
 window.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   if (!$("guiding").hidden) {
+    invoke("compact_panel", { compact: false }).catch(console.error);
     invoke("stop_guide").catch(console.error);
     invoke("clear_pointer").catch(console.error);
     show("ask");
@@ -1220,9 +1234,11 @@ $("view-table").addEventListener("click", () => applyView(true, true));
 $("ask-again").addEventListener("click", backToAsk);
 $("clear-style").addEventListener("click", clearStyle);
 $("guiding-next").addEventListener("click", () => {
+  $("guiding-step").textContent = "Working out the next step…";
   invoke("advance_guide").catch(console.error);
 });
 $("guiding-stop").addEventListener("click", async () => {
+  invoke("compact_panel", { compact: false }).catch(console.error);
   await invoke("stop_guide").catch(console.error);
   await invoke("clear_pointer").catch(console.error);
   show("ask");

@@ -52,13 +52,13 @@ async fn prepare(
     engine: State<'_, Engine>,
     instruction: String,
     destination: String,
+    context: Option<Value>,
 ) -> Result<Value, RpcError> {
-    engine
-        .call(
-            "prepare",
-            Some(json!({ "instruction": instruction, "destination": destination })),
-        )
-        .await
+    let mut params = json!({ "instruction": instruction, "destination": destination });
+    if let Some(ctx) = context {
+        params["context"] = ctx;
+    }
+    engine.call("prepare", Some(params)).await
 }
 
 #[tauri::command]
@@ -159,6 +159,11 @@ fn set_pinned(pinned: bool) {
 #[tauri::command]
 fn resize_panel(app: tauri::AppHandle, height: f64) {
     overlay::resize(&app, height);
+}
+
+#[tauri::command]
+fn compact_panel(app: tauri::AppHandle, compact: bool) {
+    overlay::set_compact(&app, compact);
 }
 
 /// Applies the chosen theme to the window and to the blur behind it.
@@ -270,6 +275,7 @@ pub fn run() {
             drag_by,
             end_drag,
             resize_panel,
+            compact_panel,
             set_theme,
             set_blur,
             open_url,

@@ -37,7 +37,7 @@ cd ui/src-tauri && cargo build  # when Rust shell changes
 - Verify using exit codes (`if cmd; then ...`), never `cmd && echo OK`.
 - Live tests stay behind build tags and double opt-ins (`-tags integration`, `VANS_LIVE=1`).
 - Never test destructive actions or raw probes on the user's running applications.
-- **Rebuild and run VANS after every considerable change:** Always build the engine binary and frontend bundle (`go build -o ui/vans-engine ./cmd/vans-engine && cd ui && npm run build`), and run the application (`cd ui && npm run tauri dev`) so the user can immediately see and interact with the live changes.
+- **Always rebuild and restart VANS after every change:** Stop any running instance, build both the Go engine binary and frontend bundle (`go build -o ui/vans-engine ./cmd/vans-engine && cd ui && npm run build`), and restart `cd ui && npm run tauri dev` immediately so the user can test every change live.
 
 ---
 

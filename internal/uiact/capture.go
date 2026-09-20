@@ -41,12 +41,27 @@ func Fix(err error) string {
 	return ""
 }
 
+var walker = walkApp
+
 func Capture(ctx context.Context, r Runner, app string) (Tree, error) {
 	pid, err := pidFor(ctx, r, app)
 	if err != nil {
 		return Tree{}, err
 	}
-	return walkApp(pid, app)
+
+	tree, err := walker(pid, app)
+	if !errors.Is(err, ErrNoWindow) {
+		return tree, err
+	}
+
+	// Stage Manager withdraws the windows of every application that is not the
+	// active one, so a window the user is looking at publishes nothing the
+	// moment anything else takes over. Putting it back in front is the only way
+	// to read it, and it is where the user wants it anyway.
+	if err := bringForward(ctx, r, app, pid); err != nil {
+		return Tree{}, err
+	}
+	return walker(pid, app)
 }
 
 func pidFor(ctx context.Context, r Runner, app string) (int, error) {

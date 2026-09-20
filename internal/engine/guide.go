@@ -3,8 +3,10 @@ package engine
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/vedansh/vans/internal/screen"
 	"github.com/vedansh/vans/internal/uiact"
 )
 
@@ -35,12 +37,28 @@ func (e *Engine) canGuide() bool {
 	return e.Steps != nil && e.UIScreen != nil
 }
 
-func (e *Engine) planGuide(ctx context.Context, task string) (*Plan, error) {
+// The application a question about "this window" is about.
+//
+// Not simply whichever application is in front when the question arrives: the
+// panel is summoned over the work, and on a Mac with Stage Manager on that is
+// enough to withdraw the window the user was looking at. The shell records who
+// was in front at the moment the hotkey was pressed, and that answer outlives
+// the panel appearing.
+func (e *Engine) appInQuestion(ctx context.Context, lookingAt *screen.Context) (string, error) {
+	if lookingAt != nil {
+		if name := strings.TrimSpace(lookingAt.AppName); name != "" && !strings.EqualFold(name, "vans") {
+			return name, nil
+		}
+	}
+	return e.UIScreen.Frontmost(ctx)
+}
+
+func (e *Engine) planGuide(ctx context.Context, task string, lookingAt *screen.Context) (*Plan, error) {
 	if !e.canGuide() {
 		return nil, fmt.Errorf("engine: this build cannot show you what to do on screen")
 	}
 
-	app, err := e.UIScreen.Frontmost(ctx)
+	app, err := e.appInQuestion(ctx, lookingAt)
 	if err != nil {
 		return nil, err
 	}
@@ -128,6 +146,7 @@ func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uia
 			if consecutiveFailures >= 3 {
 				return fmt.Errorf("engine: %s is no longer open on screen", app)
 			}
+			e.logf("waiting for %s to reappear...", app)
 			continue
 		}
 		consecutiveFailures = 0

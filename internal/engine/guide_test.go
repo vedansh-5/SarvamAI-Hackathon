@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vedansh/vans/internal/screen"
 	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
 )
@@ -249,8 +250,29 @@ func TestPlanGuideRefusesAWindowWithNothingInIt(t *testing.T) {
 		Steps:    &alwaysStep{step: typeIntoMessage()},
 	}
 
-	if _, err := e.planGuide(context.Background(), "say hello"); err == nil {
+	if _, err := e.planGuide(context.Background(), "say hello", nil); err == nil {
 		t.Fatal("offered to point at a window with nothing in it")
+	}
+}
+
+func TestAppInQuestionPrefersContextAndRefusesVANS(t *testing.T) {
+	e := &Engine{
+		UIScreen: &fakeScreen{front: "FallbackApp"},
+	}
+
+	got, err := e.appInQuestion(context.Background(), &screen.Context{AppName: "Notes"})
+	if err != nil || got != "Notes" {
+		t.Errorf("appInQuestion with Notes = %q, %v; want Notes", got, err)
+	}
+
+	got, err = e.appInQuestion(context.Background(), &screen.Context{AppName: "VANS"})
+	if err != nil || got != "FallbackApp" {
+		t.Errorf("appInQuestion with VANS = %q, %v; want FallbackApp", got, err)
+	}
+
+	got, err = e.appInQuestion(context.Background(), nil)
+	if err != nil || got != "FallbackApp" {
+		t.Errorf("appInQuestion with nil = %q, %v; want FallbackApp", got, err)
 	}
 }
 

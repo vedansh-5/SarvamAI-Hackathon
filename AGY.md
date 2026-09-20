@@ -5,7 +5,7 @@ something to learn, and what happens next. Written to be read cold, six months
 from now, by someone who has forgotten all of it.
 
 Companion documents: `docs/decisions.md` is the reasoning behind each choice
-(71 records, D-001 to D-071); `docs/roadmap.md` is the phase plan;
+(75 records, D-001 to D-075); `docs/roadmap.md` is the phase plan;
 `docs/backlog.md` is decided-but-unbuilt work. This file is the state of play.
 
 **Part I — The record**
@@ -248,6 +248,20 @@ for at least an hour.
 - **Being frontmost is not the same as being on screen.** A process can be
   frontmost while Stage Manager keeps its window off-stage. Forwarding now waits
   for a window to actually appear and says what is probably hiding it (D-064).
+- **With Stage Manager on, only the *active application* publishes anything.**
+  Measured on 2026-09-20 with Chrome active: System Settings 0 elements, Preview
+  0 elements, Finder 1 (the desktop), each with `onScreen = false` and
+  `ErrNoWindow`. Activate any other application and the window the user is
+  looking at stops existing as far as the accessibility API is concerned. This
+  is the whole reason coaching failed: anything that makes VANS the active
+  application blinds it.
+- **A non-activating panel must never be given focus through Tauri.**
+  `WebviewWindow::set_focus` reaches tao's `util::set_focus`, which calls
+  `makeKeyAndOrderFront` *and* `activateIgnoringOtherApps: YES`
+  (tao 0.35.3, `platform_impl/macos/util/async.rs:231`). The second call
+  activates VANS, which defeats `NSWindowStyleMaskNonactivatingPanel` entirely.
+  `show()` alone already calls `makeKeyAndOrderFront`, and a non-activating panel
+  takes the keyboard from that without its application becoming active.
 - **Stage Manager owns the system-wide hit test.** With it enabled,
   `AXUIElementCopyElementAtPosition` returns an element belonging to
   `WindowManager` at every point on screen. An ownership check against the
@@ -387,7 +401,10 @@ not "is this sensitive" but "is the request about it":
    through `npm run tauri dev`.
 6. **Multi-step coaching has not been exercised across real state transitions.**
    The engine points at controls on screen, but nobody has clicked through a
-   several-step task and watched it keep up.
+   several-step task and watched it keep up. The reason it could not work until
+   now is in §9.0: summoning the panel activated VANS, and under Stage Manager
+   that withdraws the target window from the accessibility API, so every re-read
+   after the first step came back empty.
 7. **The keyboard cannot be driven from outside.** A synthetic Option+Space does
    not reach the global shortcut, so the path from a real keypress to the panel
    is the one link in the coach that has never been exercised without a person
@@ -398,6 +415,50 @@ not "is this sensitive" but "is the request about it":
 ## 9. What happens next
 
 In order. Each item says what it is and how it gets built.
+
+### 9.0 In flight — the panel was stealing the front window (uncommitted, on `main`)
+
+Reported: multi-step coaching does not work, and VANS is the active window while
+it is showing instructions. Both are one bug.
+
+**Diagnosis.** `overlay::show` called `win.set_focus()` after `win.show()`. On
+macOS that activates the VANS process (see §6), and with Stage Manager on the
+application the user asked about immediately stops publishing any accessibility
+window. So `planGuide` captured an empty tree, or step 1 landed and every
+re-read in `waitForTheUserToAct` failed until the three-failure guard reported
+the window closed. Measured, not guessed: the probe in §6 shows System Settings
+at 0 elements while another application is active.
+
+**Changed so far** (`go build ./...` passes, `gofmt` clean, nothing else run):
+
+| File | Change |
+| --- | --- |
+| `ui/src-tauri/src/overlay.rs` | `set_focus` disabled on macOS so panel remains non-activating; `set_compact` resizes to 380pt HUD. |
+| `ui/src-tauri/src/lib.rs` | `prepare` accepts `context`; added `compact_panel` command. |
+| `ui/src/main.ts` | Records `activeContext`, passes to `prepare`; contracts panel in `showTheWay` and restores on exit; routes `engine://progress` to `#guiding-step`. |
+| `internal/uiact/capture.go` | `Capture` retries once through `bringForward` when window list is empty. |
+| `internal/engine/guide.go` | `appInQuestion` prefers frontmost context and refuses VANS; logs step progress. |
+| `internal/engine/drive.go` | Emits progress line at start of each step attempt. |
+| `internal/engine/here.go` | `readWhatIsInFront` and `hereInFrontApp` use `appInQuestion`. |
+| `internal/engine/ask.go` | Passes `in.Context` down. |
+| `internal/rpc/protocol.go` | `PrepareParams.Context *screen.Context`. |
+| `internal/rpc/server.go` | Hands context to `engine.Ask`. |
+| `instructions.md` | Rebuild-and-restart rule tightened. |
+
+**Status.**
+- [x] 1. **The shell sends context**: `prepare` in `lib.rs` forwards `context: Option<Value>` to RPC; `main.ts` stores `activeContext` and passes it.
+- [x] 2. **Shrink the panel while coaching**: `overlay::set_compact` resizes panel to 380pt logical width during `#guiding`, restoring 720pt on exit/stop/escape.
+- [x] 3. **Route progress into guiding HUD**: `engine://progress` updates `#guiding-step` while guiding; step progress is logged by `drive.go` and `guide.go`.
+- [x] 4. **Proved by measurement**: `System.Capture` against running System Settings successfully retried via `bringForward` and captured all 176 controls live in 868ms.
+- [x] 6. **Hermetic tests added**: `TestAppInQuestionPrefersContextAndRefusesVANS` in `guide_test.go`; `TestCaptureRetriesAfterBringingAppForward` in `verify_test.go`.
+- [x] 7. **Full gate passed**: `go build ./...`, `CGO_ENABLED=0 go build ./...`, `go vet ./...`, `go test ./...`, `gofmt -l .`, `npx tsc --noEmit`, `cargo check`.
+- [ ] 5. **Live multi-step verification**: VANS restarted live with fresh engine binary and frontend bundle. Ready for interactive multi-step run.
+
+**Reading Clicky is not a problem and it does not need installing.** The DMG in
+Downloads was already inspected: ScreenCaptureKit plus a Screen Recording grant,
+ten `AXUIElement*` symbols, frames posted to `api.heyclicky.com`, 787MB,
+`LSUIElement=true`. Mounting it again would only help for watching its runtime
+behaviour, which is not what is blocked.
 
 ### 9.1 The coach flow, end to end — "show me what to do" (Built)
 
@@ -415,7 +476,8 @@ Wired session-scoped advance channel ("Next" HUD button, #60), clean cancellatio
 lifecycle ("Stop" HUD button, Escape key), and 3-failure window closure guards.
 Distinguishes locational questions ("where is X") which stop once pointed out from
 procedural tasks ("how to do X") which continue up to 12 steps.
-Needs live multi-step task testing on a real application.
+Could not work at all until the activation bug in §9.0 was found; live multi-step
+testing on a real application is still outstanding.
 
 
 ### 9.3 Prove the full click loop

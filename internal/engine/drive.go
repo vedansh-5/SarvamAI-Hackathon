@@ -83,6 +83,9 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 		// Twice, not once: a step refused by the window is worth re-asking with
 		// the reasons in hand, and a third try has never turned one around.
 		for attempt := 1; attempt <= 2; attempt++ {
+			if attempt == 1 {
+				e.logf("working out step %d", i)
+			}
 			answer, err := e.Steps.WriteStep(ctx, synth.StepRequest{
 				Task:     task,
 				Tree:     tree,

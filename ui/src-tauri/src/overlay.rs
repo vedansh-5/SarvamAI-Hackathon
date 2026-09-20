@@ -52,10 +52,18 @@ pub fn window(app: &AppHandle) -> Option<WebviewWindow> {
 
 /// Brings the panel up and gives it the keyboard.
 ///
-/// The activation policy is Accessory, so the process is not a foreground app
-/// and focus does not automatically follow the window. Asking for it
-/// explicitly is what lets the user start typing immediately instead of
-/// clicking the panel first.
+/// `show` is the whole of it on macOS. It orders the panel front and makes it
+/// key, and a non-activating panel takes the keyboard without its application
+/// becoming the active one — which is the entire point of the class swap in
+/// `float_over_fullscreen`.
+///
+/// `set_focus` is deliberately not called. Tauri routes it through
+/// `activateIgnoringOtherApps`, which makes VANS the active application, and
+/// that is not cosmetic: macOS withdraws the windows of every application that
+/// is not active from the accessibility API when Stage Manager is on. The
+/// window the user asked about stops publishing anything at all, so pointing at
+/// a control in it — and every re-read that multi-step coaching depends on —
+/// fails with the window apparently closed.
 pub fn show(app: &AppHandle) {
     let Some(win) = window(app) else { return };
 
@@ -75,6 +83,7 @@ pub fn show(app: &AppHandle) {
     keep_on_screen(&win, height);
 
     let _ = win.show();
+    #[cfg(not(target_os = "macos"))]
     let _ = win.set_focus();
 
     let _ = win.emit("overlay://shown", &context);
@@ -216,6 +225,20 @@ pub fn end_drag() {
     *DRAG_ORIGIN.lock().unwrap() = None;
 }
 
+static COMPACT: AtomicBool = AtomicBool::new(false);
+
+pub fn set_compact(app: &AppHandle, compact: bool) {
+    COMPACT.store(compact, Ordering::Relaxed);
+    let Some(win) = window(app) else { return };
+    let width = if compact { 380.0 } else { 720.0 };
+    let height = win
+        .inner_size()
+        .map(|s| s.to_logical::<f64>(win.scale_factor().unwrap_or(1.0)).height)
+        .unwrap_or(MIN_HEIGHT);
+    let _ = win.set_size(LogicalSize::new(width, height));
+    keep_on_screen(&win, height);
+}
+
 /// Sizes the window to the height its content asked for.
 ///
 /// A summoned panel is not a document viewer. At a fixed height the preflight
@@ -239,10 +262,11 @@ pub fn resize(app: &AppHandle, content_height: f64) {
     // than MIN_HEIGHT/MAX_SCREEN_FRACTION.
     let height = content_height.clamp(MIN_HEIGHT, ceiling.max(MIN_HEIGHT));
 
-    let width = win
-        .inner_size()
-        .map(|s| s.to_logical::<f64>(win.scale_factor().unwrap_or(1.0)).width)
-        .unwrap_or(720.0);
+    let width = if COMPACT.load(Ordering::Relaxed) {
+        380.0
+    } else {
+        720.0
+    };
 
     let _ = win.set_size(LogicalSize::new(width, height));
     keep_on_screen(&win, height);
@@ -278,10 +302,11 @@ fn keep_on_screen(win: &WebviewWindow, height: f64) {
     };
     let position = position.to_logical::<f64>(win.scale_factor().unwrap_or(scale));
 
-    let width = win
-        .outer_size()
-        .map(|s| s.to_logical::<f64>(win.scale_factor().unwrap_or(scale)).width)
-        .unwrap_or(720.0);
+    let width = if COMPACT.load(Ordering::Relaxed) {
+        380.0
+    } else {
+        720.0
+    };
 
     let bottom = origin.y + area.height;
     let lowest = bottom - height - EDGE_MARGIN;

@@ -2087,3 +2087,23 @@ fails, and do nothing at all when there is nothing to do.
 terminal was revoked partway through this work, so the raise could not be
 exercised live — which is exactly why it ships behind a fallback rather than as
 a replacement.
+
+## D-075 — Never activate the VANS process over Stage Manager
+
+Summoning the panel must never make VANS the active application. On macOS with
+Stage Manager enabled, activating any application causes every other application
+to withdraw its windows from the accessibility API: controls drop to zero and
+`walkApp` fails with `ErrNoWindow`.
+
+`overlay::show` previously called `win.set_focus()` after `win.show()`. In Tauri/tao
+that reaches `[NSApp activateIgnoringOtherApps:YES]`, defeating
+`NSWindowStyleMaskNonactivatingPanel`. `show()` alone already invokes
+`makeKeyAndOrderFront`, which allows a non-activating panel to receive keystrokes
+without process activation.
+
+To protect against windows already off-stage when summoned, `Capture` retries once
+via `bringForward` if the window list returns `ErrNoWindow`. Furthermore, the shell
+captures the frontmost application context at the moment the hotkey is pressed and
+passes it through `prepare` to the engine (`appInQuestion`), preventing the panel itself
+from ever being mistaken for the target application.
+

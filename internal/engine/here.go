@@ -8,6 +8,7 @@ import (
 
 	"github.com/vedansh/vans/internal/extract"
 	"github.com/vedansh/vans/internal/runner"
+	"github.com/vedansh/vans/internal/screen"
 	"github.com/vedansh/vans/internal/store"
 	"github.com/vedansh/vans/internal/uiact"
 )
@@ -24,8 +25,8 @@ type FrontReader interface {
 // going anywhere would be answering a different question — and would lose the
 // state that made the page worth asking about: a search they had refined, a
 // list they had filtered, anything behind a login.
-func (e *Engine) readWhatIsInFront(ctx context.Context, intent string) (*Plan, error) {
-	if plan, ok := e.hereInFrontApp(ctx, intent); ok {
+func (e *Engine) readWhatIsInFront(ctx context.Context, intent string, lookingAt *screen.Context) (*Plan, error) {
+	if plan, ok := e.hereInFrontApp(ctx, intent, lookingAt); ok {
 		return plan, nil
 	}
 
@@ -67,12 +68,12 @@ func (e *Engine) readWhatIsInFront(ctx context.Context, intent string) (*Plan, e
 
 var windowFields = []string{"kind", "label", "text"}
 
-func (e *Engine) hereInFrontApp(ctx context.Context, intent string) (*Plan, bool) {
+func (e *Engine) hereInFrontApp(ctx context.Context, intent string, lookingAt *screen.Context) (*Plan, bool) {
 	if e.UIScreen == nil {
 		return nil, false
 	}
 
-	app, err := e.UIScreen.Frontmost(ctx)
+	app, err := e.appInQuestion(ctx, lookingAt)
 	if err != nil || strings.TrimSpace(app) == "" {
 		return nil, false
 	}
