@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/vedansh/vans/internal/adapter/appleevents"
@@ -41,6 +42,7 @@ func main() {
 }
 
 func run() error {
+	loadEnvFile()
 	var (
 		hostPort = flag.String("cdp", "127.0.0.1:9222", "debugging endpoint of an already-running Chromium")
 		dbPath   = flag.String("db", defaultDB(), "program cache")
@@ -235,4 +237,30 @@ func defaultDB() string {
 		return "vans.db"
 	}
 	return filepath.Join(home, ".vans", "programs.db")
+}
+
+func loadEnvFile() {
+	paths := []string{".env", "../.env"}
+	for _, p := range paths {
+		data, err := os.ReadFile(p)
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				k := strings.TrimSpace(parts[0])
+				v := strings.TrimSpace(parts[1])
+				v = strings.Trim(v, `"'`)
+				if os.Getenv(k) == "" {
+					_ = os.Setenv(k, v)
+				}
+			}
+		}
+		break
+	}
 }

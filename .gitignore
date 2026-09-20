@@ -2,3 +2,6 @@
 *.test
 .DS_Store
 ui/.vite/
+.env
+.env.*
+*.env
