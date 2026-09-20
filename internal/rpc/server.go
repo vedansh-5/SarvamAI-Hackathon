@@ -53,9 +53,11 @@ type Server struct {
 	out   *json.Encoder
 	outMu sync.Mutex
 
-	mu      sync.Mutex
-	plans   map[string]*engine.Plan
-	running map[int]context.CancelFunc
+	mu           sync.Mutex
+	plans        map[string]*engine.Plan
+	running      map[int]context.CancelFunc
+	guideCancel  context.CancelFunc
+	guideAdvance chan struct{}
 }
 
 // Serve reads requests from in and writes responses to out until in ends.
@@ -134,6 +136,10 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.clearStyle(ctx)
 	case "guide":
 		result, err = s.guide(ctx, req)
+	case "stop_guide":
+		result, err = s.stopGuide()
+	case "advance_guide":
+		result, err = s.advanceGuide()
 	default:
 		err = &Error{Code: CodeBadRequest, Message: fmt.Sprintf("unknown method %q", req.Method)}
 	}
@@ -589,16 +595,66 @@ func (s *Server) guide(ctx context.Context, req Request) (GuideResult, error) {
 		}
 	}
 
-	steps, err := s.Engine.RunGuide(ctx, plan, func(g engine.GuideStep) {
+	guideCtx, cancel := context.WithCancel(ctx)
+	advance := make(chan struct{}, 1)
+
+	s.mu.Lock()
+	s.guideCancel = cancel
+	s.guideAdvance = advance
+	s.mu.Unlock()
+
+	defer func() {
+		cancel()
+		s.mu.Lock()
+		// Only if this guide is still the current one. A second guide can start
+		// before this one has finished unwinding, and clearing unconditionally
+		// takes Stop and Next away from the guide that is actually running.
+		if s.guideAdvance == advance {
+			s.guideCancel = nil
+			s.guideAdvance = nil
+		}
+		s.mu.Unlock()
+	}()
+
+	steps, err := s.Engine.RunGuide(guideCtx, plan, func(g engine.GuideStep) {
 		s.push(req.ID, "guide", GuideStepParams{
 			Number: g.Number, Label: g.Label,
 			X: g.X, Y: g.Y, W: g.W, H: g.H,
 		})
-	})
+	}, advance)
 	if err != nil {
+		if errors.Is(err, context.Canceled) || guideCtx.Err() != nil {
+			return GuideResult{Steps: steps, Stopped: true}, nil
+		}
 		return GuideResult{}, err
 	}
+
 	return GuideResult{Steps: steps}, nil
+}
+
+func (s *Server) stopGuide() (StopGuideResult, error) {
+	s.mu.Lock()
+	cancel := s.guideCancel
+	s.mu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
+	return StopGuideResult{Stopped: true}, nil
+}
+
+func (s *Server) advanceGuide() (AdvanceGuideResult, error) {
+	s.mu.Lock()
+	advance := s.guideAdvance
+	s.mu.Unlock()
+
+	if advance != nil {
+		select {
+		case advance <- struct{}{}:
+		default:
+		}
+	}
+	return AdvanceGuideResult{Advanced: true}, nil
 }
 
 func (s *Server) clearStyle(ctx context.Context) (ClearStyleResult, error) {

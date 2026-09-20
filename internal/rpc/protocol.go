@@ -107,7 +107,16 @@ type GuideParams struct {
 }
 
 type GuideResult struct {
-	Steps int `json:"steps"`
+	Steps   int  `json:"steps"`
+	Stopped bool `json:"stopped,omitempty"`
+}
+
+type StopGuideResult struct {
+	Stopped bool `json:"stopped"`
+}
+
+type AdvanceGuideResult struct {
+	Advanced bool `json:"advanced"`
 }
 
 type GuideStepParams struct {

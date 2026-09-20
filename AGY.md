@@ -183,6 +183,11 @@ as the fallback.
 | #55 | Bring the record and progress log up to date with the coach |
 | #56 | Smoothly morph the coach spotlight and glide the tooltip |
 | #57 | Keep the panel on the screen, and build the engine with the app |
+| #58 | Bring the record up to date with the panel fix |
+| #59 | Detect frontmost application via CGWindowListCopyWindowInfo without Apple Events |
+| #60 | Multi-step coaching progression, session advance channel, and clean cancellation |
+
+
 
 ### Before this session
 
@@ -401,12 +406,17 @@ forward, captures controls, passes roles/labels to the step writer, checks the
 target's visible rectangle, and commands the overlay while shrinking the panel
 HUD. Verified single-step against System Settings ("where is the search bar").
 
-### 9.2 Multi-step coaching (Loop built; live validation remaining)
+### 9.2 Multi-step coaching (Loop, advance channel, cancellation built; live validation remaining)
 
 Point at the first control; the *person* clicks it; re-read the window; point at
 the next. This reuses the drive loop's structure with the click removed (`#50`)
-and polls every 500ms for window changes (`Changes(before, after)`, D-067).
+and polls every 500ms for window changes (`Changes(before, after)`, D-067, D-073).
+Wired session-scoped advance channel ("Next" HUD button, #60), clean cancellation
+lifecycle ("Stop" HUD button, Escape key), and 3-failure window closure guards.
+Distinguishes locational questions ("where is X") which stop once pointed out from
+procedural tasks ("how to do X") which continue up to 12 steps.
 Needs live multi-step task testing on a real application.
+
 
 ### 9.3 Prove the full click loop
 

@@ -90,3 +90,35 @@ func TestAClickThatChangedTheWindowIsConfirmed(t *testing.T) {
 		t.Error("the window changed after the click and it was not confirmed")
 	}
 }
+
+func TestAClickThatMovedFocusIsConfirmed(t *testing.T) {
+	before := treeOf(Element{Role: "AXTextField", Title: "Search", Focused: false})
+	after := treeOf(Element{Role: "AXTextField", Title: "Search", Focused: true})
+	p := Program{App: "Editor", Steps: []Step{
+		{Do: "click", Target: Selector{Role: "AXTextField", Title: "Search"}},
+	}}
+
+	if !Landed(before, after, p) {
+		t.Error("a click that moved focus was not confirmed")
+	}
+}
+
+func TestChangesReportsFocusChange(t *testing.T) {
+	before := treeOf(Element{Role: "AXTextField", Title: "Search", Focused: false})
+	after := treeOf(Element{Role: "AXTextField", Title: "Search", Focused: true})
+
+	got := Changes(before, after)
+	if len(got) != 1 || !strings.Contains(got[0], "now focused") {
+		t.Errorf("changes = %v, want focus change", got)
+	}
+}
+
+func TestChangesReportsWindowTitleChange(t *testing.T) {
+	before := Tree{App: "Settings", Window: "General"}
+	after := Tree{App: "Settings", Window: "Displays"}
+
+	got := Changes(before, after)
+	if len(got) != 1 || !strings.Contains(got[0], `window title changed to "Displays"`) {
+		t.Errorf("changes = %v, want window title change", got)
+	}
+}

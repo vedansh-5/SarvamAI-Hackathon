@@ -717,3 +717,20 @@ func TestPreflightReportsAccessibilityWhenGranted(t *testing.T) {
 		}
 	}
 }
+
+func TestStopAndAdvanceGuideWhenIdle(t *testing.T) {
+	s := run(t, nil,
+		req(1, "stop_guide", nil),
+		req(2, "advance_guide", nil),
+	)
+
+	stopRes := decode[StopGuideResult](t, s.ok(1))
+	if !stopRes.Stopped {
+		t.Errorf("stopRes = %+v, want Stopped: true", stopRes)
+	}
+
+	advRes := decode[AdvanceGuideResult](t, s.ok(2))
+	if !advRes.Advanced {
+		t.Errorf("advRes = %+v, want Advanced: true", advRes)
+	}
+}

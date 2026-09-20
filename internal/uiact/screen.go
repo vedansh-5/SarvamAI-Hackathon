@@ -105,6 +105,7 @@ var (
 	lookupAt     = elementAt
 	frontOwnerAt = frontWindowAt
 	onScreen     = windowOnScreen
+	raise        = raiseApp
 )
 
 var windowWait = 1200 * time.Millisecond
@@ -154,7 +155,34 @@ func sameControl(want Element, role, title string) bool {
 	return strings.EqualFold(strings.TrimSpace(title), strings.TrimSpace(want.Title))
 }
 
+// Raising an application is done through accessibility, which VANS already has
+// to hold in order to read a window at all. System Events can raise it too, and
+// that asks for Automation on top — a second permission, for something the
+// first one already covers. It stays as the fallback for the case where
+// accessibility cannot do it.
 func bringForward(ctx context.Context, r Runner, app string, pid int) error {
+	if alreadyInFront(app) {
+		return settled(ctx, app, pid)
+	}
+	if err := raise(pid); err == nil {
+		return settled(ctx, app, pid)
+	}
+	return forwardWithEvents(ctx, r, app, pid)
+}
+
+func alreadyInFront(app string) bool {
+	name, ok := askTheWindowList()
+	return ok && strings.EqualFold(strings.TrimSpace(name), strings.TrimSpace(app))
+}
+
+func settled(ctx context.Context, app string, pid int) error {
+	if !waitForWindow(ctx, pid) {
+		return fmt.Errorf("%w — %s", ErrWindowHidden, app)
+	}
+	return nil
+}
+
+func forwardWithEvents(ctx context.Context, r Runner, app string, pid int) error {
 	name, err := literal(app)
 	if err != nil {
 		return err
@@ -176,10 +204,7 @@ func bringForward(ctx context.Context, r Runner, app string, pid int) error {
 		return classify(envelope.Error, fmt.Errorf("uiact: %s", envelope.Error))
 	}
 
-	if !waitForWindow(ctx, pid) {
-		return fmt.Errorf("%w — %s", ErrWindowHidden, app)
-	}
-	return nil
+	return settled(ctx, app, pid)
 }
 
 func waitForWindow(ctx context.Context, pid int) bool {

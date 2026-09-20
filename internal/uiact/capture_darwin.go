@@ -158,6 +158,14 @@ static int cgFrontmostApp(char *name, int len) {
     }
     CFRelease(list);
     return found;
+}
+
+static int axRaise(int pid) {
+    AXUIElementRef app = AXUIElementCreateApplication((pid_t)pid);
+    if (!app) return -1;
+    AXError e = AXUIElementSetAttributeValue(app, kAXFrontmostAttribute, kCFBooleanTrue);
+    CFRelease(app);
+    return (int)e;
 }*/
 import "C"
 
@@ -195,6 +203,13 @@ func rect(el C.AXUIElementRef) ([]int, []int) {
 		return nil, nil
 	}
 	return []int{int(x), int(y)}, []int{int(w), int(h)}
+}
+
+func raiseApp(pid int) error {
+	if rc := int(C.axRaise(C.int(pid))); rc != 0 {
+		return fmt.Errorf("uiact: could not raise the application (accessibility error %d)", rc)
+	}
+	return nil
 }
 
 func frontmostApp() (string, bool) {

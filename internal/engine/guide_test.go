@@ -34,7 +34,7 @@ func TestGuidePointsAtTheControlAndNeverTouchesIt(t *testing.T) {
 	var shown []GuideStep
 	if _, err := e.RunGuide(context.Background(), guidePlan(), func(s GuideStep) {
 		shown = append(shown, s)
-	}); err != nil {
+	}, nil); err != nil {
 		t.Fatalf("runGuide: %v", err)
 	}
 
@@ -65,7 +65,7 @@ func TestGuideWaitsForTheWindowToChange(t *testing.T) {
 		answers: []synth.StepAnswer{{Step: typeIntoMessage()}, {Done: true}},
 	}}
 
-	if _, err := e.RunGuide(context.Background(), guidePlan(), func(GuideStep) {}); err != nil {
+	if _, err := e.RunGuide(context.Background(), guidePlan(), func(GuideStep) {}, nil); err != nil {
 		t.Fatalf("runGuide: %v", err)
 	}
 	if screen.captures < 4 {
@@ -79,7 +79,7 @@ func TestGuideStopsWhenNothingHappens(t *testing.T) {
 	screen := &fakeScreen{tree: editorTree()}
 	e := &Engine{UIScreen: screen, Steps: &alwaysStep{step: typeIntoMessage()}}
 
-	_, err := e.RunGuide(context.Background(), guidePlan(), func(GuideStep) {})
+	_, err := e.RunGuide(context.Background(), guidePlan(), func(GuideStep) {}, nil)
 	if err == nil {
 		t.Fatal("waited forever on a window nobody touched")
 	}
@@ -97,8 +97,149 @@ func TestGuideRefusesAControlItCannotPointAt(t *testing.T) {
 
 	e := &Engine{UIScreen: &fakeScreen{tree: hidden}, Steps: &alwaysStep{step: typeIntoMessage()}}
 
-	if _, err := e.RunGuide(context.Background(), guidePlan(), func(GuideStep) {}); err == nil {
+	if _, err := e.RunGuide(context.Background(), guidePlan(), func(GuideStep) {}, nil); err == nil {
 		t.Fatal("pointed at a control with no place on screen")
+	}
+}
+
+func TestGuideAdvancesOnChannel(t *testing.T) {
+	quickGuide(t)
+
+	screen := &fakeScreen{tree: editorTree()}
+	e := &Engine{UIScreen: screen, Steps: &scriptedSteps{
+		answers: []synth.StepAnswer{{Step: typeIntoMessage()}, {Done: true}},
+	}}
+
+	advance := make(chan struct{}, 1)
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		advance <- struct{}{}
+	}()
+
+	var shown []GuideStep
+	steps, err := e.RunGuide(context.Background(), guidePlan(), func(s GuideStep) {
+		shown = append(shown, s)
+	}, advance)
+	if err != nil {
+		t.Fatalf("runGuide with advance: %v", err)
+	}
+	if steps != 1 || len(shown) != 1 {
+		t.Errorf("steps = %d, shown = %d; want 1", steps, len(shown))
+	}
+}
+
+func TestGuideStepsThroughMultipleControls(t *testing.T) {
+	quickGuide(t)
+
+	step1Tree := editorTree()
+	step2Tree := editorTree()
+	step2Tree.Elements = append(step2Tree.Elements, uiact.Element{
+		Role: "AXButton", Title: "Send", Enabled: true,
+		Position: []int{200, 200}, Size: []int{60, 30}, Path: []int{0, 2},
+	})
+
+	screen := &fakeScreen{tree: step1Tree, afterwards: &step2Tree, changesAfter: 1}
+	e := &Engine{UIScreen: screen, Steps: &scriptedSteps{
+		answers: []synth.StepAnswer{
+			{Step: typeIntoMessage()},
+			{Step: uiact.Step{Do: "click", Target: uiact.Selector{Role: "AXButton", Title: "Send"}}},
+			{Done: true, Why: "finished"},
+		},
+	}}
+
+	advance := make(chan struct{}, 1)
+	go func() {
+		time.Sleep(30 * time.Millisecond)
+		advance <- struct{}{}
+	}()
+
+	var shown []GuideStep
+	steps, err := e.RunGuide(context.Background(), guidePlan(), func(s GuideStep) {
+		shown = append(shown, s)
+	}, advance)
+	if err != nil {
+		t.Fatalf("runGuide: %v", err)
+	}
+
+	if len(shown) != 2 {
+		t.Fatalf("shown %d steps, want 2", len(shown))
+	}
+	if shown[0].Number != 1 || shown[1].Number != 2 {
+		t.Errorf("step numbers: %d, %d; want 1, 2", shown[0].Number, shown[1].Number)
+	}
+	if steps != 2 {
+		t.Errorf("steps = %d, want 2", steps)
+	}
+}
+
+type failureScreen struct {
+	initial    uiact.Tree
+	failCount  int
+	maxFails   int
+	afterwards uiact.Tree
+}
+
+func (f *failureScreen) Capture(context.Context, string) (uiact.Tree, error) {
+	if f.failCount == 0 {
+		f.failCount++
+		return f.initial, nil
+	}
+	if f.failCount <= f.maxFails {
+		f.failCount++
+		return uiact.Tree{}, nil
+	}
+	return f.afterwards, nil
+}
+
+func (f *failureScreen) Act(context.Context, uiact.Program, uiact.Tree) error { return nil }
+func (f *failureScreen) Frontmost(context.Context) (string, error)            { return "Editor", nil }
+func (f *failureScreen) Type(context.Context, string) error                   { return nil }
+
+func TestGuideToleratesTransientCaptureFailures(t *testing.T) {
+	quickGuide(t)
+
+	initial := editorTree()
+	changed := editorTree()
+	changed.Elements[0].Value = "updated"
+
+	screen := &failureScreen{
+		initial:    initial,
+		maxFails:   2,
+		afterwards: changed,
+	}
+	e := &Engine{
+		UIScreen: screen,
+		Steps: &scriptedSteps{
+			answers: []synth.StepAnswer{{Step: typeIntoMessage()}, {Done: true}},
+		},
+	}
+
+	_, err := e.RunGuide(context.Background(), guidePlan(), func(GuideStep) {}, nil)
+	if err != nil {
+		t.Fatalf("expected guide to tolerate 2 transient failures, got: %v", err)
+	}
+}
+
+func TestGuideFailsAfterThreeConsecutiveCaptureFailures(t *testing.T) {
+	quickGuide(t)
+
+	screen := &failureScreen{
+		initial:  editorTree(),
+		maxFails: 10,
+	}
+	e := &Engine{
+		UIScreen: screen,
+		Steps: &scriptedSteps{
+			answers: []synth.StepAnswer{{Step: typeIntoMessage()}},
+		},
+	}
+
+	_, err := e.RunGuide(context.Background(), guidePlan(), func(GuideStep) {}, nil)
+	if err == nil {
+		t.Fatal("expected failure after consecutive capture errors")
+	}
+	if !strings.Contains(err.Error(), "is no longer open on screen") {
+		t.Errorf("unexpected error: %v", err)
 	}
 }
 
@@ -110,5 +251,28 @@ func TestPlanGuideRefusesAWindowWithNothingInIt(t *testing.T) {
 
 	if _, err := e.planGuide(context.Background(), "say hello"); err == nil {
 		t.Fatal("offered to point at a window with nothing in it")
+	}
+}
+
+// A Next pressed while the previous step was still being worked out must not
+// carry over. Draining once per step is the whole of that, and it is the
+// easiest line in the loop to lose.
+func TestGuideIgnoresAnAdvanceFromBeforeTheStep(t *testing.T) {
+	quickGuide(t)
+
+	screen := &fakeScreen{tree: editorTree()}
+	e := &Engine{UIScreen: screen, Steps: &scriptedSteps{
+		answers: []synth.StepAnswer{{Step: typeIntoMessage()}, {Done: true}},
+	}}
+
+	advance := make(chan struct{}, 1)
+	advance <- struct{}{}
+
+	_, err := e.RunGuide(context.Background(), guidePlan(), func(GuideStep) {}, advance)
+	if err == nil {
+		t.Fatal("a stale advance carried into the step and skipped the wait")
+	}
+	if !strings.Contains(err.Error(), "nothing happened") {
+		t.Errorf("err = %v, want the step to have waited and timed out", err)
 	}
 }

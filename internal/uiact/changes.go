@@ -23,6 +23,9 @@ func Changes(before, after Tree) []string {
 	}
 
 	var out []string
+	if before.Window != "" && after.Window != "" && before.Window != after.Window {
+		out = append(out, fmt.Sprintf("window title changed to %q", after.Window))
+	}
 	for k, el := range now {
 		prev, had := was[k]
 		if !had {
@@ -32,6 +35,9 @@ func Changes(before, after Tree) []string {
 		if prev.Value != el.Value {
 			out = append(out, fmt.Sprintf("the %s %q now holds %q",
 				el.Role, el.Title, truncate(el.Value, 60)))
+		}
+		if !prev.Focused && el.Focused {
+			out = append(out, fmt.Sprintf("the %s %q is now focused", el.Role, el.Title))
 		}
 	}
 	for k, el := range was {

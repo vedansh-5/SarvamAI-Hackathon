@@ -61,7 +61,6 @@ async fn prepare(
         .await
 }
 
-/// Lists everywhere an answer can be sent.
 #[tauri::command]
 async fn guide(engine: State<'_, Engine>, plan_id: String) -> Result<Value, RpcError> {
     engine
@@ -70,7 +69,18 @@ async fn guide(engine: State<'_, Engine>, plan_id: String) -> Result<Value, RpcE
 }
 
 #[tauri::command]
+async fn stop_guide(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("stop_guide", None).await
+}
+
+#[tauri::command]
+async fn advance_guide(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("advance_guide", None).await
+}
+
+#[tauri::command]
 fn point_at(app: tauri::AppHandle, x: f64, y: f64, w: f64, h: f64, label: String, step: String) {
+
     coach::point_at(&app, coach::Pointer { x, y, w, h, label, step });
 }
 
@@ -250,6 +260,8 @@ pub fn run() {
             commit,
             clear_style,
             guide,
+            stop_guide,
+            advance_guide,
             point_at,
             clear_pointer,
             dismiss,

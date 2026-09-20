@@ -65,7 +65,7 @@ func (e *Engine) planGuide(ctx context.Context, task string) (*Plan, error) {
 	}, nil
 }
 
-func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep)) (int, error) {
+func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep), advance <-chan struct{}) (int, error) {
 	if !e.canGuide() {
 		return 0, fmt.Errorf("engine: this build cannot show you what to do on screen")
 	}
@@ -80,7 +80,7 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep))
 
 		// The hand is theirs. Nothing is clicked here — the next step is only
 		// worked out once the window shows they have done this one.
-		return e.waitForTheUserToAct(ctx, g.App, tree)
+		return e.waitForTheUserToAct(ctx, g.App, tree, advance)
 	}
 	return e.stepThroughTask(ctx, g.App, asTask(g.Task), MaxGuideSteps, point)
 }
@@ -92,26 +92,46 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep))
 func asTask(question string) string {
 	return fmt.Sprintf(
 		"The person is looking at this window and asked: %q\n\n"+
-			"Work out which control on screen answers that, and give it as the next step — "+
-			"the one they should use. Describe it as you would to someone who cannot find it. "+
-			"They will use it themselves, so never assume it has already been used.",
+			"Work out which control on screen answers that, or the next step in completing it, and give it as the step to take. "+
+			"Describe it as you would to someone who cannot find it. "+
+			"They are performing the actions themselves. "+
+			"If they asked where a control or item is located, pointing to it is all they asked for — mark done once it has been pointed out. "+
+			"If they asked how to accomplish a task, only mark done when what they asked for is fully accomplished or no further action is needed.",
 		question)
 }
 
-func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uiact.Tree) error {
+func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uiact.Tree, advance <-chan struct{}) error {
 	deadline := time.Now().Add(guideStepTimeout)
+	consecutiveFailures := 0
+
+	if advance != nil {
+		select {
+		case <-advance:
+		default:
+		}
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+		case <-advance:
+			return nil
 		case <-time.After(guidePoll):
 		}
 
-		if after, err := e.UIScreen.Capture(ctx, app); err == nil {
-			if len(uiact.Changes(before, after)) > 0 {
-				return nil
+		after, err := e.UIScreen.Capture(ctx, app)
+		if err != nil || len(after.Elements) == 0 {
+			consecutiveFailures++
+			if consecutiveFailures >= 3 {
+				return fmt.Errorf("engine: %s is no longer open on screen", app)
 			}
+			continue
+		}
+		consecutiveFailures = 0
+
+		if len(uiact.Changes(before, after)) > 0 {
+			return nil
 		}
 
 		if time.Now().After(deadline) {

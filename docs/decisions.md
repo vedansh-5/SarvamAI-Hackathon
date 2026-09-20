@@ -2044,3 +2044,46 @@ is covered (D-062). Reading it needs no grant of any kind.
 So it is asked first, and System Events is the fallback for the case where the
 list cannot answer. One fewer permission on the common path, and the panel stops
 demanding Automation to do something that does not automate anything.
+
+## D-073 — Focus movement confirms an action
+
+D-067 established read-back verification: typing checks whether the text landed,
+while clicking checks whether the window changed at all. A click that changed
+nothing was reported as not confirmed, as "the signature of a click that
+missed".
+
+`uiact.Changes` tracked added and removed controls and text value changes, but
+omitted focus. When a user or action clicked a text field, search box, or
+focusable control without immediately altering its text, `Changes` reported
+zero differences, causing `Landed` to report the action unconfirmed and the
+on-screen coach to wait until timeout.
+
+Focus transition (`!prev.Focused && el.Focused`) is now treated as a genuine
+window change. Clicking a text field focuses it, which is an intentional,
+state-altering user interaction. Window title transitions
+(`before.Window != after.Window`) are similarly recorded as changes.
+
+
+## D-074 — Raising a window with the permission already held
+
+Every action brings its application forward first, and that was done by asking
+System Events to activate it. System Events is reached over Apple Events, so
+macOS requires an Automation grant — a second permission, asked for separately,
+on top of the accessibility one the runtime must already hold to read the window
+at all. When it is missing, the refusal arrives as "macOS blocked the write" on
+the first step of anything.
+
+Accessibility can raise an application directly: setting `AXFrontmost` on the
+application element does what the activate call did. It needs nothing beyond the
+trust already granted for reading, so the common path now asks for one
+permission instead of two.
+
+System Events stays as the fallback, and the window list answers whether the
+application is already in front, in which case neither is used. That ordering is
+the point: do it with what is already granted, ask for more only when that
+fails, and do nothing at all when there is nothing to do.
+
+**Unverified on this machine.** Accessibility trust for binaries launched from a
+terminal was revoked partway through this work, so the raise could not be
+exercised live — which is exactly why it ships behind a fallback rather than as
+a replacement.

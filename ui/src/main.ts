@@ -353,17 +353,27 @@ async function extract() {
   }
 }
 
+interface GuideResult {
+  steps: number;
+  stopped?: boolean;
+}
+
 /// Walks the person through the steps, pointing at each control in turn.
 ///
 /// The runtime pushes one step at a time and waits for them to act before
 /// working out the next, so this returns only once they are done or it gives up.
 async function showTheWay(plan: Plan) {
+
   $("guiding-where").textContent = plan.app ? `Showing you — ${plan.app}` : "Showing you";
   $("guiding-step").textContent = "Looking at the window…";
   show("guiding");
 
   try {
-    await invoke("guide", { planId: plan.plan_id });
+    const res = await invoke<GuideResult>("guide", { planId: plan.plan_id });
+    if (res?.stopped) {
+      show("ask");
+      return;
+    }
     toast("That is all of it");
     show("ask");
   } catch (e) {
@@ -373,6 +383,7 @@ async function showTheWay(plan: Plan) {
     invoke("clear_pointer").catch(console.error);
   }
 }
+
 
 listen<{ params: { number: number; label: string; x: number; y: number; w: number; h: number } }>(
   "engine://guide",
@@ -1157,6 +1168,12 @@ listen<ScreenContext | undefined>("overlay://shown", (event) => {
 
 window.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
+  if (!$("guiding").hidden) {
+    invoke("stop_guide").catch(console.error);
+    invoke("clear_pointer").catch(console.error);
+    show("ask");
+    return;
+  }
   if (!$("confirm").hidden) {
     currentPlan = null;
     backToAsk();
@@ -1164,6 +1181,7 @@ window.addEventListener("keydown", (e) => {
   }
   invoke("dismiss").catch(console.error);
 });
+
 
 const VIEW_KEY = "vans.view";
 
@@ -1201,10 +1219,15 @@ $("view-table").addEventListener("click", () => applyView(true, true));
 
 $("ask-again").addEventListener("click", backToAsk);
 $("clear-style").addEventListener("click", clearStyle);
-$("guiding-stop").addEventListener("click", () => {
-  invoke("clear_pointer").catch(console.error);
+$("guiding-next").addEventListener("click", () => {
+  invoke("advance_guide").catch(console.error);
+});
+$("guiding-stop").addEventListener("click", async () => {
+  await invoke("stop_guide").catch(console.error);
+  await invoke("clear_pointer").catch(console.error);
   show("ask");
 });
+
 $("to-task").addEventListener("click", backToAsk);
 $("back").addEventListener("click", backToAsk);
 $("back-from-unknown").addEventListener("click", backToAsk);

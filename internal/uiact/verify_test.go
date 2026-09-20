@@ -137,3 +137,68 @@ func TestBringForwardAcceptsAWindowThatIsOnScreen(t *testing.T) {
 		t.Errorf("refused a window that is on screen: %v", err)
 	}
 }
+
+type countingRunner struct{ calls int }
+
+func (c *countingRunner) Run(context.Context, string) ([]byte, error) {
+	c.calls++
+	return []byte(`{"ok":true,"value":"front"}`), nil
+}
+
+func withRaise(t *testing.T, err error) {
+	t.Helper()
+	original := raise
+	raise = func(int) error { return err }
+	t.Cleanup(func() { raise = original })
+}
+
+func withFront(t *testing.T, name string) {
+	t.Helper()
+	original := askTheWindowList
+	askTheWindowList = func() (string, bool) { return name, name != "" }
+	t.Cleanup(func() { askTheWindowList = original })
+}
+
+// Accessibility is already granted for reading the window. Raising it that way
+// costs nothing more; going through System Events costs an Automation grant.
+func TestBringForwardRaisesWithoutAskingForAutomation(t *testing.T) {
+	withOnScreen(t, true)
+	withFront(t, "Something Else")
+	withRaise(t, nil)
+
+	r := &countingRunner{}
+	if err := bringForward(context.Background(), r, "Notes", 42); err != nil {
+		t.Fatalf("bringForward: %v", err)
+	}
+	if r.calls != 0 {
+		t.Errorf("asked System Events %d time(s) when accessibility had already raised it", r.calls)
+	}
+}
+
+func TestBringForwardFallsBackToEventsWhenAccessibilityCannotRaise(t *testing.T) {
+	withOnScreen(t, true)
+	withFront(t, "Something Else")
+	withRaise(t, errors.New("accessibility error -25211"))
+
+	r := &countingRunner{}
+	if err := bringForward(context.Background(), r, "Notes", 42); err != nil {
+		t.Fatalf("bringForward: %v", err)
+	}
+	if r.calls != 1 {
+		t.Errorf("fell back %d time(s), want 1", r.calls)
+	}
+}
+
+func TestBringForwardDoesNothingWhenItIsAlreadyInFront(t *testing.T) {
+	withOnScreen(t, true)
+	withFront(t, "Notes")
+	withRaise(t, errors.New("should not be called"))
+
+	r := &countingRunner{}
+	if err := bringForward(context.Background(), r, "Notes", 42); err != nil {
+		t.Fatalf("bringForward: %v", err)
+	}
+	if r.calls != 0 {
+		t.Errorf("raised an application that was already in front")
+	}
+}
