@@ -199,6 +199,7 @@ as the fallback.
 | #70 | Keep the lines the window shows, where they can be read after a run |
 | #71 | Draw the first step, and stay up until there is one |
 | #72 | Let the coach window use the event system, and give it something to draw |
+| #73 | Draw the first step where it actually is, and refuse a step usefully |
 
 
 
@@ -555,9 +556,18 @@ instruction.
    work: a small always-present pill, expanding on hover, collapsing when done.
 2. **Speech.** Clicky reads each step aloud. Deliberately deferred — writing the
    instruction is enough for now.
-3. **The drawing itself has still never been seen working.** Every fix to it so
-   far has been reasoned from logs. The first run that actually shows a cursor
-   and an arrow on another application is the one that proves this whole tier. The run
+**It drew, on 2026-09-21.** The first run in which anything reached the screen:
+step 1 pointed at the Search field at (459, 100), the person clicked it, step 2
+pointed at Desktop & Dock at (464, 246) — with the dimming, the ring, the corner
+brackets, the cursor, the ripple and the arrow all rendering over System
+Settings. The whole tier is proven end to end for the first time.
+
+It stopped at step 3, which turned up two more things, both fixed in #73: the
+first step of a session was drawn at (-196, -133) because the window's origin was
+read back before it had moved (D-088), and "click Wallpaper" was refused twice
+for naming an AXButton when the sidebar row is an AXRow — the refusal now says
+what is on screen under that name, since a refused step is re-asked with the
+reason in hand (D-089). The run
 to make, on System Settings:
 
 1. Ask something with more than one step — "how do I turn on Dark Mode".
