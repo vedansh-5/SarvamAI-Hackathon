@@ -195,6 +195,7 @@ as the fallback.
 | #66 | Let a step hold modifiers down, from one key vocabulary instead of four |
 | #67 | Coach a step at a time without taking the screen over |
 | #68 | Keep reading the window passive; recovery belongs to the step that needs one |
+| #69 | Point at the app, not from a window over it |
 
 
 
@@ -500,13 +501,26 @@ seconds instead of being pointed at again (D-078); and naming an application fel
 through to System Events, which is the Automation prompt that had been blocking
 runs (D-080).
 
-The loop has still never been watched across a real state transition. The run to
-make, on System Settings:
+Driven live on 2026-09-21 against System Settings through the real stdio
+protocol, with real model calls, which turned up three things the unit tests
+could not: the panel sat on top of the application it was pointing into (D-081),
+a value ticking over in the window was read as the person acting and skipped a
+step nobody had touched (D-082), and a window that stopped publishing — which is
+what happens whenever someone glances at another application — ended the run
+(D-083). The recorded run after the fixes: point at (459,100), wait through the
+application not being in front, re-point the same step after the quiet spell,
+stop cleanly on Stop.
+
+What that run cannot show is the drawing, which needs eyes on a screen. The run
+to make, on System Settings:
 
 1. Ask something with more than one step — "how do I turn on Dark Mode".
-2. The ring lands on the first control and the strip names the step.
-3. Act, or press Next: the coach notices and moves to step 2.
-4. Stop, or Escape: the coach closes and the panel goes back to full width.
+2. The panel disappears; the ring, the corner brackets and the arrow land on the
+   first control, with the caption beside it.
+3. Click what it points at: the shell sees the click land inside the ring and the
+   coach moves to step 2 without waiting for a poll.
+4. Option-Space brings the panel back with Next and Stop; the panel also comes
+   back on its own when the run ends or fails.
 
 ### 9.3 Prove the full click loop (done in #63)
 
