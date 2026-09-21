@@ -575,6 +575,34 @@ Three things that run showed, all fixed in #75:
   panel came back saying "that is all of it" having shown nothing. Zero steps now
   carries the model's own account of why, and the panel says it (D-095).
 
+**Stopped working on 2026-09-21 06:48, and it is not the code.** The panel sat at
+"working out step 1" and nothing came back. Measured from the terminal with the
+same key and base URL the runtime uses:
+
+| Request | Result |
+| --- | --- |
+| `GET /models` | 200 in 0.68s, 58 models listed — key and network are fine |
+| `POST /chat/completions` with `gemini-flash-lite-latest` | no response at all; `http=000` after 25s and again after 45s |
+| `models/gemini-flash-latest` | 503 |
+| `models/gemini-2.5-flash-lite`, `models/gemini-2.5-flash` | 404 through this endpoint |
+| **`models/gemini-3.1-flash-lite`** | **200 in 1.5s** |
+
+So the configured model is stalling on Google's side, not refusing — the
+connection opens and never answers. The HTTP client allows three minutes, which
+is why it looks hung rather than failed.
+
+**To pick up:**
+
+1. **Switch the model.** `VANS_LLM_MODEL=models/gemini-3.1-flash-lite` in `.env`
+   is the one that answered. Worth re-measuring first, in case the stall was
+   temporary.
+2. **A stalled provider must fail fast.** Three minutes of "working out step 1"
+   is indistinguishable from hung. The model call needs a timeout in the tens of
+   seconds, and the message when it trips has to say the model did not answer —
+   not "something went wrong inside VANS".
+3. Worth considering with it: a second model to fall back to, since one being
+   overloaded is now a thing that has actually happened.
+
 **Deferred, on purpose:**
 
 1. **A resting place on screen.** Clicky sits as a pill at the top edge and
