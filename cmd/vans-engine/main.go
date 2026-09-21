@@ -157,6 +157,10 @@ func run() error {
 			live:     &appleevents.Chrome{Runner: appleevents.Osascript{}},
 		},
 		HostPort: *hostPort,
+
+		// The same lines the window shows, kept where they can be read after
+		// the fact. stdout is the protocol and nothing else.
+		Trace: os.Stderr,
 	}
 
 	return srv.Serve(ctx, os.Stdin, os.Stdout)

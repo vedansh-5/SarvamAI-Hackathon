@@ -755,3 +755,22 @@ func TestStopAndAdvanceGuideWhenIdle(t *testing.T) {
 		t.Errorf("advRes = %+v, want Advanced: true", advRes)
 	}
 }
+
+// The window shows one line at a time and keeps none of them, so a run that went
+// wrong leaves nothing to read afterwards unless the same lines go somewhere
+// durable.
+func TestProgressIsAlsoWrittenWhereItCanBeReadLater(t *testing.T) {
+	var trace bytes.Buffer
+	l := newLive(t, func(s *Server) { s.Trace = &trace })
+
+	resp := l.call(1, "prepare", prepareParams())
+	if resp.Error != nil {
+		t.Fatalf("prepare: %v", resp.Error)
+	}
+	if trace.Len() == 0 {
+		t.Fatal("nothing was written to the trace during a prepare")
+	}
+	if !strings.Contains(trace.String(), "[1]") {
+		t.Errorf("trace = %q, want each line to name the request it belongs to", trace.String())
+	}
+}

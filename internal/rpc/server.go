@@ -50,6 +50,12 @@ type Server struct {
 	// actually in use.
 	HostPort string
 
+	// Trace, when set, receives every line the runtime reports on its way to
+	// the window. The window shows one line at a time and keeps none of them,
+	// which is the right thing for someone watching and useless for working out
+	// afterwards why a run did what it did.
+	Trace io.Writer
+
 	out   *json.Encoder
 	outMu sync.Mutex
 
@@ -181,7 +187,11 @@ func (s *Server) reply(r Response) {
 
 // notify pushes a progress line for a request already in flight.
 func (s *Server) notify(id int, format string, args ...any) {
-	s.push(id, "log", LogParams{Message: fmt.Sprintf(format, args...)})
+	message := fmt.Sprintf(format, args...)
+	if s.Trace != nil {
+		fmt.Fprintf(s.Trace, "[%d] %s\n", id, message)
+	}
+	s.push(id, "log", LogParams{Message: message})
 }
 
 func (s *Server) push(id int, method string, params any) {
