@@ -371,6 +371,7 @@ interface GuideResult {
 /// The runtime pushes one step at a time and waits for them to act before
 /// working out the next, so this returns only once they are done or it gives up.
 async function showTheWay(plan: Plan) {
+  let finished = false;
   $("guiding-where").textContent = plan.app ? `Showing you — ${plan.app}` : "Showing you";
   $("guiding-step").textContent = "Looking at the window…";
   show("guiding");
@@ -387,6 +388,10 @@ async function showTheWay(plan: Plan) {
       show("ask");
       return;
     }
+    // A tick on the last control, which takes itself away. Finished and stopped
+    // should not look the same.
+    finished = true;
+    invoke("finish_pointer").catch(console.error);
     toast("That is all of it");
     show("ask");
   } catch (e) {
@@ -394,7 +399,9 @@ async function showTheWay(plan: Plan) {
     show("failure");
   } finally {
     invoke("compact_panel", { compact: false }).catch(console.error);
-    invoke("clear_pointer").catch(console.error);
+    if (!finished) {
+      invoke("clear_pointer").catch(console.error);
+    }
     // Back only now, with something to say.
     invoke("summon").catch(console.error);
   }
@@ -409,7 +416,18 @@ listen("coach://acted", () => {
   invoke("advance_guide").catch(console.error);
 });
 
-listen<{ params: { number: number; label: string; x: number; y: number; w: number; h: number } }>(
+listen<{
+  params: {
+    number: number;
+    label: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    do?: string;
+    detail?: string;
+  };
+}>(
   "engine://guide",
   (event) => {
     const s = event.payload.params;
@@ -426,6 +444,8 @@ listen<{ params: { number: number; label: string; x: number; y: number; w: numbe
       h: s.h,
       label: s.label,
       step: `Step ${s.number}`,
+      verb: s.do ?? "",
+      detail: s.detail ?? "",
     }).catch(console.error);
   },
 );

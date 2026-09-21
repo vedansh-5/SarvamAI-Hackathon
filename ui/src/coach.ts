@@ -15,6 +15,8 @@ interface Pointer {
   h: number;
   label: string;
   step: string;
+  verb?: string;
+  detail?: string;
 }
 
 interface Bounds {
@@ -30,6 +32,7 @@ const GAP = 14;
 const MORPH_DURATION_MS = 320;
 
 let currentBounds: Bounds | null = null;
+let currentVerb = "click";
 let animationFrameId: number | null = null;
 
 function elementById<T extends HTMLElement | SVGElement>(id: string): T {
@@ -61,28 +64,52 @@ function cornerBrackets(b: Bounds): string {
   ].join(" ");
 }
 
-/// The pointer and the ripple that mark where the click goes.
+/// What the step asks for, drawn on the control itself.
 ///
-/// A ring says which control; a cursor sitting on it says what to do with it,
-/// which is the difference between a highlight and an instruction. It is placed
-/// just inside the control rather than at its centre, so it does not cover the
-/// label someone is trying to read.
-function placeTheCursor(b: Bounds) {
-  const x = b.x + Math.min(b.w * 0.5, 40);
+/// A ring says which control. It does not say what to do with it, and pointing
+/// at a field is not the same instruction as typing in one — so a click gets a
+/// cursor and a ripple, typing gets a caret sitting where the text will go, and
+/// a key combination gets neither, because there is nothing on screen to press.
+/// All of them are placed inside the control rather than at its centre, so the
+/// label someone is reading stays legible.
+function showWhatToDo(b: Bounds, verb: string) {
+  const typing = verb === "type";
+  const pressing = verb === "press";
+
+  const x = typing ? b.x + 14 : b.x + Math.min(b.w * 0.5, 40);
   const y = b.y + b.h / 2;
 
   elementById<SVGCircleElement>("ripple").setAttribute("cx", `${x}`);
   elementById<SVGCircleElement>("ripple").setAttribute("cy", `${y}`);
   elementById<SVGGElement>("cursor").setAttribute("transform", `translate(${x - 1} ${y - 2})`);
-  elementById<SVGGElement>("tap").setAttribute("opacity", "1");
+  elementById<SVGGElement>("caret").setAttribute("transform", `translate(${x} ${y})`);
+
+  elementById<SVGCircleElement>("ripple").setAttribute("opacity", typing || pressing ? "0" : "1");
+  elementById<SVGGElement>("cursor").setAttribute("opacity", typing ? "0" : "1");
+  elementById<SVGGElement>("caret").setAttribute("opacity", typing ? "1" : "0");
+  elementById<SVGGElement>("tap").setAttribute("opacity", pressing ? "0" : "1");
+}
+
+/// How far the dimming fades out around the control.
+///
+/// A hard-edged hole in a dark sheet reads as a cutout; the point is to draw the
+/// eye, not to black out the application someone is working in. The falloff
+/// scales with the control so a sidebar row and a whole pane both sit in one.
+function haloRadius(b: Bounds): number {
+  return Math.max(150, Math.max(b.w, b.h) * 1.6);
 }
 
 function applySpotlightBounds(bounds: Bounds) {
+  const halo = elementById<SVGCircleElement>("spotlight-halo");
+  halo.setAttribute("cx", `${bounds.x + bounds.w / 2}`);
+  halo.setAttribute("cy", `${bounds.y + bounds.h / 2}`);
+  halo.setAttribute("r", `${haloRadius(bounds)}`);
+
   const hole = elementById<SVGRectElement>("spotlight-hole");
   const inner = elementById<SVGRectElement>("spotlight-inner");
   const glow = elementById<SVGRectElement>("spotlight-glow");
   elementById<SVGPathElement>("corners").setAttribute("d", cornerBrackets(bounds));
-  placeTheCursor(bounds);
+  showWhatToDo(bounds, currentVerb);
 
   hole.setAttribute("x", `${bounds.x}`);
   hole.setAttribute("y", `${bounds.y}`);
@@ -204,6 +231,14 @@ function renderCoachStep(pointer: Pointer) {
 
   step.textContent = pointer.step;
   text.textContent = pointer.label;
+  currentVerb = (pointer.verb ?? "click").toLowerCase();
+
+  // The text to type, or the keys to hold, spelled out rather than described.
+  // "Type your name" leaves someone guessing; the words themselves do not.
+  const detail = elementById<HTMLElement>("detail");
+  const spelled = (pointer.detail ?? "").trim();
+  detail.hidden = spelled === "";
+  detail.textContent = currentVerb === "type" ? `"${spelled}"` : spelled;
 
   if (currentBounds === null) {
     applySpotlightBounds(targetBounds);
@@ -232,6 +267,33 @@ function renderCoachStep(pointer: Pointer) {
   }
 }
 
+/// A tick on the last control, so a run that finished says so.
+///
+/// Until now the overlay simply vanished, which is the same thing it does when
+/// a run is stopped or gives up. Those are different outcomes and should not
+/// look alike.
+function markItDone() {
+  const b = currentBounds;
+  if (!b) return;
+
+  const x = b.x + b.w / 2;
+  const y = b.y + b.h / 2;
+  const done = elementById<SVGGElement>("done");
+
+  elementById<SVGCircleElement>("done-ring").setAttribute("cx", `${x}`);
+  elementById<SVGCircleElement>("done-ring").setAttribute("cy", `${y}`);
+  elementById<SVGPathElement>("done-tick").setAttribute(
+    "d",
+    `M ${x - 7} ${y} L ${x - 2} ${y + 5.5} L ${x + 7.5} ${y - 5.5}`,
+  );
+
+  elementById<SVGGElement>("tap").setAttribute("opacity", "0");
+  elementById<SVGPathElement>("arrow").setAttribute("opacity", "0");
+  done.setAttribute("opacity", "1");
+  elementById<HTMLElement>("text").textContent = "That is all of it";
+  elementById<HTMLElement>("detail").hidden = true;
+}
+
 function dismissCoach() {
   if (animationFrameId !== null) {
     cancelAnimationFrame(animationFrameId);
@@ -241,6 +303,7 @@ function dismissCoach() {
   elementById<HTMLElement>("tip").classList.remove("on");
   elementById<SVGPathElement>("arrow").setAttribute("opacity", "0");
   elementById<SVGGElement>("tap").setAttribute("opacity", "0");
+  elementById<SVGGElement>("done").setAttribute("opacity", "0");
   currentBounds = null;
 }
 
@@ -251,6 +314,7 @@ function dismissCoach() {
 void Promise.all([
   listen<Pointer>("coach:point", (event) => renderCoachStep(event.payload)),
   listen("coach:clear", () => dismissCoach()),
+  listen("coach:done", () => markItDone()),
 ]).then(() => {
   note("listening");
   return emit("coach://ready");

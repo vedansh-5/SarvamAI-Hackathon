@@ -640,6 +640,7 @@ func (s *Server) guide(ctx context.Context, req Request) (GuideResult, error) {
 		s.push(req.ID, "guide", GuideStepParams{
 			Number: g.Number, Label: g.Label,
 			X: g.X, Y: g.Y, W: g.W, H: g.H,
+			Do: g.Do, Detail: g.Detail,
 		})
 	}, advance)
 	if err != nil {

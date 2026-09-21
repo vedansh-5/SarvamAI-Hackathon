@@ -382,3 +382,60 @@ func TestGuideHandsTheKeyboardToTheApplicationFirst(t *testing.T) {
 		t.Errorf("brought %v to the front; the application being coached has to hold the keyboard", screen.raised)
 	}
 }
+
+// A ring says which control. What to do with it is a different question, and the
+// step already knows the answer — it has to reach the overlay to be drawn.
+func TestGuideSaysWhatToDoWithTheControl(t *testing.T) {
+	quickGuide(t)
+
+	moved := editorTree()
+	moved.Elements[0].Value = "hello"
+	screen := &fakeScreen{tree: editorTree(), afterwards: &moved, changesAfter: 1}
+	e := &Engine{UIScreen: screen, Steps: &scriptedSteps{
+		answers: []synth.StepAnswer{{Step: typeIntoMessage()}, {Done: true, Why: "that is all"}},
+	}}
+
+	var shown []GuideStep
+	if _, err := e.RunGuide(context.Background(), guidePlan(), func(g GuideStep) {
+		shown = append(shown, g)
+	}, nil); err != nil {
+		t.Fatalf("RunGuide: %v", err)
+	}
+
+	if len(shown) == 0 {
+		t.Fatal("nothing was pointed at")
+	}
+	if shown[0].Do != "type" {
+		t.Errorf("Do = %q, want the verb the step asked for", shown[0].Do)
+	}
+	if shown[0].Detail != "hello" {
+		t.Errorf("Detail = %q, want the text to be typed", shown[0].Detail)
+	}
+}
+
+func TestGuideCarriesTheKeysToHoldDown(t *testing.T) {
+	quickGuide(t)
+
+	moved := editorTree()
+	moved.Elements[0].Value = "x"
+	screen := &fakeScreen{tree: editorTree(), afterwards: &moved, changesAfter: 1}
+	e := &Engine{UIScreen: screen, Steps: &scriptedSteps{
+		answers: []synth.StepAnswer{{Step: uiact.Step{
+			Do:        "press",
+			Target:    uiact.Selector{Role: "AXTextArea", Title: "Message"},
+			Key:       "Enter",
+			Modifiers: []string{"Command"},
+			Describe:  "Send it",
+		}}, {Done: true, Why: "sent"}},
+	}}
+
+	var shown []GuideStep
+	if _, err := e.RunGuide(context.Background(), guidePlan(), func(g GuideStep) {
+		shown = append(shown, g)
+	}, nil); err != nil {
+		t.Fatalf("RunGuide: %v", err)
+	}
+	if len(shown) == 0 || shown[0].Detail != "Command-Enter" {
+		t.Errorf("Detail = %q, want the combination spelled out", shown[0].Detail)
+	}
+}

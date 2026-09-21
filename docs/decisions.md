@@ -2321,3 +2321,37 @@ with the reason in hand, so the reason is a prompt — and one that says only wh
 is absent wastes the turn it buys. It now names what is there under that name:
 "that name is on screen as AXRow". Sidebar items are the common case; the same
 word is a button, a row or a static text depending on the application.
+
+## D-090 — The overlay draws the verb, not only the place
+
+A ring says which control. It does not say what to do with it, and "the search
+field" is not an instruction — pointing at a field and typing in one are
+different things being asked for.
+
+The step already knows: it carries a verb and, for two of the three, something
+the verb needs. That now reaches the overlay. A click gets the pointer cursor and
+the ripple. Typing gets a caret sitting where the text will go, and the words
+themselves in the caption rather than a description of them — "type your name"
+leaves someone guessing, `"Vedansh"` does not. A key combination gets neither
+cursor nor caret, because there is nothing on screen to press, and the caption
+carries the chord.
+
+## D-091 — Dimming draws the eye; it does not black out the application
+
+The overlay dimmed the whole screen at 42% with a hard-edged hole cut in it,
+which reads as a cutout in a dark sheet rather than as attention being drawn. The
+person is still working in that application and has to be able to see it.
+
+It is 34% now, and the hole has a radial falloff scaled to the control — a
+sidebar row and a whole pane both end up sitting in a soft pool of clear screen
+rather than a rectangle.
+
+## D-092 — Finished and stopped should not look alike
+
+The overlay vanished at the end of a run, which is exactly what it does when
+someone presses Stop or when a guide gives up. Three different outcomes, one
+appearance.
+
+A finished run marks the last control with a tick and says "that is all of it"
+in the caption, then takes itself away after a moment. Stop and give-up still
+clear immediately, because there is nothing to celebrate.

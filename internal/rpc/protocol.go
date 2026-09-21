@@ -135,6 +135,11 @@ type GuideStepParams struct {
 	Y      int    `json:"y"`
 	W      int    `json:"w"`
 	H      int    `json:"h"`
+
+	// Do is click, type or press; Detail is the text to type or the keys to
+	// hold. The overlay draws a different thing for each.
+	Do     string `json:"do,omitempty"`
+	Detail string `json:"detail,omitempty"`
 }
 
 // ClearStyleResult reports that the page was put back.

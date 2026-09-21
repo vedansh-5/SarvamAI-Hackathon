@@ -78,15 +78,43 @@ async fn advance_guide(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("advance_guide", None).await
 }
 
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
-fn point_at(app: tauri::AppHandle, x: f64, y: f64, w: f64, h: f64, label: String, step: String) {
-
-    coach::point_at(&app, coach::Pointer { x, y, w, h, label, step });
+fn point_at(
+    app: tauri::AppHandle,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+    label: String,
+    step: String,
+    verb: Option<String>,
+    detail: Option<String>,
+) {
+    coach::point_at(
+        &app,
+        coach::Pointer {
+            x,
+            y,
+            w,
+            h,
+            label,
+            step,
+            verb: verb.unwrap_or_default(),
+            detail: detail.unwrap_or_default(),
+        },
+    );
 }
 
 #[tauri::command]
 fn clear_pointer(app: tauri::AppHandle) {
     coach::clear(&app);
+}
+
+/// Marks the last control done, then takes the overlay away on its own.
+#[tauri::command]
+fn finish_pointer(app: tauri::AppHandle) {
+    coach::finish(&app);
 }
 
 #[tauri::command]
@@ -289,6 +317,7 @@ pub fn run() {
             advance_guide,
             point_at,
             clear_pointer,
+            finish_pointer,
             dismiss,
             summon,
             note,

@@ -38,6 +38,13 @@ type GuideStep struct {
 	Label  string
 	X, Y   int
 	W, H   int
+
+	// Do is the verb — click, type or press — and Detail is what it needs: the
+	// text to type, or the key combination to hold. A ring says which control;
+	// these are what say what to do with it, which is the difference between a
+	// highlight and an instruction.
+	Do     string
+	Detail string
 }
 
 func (e *Engine) canGuide() bool {
@@ -108,7 +115,8 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 	}
 
 	point := func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) error {
-		x, y, w, h, why := tree.RectFor(program.Steps[0].Target)
+		step := program.Steps[0]
+		x, y, w, h, why := tree.RectFor(step.Target)
 		if why != "" {
 			return fmt.Errorf("engine: %s", why)
 		}
@@ -117,11 +125,15 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 		// costs nothing and asks the model for nothing; starting over from the
 		// first step because someone was slow is the behaviour being avoided.
 		for attempt := 1; ; attempt++ {
-			show(GuideStep{Number: number, Label: describe, X: x, Y: y, W: w, H: h})
+			show(GuideStep{
+				Number: number, Label: describe,
+				X: x, Y: y, W: w, H: h,
+				Do: step.Do, Detail: detailOf(step),
+			})
 
 			// The hand is theirs. Nothing is clicked here — the next step is only
 			// worked out once the window shows they have done this one.
-			err := e.waitForTheUserToAct(ctx, g.App, tree, program.Steps[0].Target, advance)
+			err := e.waitForTheUserToAct(ctx, g.App, tree, step.Target, advance)
 			if !errors.Is(err, errStillWaiting) {
 				return err
 			}
@@ -133,6 +145,18 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 	}
 	steps, _, err := e.stepThroughTask(ctx, g.App, asTask(g.Task), MaxGuideSteps, point)
 	return steps, err
+}
+
+// What the verb needs spelled out: the text to type, or the keys to hold down.
+func detailOf(step uiact.Step) string {
+	switch {
+	case strings.EqualFold(step.Do, "type"):
+		return step.Text
+	case strings.EqualFold(step.Do, "press"):
+		return step.Chord()
+	default:
+		return ""
+	}
 }
 
 // The step writer works out the next thing to do; a question is not a thing to

@@ -97,6 +97,11 @@ pub struct Pointer {
     pub h: f64,
     pub label: String,
     pub step: String,
+
+    /// click, type or press — what the overlay draws on the control.
+    pub verb: String,
+    /// The text to type or the keys to hold, when the verb needs one.
+    pub detail: String,
 }
 
 fn build(app: &AppHandle) -> Option<WebviewWindow> {
@@ -269,6 +274,28 @@ fn show_without_taking_the_keyboard(win: &WebviewWindow) {
 #[cfg(not(target_os = "macos"))]
 fn show_without_taking_the_keyboard(win: &WebviewWindow) {
     let _ = win.show();
+}
+
+/// How long the tick stays up before the overlay goes away.
+const LINGER: std::time::Duration = std::time::Duration::from_millis(1100);
+
+/// finish marks the last control done and then takes the coach off the screen.
+///
+/// A run that finished and a run that was stopped used to look identical: the
+/// overlay simply vanished. The wait is here rather than in the window so the
+/// caller has one call and no timing to get right.
+pub fn finish(app: &AppHandle) {
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        if let Some(win) = handle.get_webview_window(LABEL) {
+            let _ = win.emit_to(LABEL, "coach:done", ());
+        }
+        let later = handle.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(LINGER);
+            clear(&later);
+        });
+    });
 }
 
 /// clear takes the coach off the screen.
