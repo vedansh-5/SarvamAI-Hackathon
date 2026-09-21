@@ -64,23 +64,36 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	// Verified is evidence, not a claim. The model saying the task is done is
 	// the thing being checked, so it cannot also be the check (D-004): what
 	// counts is that the window moved for every step VANS performed.
-	_, landed, err := e.stepThroughTask(ctx, d.App, d.Task, MaxDriveSteps, act)
+	run, err := e.stepThroughTask(ctx, d.App, d.Task, MaxDriveSteps, act)
 	if err != nil {
 		return Receipt{}, err
 	}
-	return Receipt{Title: d.App, Verified: landed}, nil
+	return Receipt{Title: d.App, Verified: run.Landed}, nil
 }
 
 type stepHandler func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) error
 
-func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit int, handle stepHandler) (steps int, landed bool, err error) {
+// What a run through a task came to.
+type taskRun struct {
+	// Steps is how many were carried out or pointed at.
+	Steps int
+
+	// Landed reports that every step was followed by a change in the window.
+	Landed bool
+
+	// Why is the model's own sentence about stopping, which is the only thing
+	// that can explain a run of no steps at all.
+	Why string
+}
+
+func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit int, handle stepHandler) (taskRun, error) {
 	var done []string
-	landed = true
+	landed := true
 
 	for i := 1; i <= limit; i++ {
 		tree, err := e.windowToWorkFrom(ctx, app)
 		if err != nil {
-			return len(done), landed, err
+			return taskRun{Steps: len(done), Landed: landed}, err
 		}
 
 		var failures []string
@@ -107,19 +120,19 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 					e.logf("step %d: nothing usable came back, asking again", i)
 					continue
 				}
-				return len(done), landed, err
+				return taskRun{Steps: len(done), Landed: landed}, err
 			}
 
 			if answer.Done {
 				e.logf("finished after %d step(s): %s", len(done), answer.Why)
-				return len(done), landed, nil
+				return taskRun{Steps: len(done), Landed: landed, Why: answer.Why}, nil
 			}
 
 			program := uiact.Program{App: tree.App, Steps: []uiact.Step{answer.Step}}
 			if err := uiact.Validate(program, tree); err != nil {
 				var invalid *uiact.InvalidError
 				if !errors.As(err, &invalid) {
-					return len(done), landed, err
+					return taskRun{Steps: len(done), Landed: landed}, err
 				}
 				failures = invalid.Reasons
 				e.logf("step %d rejected: %s", i, strings.Join(invalid.Reasons, "; "))
@@ -139,7 +152,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 					e.logf("step %d rejected: %s", i, strings.Join(invalid.Reasons, "; "))
 					continue
 				}
-				return len(done), landed, err
+				return taskRun{Steps: len(done), Landed: landed}, err
 			}
 
 			effect, changed := describeEffect(ctx, e, app, tree)
@@ -152,13 +165,14 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 		}
 
 		if !acted {
-			return len(done), landed, fmt.Errorf(
+			return taskRun{Steps: len(done), Landed: landed}, fmt.Errorf(
 				"engine: nothing that fits %s's window survived being checked against it, after %d step(s)",
 				app, len(done))
 		}
 	}
 
-	return len(done), landed, fmt.Errorf("engine: stopped after %d steps without finishing", limit)
+	return taskRun{Steps: len(done), Landed: landed}, fmt.Errorf(
+		"engine: stopped after %d steps without finishing", limit)
 }
 
 // The window a step is planned against, brought back if something withdrew it.

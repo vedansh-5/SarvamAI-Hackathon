@@ -28,6 +28,7 @@ Rules that decide whether your step is usable:
 - Only choose a control that is actually listed. One that is not there is a step that gets thrown away.
 - Describe the step in the words a person would use. That line is shown while it happens, and it is how someone watching knows what you are doing.
 - Do the task and nothing else. An extra click to "tidy up" is a change nobody asked for.
+- Never give a step that is already listed under what has been done. Being listed there means it happened, whatever the screen looks like now — a search field still holding the word that was typed into it is the result of that step, not a reason to type it again. Give the step that follows it.
 
 Every answer is either a step or a stop. If done is false you must give a step; an answer with neither is not an answer, and it is thrown away.
 

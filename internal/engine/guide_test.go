@@ -134,6 +134,7 @@ func TestGuideStepsThroughMultipleControls(t *testing.T) {
 
 	step1Tree := editorTree()
 	step2Tree := editorTree()
+	step2Tree.Elements[0].Value = "hello"
 	// A pane that answered a click, not a single control ticking over: one
 	// appearance on its own is a clock or a refreshing list, and deliberately
 	// does not move the coach on.
@@ -208,7 +209,7 @@ func TestGuideToleratesTransientCaptureFailures(t *testing.T) {
 
 	initial := editorTree()
 	changed := editorTree()
-	changed.Elements[0].Value = "updated"
+	changed.Elements[0].Value = "hello"
 
 	screen := &failureScreen{
 		initial:    initial,

@@ -2355,3 +2355,35 @@ appearance.
 A finished run marks the last control with a tick and says "that is all of it"
 in the caption, then takes itself away after a moment. Stop and give-up still
 clear immediately, because there is nothing to celebrate.
+
+## D-093 — Typing is done when the text is there, not when the field twitches
+
+Coaching through System Settings asked for "type Wallpaper", the person typed,
+and the coach moved on after the first keystroke — then asked for "type paper"
+as a step of its own, because that was what was left.
+
+Half-typed text changes the window, and any change was enough. Typing is the one
+step whose completion is not a guess: the text is either in the window or it is
+not. `ActedOn` checks for it, the same way `Landed` does one tier down, and falls
+back to the window having moved on for everything else.
+
+## D-094 — A step listed as done is done
+
+The same run asked the person to press Enter, they pressed it, the Wallpaper
+section appeared underneath — and the next step was to press Enter.
+
+The step writer is shown what has been done, and was reading the screen
+afterwards as an invitation to do it again: a search field still holding the word
+typed into it looks exactly like a search field waiting to be typed into. It is
+now told plainly that being listed under what has been done means it happened,
+whatever the screen looks like now.
+
+## D-095 — A guide that pointed at nothing did not finish
+
+A run with no steps at all returned success, and the panel came back saying "that
+is all of it" having shown nobody anything. It happens for a real reason: the
+question was about System Settings and the window in front was something else, so
+the model correctly refused.
+
+Zero steps is now an error carrying the model's own sentence, which is the only
+account of why. The panel comes forward and says it, which is what it is for.

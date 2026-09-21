@@ -133,7 +133,7 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 
 			// The hand is theirs. Nothing is clicked here — the next step is only
 			// worked out once the window shows they have done this one.
-			err := e.waitForTheUserToAct(ctx, g.App, tree, step.Target, advance)
+			err := e.waitForTheUserToAct(ctx, g.App, tree, step, advance)
 			if !errors.Is(err, errStillWaiting) {
 				return err
 			}
@@ -143,8 +143,22 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 			e.logf("still on step %d: %s", number, describe)
 		}
 	}
-	steps, _, err := e.stepThroughTask(ctx, g.App, asTask(g.Task), MaxGuideSteps, point)
-	return steps, err
+	run, err := e.stepThroughTask(ctx, g.App, asTask(g.Task), MaxGuideSteps, point)
+	if err != nil {
+		return run.Steps, err
+	}
+
+	// Nothing was pointed at, and the panel would otherwise come back saying
+	// "that is all of it" having shown nobody anything. The model's own sentence
+	// is the only account of why — usually that the answer is in an application
+	// other than the one being looked at.
+	if run.Steps == 0 {
+		if why := strings.TrimSpace(run.Why); why != "" {
+			return 0, fmt.Errorf("engine: nothing in %s to point at — %s", g.App, why)
+		}
+		return 0, fmt.Errorf("engine: there was nothing in %s to point at", g.App)
+	}
+	return run.Steps, nil
 }
 
 // What the verb needs spelled out: the text to type, or the keys to hold down.
@@ -180,7 +194,7 @@ func asTask(question string) string {
 // enough that nobody is there.
 var errStillWaiting = errors.New("engine: the window has not changed yet")
 
-func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uiact.Tree, target uiact.Selector, advance <-chan struct{}) error {
+func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uiact.Tree, step uiact.Step, advance <-chan struct{}) error {
 	deadline := time.Now().Add(guideStepTimeout)
 	unreadable := false
 
@@ -218,7 +232,7 @@ func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uia
 		}
 		unreadable = false
 
-		if uiact.ActedOn(before, after, target) {
+		if uiact.ActedOn(before, after, step) {
 			return nil
 		}
 

@@ -138,8 +138,8 @@ func TestAWindowTickingOverIsNotSomebodyActing(t *testing.T) {
 	after := trayWindow()
 	after.Elements[1].Value = "50%"
 
-	target := Selector{Role: "AXTextField", Title: "Search"}
-	if ActedOn(before, after, target) {
+	step := Step{Do: "click", Target: Selector{Role: "AXTextField", Title: "Search"}}
+	if ActedOn(before, after, step) {
 		t.Error("a value changing elsewhere was read as the person acting")
 	}
 	if len(Changes(before, after)) == 0 {
@@ -148,11 +148,11 @@ func TestAWindowTickingOverIsNotSomebodyActing(t *testing.T) {
 }
 
 func TestUsingTheControlPointedAtIsSomebodyActing(t *testing.T) {
-	target := Selector{Role: "AXTextField", Title: "Search"}
+	step := Step{Do: "click", Target: Selector{Role: "AXTextField", Title: "Search"}}
 
 	focused := trayWindow()
 	focused.Elements[0].Focused = true
-	if !ActedOn(trayWindow(), focused, target) {
+	if !ActedOn(trayWindow(), focused, step) {
 		t.Error("the control being clicked into was not read as the person acting")
 	}
 
@@ -160,7 +160,31 @@ func TestUsingTheControlPointedAtIsSomebodyActing(t *testing.T) {
 	opened.Elements = append(opened.Elements,
 		Element{Role: "AXButton", Title: "Reply", Path: []int{3}},
 		Element{Role: "AXButton", Title: "Forward", Path: []int{4}})
-	if !ActedOn(trayWindow(), opened, target) {
+	if !ActedOn(trayWindow(), opened, step) {
 		t.Error("a pane that filled with new controls was not read as the person acting")
+	}
+}
+
+// Half-typed text changes the window on the first keystroke, and the coach used
+// to move on from "type Wallpaper" the moment the W appeared, then ask for the
+// rest as a step of its own.
+func TestTypingIsNotDoneUntilTheWholeThingIsThere(t *testing.T) {
+	before := trayWindow()
+	step := Step{
+		Do:     "type",
+		Target: Selector{Role: "AXTextField", Title: "Search"},
+		Text:   "Wallpaper",
+	}
+
+	partial := trayWindow()
+	partial.Elements[0].Value = "Wall"
+	if ActedOn(before, partial, step) {
+		t.Error("half of the text was read as the step being done")
+	}
+
+	whole := trayWindow()
+	whole.Elements[0].Value = "Wallpaper"
+	if !ActedOn(before, whole, step) {
+		t.Error("the text was there and the step was not read as done")
 	}
 }

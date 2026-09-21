@@ -201,6 +201,7 @@ as the fallback.
 | #72 | Let the coach window use the event system, and give it something to draw |
 | #73 | Draw the first step where it actually is, and refuse a step usefully |
 | #74 | Draw what to do, not only where |
+| #75 | Finish a step when it is finished, and say when nothing was pointed at |
 
 
 
@@ -558,6 +559,21 @@ caption; and the caption itself with the step number, the instruction, and the
 text to type or the keys to hold spelled out. A finished run marks the last
 control with a tick and says so before taking itself away, so finishing does not
 look like being stopped.
+
+**Coached live through a real task on 2026-09-21.** "How do I change the
+wallpaper" ran six steps in System Settings — click the search field, type
+Wallpaper, press Enter, click the wallpaper — with the overlay drawing each one.
+Three things that run showed, all fixed in #75:
+
+- The coach moved on from "type Wallpaper" after the first keystroke, then asked
+  for "type paper" as a step of its own. Typing is done when the text is in the
+  window, not when the field first changes (D-093).
+- It asked for Enter, the person pressed it, the Wallpaper section appeared, and
+  the next step was to press Enter. A step listed under what has been done is
+  done, whatever the screen looks like afterwards (D-094).
+- A run in front of the wrong application returned success with no steps, and the
+  panel came back saying "that is all of it" having shown nothing. Zero steps now
+  carries the model's own account of why, and the panel says it (D-095).
 
 **Deferred, on purpose:**
 

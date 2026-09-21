@@ -91,7 +91,18 @@ const minimumUpheaval = 2
 // happened, for the step writer to read; this decides whether to move on, and a
 // battery percentage or a refreshing list must not be enough to do that — the
 // coach would skip a step nobody had done.
-func ActedOn(before, after Tree, target Selector) bool {
+func ActedOn(before, after Tree, step Step) bool {
+	// Typing is the one step whose completion is not a guess. Half-typed text
+	// changes the window on the first keystroke, and the coach moved on from
+	// "type Wallpaper" the moment the W appeared — then asked for the rest as a
+	// step of its own.
+	if verb(step.Do) == "type" && strings.TrimSpace(step.Text) != "" {
+		return holds(after, step.Text)
+	}
+	return windowMovedOn(before, after, step.Target)
+}
+
+func windowMovedOn(before, after Tree, target Selector) bool {
 	if before.Window != "" && after.Window != "" && before.Window != after.Window {
 		return true
 	}

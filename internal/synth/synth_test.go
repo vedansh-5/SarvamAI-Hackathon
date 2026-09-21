@@ -144,3 +144,13 @@ func TestAnthropicRejectsEmptyCandidates(t *testing.T) {
 		t.Error("want an error before any API call when there are no candidates")
 	}
 }
+
+// Coaching through System Settings asked the person to press Enter, they pressed
+// it, and the next step was to press Enter. The list of what has been done is the
+// record of what happened; the screen afterwards is not an invitation to do it
+// again.
+func TestTheStepWriterIsToldNotToRepeatItself(t *testing.T) {
+	if !strings.Contains(driveSystemPrompt, "already listed under what has been done") {
+		t.Error("nothing tells the step writer that a done step is done")
+	}
+}
