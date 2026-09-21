@@ -198,6 +198,7 @@ as the fallback.
 | #69 | Point at the app, not from a window over it |
 | #70 | Keep the lines the window shows, where they can be read after a run |
 | #71 | Draw the first step, and stay up until there is one |
+| #72 | Let the coach window use the event system, and give it something to draw |
 
 
 
@@ -341,6 +342,25 @@ for at least an hour.
   disk, so several rounds of testing ran against code that did not contain the
   change being tested. It builds the runtime first now. A rule in a document
   asking someone to remember this is not the same as the command doing it.
+
+### Tauri
+
+- **A window in no capability is refused the event system.** Capabilities are
+  granted per window label, and `capabilities/default.json` listed only `main`.
+  The coach window was in none, so `listen` in its page was denied and no event
+  ever arrived — which is why the ring never appeared, through every round of
+  work on levels, ordering, activation and timing. A window permitted nothing
+  and a window drawing nothing look identical from outside (D-086). A new window
+  needs a capability before it needs anything else.
+- **A page built on demand cannot be sent anything until it says it is
+  listening.** The window is created the moment there is something to point at,
+  and `emit_to` immediately after reaches no listener — the event is dropped, not
+  queued. The coach page emits `coach://ready` and the last pointer is drawn
+  again (D-084).
+- **A webview that cannot speak has invisible failures.** Both pages write into
+  the shell's log through `note`, and the draw path reports the display it
+  covered and the rectangle it drew. Everything above was diagnosed from that log
+  rather than guessed at.
 
 ### AppKit
 
@@ -513,12 +533,31 @@ what happens whenever someone glances at another application — ended the run
 application not being in front, re-point the same step after the quiet spell,
 stop cleanly on Stop.
 
-The drawing was then tested by hand and did not appear, which turned out not to
-be about levels or ordering at all: the coach window is built on demand and its
-page takes a moment to load, so the event carrying the first step of every run
-was emitted before anything was listening and dropped (D-084). The page now says
-when it is listening. The panel also waits for that first step before leaving the
-screen, since an empty screen reads as the app closing (D-085). The run
+The drawing was then tested by hand and did not appear. Two causes, neither of
+them about levels or ordering. The coach window is built on demand and its page
+takes a moment to load, so the event carrying the first step was emitted before
+anything was listening and dropped (D-084) — the page now says when it is
+listening. And, underneath that, the coach window was in no capability at all, so
+Tauri refused it the event system outright (D-086). The panel also waits for the
+first step before leaving the screen, since an empty screen reads as the app
+closing (D-085).
+
+What the overlay draws is in D-087: the screen dimmed except for the control,
+corner brackets on its edges, a pointer cursor resting on it with a click ripple,
+an arrow curving from the caption, and the caption with the step number and the
+instruction.
+
+**Next, and not started.** The shape Clicky has and VANS does not:
+
+1. **A resting place on screen.** Clicky sits as a small pill at the top edge and
+   expands when the pointer goes near it. VANS is summoned by a hotkey and has no
+   resting state at all, so there is nothing to hover. This is the next piece of
+   work: a small always-present pill, expanding on hover, collapsing when done.
+2. **Speech.** Clicky reads each step aloud. Deliberately deferred — writing the
+   instruction is enough for now.
+3. **The drawing itself has still never been seen working.** Every fix to it so
+   far has been reasoned from logs. The first run that actually shows a cursor
+   and an arrow on another application is the one that proves this whole tier. The run
 to make, on System Settings:
 
 1. Ask something with more than one step — "how do I turn on Dark Mode".
