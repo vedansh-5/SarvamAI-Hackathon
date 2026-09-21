@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "coach",
+  "description": "The on-screen coach. A capability is per window, and a window that is in none of them is refused the event system entirely — which is silent from the outside and is why nothing was ever drawn. It listens for what to point at and says when it is listening. It needs nothing else.",
+  "windows": ["coach"],
+  "permissions": ["core:event:default"]
+}

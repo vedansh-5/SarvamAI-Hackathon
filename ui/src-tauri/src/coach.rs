@@ -159,6 +159,10 @@ fn float_above(_win: &WebviewWindow) {}
 /// cover sizes the coach to the display the target is on.
 fn cover(win: &WebviewWindow, at: (f64, f64)) {
     let monitors = win.available_monitors().unwrap_or_default();
+    if monitors.is_empty() {
+        eprintln!("[vans] coach: no monitors reported; the overlay has no size to take");
+        return;
+    }
     let chosen = monitors
         .iter()
         .find(|m| {
@@ -181,6 +185,14 @@ fn cover(win: &WebviewWindow, at: (f64, f64)) {
         s.width as f64 / scale,
         s.height as f64 / scale,
     ));
+    eprintln!(
+        "[vans] coach: covering display at ({}, {}) {}x{} scale {}",
+        p.x as f64 / scale,
+        p.y as f64 / scale,
+        s.width as f64 / scale,
+        s.height as f64 / scale,
+        scale
+    );
 }
 
 /// point_at shows the coach over rect, with label beside it.
@@ -214,6 +226,14 @@ fn draw(app: &AppHandle, mut p: Pointer) {
     }
 
     show_without_taking_the_keyboard(&win);
+    eprintln!(
+        "[vans] coach: drawing {}x{} at ({}, {}) in window coordinates, visible = {:?}",
+        p.w,
+        p.h,
+        p.x,
+        p.y,
+        win.is_visible()
+    );
     if let Err(e) = win.emit_to(LABEL, "coach:point", p) {
         eprintln!("[vans] could not draw the tip: {e}");
     }

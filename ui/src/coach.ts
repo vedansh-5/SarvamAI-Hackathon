@@ -1,4 +1,12 @@
 import { emit, listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
+
+/// Says what the overlay is doing, into the shell's log rather than a console
+/// nobody is reading. A page that never loaded and an event that reached no
+/// listener look the same from outside: nothing happens, quietly.
+function note(what: string) {
+  invoke("note", { from: "coach", what }).catch(() => {});
+}
 
 interface Pointer {
   x: number;
@@ -53,11 +61,28 @@ function cornerBrackets(b: Bounds): string {
   ].join(" ");
 }
 
+/// The pointer and the ripple that mark where the click goes.
+///
+/// A ring says which control; a cursor sitting on it says what to do with it,
+/// which is the difference between a highlight and an instruction. It is placed
+/// just inside the control rather than at its centre, so it does not cover the
+/// label someone is trying to read.
+function placeTheCursor(b: Bounds) {
+  const x = b.x + Math.min(b.w * 0.5, 40);
+  const y = b.y + b.h / 2;
+
+  elementById<SVGCircleElement>("ripple").setAttribute("cx", `${x}`);
+  elementById<SVGCircleElement>("ripple").setAttribute("cy", `${y}`);
+  elementById<SVGGElement>("cursor").setAttribute("transform", `translate(${x - 1} ${y - 2})`);
+  elementById<SVGGElement>("tap").setAttribute("opacity", "1");
+}
+
 function applySpotlightBounds(bounds: Bounds) {
   const hole = elementById<SVGRectElement>("spotlight-hole");
   const inner = elementById<SVGRectElement>("spotlight-inner");
   const glow = elementById<SVGRectElement>("spotlight-glow");
   elementById<SVGPathElement>("corners").setAttribute("d", cornerBrackets(bounds));
+  placeTheCursor(bounds);
 
   hole.setAttribute("x", `${bounds.x}`);
   hole.setAttribute("y", `${bounds.y}`);
@@ -169,6 +194,10 @@ function drawArrow(tip: DOMRect, target: Bounds) {
 
 function renderCoachStep(pointer: Pointer) {
   const targetBounds = calculateTargetBounds(pointer);
+  note(
+    `point ${pointer.w}x${pointer.h} at (${pointer.x}, ${pointer.y})` +
+      ` in a page of ${window.innerWidth}x${window.innerHeight}`,
+  );
   const tip = elementById<HTMLElement>("tip");
   const step = elementById<HTMLElement>("step");
   const text = elementById<HTMLElement>("text");
@@ -211,6 +240,7 @@ function dismissCoach() {
   elementById<HTMLElement>("stage").classList.remove("on");
   elementById<HTMLElement>("tip").classList.remove("on");
   elementById<SVGPathElement>("arrow").setAttribute("opacity", "0");
+  elementById<SVGGElement>("tap").setAttribute("opacity", "0");
   currentBounds = null;
 }
 
@@ -221,4 +251,7 @@ function dismissCoach() {
 void Promise.all([
   listen<Pointer>("coach:point", (event) => renderCoachStep(event.payload)),
   listen("coach:clear", () => dismissCoach()),
-]).then(() => emit("coach://ready"));
+]).then(() => {
+  note("listening");
+  return emit("coach://ready");
+});

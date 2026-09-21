@@ -125,6 +125,16 @@ async fn commit(engine: State<'_, Engine>, plan_id: String) -> Result<Value, Rpc
 
 /// Dismisses the panel. Escape and Cancel both route here rather than closing
 /// the window, which would destroy state the user may come back to.
+/// Lets a window report what it is doing into the same log as the shell.
+///
+/// A webview's console is somewhere nobody is looking, and the two failures that
+/// cost the most here — a page that never loaded and an event that reached no
+/// listener — both look identical from outside: nothing happens, quietly.
+#[tauri::command]
+fn note(from: String, what: String) {
+    eprintln!("[vans] {from}: {what}");
+}
+
 /// Brings the panel back, for when the runtime has something to tell the person.
 ///
 /// The coach puts it away while it is pointing — the steps belong on the
@@ -281,6 +291,7 @@ pub fn run() {
             clear_pointer,
             dismiss,
             summon,
+            note,
             set_pinned,
             begin_drag,
             drag_by,

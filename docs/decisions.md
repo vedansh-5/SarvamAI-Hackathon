@@ -2263,3 +2263,35 @@ left an empty screen and read as VANS having closed.
 
 It leaves when the first step is actually on screen, which is also the honest
 rule: the panel is the only thing saying anything until the coach is drawing.
+
+## D-086 — A window in no capability is refused the event system
+
+The ring never appeared, across rounds of work on window levels, collection
+behaviours, ordering, activation and event timing. None of it was the cause.
+
+Capabilities in Tauri v2 are granted per window, by label, and `capabilities/`
+held one file listing `"windows": ["main"]`. The coach window was in none of
+them, so it was refused the core event plugin outright: `listen` in the overlay
+page was denied, no `coach:point` ever arrived, and the page sat there with its
+dimming layer at zero opacity. From outside, a window that is permitted nothing
+and a window that is drawing nothing look exactly alike.
+
+`capabilities/coach.json` gives the coach window `core:event:default` and nothing
+else. It listens for what to point at and says when it is listening; it has no
+reason to reach anything further.
+
+Two habits come out of this. A new window needs a capability before it needs
+anything else. And a webview that cannot say what it is doing is a webview whose
+failures are invisible — which is why `note` exists, putting both pages' lines
+in the same log as the shell's.
+
+## D-087 — What the coach draws
+
+A ring says which control. It does not say what to do with it, and "highlight the
+search field" and "click the search field" are different instructions.
+
+The overlay draws, over whatever application is in front: the screen dimmed
+except for the control, corner brackets on its edges, a pointer cursor resting
+on it with a slow nudge, a click ripple under the cursor, an arrow curving from
+the caption to the control, and the caption itself carrying the step number and
+the instruction. Speech is deliberately not here yet.

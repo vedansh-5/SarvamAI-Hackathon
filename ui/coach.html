@@ -80,6 +80,21 @@
               stroke-width="3" stroke-linecap="round" />
         <path id="arrow" d="" fill="none" stroke="rgba(10,132,255,0.9)" stroke-width="2.5"
               stroke-linecap="round" marker-end="url(#arrowhead)" opacity="0" />
+
+        <g id="tap" opacity="0">
+          <circle id="ripple" cx="0" cy="0" r="14" fill="none"
+                  stroke="rgba(10,132,255,0.75)" stroke-width="2">
+            <animate attributeName="r" values="10;26;10" dur="1.6s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.9;0;0.9" dur="1.6s" repeatCount="indefinite" />
+          </circle>
+          <g id="cursor">
+            <path d="M 0 0 L 0 18 L 4.6 13.6 L 7.4 19.6 L 10.6 18 L 7.9 12.2 L 14 12 Z"
+                  fill="#ffffff" stroke="rgba(0,0,0,0.55)" stroke-width="1.2"
+                  stroke-linejoin="round" />
+            <animateTransform attributeName="transform" type="translate"
+                              values="0 0; 0 -4; 0 0" dur="1.6s" repeatCount="indefinite" />
+          </g>
+        </g>
       </svg>
       <div id="tip"><span id="step"></span><span id="text"></span><span id="hint">⌥Space for Next or Stop</span></div>
     </div>
