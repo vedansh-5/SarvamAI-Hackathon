@@ -2238,3 +2238,28 @@ Reads that come back empty now mean the same as reads that come back unchanged:
 nothing has happened yet. The run ends on the same patience as any quiet step,
 so stepping away and coming back keeps the sequence, and a window that is really
 gone still stops it.
+
+## D-084 — The first event to a window nobody is listening in is lost
+
+The ring never appeared, through several rounds of looking at levels, collection
+behaviours and ordering — none of which was the problem. The coach window is
+built the moment there is something to point at, and its page takes a moment to
+load. `emit_to` immediately after that reaches no listener, and the event is
+dropped rather than queued. The event carrying the first step of every run was
+the one being lost, so what anyone ever saw was nothing.
+
+The page emits `coach://ready` once its listeners are attached, and the last
+pointer is drawn again. It costs one redraw on the first step of a session and
+nothing after that.
+
+The general form is worth remembering: a window built on demand cannot be sent
+anything until it says it is listening.
+
+## D-085 — Nothing leaves the screen until something replaces it
+
+The panel hid the instant coaching started, on the reasoning that the steps
+belong on the application (D-081). With the first step being lost (D-084) that
+left an empty screen and read as VANS having closed.
+
+It leaves when the first step is actually on screen, which is also the honest
+rule: the panel is the only thing saying anything until the coach is drawing.

@@ -196,6 +196,8 @@ as the fallback.
 | #67 | Coach a step at a time without taking the screen over |
 | #68 | Keep reading the window passive; recovery belongs to the step that needs one |
 | #69 | Point at the app, not from a window over it |
+| #70 | Keep the lines the window shows, where they can be read after a run |
+| #71 | Draw the first step, and stay up until there is one |
 
 
 
@@ -511,7 +513,12 @@ what happens whenever someone glances at another application — ended the run
 application not being in front, re-point the same step after the quiet spell,
 stop cleanly on Stop.
 
-What that run cannot show is the drawing, which needs eyes on a screen. The run
+The drawing was then tested by hand and did not appear, which turned out not to
+be about levels or ordering at all: the coach window is built on demand and its
+page takes a moment to load, so the event carrying the first step of every run
+was emitted before anything was listening and dropped (D-084). The page now says
+when it is listening. The panel also waits for that first step before leaving the
+screen, since an empty screen reads as the app closing (D-085). The run
 to make, on System Settings:
 
 1. Ask something with more than one step — "how do I turn on Dark Mode".
