@@ -1,4 +1,4 @@
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 
 interface Pointer {
   x: number;
@@ -214,5 +214,11 @@ function dismissCoach() {
   currentBounds = null;
 }
 
-listen<Pointer>("coach:point", (event) => renderCoachStep(event.payload));
-listen("coach:clear", () => dismissCoach());
+// The window is built the moment there is something to point at, and its first
+// event is emitted before this file has finished running. Saying when the
+// listeners are attached is what gets that event sent again — otherwise the
+// first step of every run is drawn to nobody.
+void Promise.all([
+  listen<Pointer>("coach:point", (event) => renderCoachStep(event.payload)),
+  listen("coach:clear", () => dismissCoach()),
+]).then(() => emit("coach://ready"));

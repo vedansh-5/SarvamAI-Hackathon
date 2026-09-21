@@ -8,7 +8,7 @@ use std::sync::Mutex;
 
 use serde::Serialize;
 use tauri::{
-    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, WebviewUrl, WebviewWindow,
+    AppHandle, Emitter, Listener, LogicalPosition, LogicalSize, Manager, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder,
 };
 
@@ -23,6 +23,27 @@ static POINTED_AT: Mutex<Option<(f64, f64, f64, f64)>> = Mutex::new(None);
 
 /// Emitted to the panel when the person clicks what the coach pointed at.
 pub const ACTED: &str = "coach://acted";
+
+/// Sent by the coach page once its listeners are attached.
+const READY: &str = "coach://ready";
+
+/// The last thing the coach was asked to point at, in screen points.
+///
+/// The window is built the first time it is needed and its page takes a moment
+/// to load. An event emitted into that gap reaches nobody — which is exactly the
+/// first step of every run, so the first thing anyone was ever shown was
+/// nothing. The page says when it is listening, and the pointer is drawn again.
+static LAST: Mutex<Option<Pointer>> = Mutex::new(None);
+
+fn redraw_when_the_page_is_listening(app: &AppHandle) {
+    let handle = app.clone();
+    app.listen_any(READY, move |_| {
+        let last = LAST.lock().unwrap().clone();
+        let Some(p) = last else { return };
+        let inner = handle.clone();
+        let _ = handle.run_on_main_thread(move || draw(&inner, p));
+    });
+}
 
 fn watch_for_the_click(app: &AppHandle) {
     #[cfg(target_os = "macos")]
@@ -102,6 +123,7 @@ fn build(app: &AppHandle) -> Option<WebviewWindow> {
     let _ = win.set_ignore_cursor_events(true);
     float_above(&win);
     watch_for_the_click(app);
+    redraw_when_the_page_is_listening(app);
     Some(win)
 }
 
@@ -175,6 +197,8 @@ pub fn point_at(app: &AppHandle, p: Pointer) {
 }
 
 fn draw(app: &AppHandle, mut p: Pointer) {
+    *LAST.lock().unwrap() = Some(p.clone());
+
     let Some(win) = build(app) else { return };
 
     *POINTED_AT.lock().unwrap() = Some((p.x, p.y, p.w, p.h));
@@ -225,6 +249,7 @@ fn show_without_taking_the_keyboard(win: &WebviewWindow) {
 /// clear takes the coach off the screen.
 pub fn clear(app: &AppHandle) {
     *POINTED_AT.lock().unwrap() = None;
+    *LAST.lock().unwrap() = None;
 
     let handle = app.clone();
     let _ = app.run_on_main_thread(move || {

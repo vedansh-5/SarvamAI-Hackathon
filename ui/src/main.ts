@@ -375,12 +375,11 @@ async function showTheWay(plan: Plan) {
   $("guiding-step").textContent = "Looking at the window…";
   show("guiding");
 
-  // Out of the way while it points. The steps belong on the application the
-  // person is working in, not in a window sitting over the thing being pointed
-  // at — and the panel is one hotkey away the whole time, still on this screen,
-  // if they want Next or Stop.
+  // Narrow now, out of the way once there is something to see. The steps belong
+  // on the application the person is working in, not in a window over the thing
+  // being pointed at — but leaving before the first step is drawn just looks
+  // like VANS closed, which is what it looked like.
   invoke("compact_panel", { compact: true }).catch(console.error);
-  invoke("dismiss").catch(console.error);
 
   try {
     const res = await invoke<GuideResult>("guide", { planId: plan.plan_id });
@@ -415,6 +414,11 @@ listen<{ params: { number: number; label: string; x: number; y: number; w: numbe
   (event) => {
     const s = event.payload.params;
     $("guiding-step").textContent = `${s.number}. ${s.label}`;
+
+    // The step is on the screen now, so the panel can leave. Every step after
+    // the first finds it already gone.
+    invoke("dismiss").catch(console.error);
+
     invoke("point_at", {
       x: s.x,
       y: s.y,
