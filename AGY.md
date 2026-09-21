@@ -200,6 +200,7 @@ as the fallback.
 | #71 | Draw the first step, and stay up until there is one |
 | #72 | Let the coach window use the event system, and give it something to draw |
 | #73 | Draw the first step where it actually is, and refuse a step usefully |
+| #74 | Draw what to do, not only where |
 
 
 
@@ -548,14 +549,22 @@ corner brackets on its edges, a pointer cursor resting on it with a click ripple
 an arrow curving from the caption, and the caption with the step number and the
 instruction.
 
-**Next, and not started.** The shape Clicky has and VANS does not:
+**What the overlay draws now** (D-087, D-090, D-091, D-092): the screen dimmed to
+34% with the hole fading out around the control rather than cut square; corner
+brackets on its edges; the verb the step asked for — a pointer cursor and ripple
+for a click, a caret where the text will go for typing, neither for a key
+combination since there is nothing on screen to press; an arrow curving from the
+caption; and the caption itself with the step number, the instruction, and the
+text to type or the keys to hold spelled out. A finished run marks the last
+control with a tick and says so before taking itself away, so finishing does not
+look like being stopped.
 
-1. **A resting place on screen.** Clicky sits as a small pill at the top edge and
-   expands when the pointer goes near it. VANS is summoned by a hotkey and has no
-   resting state at all, so there is nothing to hover. This is the next piece of
-   work: a small always-present pill, expanding on hover, collapsing when done.
-2. **Speech.** Clicky reads each step aloud. Deliberately deferred — writing the
-   instruction is enough for now.
+**Deferred, on purpose:**
+
+1. **A resting place on screen.** Clicky sits as a pill at the top edge and
+   expands on hover. Parked: Clicky is staying installed as a reference, and VANS
+   stays hotkey-summoned for now.
+2. **Speech.** Clicky reads each step aloud. Writing the instruction is enough.
 **It drew, on 2026-09-21.** The first run in which anything reached the screen:
 step 1 pointed at the Search field at (459, 100), the person clicked it, step 2
 pointed at Desktop & Dock at (464, 246) — with the dimming, the ring, the corner
