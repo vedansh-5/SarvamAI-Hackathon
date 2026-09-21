@@ -156,12 +156,18 @@ fn float_above(win: &WebviewWindow) {
 #[cfg(not(target_os = "macos"))]
 fn float_above(_win: &WebviewWindow) {}
 
-/// cover sizes the coach to the display the target is on.
-fn cover(win: &WebviewWindow, at: (f64, f64)) {
+/// cover sizes the coach to the display the target is on, and says where that
+/// display starts.
+///
+/// The origin is returned rather than read back off the window afterwards.
+/// `outer_position` right after `set_position` still reports where the window
+/// used to be, and the first step of a session was drawn at (-196, -133) —
+/// off the screen — because it was translated by a stale origin.
+fn cover(win: &WebviewWindow, at: (f64, f64)) -> Option<(f64, f64)> {
     let monitors = win.available_monitors().unwrap_or_default();
     if monitors.is_empty() {
         eprintln!("[vans] coach: no monitors reported; the overlay has no size to take");
-        return;
+        return None;
     }
     let chosen = monitors
         .iter()
@@ -175,24 +181,26 @@ fn cover(win: &WebviewWindow, at: (f64, f64)) {
         })
         .or_else(|| monitors.first());
 
-    let Some(m) = chosen else { return };
+    let m = chosen?;
 
     let scale = m.scale_factor();
     let p = m.position();
     let s = m.size();
-    let _ = win.set_position(LogicalPosition::new(p.x as f64 / scale, p.y as f64 / scale));
+    let origin = (p.x as f64 / scale, p.y as f64 / scale);
+    let _ = win.set_position(LogicalPosition::new(origin.0, origin.1));
     let _ = win.set_size(LogicalSize::new(
         s.width as f64 / scale,
         s.height as f64 / scale,
     ));
     eprintln!(
         "[vans] coach: covering display at ({}, {}) {}x{} scale {}",
-        p.x as f64 / scale,
-        p.y as f64 / scale,
+        origin.0,
+        origin.1,
         s.width as f64 / scale,
         s.height as f64 / scale,
         scale
     );
+    Some(origin)
 }
 
 /// point_at shows the coach over rect, with label beside it.
@@ -215,14 +223,11 @@ fn draw(app: &AppHandle, mut p: Pointer) {
 
     *POINTED_AT.lock().unwrap() = Some((p.x, p.y, p.w, p.h));
 
-    cover(&win, (p.x, p.y));
-
-    // The page draws in window coordinates, so the rectangle is moved from
-    // screen space into the window that is about to cover that screen.
-    if let Ok(origin) = win.outer_position() {
-        let scale = win.scale_factor().unwrap_or(1.0);
-        p.x -= origin.x as f64 / scale;
-        p.y -= origin.y as f64 / scale;
+    // The page draws in window coordinates, so the rectangle is moved from screen
+    // space into the window that is about to cover that screen.
+    if let Some(origin) = cover(&win, (p.x, p.y)) {
+        p.x -= origin.0;
+        p.y -= origin.1;
     }
 
     show_without_taking_the_keyboard(&win);

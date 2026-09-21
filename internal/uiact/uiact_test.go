@@ -583,3 +583,23 @@ func TestCaptureSaysAnApplicationIsNotRunning(t *testing.T) {
 		t.Fatalf("err = %v, want it to say the application is not running", err)
 	}
 }
+
+// A rejected step is re-asked with the reason in hand, so the reason has to be
+// something the model can act on. The control was there; only the kind was wrong.
+func TestARefusedStepSaysWhatWasThereUnderThatName(t *testing.T) {
+	tree := Tree{App: "System Settings", Elements: []Element{
+		{Role: "AXRow", Title: "Wallpaper", Enabled: true, Path: []int{0}},
+	}}
+	p := Program{App: "System Settings", Steps: []Step{
+		{Do: "click", Target: Selector{Role: "AXButton", Title: "Wallpaper"}},
+	}}
+
+	err := Validate(p, tree)
+	if err == nil {
+		t.Fatal("a control of the wrong kind was accepted")
+	}
+	got := strings.Join(reasons(t, err), "; ")
+	if !strings.Contains(got, "AXRow") {
+		t.Errorf("reasons = %q, want the kind that is actually on screen", got)
+	}
+}

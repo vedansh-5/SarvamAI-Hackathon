@@ -2295,3 +2295,29 @@ except for the control, corner brackets on its edges, a pointer cursor resting
 on it with a slow nudge, a click ripple under the cursor, an arrow curving from
 the caption to the control, and the caption itself carrying the step number and
 the instruction. Speech is deliberately not here yet.
+
+## D-088 — The window has not moved yet when you ask where it is
+
+The first step of a session was drawn at (-196, -133), off the screen entirely.
+
+`draw` sized the overlay to the display, then read `outer_position` back to
+translate the target rectangle from screen space into window space. Right after
+`set_position`, that read still reports where the window used to be — the default
+place a new window is put — so the rectangle was shifted by an origin that was no
+longer true. Every step after the first was correct, because by then the window
+really was where it had been put.
+
+`cover` returns the origin it used, and the translation uses that. Nothing is
+read back.
+
+## D-089 — A refusal has to be something the model can act on
+
+Coaching through System Settings reached "click Wallpaper" and stopped: the step
+was refused twice with `nothing on screen is a AXButton named "Wallpaper"`, and
+the second attempt, given that sentence, guessed a different wrong kind.
+
+The row was on screen the whole time, as an `AXRow`. A refused step is re-asked
+with the reason in hand, so the reason is a prompt — and one that says only what
+is absent wastes the turn it buys. It now names what is there under that name:
+"that name is on screen as AXRow". Sidebar items are the common case; the same
+word is a button, a row or a static text depending on the application.
