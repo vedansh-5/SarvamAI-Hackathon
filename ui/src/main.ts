@@ -374,7 +374,13 @@ async function showTheWay(plan: Plan) {
   $("guiding-where").textContent = plan.app ? `Showing you — ${plan.app}` : "Showing you";
   $("guiding-step").textContent = "Looking at the window…";
   show("guiding");
+
+  // Out of the way while it points. The steps belong on the application the
+  // person is working in, not in a window sitting over the thing being pointed
+  // at — and the panel is one hotkey away the whole time, still on this screen,
+  // if they want Next or Stop.
   invoke("compact_panel", { compact: true }).catch(console.error);
+  invoke("dismiss").catch(console.error);
 
   try {
     const res = await invoke<GuideResult>("guide", { planId: plan.plan_id });
@@ -390,9 +396,19 @@ async function showTheWay(plan: Plan) {
   } finally {
     invoke("compact_panel", { compact: false }).catch(console.error);
     invoke("clear_pointer").catch(console.error);
+    // Back only now, with something to say.
+    invoke("summon").catch(console.error);
   }
 }
 
+
+// The shell saw the person click what the coach pointed at. That is the step
+// done, told to the runtime immediately rather than inferred from the window a
+// poll later.
+listen("coach://acted", () => {
+  if ($("guiding").hidden) return;
+  invoke("advance_guide").catch(console.error);
+});
 
 listen<{ params: { number: number; label: string; x: number; y: number; w: number; h: number } }>(
   "engine://guide",

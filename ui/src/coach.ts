@@ -39,10 +39,25 @@ function calculateTargetBounds(pointer: Pointer): Bounds {
   return { x, y, w, h, r };
 }
 
+/// Four L-shaped brackets, one per corner, so the edges of the control are
+/// marked as well as ringed. The arm is a quarter of the shorter side, capped,
+/// so a small control gets small brackets rather than a box drawn twice.
+function cornerBrackets(b: Bounds): string {
+  const arm = Math.max(8, Math.min(22, Math.min(b.w, b.h) / 4));
+  const { x, y, w, h } = b;
+  return [
+    `M ${x} ${y + arm} L ${x} ${y} L ${x + arm} ${y}`,
+    `M ${x + w - arm} ${y} L ${x + w} ${y} L ${x + w} ${y + arm}`,
+    `M ${x + w} ${y + h - arm} L ${x + w} ${y + h} L ${x + w - arm} ${y + h}`,
+    `M ${x + arm} ${y + h} L ${x} ${y + h} L ${x} ${y + h - arm}`,
+  ].join(" ");
+}
+
 function applySpotlightBounds(bounds: Bounds) {
   const hole = elementById<SVGRectElement>("spotlight-hole");
   const inner = elementById<SVGRectElement>("spotlight-inner");
   const glow = elementById<SVGRectElement>("spotlight-glow");
+  elementById<SVGPathElement>("corners").setAttribute("d", cornerBrackets(bounds));
 
   hole.setAttribute("x", `${bounds.x}`);
   hole.setAttribute("y", `${bounds.y}`);
@@ -120,6 +135,38 @@ function calculateTooltipPosition(target: Bounds, box: DOMRect): { top: number; 
   return { top, left };
 }
 
+/// A curved arrow from the caption to the edge of the control it describes.
+///
+/// It starts at the middle of whichever side of the card faces the target and
+/// ends just off the target's nearest edge, so the head sits beside the control
+/// rather than on top of the thing the person is meant to look at.
+function drawArrow(tip: DOMRect, target: Bounds) {
+  const arrow = elementById<SVGPathElement>("arrow");
+
+  const targetCentre = { x: target.x + target.w / 2, y: target.y + target.h / 2 };
+  const cardCentre = { x: tip.left + tip.width / 2, y: tip.top + tip.height / 2 };
+
+  const goingUp = targetCentre.y < cardCentre.y;
+  const from = { x: cardCentre.x, y: goingUp ? tip.top - 2 : tip.bottom + 2 };
+  const to = {
+    x: targetCentre.x,
+    y: goingUp ? target.y + target.h + 10 : target.y - 10,
+  };
+
+  // Too close to be worth an arrow: the card is already touching the control.
+  if (Math.abs(to.y - from.y) < 24) {
+    arrow.setAttribute("opacity", "0");
+    return;
+  }
+
+  const bend = (to.y - from.y) / 2;
+  arrow.setAttribute(
+    "d",
+    `M ${from.x} ${from.y} C ${from.x} ${from.y + bend}, ${to.x} ${to.y - bend}, ${to.x} ${to.y}`,
+  );
+  arrow.setAttribute("opacity", "1");
+}
+
 function renderCoachStep(pointer: Pointer) {
   const targetBounds = calculateTargetBounds(pointer);
   const tip = elementById<HTMLElement>("tip");
@@ -142,6 +189,7 @@ function renderCoachStep(pointer: Pointer) {
       tip.style.top = `${pos.top}px`;
       tip.style.left = `${pos.left}px`;
       tip.style.visibility = "visible";
+      drawArrow(new DOMRect(pos.left, pos.top, box.width, box.height), targetBounds);
       elementById<HTMLElement>("stage").classList.add("on");
     });
   } else {
@@ -149,6 +197,7 @@ function renderCoachStep(pointer: Pointer) {
     const pos = calculateTooltipPosition(targetBounds, box);
     tip.style.top = `${pos.top}px`;
     tip.style.left = `${pos.left}px`;
+    drawArrow(new DOMRect(pos.left, pos.top, box.width, box.height), targetBounds);
 
     animateSpotlightTransition(currentBounds, targetBounds);
   }
@@ -161,6 +210,7 @@ function dismissCoach() {
   }
   elementById<HTMLElement>("stage").classList.remove("on");
   elementById<HTMLElement>("tip").classList.remove("on");
+  elementById<SVGPathElement>("arrow").setAttribute("opacity", "0");
   currentBounds = null;
 }
 

@@ -122,3 +122,45 @@ func TestChangesReportsWindowTitleChange(t *testing.T) {
 		t.Errorf("changes = %v, want window title change", got)
 	}
 }
+
+func trayWindow() Tree {
+	return Tree{App: "Mail", Window: "Inbox", Elements: []Element{
+		{Role: "AXTextField", Title: "Search", Enabled: true, Path: []int{0}},
+		{Role: "AXStaticText", Title: "Battery", Value: "51%", Enabled: true, Path: []int{1}},
+		{Role: "AXButton", Title: "Send", Enabled: true, Path: []int{2}},
+	}}
+}
+
+// The coach used to move on because a battery percentage ticked over, skipping a
+// step nobody had done.
+func TestAWindowTickingOverIsNotSomebodyActing(t *testing.T) {
+	before := trayWindow()
+	after := trayWindow()
+	after.Elements[1].Value = "50%"
+
+	target := Selector{Role: "AXTextField", Title: "Search"}
+	if ActedOn(before, after, target) {
+		t.Error("a value changing elsewhere was read as the person acting")
+	}
+	if len(Changes(before, after)) == 0 {
+		t.Error("the change itself still has to be describable to the step writer")
+	}
+}
+
+func TestUsingTheControlPointedAtIsSomebodyActing(t *testing.T) {
+	target := Selector{Role: "AXTextField", Title: "Search"}
+
+	focused := trayWindow()
+	focused.Elements[0].Focused = true
+	if !ActedOn(trayWindow(), focused, target) {
+		t.Error("the control being clicked into was not read as the person acting")
+	}
+
+	opened := trayWindow()
+	opened.Elements = append(opened.Elements,
+		Element{Role: "AXButton", Title: "Reply", Path: []int{3}},
+		Element{Role: "AXButton", Title: "Forward", Path: []int{4}})
+	if !ActedOn(trayWindow(), opened, target) {
+		t.Error("a pane that filled with new controls was not read as the person acting")
+	}
+}

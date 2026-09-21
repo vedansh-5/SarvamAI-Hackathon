@@ -573,3 +573,13 @@ func TestFrontmostPrefersTheWindowList(t *testing.T) {
 		t.Errorf("got %q, want the window list's answer", got)
 	}
 }
+
+// "Can't get object." is what System Events says about an application that is
+// not there, and it is not something to show anybody.
+func TestCaptureSaysAnApplicationIsNotRunning(t *testing.T) {
+	_, err := Capture(context.Background(),
+		replyRunner(`{"ok":false,"error":"Can't get object."}`), notRunning)
+	if err == nil || !strings.Contains(err.Error(), "does not seem to be running") {
+		t.Fatalf("err = %v, want it to say the application is not running", err)
+	}
+}

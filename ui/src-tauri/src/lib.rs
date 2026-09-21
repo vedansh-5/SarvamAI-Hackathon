@@ -125,6 +125,16 @@ async fn commit(engine: State<'_, Engine>, plan_id: String) -> Result<Value, Rpc
 
 /// Dismisses the panel. Escape and Cancel both route here rather than closing
 /// the window, which would destroy state the user may come back to.
+/// Brings the panel back, for when the runtime has something to tell the person.
+///
+/// The coach puts it away while it is pointing — the steps belong on the
+/// application, not in a window over it — so this is how the end of a run, or a
+/// failure, gets said.
+#[tauri::command]
+fn summon(app: tauri::AppHandle) {
+    overlay::show(&app);
+}
+
 #[tauri::command]
 fn dismiss(app: tauri::AppHandle) {
     overlay::hide_because(&app, "the window asked to be dismissed");
@@ -270,6 +280,7 @@ pub fn run() {
             point_at,
             clear_pointer,
             dismiss,
+            summon,
             set_pinned,
             begin_drag,
             drag_by,

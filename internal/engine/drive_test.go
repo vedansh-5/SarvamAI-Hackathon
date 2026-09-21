@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -244,5 +245,39 @@ func TestDriveBringsBackAWindowThatStoppedPublishing(t *testing.T) {
 	}
 	if f.acts != 1 {
 		t.Errorf("ran %d step(s), want 1 once the window came back", f.acts)
+	}
+}
+
+type flakyThenGoodSteps struct {
+	calls int
+}
+
+func (f *flakyThenGoodSteps) WriteStep(context.Context, synth.StepRequest) (synth.StepAnswer, error) {
+	f.calls++
+	switch f.calls {
+	case 1:
+		return synth.StepAnswer{}, errors.New("synth: neither a step nor a reason to stop")
+	case 2:
+		return synth.StepAnswer{Step: typeIntoMessage()}, nil
+	default:
+		return synth.StepAnswer{Done: true, Why: "that is all"}, nil
+	}
+}
+
+// One answer with nothing in it used to end the run and show the person a
+// failure. It is worth one more ask.
+func TestDriveAsksAgainWhenTheModelAnswersWithNothing(t *testing.T) {
+	typed := editorTree()
+	typed.Elements[0].Value = "hello"
+
+	f := &fakeScreen{tree: editorTree(), afterwards: &typed}
+	writer := &flakyThenGoodSteps{}
+	e := &Engine{UIScreen: f, Steps: writer}
+
+	if _, err := e.runDrive(context.Background(), drivePlan()); err != nil {
+		t.Fatalf("runDrive: %v", err)
+	}
+	if f.acts != 1 {
+		t.Errorf("ran %d step(s), want 1 after the empty answer was asked past", f.acts)
 	}
 }

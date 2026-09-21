@@ -73,7 +73,17 @@ func pidFor(ctx context.Context, r Runner, app string) (int, error) {
 	if pid, ok := askTheWindowListForPid(app); ok {
 		return pid, nil
 	}
-	return pidViaEvents(ctx, r, app)
+
+	pid, err := pidViaEvents(ctx, r, app)
+	switch {
+	case err == nil, errors.Is(err, ErrNoAssistiveAccess), errors.Is(err, ErrNoWindow):
+		return pid, err
+	default:
+		// Three ways of finding it have come up empty, and what System Events
+		// says about that is "Can't get object.", which tells the person
+		// nothing. The likeliest reason by far is that it is not open.
+		return 0, fmt.Errorf("uiact: %s does not seem to be running", app)
+	}
 }
 
 func pidByProcessName(ctx context.Context, app string) (int, bool) {

@@ -134,9 +134,15 @@ func TestGuideStepsThroughMultipleControls(t *testing.T) {
 
 	step1Tree := editorTree()
 	step2Tree := editorTree()
+	// A pane that answered a click, not a single control ticking over: one
+	// appearance on its own is a clock or a refreshing list, and deliberately
+	// does not move the coach on.
 	step2Tree.Elements = append(step2Tree.Elements, uiact.Element{
 		Role: "AXButton", Title: "Send", Enabled: true,
 		Position: []int{200, 200}, Size: []int{60, 30}, Path: []int{0, 2},
+	}, uiact.Element{
+		Role: "AXStaticText", Title: "Draft saved", Enabled: true,
+		Position: []int{200, 240}, Size: []int{90, 16}, Path: []int{0, 3},
 	})
 
 	screen := &fakeScreen{tree: step1Tree, afterwards: &step2Tree, changesAfter: 1}
@@ -222,12 +228,16 @@ func TestGuideToleratesTransientCaptureFailures(t *testing.T) {
 	}
 }
 
-func TestGuideFailsAfterThreeConsecutiveCaptureFailures(t *testing.T) {
+// A window that stops publishing is usually the person stepping away to another
+// application, and coaching waits for them in the background. It runs out the
+// same patience as a window nobody touches, rather than ending the moment they
+// look somewhere else.
+func TestGuideWaitsOutAWindowThatStopsPublishing(t *testing.T) {
 	quickGuide(t)
 
 	screen := &failureScreen{
 		initial:  editorTree(),
-		maxFails: 10,
+		maxFails: 10000,
 	}
 	e := &Engine{
 		UIScreen: screen,
@@ -238,10 +248,10 @@ func TestGuideFailsAfterThreeConsecutiveCaptureFailures(t *testing.T) {
 
 	_, err := e.RunGuide(context.Background(), guidePlan(), func(GuideStep) {}, nil)
 	if err == nil {
-		t.Fatal("expected failure after consecutive capture errors")
+		t.Fatal("waited forever on a window that never came back")
 	}
-	if !strings.Contains(err.Error(), "is no longer open on screen") {
-		t.Errorf("unexpected error: %v", err)
+	if !strings.Contains(err.Error(), "nothing happened") {
+		t.Errorf("err = %v, want the same answer as a window nobody touched", err)
 	}
 }
 

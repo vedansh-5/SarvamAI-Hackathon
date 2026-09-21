@@ -29,6 +29,8 @@ Rules that decide whether your step is usable:
 - Describe the step in the words a person would use. That line is shown while it happens, and it is how someone watching knows what you are doing.
 - Do the task and nothing else. An extra click to "tidy up" is a change nobody asked for.
 
+Every answer is either a step or a stop. If done is false you must give a step; an answer with neither is not an answer, and it is thrown away.
+
 Set done when the task is finished, or when it cannot be carried on from what is on screen, and say why in one line. Stopping and saying why is a good answer. Clicking something plausible to appear productive is not.`
 
 func driveSchema() map[string]any {

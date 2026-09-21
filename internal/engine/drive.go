@@ -99,6 +99,14 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 				Failures: failures,
 			})
 			if err != nil {
+				// An answer with neither a step nor a reason is the model
+				// dropping the contract for one turn, and it used to end the
+				// whole run. It is worth exactly one more ask, which is what the
+				// attempt loop is already for.
+				if attempt < 2 {
+					e.logf("step %d: nothing usable came back, asking again", i)
+					continue
+				}
 				return len(done), landed, err
 			}
 

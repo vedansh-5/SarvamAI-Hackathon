@@ -70,7 +70,9 @@ func (e *Engine) planGuide(ctx context.Context, task string, lookingAt *screen.C
 		return nil, err
 	}
 
-	tree, err := e.UIScreen.Capture(ctx, app)
+	// Planning needs a window, so this is one of the two places allowed to go
+	// and get one (D-080a). Reading, everywhere else, stays passive.
+	tree, err := e.windowToWorkFrom(ctx, app)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +121,7 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 
 			// The hand is theirs. Nothing is clicked here — the next step is only
 			// worked out once the window shows they have done this one.
-			err := e.waitForTheUserToAct(ctx, g.App, tree, advance)
+			err := e.waitForTheUserToAct(ctx, g.App, tree, program.Steps[0].Target, advance)
 			if !errors.Is(err, errStillWaiting) {
 				return err
 			}
@@ -154,9 +156,9 @@ func asTask(question string) string {
 // enough that nobody is there.
 var errStillWaiting = errors.New("engine: the window has not changed yet")
 
-func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uiact.Tree, advance <-chan struct{}) error {
+func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uiact.Tree, target uiact.Selector, advance <-chan struct{}) error {
 	deadline := time.Now().Add(guideStepTimeout)
-	consecutiveFailures := 0
+	unreadable := false
 
 	if advance != nil {
 		select {
@@ -176,16 +178,23 @@ func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uia
 
 		after, err := e.UIScreen.Capture(ctx, app)
 		if err != nil || len(after.Elements) == 0 {
-			consecutiveFailures++
-			if consecutiveFailures >= 3 {
-				return fmt.Errorf("engine: %s is no longer open on screen", app)
+			// Not a reason to stop. A window that publishes nothing is usually
+			// the person having gone to another application for a moment, and
+			// coaching is meant to survive that — the coach waits in the
+			// background and picks up where it was. A window that is really
+			// gone runs out the same patience as one nobody touches.
+			if !unreadable {
+				e.logf("%s is not showing a window; still waiting", app)
+				unreadable = true
 			}
-			e.logf("waiting for %s to reappear...", app)
+			if time.Now().After(deadline) {
+				return errStillWaiting
+			}
 			continue
 		}
-		consecutiveFailures = 0
+		unreadable = false
 
-		if len(uiact.Changes(before, after)) > 0 {
+		if uiact.ActedOn(before, after, target) {
 			return nil
 		}
 

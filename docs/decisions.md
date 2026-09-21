@@ -2200,3 +2200,41 @@ by the same owner name, and asking it needs no permission VANS does not hold.
 The order is now: the process name, then the window list, then System Events.
 The whole coaching path — resolve, raise, capture, read back — no longer touches
 Apple Events at all.
+
+## D-081 — The panel leaves the screen while the coach points
+
+Coaching put a 380pt panel on top of the application it was pointing into, and
+brought it forward again for every step. The steps belong on the application:
+that is where the person is looking, and a window over the thing being pointed
+at is the opposite of pointing at it.
+
+The panel hides when coaching starts and comes back only when there is something
+to say — the run finished, or it failed. Next and Stop are one hotkey away the
+whole time, on the screen the panel is still showing, and the caption on the
+overlay says so.
+
+## D-082 — A click on the ring is the step being done
+
+Whether the person had acted was inferred from the window changing, which is both
+late and loose: System Settings ticked a value over eight seconds after a step
+was pointed at, and the coach moved on from a step nobody had touched.
+
+Two answers, in order of confidence. The shell watches for a mouse-down inside
+the rectangle the coach is pointing at and tells the runtime immediately — that
+is the step being done, with no inference at all. Polling remains as the fallback
+for steps that are not a click, and `ActedOn` is what it asks now: the control
+pointed at gained focus, changed, or went away; the window title changed; or
+enough controls came and went to mean a pane answered. A single value changing
+somewhere else is a clock, not a person.
+
+## D-083 — Losing the window is not losing the run
+
+Three failed reads in a row ended a guide with "no longer open on screen". In
+practice that fires when the person glances at another application, because the
+window stops publishing the moment it is not the active one (D-075) — so
+coaching ended every time someone looked away.
+
+Reads that come back empty now mean the same as reads that come back unchanged:
+nothing has happened yet. The run ends on the same patience as any quiet step,
+so stepping away and coming back keeps the sequence, and a window that is really
+gone still stops it.

@@ -78,3 +78,65 @@ func holds(t Tree, text string) bool {
 	}
 	return false
 }
+
+// How much has to have come or gone before a window counts as having moved on.
+// One control changing on its own is a clock ticking or a list refreshing itself;
+// a pane that answered a click replaces most of what was in it.
+const minimumUpheaval = 2
+
+// ActedOn reports whether the window changed in a way that means the person used
+// the control the coach pointed at.
+//
+// Stricter than Changes, and for a different question. Changes describes what
+// happened, for the step writer to read; this decides whether to move on, and a
+// battery percentage or a refreshing list must not be enough to do that — the
+// coach would skip a step nobody had done.
+func ActedOn(before, after Tree, target Selector) bool {
+	if before.Window != "" && after.Window != "" && before.Window != after.Window {
+		return true
+	}
+
+	now := map[string]Element{}
+	for _, el := range after.Elements {
+		now[identity(el)] = el
+	}
+
+	if el, why := before.resolve(target); why == "" {
+		current, still := now[identity(el)]
+		if !still {
+			return true
+		}
+		if !el.Focused && current.Focused {
+			return true
+		}
+		if el.Value != current.Value {
+			return true
+		}
+	}
+
+	return upheaval(before, after) >= minimumUpheaval
+}
+
+// How many controls came or went, which is what a click that opens something
+// looks like from the outside.
+func upheaval(before, after Tree) int {
+	was := map[string]bool{}
+	for _, el := range before.Elements {
+		was[identity(el)] = true
+	}
+	seen := map[string]bool{}
+	count := 0
+	for _, el := range after.Elements {
+		id := identity(el)
+		seen[id] = true
+		if !was[id] {
+			count++
+		}
+	}
+	for id := range was {
+		if !seen[id] {
+			count++
+		}
+	}
+	return count
+}

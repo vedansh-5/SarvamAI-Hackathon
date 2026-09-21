@@ -4,6 +4,8 @@
 //! where the user put it; the coach covers the screen, never takes a click, and
 //! exists only while it is pointing at something.
 
+use std::sync::Mutex;
+
 use serde::Serialize;
 use tauri::{
     AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, WebviewUrl, WebviewWindow,
@@ -11,6 +13,59 @@ use tauri::{
 };
 
 pub const LABEL: &str = "coach";
+
+/// What is being pointed at, in screen points, while the coach is up.
+///
+/// Held so a click can be compared against it. Polling the window for changes
+/// answers "something happened" a moment later and only sometimes; a mouse-down
+/// inside the ring is the person doing the step, now and without ambiguity.
+static POINTED_AT: Mutex<Option<(f64, f64, f64, f64)>> = Mutex::new(None);
+
+/// Emitted to the panel when the person clicks what the coach pointed at.
+pub const ACTED: &str = "coach://acted";
+
+fn watch_for_the_click(app: &AppHandle) {
+    #[cfg(target_os = "macos")]
+    {
+        use block2::RcBlock;
+        use objc2_app_kit::{NSEvent, NSEventMask, NSScreen};
+
+        let handle = app.clone();
+        let block = RcBlock::new(move |_event: core::ptr::NonNull<NSEvent>| {
+            let Some((x, y, w, h)) = *POINTED_AT.lock().unwrap() else {
+                return;
+            };
+
+            let at = NSEvent::mouseLocation();
+
+            // AppKit measures from the bottom-left of the primary display and the
+            // accessibility API from the top-left, so one of them has to be
+            // flipped before they can be compared.
+            let flipped = unsafe {
+                NSScreen::screens(objc2_foundation::MainThreadMarker::new_unchecked())
+                    .firstObject()
+                    .map(|s| s.frame().size.height)
+                    .unwrap_or(0.0)
+            } - at.y;
+
+            if at.x < x || at.x > x + w || flipped < y || flipped > y + h {
+                return;
+            }
+            if let Err(e) = handle.emit(ACTED, ()) {
+                eprintln!("[vans] could not report the click on the tip: {e}");
+            }
+        });
+
+        let _ = NSEvent::addGlobalMonitorForEventsMatchingMask_handler(
+            NSEventMask::LeftMouseDown,
+            &block,
+        );
+        std::mem::forget(block);
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    let _ = app;
+}
 
 /// Pointer is a rectangle in screen coordinates and what to say about it.
 #[derive(Clone, Serialize)]
@@ -46,6 +101,7 @@ fn build(app: &AppHandle) -> Option<WebviewWindow> {
     // is useless if the thing showing them is in the way.
     let _ = win.set_ignore_cursor_events(true);
     float_above(&win);
+    watch_for_the_click(app);
     Some(win)
 }
 
@@ -121,6 +177,8 @@ pub fn point_at(app: &AppHandle, p: Pointer) {
 fn draw(app: &AppHandle, mut p: Pointer) {
     let Some(win) = build(app) else { return };
 
+    *POINTED_AT.lock().unwrap() = Some((p.x, p.y, p.w, p.h));
+
     cover(&win, (p.x, p.y));
 
     // The page draws in window coordinates, so the rectangle is moved from
@@ -166,6 +224,8 @@ fn show_without_taking_the_keyboard(win: &WebviewWindow) {
 
 /// clear takes the coach off the screen.
 pub fn clear(app: &AppHandle) {
+    *POINTED_AT.lock().unwrap() = None;
+
     let handle = app.clone();
     let _ = app.run_on_main_thread(move || {
         if let Some(win) = handle.get_webview_window(LABEL) {
