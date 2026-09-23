@@ -311,3 +311,28 @@ func TestDriveDoesNotAskASilentModelAgain(t *testing.T) {
 		t.Errorf("asked %d times, want 1", writer.calls)
 	}
 }
+
+type doesNothing struct{}
+
+func (doesNothing) WriteStep(context.Context, synth.StepRequest) (synth.StepAnswer, error) {
+	return synth.StepAnswer{Done: true, Why: "there was nothing to do"}, nil
+}
+
+// Every step having landed is trivially true of no steps, so a run that did
+// nothing used to hand back a verified receipt — VANS claiming it had carried
+// out a task it had not touched.
+func TestADriveThatDidNothingIsNotVerified(t *testing.T) {
+	f := &fakeScreen{tree: editorTree()}
+	e := &Engine{UIScreen: f, Steps: doesNothing{}}
+
+	receipt, err := e.runDrive(context.Background(), drivePlan())
+	if err != nil {
+		t.Fatalf("runDrive: %v", err)
+	}
+	if receipt.Verified {
+		t.Error("a run with no steps reported itself verified")
+	}
+	if f.acts != 0 {
+		t.Errorf("performed %d step(s) on a run that had none", f.acts)
+	}
+}

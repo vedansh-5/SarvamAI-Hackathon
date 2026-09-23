@@ -4,7 +4,10 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,13 +23,46 @@ func liveApp(t *testing.T) (string, context.Context) {
 	}
 	app := os.Getenv("VANS_LIVE_APP")
 	if app == "" {
-		t.Skip("set VANS_LIVE_APP to the application to drive, e.g. VANS_LIVE_APP=Notes")
+		t.Skip("set VANS_LIVE_APP to the application to drive, e.g. VANS_LIVE_APP=TextEdit")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	t.Cleanup(cancel)
 	return app, ctx
 }
 
+// lines collects what the engine says, so an assertion can be made about what
+// actually happened rather than only about the receipt at the end.
+type lines struct {
+	mu   sync.Mutex
+	said []string
+}
+
+func (l *lines) logf(format string, args ...any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.said = append(l.said, strings.TrimSpace(fmt.Sprintf(format, args...)))
+}
+
+func (l *lines) all() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return strings.Join(l.said, "\n")
+}
+
+// TestLiveDriveTask drives a real window with a real model and checks the
+// window moved.
+//
+// It used to script `{Done: true}` as the only answer, which drove nothing: the
+// model was never asked, no step was performed, and the receipt came back
+// verified because every step having landed is trivially true of none. It
+// proved the plumbing compiled.
+//
+//	VANS_LIVE=1 VANS_LIVE_DRIVE_OK=1 \
+//	VANS_LIVE_APP=TextEdit VANS_LIVE_TASK="type the word hello" \
+//	go test -tags integration -run TestLiveDriveTask ./internal/engine/
+//
+// The target must be something with nothing to lose — an empty TextEdit
+// document, not a window holding work.
 func TestLiveDriveTask(t *testing.T) {
 	app, ctx := liveApp(t)
 	if os.Getenv("VANS_LIVE_DRIVE_OK") == "" {
@@ -35,45 +71,59 @@ func TestLiveDriveTask(t *testing.T) {
 
 	task := os.Getenv("VANS_LIVE_TASK")
 	if task == "" {
-		task = "inspect the window and finish"
+		t.Skip("set VANS_LIVE_TASK to the task to carry out, e.g. VANS_LIVE_TASK=\"type the word hello\"")
+	}
+
+	steps, err := synth.FromEnv()
+	if err != nil {
+		t.Skipf("no model configured: %v", err)
+	}
+	writer, canWriteSteps := steps.(StepWriter)
+	if !canWriteSteps {
+		t.Skip("the configured backend cannot write steps")
 	}
 
 	runner := appleevents.Osascript{Timeout: 120 * time.Second}
 	screen := uiact.System{Runner: runner}
 
-	tree, err := screen.Capture(ctx, app)
+	before, err := screen.Capture(ctx, app)
 	if err != nil {
 		t.Fatalf("Capture: %v", err)
 	}
-	if len(tree.Elements) == 0 {
+	if len(before.Elements) == 0 {
 		t.Fatalf("%s has no controls on screen", app)
 	}
+	t.Logf("%s: %d controls before", app, len(before.Elements))
 
-	eng := &Engine{
-		UIScreen: screen,
-		Steps: &scriptedSteps{
-			answers: []synth.StepAnswer{
-				{Done: true, Why: "completed live inspection of " + app},
-			},
-		},
-		Log: func(format string, args ...any) {
-			t.Logf(format, args...)
-		},
-	}
+	said := &lines{}
+	eng := &Engine{UIScreen: screen, Steps: writer, Log: said.logf}
 
-	plan := &Plan{
-		Drive: &DrivePlan{
-			App:  app,
-			Task: task,
-		},
-	}
-
-	receipt, err := eng.Commit(ctx, plan)
+	receipt, err := eng.Commit(ctx, &Plan{Drive: &DrivePlan{App: app, Task: task}})
+	t.Logf("what the engine said:\n%s", said.all())
 	if err != nil {
 		t.Fatalf("Commit: %v", err)
 	}
+
+	// The receipt alone is not the proof. A run that performed nothing is no
+	// longer verified, so this is now a real assertion rather than one that
+	// holds however little happened.
 	if !receipt.Verified {
-		t.Errorf("receipt.Verified = false, want true")
+		t.Errorf("receipt.Verified = false: the window did not move for every step performed")
 	}
+	if !strings.Contains(said.all(), "step 1") {
+		t.Error("no step was ever worked out, so nothing was driven")
+	}
+
+	// Read independently of the engine. The receipt is the engine's account of
+	// itself; this is the window's.
+	after, err := screen.Capture(ctx, app)
+	if err != nil {
+		t.Fatalf("Capture after: %v", err)
+	}
+	changes := uiact.Changes(before, after)
+	if len(changes) == 0 {
+		t.Error("the window is exactly as it started, so nothing reached it")
+	}
+	t.Logf("what changed in the window:\n  %s", strings.Join(changes, "\n  "))
 	t.Logf("receipt: title=%s verified=%v", receipt.Title, receipt.Verified)
 }

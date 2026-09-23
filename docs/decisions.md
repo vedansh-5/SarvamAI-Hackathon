@@ -2474,3 +2474,24 @@ viewer, a new tab page and a page still loading can each run nothing, and one of
 those must not leave every other page highlighted. An adapter that cannot reach
 past the front tab still clears that one — a partial undo beats none — and the log
 says which happened.
+
+## D-101 — A test that cannot fail is not evidence
+
+`TestLiveDriveTask` was written to prove the drive loop against a real
+application, and it could not have. Its step writer was a canned
+`{Done: true}` — the model was never asked, no step was performed, and it
+asserted that the receipt came back verified. It did, for the wrong reason: the
+receipt's `Landed` flag means "the window moved for every step performed", which
+is trivially true of no steps. The test passed the day it was written and proved
+that the package compiled.
+
+Two things came out of it. The engine no longer calls a run of nothing verified,
+which is the same hole D-095 closed on the coach side and had been left open on
+the drive side. And the test now asks the configured model, performs what it
+answers, and reads the window back through a second capture — the receipt is the
+engine's account of itself, and the window is the only independent witness.
+
+The shape to watch for: an assertion whose truth does not depend on the behaviour
+under test. `Verified == true` against a canned "done" was one. It is worth
+asking of any new assertion what would have to break for it to fail, and being
+suspicious when the answer is "nothing".

@@ -204,6 +204,7 @@ as the fallback.
 | #75 | Finish a step when it is finished, and say when nothing was pointed at |
 | #76 | Stop waiting three minutes on a model that is not answering |
 | #77 | Settle the keypress, refuse a browser early, and clear every tab |
+| #78 | Make the live drive test drive something, and stop verifying nothing |
 
 
 
@@ -632,10 +633,20 @@ exist and gets a working program back from the fallback in 2.04s, and
    in `.env`. The ladder is covered by hermetic tests against a server that never
    answers; it has not yet been seen switching models against a real provider,
    which needs an outage to happen again.
-2. **`TestLiveDriveTask` has still never run** — `-tags integration` with
-   `VANS_LIVE_DRIVE_OK=1` against a real application (§9.4).
-3. **A real keypress reaching the panel** is the one link in the coach never
-   exercised without a person at the keyboard (§8, item 7).
+2. **`TestLiveDriveTask` needs a safe target and has still never run.** The test
+   itself was rewritten in #78 — it asks a real model, performs the steps, and
+   reads the window back independently of the receipt. What it needs is a window
+   with nothing to lose. Nothing open on 2026-09-23 qualified: Chrome and Notion
+   are Chromium-shaped and hold real work, dbeaver is a database tool, Clock is
+   out by standing constraint. An empty TextEdit document is the target to use,
+   and VANS does not open it (D-032) — so it has to be opened by hand:
+
+   ```bash
+   VANS_LIVE=1 VANS_LIVE_DRIVE_OK=1 VANS_LIVE_APP=TextEdit \
+     VANS_LIVE_TASK="type the word hello" \
+     go test -tags integration -v -run TestLiveDriveTask ./internal/engine/
+   ```
+3. ~~A real keypress reaching the panel.~~ **Done in #77**, see *Proven live*.
 
 **Deferred, on purpose:**
 
