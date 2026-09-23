@@ -469,15 +469,20 @@ not "is this sensitive" but "is the request about it":
    longer depends on the shell that launched it.
 5. **Nothing is packaged.** There is no built `.app`; it runs from a checkout
    through `npm run tauri dev`.
-6. **Multi-step coaching has not been exercised across real state transitions.**
-   The engine points at controls on screen, but nobody has clicked through a
-   several-step task and watched it keep up. The reason it could not work until
-   now is in §9.0: summoning the panel activated VANS, and under Stage Manager
-   that withdraws the target window from the accessibility API, so every re-read
-   after the first step came back empty.
+6. ~~Multi-step coaching has not been exercised across real state transitions.~~
+   **Done on 2026-09-21** — six steps through "how do I change the wallpaper" in
+   System Settings, with the overlay drawing each one. What blocked it for so long
+   is in §9.0: summoning the panel activated VANS, and under Stage Manager that
+   withdraws the target window from the accessibility API, so every re-read after
+   the first step came back empty.
 7. ~~The keyboard cannot be driven from outside.~~ **Wrong, settled on
    2026-09-23.** It always could; the measurement was broken, not the path. See
    the entry under *Proven live* and D-098.
+8. **Nothing VANS does can be undone, except a restyle.** `grep -i undo` over the
+   runtime returns one file. Typing, clicking, a dictionary write, a twelve-step
+   drive: all one-way, and the store keeps no record of what was done, so there is
+   nothing to undo from. This is the project's own rule broken everywhere but one
+   place, and it is what §9.5 is about.
 
 ---
 
@@ -702,7 +707,7 @@ to make, on System Settings:
 Bring the application forward, capture, plan, verify, click, read back, report
 what changed — with hermetic target resolution and click posting under test.
 
-### 9.4 The app agent workflow (built; one live run left)
+### 9.4 The app agent workflow (built, and run live)
 
 With input posting and read-back both working (#63), the drive loop is wired end
 to end (#64): progress reaches the window while a plan is committed, a step the
@@ -715,13 +720,77 @@ against a real application behind `-tags integration` and `VANS_LIVE_DRIVE_OK=1`
 "type the word hello into the document", 5.54s. The numbers and what it exposed
 are under *Proven live* and *Not proven*.
 
-### 9.5 Smaller, worth doing
+### 9.5 The next feature — a ledger, and an undo built on it
 
+**The gap.** VANS changes things in six ways — a scripting dictionary, a page, a
+window through accessibility, a web version, a multi-step drive, a restyle — and
+exactly one of them can be undone. `grep -i undo` over the runtime returns
+`internal/engine/webstyle.go` and nothing else. Typing into an application,
+clicking a button, driving twelve steps through a task, writing a note into Notes
+or Reminders: all of it is one-way.
+
+This is not an oversight to be tidied up later, it is the project's own rule
+broken everywhere but one place — *every feature ships with its undo, and VANS
+knows about it*. And the store cannot help, because it keeps caches, instructions
+and settings but no record of what was actually done. There is nothing to undo
+*from*.
+
+**Why it is the next thing rather than a bigger capability.** The confirmation
+gate protects before the fact, and nothing protects after it. A gate makes a
+person cautious; an undo makes them willing to let VANS act at all. Everything
+more autonomous than a single confirmed step depends on it — a twelve-step drive
+is not a thing anyone should be asked to approve without a way back. And it needs
+no new model call, which the hard constraints care about.
+
+**What it is.**
+
+1. **A ledger.** One row per committed change: what was asked, which tier acted,
+   the program that ran, what the window or page looked like before, what changed
+   after, and whether it can be taken back. `uiact.Changes(before, after)` already
+   computes the diff for the drive loop's own verification — it is the raw
+   material, currently thrown away.
+2. **An inverse per verb, where one exists.** Typing has one: the field's prior
+   value is in the before-tree. A restyle has one already. A dictionary write
+   often has one in the dictionary itself. A click usually has none.
+3. **Honesty where there is no inverse.** A click that sent a message is gone.
+   This is the part that improves the product rather than the bookkeeping: the
+   gate treats every write the same today, so it has to be equally alarming about
+   all of them. With a ledger it can say *this one can be undone* or *this one
+   cannot*, and only be frightening about the second. That is a better
+   confirmation dialog than any wording change.
+4. **Reachable by asking.** "undo that", "put it back" — a route kind, and a
+   button on the receipt. Undoing needs no confirmation of its own (D-100's
+   reasoning): it puts things back.
+
+**The order to build it in:** the ledger first, because it is useful on its own —
+"what has VANS done to my machine" is currently unanswerable. Then typing's
+inverse, which is the common case and the one with the evidence already in hand.
+Then the gate learning to distinguish the two kinds of write. Clicks stay
+one-way and say so.
+
+### 9.6 The bigger one after that — seeing what cannot be read
+
+Chromium and Electron publish nothing to the accessibility API (§8), which is
+Chrome, VS Code, Slack, Telegram, Notion and Discord — a large share of what
+anyone actually uses. Browsers are covered for pages by the page tier, so the hole
+is really the Electron applications, and for those a vision tier is the only path
+left.
+
+Worth being honest that it fits the hard constraints badly: it means a screenshot
+to a model on every step, which is slow and costly, against *accuracy first* and
+*fast model calls*. Coaching inside a web page is the cheap half of the same
+want — the DOM gives exact geometry through `getBoundingClientRect`, no vision
+needed — and it should be done first and separately.
+
+### 9.7 Smaller, worth doing
+
+- Raise a window that is only covered rather than missing (see *Not proven*); it
+  unblocks the last unproven piece in the system.
+- Draw the coach's rings and arrows over elements inside a web page, using
+  geometry from the DOM. The refusal in #77 is honest but it is still a refusal.
 - Persist settings and the key, so the app does not depend on the launching
   shell.
 - Package a real `.app` so it does not need a checkout.
-- Draw the coach's rings and arrows over elements inside a web page, using
-  geometry from the DOM. The refusal in #77 is honest but it is still a refusal.
 - A second look at the coach's visual design by someone who can see it.
 
 ---
