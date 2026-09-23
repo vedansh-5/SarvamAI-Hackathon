@@ -3,6 +3,8 @@ package synth
 import (
 	"fmt"
 	"os"
+	"strings"
+	"time"
 )
 
 // Environment variables selecting the synthesis backend.
@@ -12,7 +14,35 @@ const (
 	EnvModel      = "VANS_LLM_MODEL"
 	EnvAPIKey     = "VANS_LLM_API_KEY"
 	EnvSchemaMode = "VANS_LLM_SCHEMA_MODE" // "json_schema" (default), "json_object", "prompt"
+
+	// EnvFallbackModel names a second model to try when the first cannot
+	// answer. Unset means there is nothing to fall back to.
+	EnvFallbackModel = "VANS_LLM_FALLBACK_MODEL"
+
+	// EnvTimeout is how long one request has to answer, as a Go duration.
+	// Defaults to DefaultAnswerWait.
+	EnvTimeout = "VANS_LLM_TIMEOUT"
 )
+
+// The wait is configurable because the default has to be short enough that a
+// silent provider looks like a failure rather than a hang, and a slow
+// open-weight model that spends the whole token budget thinking still has to be
+// usable. Those two want different numbers, and only the person running it knows
+// which model they pointed at.
+func parseAnswerWait(s string) (time.Duration, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, nil
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return 0, fmt.Errorf("synth: unreadable %s=%q, want a duration like \"45s\"", EnvTimeout, s)
+	}
+	if d <= 0 {
+		return 0, fmt.Errorf("synth: %s must be more than zero, got %q", EnvTimeout, s)
+	}
+	return d, nil
+}
 
 // ParseSchemaMode reads the response-constraint level from its env spelling.
 //
@@ -81,7 +111,19 @@ func FromEnv() (Synthesizer, error) {
 			return nil, err
 		}
 
-		return &OpenAICompatible{BaseURL: base, APIKey: key, Model: model, SchemaMode: mode}, nil
+		wait, err := parseAnswerWait(os.Getenv(EnvTimeout))
+		if err != nil {
+			return nil, err
+		}
+
+		return &OpenAICompatible{
+			BaseURL:    base,
+			APIKey:     key,
+			Model:      model,
+			Fallback:   strings.TrimSpace(os.Getenv(EnvFallbackModel)),
+			AnswerWait: wait,
+			SchemaMode: mode,
+		}, nil
 
 	default:
 		return nil, fmt.Errorf("synth: unknown %s=%q, want \"openai\" or \"anthropic\"",

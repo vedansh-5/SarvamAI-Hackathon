@@ -202,6 +202,7 @@ as the fallback.
 | #73 | Draw the first step where it actually is, and refuse a step usefully |
 | #74 | Draw what to do, not only where |
 | #75 | Finish a step when it is finished, and say when nothing was pointed at |
+| #76 | Stop waiting three minutes on a model that is not answering |
 
 
 
@@ -230,6 +231,10 @@ routing. `docs/decisions.md` carries the reasoning for all of it.
 - **Clearing a restyle costs no model call at all.** It is recognised in Go.
 - **Pointing at a control on question works.** "where is the search bar" in
   System Settings pointed at the search field at (459, 100 195x28) (D-071).
+- **The model ladder works against a real provider.** A run whose first model
+  does not exist fell through to the configured one and came back with a working
+  program in 2.04s; a one-millisecond wait gave up in 2 ms saying the model did
+  not answer, rather than after three minutes saying nothing (2026-09-23).
 
 ### Not proven
 
@@ -591,17 +596,43 @@ So the configured model is stalling on Google's side, not refusing — the
 connection opens and never answers. The HTTP client allows three minutes, which
 is why it looks hung rather than failed.
 
+**The stall was temporary, and the run is no longer at its mercy.** Re-measured
+on 2026-09-23 with the same key and base URL: `gemini-flash-lite-latest` answered
+200 in 1.7s, and `models/gemini-3.1-flash-lite` in 5.1s. The configured model was
+never the problem, so nothing was switched — what was wrong is that a silent
+provider was indistinguishable from a hang, and that is what #76 fixed:
+
+- One request gets 45 seconds, not three minutes, raisable with
+  `VANS_LLM_TIMEOUT` for a model slow enough to need the room (D-096).
+- Silence is its own failure. It is not retried, because re-asking a model that
+  never answered spends the whole wait again with nothing new; it reaches the
+  panel as "The model didn't answer" rather than "something went wrong inside
+  VANS", under its own error code.
+- The person pressing Stop is told apart from the model going quiet by whether
+  the caller's context is still alive. Both arrive at the same line looking
+  alike.
+- `VANS_LLM_FALLBACK_MODEL` names a second model, tried when the first goes
+  silent, stays overloaded past the retry budget, or comes back 404 — the three
+  ways a run dies with a working key. Not tried for a 400, which is our own
+  request being wrong (D-097). Unset by default.
+
+Both halves are proven against Google's endpoint, not only against a stub: with
+`-tags integration`, `TestFallbackModelAnswersLive` names a model that does not
+exist and gets a working program back from the fallback in 2.04s, and
+`TestShortWaitIsReportedAsSilenceLive` gives up in 2 ms with
+`gemini-flash-lite-latest did not answer in 1ms`. Both live in
+`internal/synth/live_test.go`.
+
 **To pick up:**
 
-1. **Switch the model.** `VANS_LLM_MODEL=models/gemini-3.1-flash-lite` in `.env`
-   is the one that answered. Worth re-measuring first, in case the stall was
-   temporary.
-2. **A stalled provider must fail fast.** Three minutes of "working out step 1"
-   is indistinguishable from hung. The model call needs a timeout in the tens of
-   seconds, and the message when it trips has to say the model did not answer —
-   not "something went wrong inside VANS".
-3. Worth considering with it: a second model to fall back to, since one being
-   overloaded is now a thing that has actually happened.
+1. **Set a fallback and watch it fire.** `VANS_LLM_FALLBACK_MODEL=models/gemini-3.1-flash-lite`
+   in `.env`. The ladder is covered by hermetic tests against a server that never
+   answers; it has not yet been seen switching models against a real provider,
+   which needs an outage to happen again.
+2. **`TestLiveDriveTask` has still never run** — `-tags integration` with
+   `VANS_LIVE_DRIVE_OK=1` against a real application (§9.4).
+3. **A real keypress reaching the panel** is the one link in the coach never
+   exercised without a person at the keyboard (§8, item 7).
 
 **Deferred, on purpose:**
 
@@ -673,6 +704,11 @@ go build -o ui/vans-engine ./cmd/vans-engine
 export VANS_LLM_API_KEY=...
 export VANS_LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
 export VANS_LLM_MODEL=gemini-flash-lite-latest
+
+# Optional: a second model for when the first cannot answer, and how long one
+# request gets before VANS stops waiting for it (45s by default)
+export VANS_LLM_FALLBACK_MODEL=models/gemini-3.1-flash-lite
+export VANS_LLM_TIMEOUT=45s
 
 # 4. Run it
 cd ui && npm install && npm run tauri dev

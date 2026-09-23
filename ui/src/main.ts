@@ -765,6 +765,11 @@ const PLAIN: Record<string, { title: string; message: string }> = {
     title: "macOS blocked the write",
     message: "Automation access has not been granted yet.",
   },
+  model_silent: {
+    title: "The model didn't answer",
+    message:
+      "The request reached the model and it never replied. Nothing is wrong on this end — ask again.",
+  },
   plan_spent: {
     title: "Already written",
     message: "That confirmation was used. VANS never repeats a write, so ask again for another.",
@@ -818,6 +823,11 @@ function renderFailure(e: unknown) {
         el("pre", "fix", "System Settings › Privacy & Security › Automation, then try again."),
       );
       break;
+    case "model_silent": {
+      const fix = (e.data as { fix?: string })?.fix;
+      if (fix) detail.appendChild(el("pre", "fix", fix));
+      break;
+    }
   }
 
   detail.appendChild(raw(e.message));

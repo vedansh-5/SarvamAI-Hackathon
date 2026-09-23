@@ -2387,3 +2387,37 @@ the model correctly refused.
 
 Zero steps is now an error carrying the model's own sentence, which is the only
 account of why. The panel comes forward and says it, which is what it is for.
+
+## D-096 — Waiting three minutes on a silent model is the same as hanging
+
+On 2026-09-22 a run sat on "working out step 1" and never moved. Nothing was
+wrong with VANS: the configured model accepted the connection and never answered,
+while `GET /models` on the same key came back in 0.68s and a different model
+answered in 1.5s. The HTTP client allowed three minutes, and the step writer
+re-asks once when an answer comes back unusable, so the wait was six.
+
+One request now has 45 seconds, raisable with `VANS_LLM_TIMEOUT` for a model slow
+enough to need it, and silence is its own failure rather than a generic one. It is
+not retried — re-asking a model that never answered spends the whole wait again
+with nothing new to offer — and it does not arrive at the panel as "something
+went wrong inside VANS", because nothing in VANS went wrong.
+
+Silence is told apart from the person pressing Stop by asking whether the caller's
+context is still alive. Both arrive at the same line looking alike, and the
+difference decides which side of the network someone goes looking at.
+
+## D-097 — A second model, because one going down has now happened
+
+The same measurement that produced D-096 had one model dead and another on the
+same key and endpoint answering in a second and a half. `VANS_LLM_FALLBACK_MODEL`
+is tried when the first model cannot answer at all: it went silent, it stayed
+overloaded past the retry budget, or the provider returned 404 for that name —
+the three ways a run dies with a working key and a reachable endpoint.
+
+It is not tried for a 400. That is our own request being wrong, and every model
+will reject it the same way, so spending the fallback on one only doubles the wait
+before the same failure.
+
+There is no default fallback. The right second model depends on the account and
+the endpoint, and a guessed one would fail differently on every setup for no
+stated reason.

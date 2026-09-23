@@ -17,6 +17,7 @@ import (
 	"github.com/vedansh/vans/internal/engine"
 	"github.com/vedansh/vans/internal/extract"
 	"github.com/vedansh/vans/internal/runner"
+	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
 )
 
@@ -515,6 +516,13 @@ func asError(err error) *Error {
 			Code:    CodeBrowserScripting,
 			Message: err.Error(),
 			Data:    fixData(appleevents.Fix(err)),
+		}
+	}
+	if errors.Is(err, synth.ErrNoAnswer) {
+		return &Error{
+			Code:    CodeModelSilent,
+			Message: err.Error(),
+			Data:    fixData("Ask again. If it keeps happening the model is overloaded — set VANS_LLM_FALLBACK_MODEL to a second one."),
 		}
 	}
 	if errors.Is(err, uiact.ErrNoAssistiveAccess) {

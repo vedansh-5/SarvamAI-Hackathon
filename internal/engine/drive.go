@@ -115,8 +115,10 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 				// An answer with neither a step nor a reason is the model
 				// dropping the contract for one turn, and it used to end the
 				// whole run. It is worth exactly one more ask, which is what the
-				// attempt loop is already for.
-				if attempt < 2 {
+				// attempt loop is already for. A model that never answered is
+				// not worth one: the re-ask waits out the whole timeout again
+				// and has nothing new to offer.
+				if attempt < 2 && !errors.Is(err, synth.ErrNoAnswer) {
 					e.logf("step %d: nothing usable came back, asking again", i)
 					continue
 				}

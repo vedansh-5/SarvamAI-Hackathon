@@ -54,7 +54,18 @@ type OpenAICompatible struct {
 	// DefaultRetryWait. A Retry-After header takes precedence.
 	RetryWait time.Duration
 
-	// HTTP defaults to a client with a 3-minute timeout.
+	// Fallback is a second model, tried when the first one cannot answer at
+	// all: it went silent, it stayed overloaded past the retry budget, or the
+	// provider does not have it under that name. Empty by default — the right
+	// second model depends on the account and the endpoint, so a guessed one
+	// would be worse than none.
+	Fallback string
+
+	// AnswerWait bounds a single request. Defaults to DefaultAnswerWait.
+	AnswerWait time.Duration
+
+	// HTTP, when set, is used as it is, and its own timeout governs instead of
+	// AnswerWait.
 	HTTP *http.Client
 }
 
@@ -63,6 +74,55 @@ const (
 	DefaultRetries   = 3
 	DefaultRetryWait = 2 * time.Second
 )
+
+// DefaultAnswerWait bounds one request to the provider.
+//
+// Measured 2026-09-22: an overloaded model accepted the connection and then
+// never answered. The allowance here was three minutes, and the step writer
+// re-asks once, so a silent model held the panel on "working out step 1" for
+// six — which from the outside is indistinguishable from the app having hung. A
+// healthy answer to one of these requests comes back in a second or two. Raise
+// it with VANS_LLM_TIMEOUT for a model slow enough to need the room.
+const DefaultAnswerWait = 45 * time.Second
+
+// ErrNoAnswer is the provider taking the request and never replying, which is
+// not the same as refusing it. Re-asking costs the whole wait over again and has
+// nothing new to offer, so the callers that would otherwise re-ask test for this
+// instead.
+var ErrNoAnswer = errors.New("the model did not answer")
+
+type noAnswer struct {
+	model  string
+	waited time.Duration
+}
+
+func (e *noAnswer) Error() string {
+	return fmt.Sprintf("synth: %s did not answer in %s", e.model, e.waited)
+}
+
+func (e *noAnswer) Unwrap() error { return ErrNoAnswer }
+
+// A wait of 45 seconds reads better as "45s", and one of two milliseconds must
+// not read as "0s" — that is the message denying that anything was waited for.
+func readableWait(d time.Duration) time.Duration {
+	if d >= 10*time.Second {
+		return d.Round(time.Second)
+	}
+	return d.Round(time.Millisecond)
+}
+
+// providerRefusal is a reply the provider turned down outright. The status is
+// kept because 404 means the model does not exist under this name, which a
+// different model can answer, while the rest mean the request itself is wrong.
+type providerRefusal struct {
+	url    string
+	status int
+	body   string
+}
+
+func (e *providerRefusal) Error() string {
+	return fmt.Sprintf("synth: %s returned %d: %s", e.url, e.status, truncate(e.body, 300))
+}
 
 // transientError marks a failure worth retrying: rate limits and upstream
 // capacity problems. A 4xx that is not 429 means the request itself is wrong,
@@ -97,7 +157,14 @@ func (c *OpenAICompatible) httpClient() *http.Client {
 	if c.HTTP != nil {
 		return c.HTTP
 	}
-	return &http.Client{Timeout: 3 * time.Minute}
+	return &http.Client{Timeout: c.answerWait()}
+}
+
+func (c *OpenAICompatible) answerWait() time.Duration {
+	if c.AnswerWait > 0 {
+		return c.AnswerWait
+	}
+	return DefaultAnswerWait
 }
 
 type chatMessage struct {
@@ -211,7 +278,52 @@ func (c *OpenAICompatible) responseFormat(name string, schema func() map[string]
 	}
 }
 
+// post sends the request, moving to the fallback model when the first one
+// cannot answer at all. Transient failures are retried within each model.
 func (c *OpenAICompatible) post(ctx context.Context, body chatRequest) (string, error) {
+	var failures []error
+
+	for _, model := range c.ladder(body.Model) {
+		body.Model = model
+
+		text, err := c.postRetrying(ctx, body)
+		if err == nil {
+			return text, nil
+		}
+		failures = append(failures, err)
+
+		if !anotherModelMightAnswer(err) {
+			break
+		}
+	}
+	return "", errors.Join(failures...)
+}
+
+func (c *OpenAICompatible) ladder(first string) []string {
+	next := strings.TrimSpace(c.Fallback)
+	if next == "" || next == first {
+		return []string{first}
+	}
+	return []string{first, next}
+}
+
+// Worth a second model when the first could not answer: it went silent, it is
+// overloaded past our patience, or the provider does not have it under that
+// name. A request the provider rejected as malformed is ours to fix, and every
+// model will reject it the same way.
+func anotherModelMightAnswer(err error) bool {
+	if errors.Is(err, ErrNoAnswer) {
+		return true
+	}
+	var transient *transientError
+	if errors.As(err, &transient) {
+		return true
+	}
+	var refused *providerRefusal
+	return errors.As(err, &refused) && refused.status == http.StatusNotFound
+}
+
+func (c *OpenAICompatible) postRetrying(ctx context.Context, body chatRequest) (string, error) {
 	retries := c.Retries
 	if retries == 0 {
 		retries = DefaultRetries
@@ -265,8 +377,16 @@ func (c *OpenAICompatible) postOnce(ctx context.Context, body chatRequest) (stri
 		httpReq.Header.Set("Authorization", "Bearer "+c.APIKey)
 	}
 
+	start := time.Now()
 	resp, err := c.httpClient().Do(httpReq)
 	if err != nil {
+		// Our own timeout and the caller giving up arrive here looking alike,
+		// and the difference is the whole point: one is the model failing to
+		// answer, which the fallback exists for, and the other is someone
+		// pressing Stop.
+		if ctx.Err() == nil && timedOut(err) {
+			return "", &noAnswer{model: body.Model, waited: readableWait(time.Since(start))}
+		}
 		return "", fmt.Errorf("synth: %s: %w", url, err)
 	}
 	defer resp.Body.Close()
@@ -286,7 +406,7 @@ func (c *OpenAICompatible) postOnce(ctx context.Context, body chatRequest) (stri
 				body:       string(data),
 			}
 		}
-		return "", fmt.Errorf("synth: %s returned %d: %s", url, resp.StatusCode, truncate(string(data), 300))
+		return "", &providerRefusal{url: url, status: resp.StatusCode, body: string(data)}
 	}
 
 	var out chatResponse
@@ -357,6 +477,11 @@ func extractJSONObject(s string) string {
 		}
 	}
 	return ""
+}
+
+func timedOut(err error) bool {
+	var deadline interface{ Timeout() bool }
+	return errors.As(err, &deadline) && deadline.Timeout()
 }
 
 // parseRetryAfter reads the header in its delay-seconds form. The HTTP-date

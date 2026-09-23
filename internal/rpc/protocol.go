@@ -64,6 +64,12 @@ const (
 	// wrong sends them to do work they do not need to do.
 	CodeBrowserScripting = "browser_scripting_off"
 
+	// CodeModelSilent means the model took the request and never replied.
+	// Deliberately not CodeInternal: nothing in VANS went wrong, there is
+	// nothing to fix here, and "something went wrong inside VANS" sends a
+	// person looking for a fault on the wrong side of the network.
+	CodeModelSilent = "model_silent"
+
 	// CodeSpent means a plan was already committed. Writes are never retried.
 	CodeSpent = "plan_spent"
 

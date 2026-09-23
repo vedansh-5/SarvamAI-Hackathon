@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -279,5 +280,34 @@ func TestDriveAsksAgainWhenTheModelAnswersWithNothing(t *testing.T) {
 	}
 	if f.acts != 1 {
 		t.Errorf("ran %d step(s), want 1 after the empty answer was asked past", f.acts)
+	}
+}
+
+type silentSteps struct {
+	calls int
+}
+
+func (s *silentSteps) WriteStep(context.Context, synth.StepRequest) (synth.StepAnswer, error) {
+	s.calls++
+	return synth.StepAnswer{}, fmt.Errorf("synth: test/model did not answer in 45s: %w", synth.ErrNoAnswer)
+}
+
+// An empty answer is worth one more ask; a model that never answered is not.
+// The re-ask waits out the whole timeout again and has nothing new to offer,
+// which is how one stalled provider became six minutes of "working out step 1".
+func TestDriveDoesNotAskASilentModelAgain(t *testing.T) {
+	f := &fakeScreen{tree: editorTree()}
+	writer := &silentSteps{}
+	e := &Engine{UIScreen: f, Steps: writer}
+
+	_, err := e.runDrive(context.Background(), drivePlan())
+	if err == nil {
+		t.Fatal("want an error")
+	}
+	if !errors.Is(err, synth.ErrNoAnswer) {
+		t.Errorf("the silence did not survive to the caller: %v", err)
+	}
+	if writer.calls != 1 {
+		t.Errorf("asked %d times, want 1", writer.calls)
 	}
 }
