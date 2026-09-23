@@ -765,6 +765,11 @@ const PLAIN: Record<string, { title: string; message: string }> = {
     title: "macOS blocked the write",
     message: "Automation access has not been granted yet.",
   },
+  no_coach_here: {
+    title: "Can't point at things in a browser",
+    message:
+      "A browser window publishes no controls to the accessibility API, so there is nothing for VANS to draw on. It can work on the page directly instead.",
+  },
   model_silent: {
     title: "The model didn't answer",
     message:
@@ -823,6 +828,7 @@ function renderFailure(e: unknown) {
         el("pre", "fix", "System Settings › Privacy & Security › Automation, then try again."),
       );
       break;
+    case "no_coach_here":
     case "model_silent": {
       const fix = (e.data as { fix?: string })?.fix;
       if (fix) detail.appendChild(el("pre", "fix", fix));

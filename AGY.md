@@ -203,6 +203,7 @@ as the fallback.
 | #74 | Draw what to do, not only where |
 | #75 | Finish a step when it is finished, and say when nothing was pointed at |
 | #76 | Stop waiting three minutes on a model that is not answering |
+| #77 | Settle the keypress, refuse a browser early, and clear every tab |
 
 
 
@@ -231,6 +232,12 @@ routing. `docs/decisions.md` carries the reasoning for all of it.
 - **Clearing a restyle costs no model call at all.** It is recognised in Go.
 - **Pointing at a control on question works.** "where is the search bar" in
   System Settings pointed at the search field at (459, 100 195x28) (D-071).
+- **A posted keypress reaches the panel.** Settled on 2026-09-23 by reading the
+  app's own log instead of asking the accessibility API. Both paths work: an
+  `osascript` keystroke through System Events, and a bare `CGEventPost` of
+  Option-Space to `kCGHIDEventTap` from a freshly compiled binary. Each produced
+  `[vans] hotkey fired`; through Go it took 0.26s.
+  `TestPostedHotkeyReachesThePanelLive` keeps it repeatable (D-098).
 - **The model ladder works against a real provider.** A run whose first model
   does not exist fell through to the configured one and came back with a working
   program in 2.04s; a one-millisecond wait gave up in 2 ms saying the model did
@@ -434,11 +441,15 @@ not "is this sensitive" but "is the request about it":
    Electron — the tree is still empty eight seconds later. Native applications
    are fine. Reaching these needs a vision tier or their web versions (D-060).
 2. **Chrome's accessibility tree comes back empty** (0 elements), so anything
-   routed to the accessibility tier for a browser fails. Browsers should route
-   to the page tier consistently; the app sink now falls back to typing where
-   the cursor is, which works, but the ladder could be more decisive.
-3. **Clearing a restyle acts on the tab in front.** Highlight one tab, switch
-   tabs, clear — and the first tab stays highlighted.
+   routed to the accessibility tier for a browser fails. Reading and suggesting
+   already route around it, and since #77 the coach refuses before raising the
+   window and says what to do on the page instead (D-099). What is still missing
+   is the positive version: drawing the coach's rings and arrows over elements in
+   a web page, which needs geometry from the DOM rather than from the
+   accessibility API. That is a feature, not a rough edge.
+3. ~~Clearing a restyle acts on the tab in front.~~ **Fixed in #77.** Clearing
+   sweeps every tab of every window and reports how many carried a restyle; a tab
+   that cannot run anything is skipped rather than failing the sweep (D-100).
 4. **Credentials load from a `.env` file** next to the runtime, so the app no
    longer depends on the shell that launched it.
 5. **Nothing is packaged.** There is no built `.app`; it runs from a checkout
@@ -449,17 +460,9 @@ not "is this sensitive" but "is the request about it":
    now is in §9.0: summoning the panel activated VANS, and under Stage Manager
    that withdraws the target window from the accessibility API, so every re-read
    after the first step came back empty.
-7. **The keyboard cannot be driven from outside.** Tried again on 2026-09-21 with
-   the new modifier support — `CGEventPost` to `kCGHIDEventTap` with
-   `CGEventSetFlags(Option)` on the Space key did not bring the panel up within
-   three seconds. The measurement is not conclusive: the detector asks the
-   accessibility API whether VANS publishes a window, and a non-activating panel
-   belonging to an application that is deliberately never active is exactly the
-   case macOS withholds (§6). Either the shortcut does not see posted events or
-   the panel was up and could not be seen. Settling it needs the screen, or the
-   app's own log. So the path from a real keypress to the panel is still the one
-   link in the coach never exercised without a person at the keyboard; both ends
-   of it are proven separately.
+7. ~~The keyboard cannot be driven from outside.~~ **Wrong, settled on
+   2026-09-23.** It always could; the measurement was broken, not the path. See
+   the entry under *Proven live* and D-098.
 
 ---
 
@@ -683,9 +686,8 @@ that run has not happened yet.
 - Persist settings and the key, so the app does not depend on the launching
   shell.
 - Package a real `.app` so it does not need a checkout.
-- Route browsers to the page tier decisively rather than letting them fall
-  through the accessibility tier first.
-- Clear a restyle across every tab that carries one, not just the front tab.
+- Draw the coach's rings and arrows over elements inside a web page, using
+  geometry from the DOM. The refusal in #77 is honest but it is still a refusal.
 - A second look at the coach's visual design by someone who can see it.
 
 ---

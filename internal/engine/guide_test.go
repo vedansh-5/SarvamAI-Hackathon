@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -264,6 +265,27 @@ func TestPlanGuideRefusesAWindowWithNothingInIt(t *testing.T) {
 
 	if _, err := e.planGuide(context.Background(), "say hello", nil); err == nil {
 		t.Fatal("offered to point at a window with nothing in it")
+	}
+}
+
+// Chromium hands back a window with no children, so the old path raised Chrome,
+// walked an empty tree, and reported that the window had nothing in it — which
+// reads as something that might work next time. The application's own name is
+// enough to know better.
+func TestPlanGuideRefusesABrowserWithoutReadingIt(t *testing.T) {
+	screenReader := &fakeScreen{tree: uiact.Tree{App: "Google Chrome", Window: "Google Chrome"}}
+	e := &Engine{UIScreen: screenReader, Steps: &alwaysStep{step: typeIntoMessage()}}
+
+	_, err := e.planGuide(context.Background(), "how do I sign in", &screen.Context{AppName: "Google Chrome"})
+	if err == nil {
+		t.Fatal("offered to draw steps inside a browser")
+	}
+	if !errors.Is(err, ErrNoControlsToPointAt) {
+		t.Errorf("err = %v, want it to carry ErrNoControlsToPointAt so the panel can say what to do instead", err)
+	}
+	if len(screenReader.raised) != 0 || screenReader.captures != 0 {
+		t.Errorf("raised %v and read the window %d time(s) to learn what the name already said",
+			screenReader.raised, screenReader.captures)
 	}
 }
 

@@ -77,7 +77,7 @@ func (e *Engine) hereInFrontApp(ctx context.Context, intent string, lookingAt *s
 	if err != nil || strings.TrimSpace(app) == "" {
 		return nil, false
 	}
-	if browsers[strings.ToLower(strings.TrimSpace(app))] {
+	if isBrowser(app) {
 		return nil, false
 	}
 

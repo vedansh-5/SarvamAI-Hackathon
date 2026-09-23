@@ -70,6 +70,12 @@ const (
 	// person looking for a fault on the wrong side of the network.
 	CodeModelSilent = "model_silent"
 
+	// CodeNoCoachHere means the steps cannot be drawn where the question was
+	// asked — a browser window publishes no controls to point at. Its own code
+	// because there is something specific to offer instead, which a generic
+	// failure cannot carry.
+	CodeNoCoachHere = "no_coach_here"
+
 	// CodeSpent means a plan was already committed. Writes are never retried.
 	CodeSpent = "plan_spent"
 

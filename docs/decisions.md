@@ -2421,3 +2421,56 @@ before the same failure.
 There is no default fallback. The right second model depends on the account and
 the endpoint, and a guessed one would fail differently on every setup for no
 stated reason.
+
+## D-098 — A negative reading from the accessibility API about our own panel proves nothing
+
+"The keyboard cannot be driven from outside" sat in the known problems for two
+days and was never true. A posted Option-Space was reaching the global shortcut
+the whole time; what failed was the way it was checked. The test asked the
+accessibility API whether VANS was publishing a window, and §6 already records
+that macOS withholds exactly that for a non-activating panel belonging to an
+application which is deliberately never active. The question could not be
+answered, and an unanswerable question was read as a no.
+
+The witness is the app's own log. `[vans] hotkey fired` is printed from inside
+the shortcut handler, and nothing about window visibility stands between the
+keypress and that line. Both a System Events keystroke and a bare `CGEventPost`
+to `kCGHIDEventTap` produce it.
+
+The general form is worth keeping: for anything about VANS's own panel, the
+accessibility API is not a valid instrument. A negative result from it is the
+instrument declining to measure, not evidence of absence. This is the same trap
+as D-075 from the other side.
+
+## D-099 — Refuse where the answer is known, before paying to discover it
+
+Asking the coach anything with Chrome in front used to raise Chrome, walk its
+accessibility tree, find zero elements and report "Google Chrome has nothing on
+screen to point at". Every word of that is true and all of it is misleading: it
+reads as a window that happened to be empty, something that might work on the
+next try. Chromium publishes no children at all, ever, and the application's own
+name is enough to know it.
+
+The refusal now happens before anything is read, carries its own error, and says
+the useful thing instead: ask about the page and VANS works on it directly, which
+it is good at. The general rule is the cheap half — when the name of the thing
+already settles the answer, do not raise a window and walk a tree to rediscover
+it.
+
+## D-100 — An undo has to reach everywhere the thing was done
+
+Clearing a restyle ran in the tab in front. Highlight one page, move to another,
+ask for the highlighting to go, and the first page stays marked with nothing left
+pointing at it — the only way back is remembering which tab it was, which is
+exactly the state an undo exists to prevent.
+
+Clearing now sweeps every tab of every window and reports how many carried a
+restyle. Putting a restyle on still acts only on the page being looked at: that
+request is about this page, and spreading it would be the same bug pointing the
+other way.
+
+A tab that refuses the script is skipped rather than failing the sweep. A PDF
+viewer, a new tab page and a page still loading can each run nothing, and one of
+those must not leave every other page highlighted. An adapter that cannot reach
+past the front tab still clears that one — a partial undo beats none — and the log
+says which happened.

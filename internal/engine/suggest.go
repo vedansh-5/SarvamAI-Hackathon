@@ -25,6 +25,13 @@ var browsers = map[string]bool{
 	"brave browser":  true,
 }
 
+// isBrowser is asked in three places and the answer means something different in
+// each: which suggestions to put first, which tier reads the window, and whether
+// the coach can point at anything at all.
+func isBrowser(app string) bool {
+	return browsers[strings.ToLower(strings.TrimSpace(app))]
+}
+
 type History interface {
 	RecordInstruction(ctx context.Context, text, kind string) error
 	RecentInstructions(ctx context.Context) ([]store.Remembered, error)
@@ -64,7 +71,7 @@ func (e *Engine) Suggestions(ctx context.Context, front string) []Suggestion {
 			Suggestion{Icon: "page", Text: "clear the highlighting from this page", Kind: route.KindPageStyle})
 	}
 
-	if browsers[strings.ToLower(strings.TrimSpace(front))] {
+	if isBrowser(front) {
 		out = pageFirst(out)
 	}
 	return append(e.remembered(ctx, out), out...)

@@ -90,7 +90,7 @@ func (e *Engine) stylePage(ctx context.Context, r route.Route) (*Plan, int, erro
 			Destination: hostOf(pageURL),
 			Style: &StylePlan{
 				URL:     pageURL,
-				Preview: "Take the highlighting off " + hostOf(pageURL),
+				Preview: "Take the highlighting off every page VANS put it on",
 				Clears:  true,
 				script:  webstyle.Clear(),
 			},
@@ -170,19 +170,23 @@ func (e *Engine) runStyle(ctx context.Context, plan *Plan) (Receipt, error) {
 		defer l.Unlock()
 	}
 
+	if plan.Style.Clears {
+		cleared, err := e.takeTheStyleOff(ctx, driver)
+		if err != nil {
+			return Receipt{}, err
+		}
+		e.logf("took the highlighting off %d page(s)", cleared)
+		return Receipt{Title: hostOf(plan.Style.URL), Verified: true}, nil
+	}
+
 	if err := driver.Do(ctx, plan.Style.script); err != nil {
 		return Receipt{}, err
 	}
-
-	if plan.Style.Clears {
-		e.logf("took the highlighting off %s", plan.Style.URL)
-	} else {
-		e.logf("restyled %s", plan.Style.URL)
-	}
+	e.logf("restyled %s", plan.Style.URL)
 	return Receipt{Title: hostOf(plan.Style.URL), Verified: true}, nil
 }
 
-// ClearStyle takes any restyle off the page in front, with no plan and no gate.
+// ClearStyle takes every restyle off, with no plan and no gate.
 //
 // Undoing is not a side effect anyone needs protecting from, and a button that
 // puts the page back should put the page back rather than ask twice.
@@ -197,5 +201,39 @@ func (e *Engine) ClearStyle(ctx context.Context) error {
 		defer l.Unlock()
 	}
 
-	return driver.Do(ctx, webstyle.Clear())
+	cleared, err := e.takeTheStyleOff(ctx, driver)
+	if err != nil {
+		return err
+	}
+	e.logf("took the highlighting off %d page(s)", cleared)
+	return nil
+}
+
+// EveryTabDriver can reach every tab, not only the one in front. Implemented by
+// the live browser adapter; the debugged one drives a single tab and does not.
+type EveryTabDriver interface {
+	DoOnEveryTab(ctx context.Context, script string) (int, error)
+}
+
+// takeTheStyleOff clears every tab that carries a restyle, and reports how many
+// did.
+//
+// Every tab rather than the one in front, because a restyle outlives being
+// looked at: highlight one page, move to another, ask for the highlighting to
+// go, and the first page stays marked with nothing left pointing at it. An
+// adapter that can only reach the front tab still clears that one — a partial
+// undo beats none — and the log says which happened.
+func (e *Engine) takeTheStyleOff(ctx context.Context, driver PageDriver) (int, error) {
+	if everywhere, canReachThemAll := driver.(EveryTabDriver); canReachThemAll {
+		cleared, err := everywhere.DoOnEveryTab(ctx, webstyle.Clear())
+		if err == nil {
+			return cleared, nil
+		}
+		e.logf("could not reach every tab (%v); clearing the one in front", err)
+	}
+
+	if err := driver.Do(ctx, webstyle.Clear()); err != nil {
+		return 0, err
+	}
+	return 1, nil
 }

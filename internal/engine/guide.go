@@ -27,6 +27,16 @@ var (
 // away.
 const timesToRepeatAStep = 3
 
+// ErrNoControlsToPointAt is a coaching question asked with a browser in front.
+//
+// Chromium publishes a window with no children at all (§8), so there is nothing
+// to point at and no amount of re-reading produces any. It has its own error
+// because "that window has nothing on screen to point at" reads as a transient
+// problem worth retrying, and this one never is — while what to do instead is
+// specific and VANS is good at it: ask about the page and it works through the
+// page directly.
+var ErrNoControlsToPointAt = errors.New("engine: a browser publishes no controls to point at")
+
 type GuidePlan struct {
 	App     string
 	Task    string
@@ -75,6 +85,13 @@ func (e *Engine) planGuide(ctx context.Context, task string, lookingAt *screen.C
 	app, err := e.appInQuestion(ctx, lookingAt)
 	if err != nil {
 		return nil, err
+	}
+
+	// Decided before anything is read. Reaching for the accessibility tier here
+	// costs a window raise and a tree walk to learn what the application's name
+	// already says.
+	if isBrowser(app) {
+		return nil, fmt.Errorf("%w, so the steps cannot be drawn inside %s", ErrNoControlsToPointAt, app)
 	}
 
 	// Planning needs a window, so this is one of the two places allowed to go

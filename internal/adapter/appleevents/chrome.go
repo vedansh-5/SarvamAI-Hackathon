@@ -360,6 +360,47 @@ func (c *Chrome) Do(ctx context.Context, script string) error {
 	return nil
 }
 
+// DoOnEveryTab runs a program in every tab of every window and reports how many
+// of them acted on it.
+//
+// This exists for taking a restyle off. A restyle outlives the tab being in
+// front: highlight one page, move to another, ask for the highlighting to go,
+// and clearing only what is in front leaves the first page marked with nothing
+// left pointing at it — the user has to remember which tab it was. VANS put the
+// mark on every one of them and has to be able to take it off every one of them.
+//
+// A tab that refuses is skipped rather than failing the sweep. Some tabs cannot
+// run anything at all — a PDF viewer, the new tab page, a page still loading —
+// and one of those must not leave the rest highlighted.
+func (c *Chrome) DoOnEveryTab(ctx context.Context, script string) (int, error) {
+	source, err := jsLiteral(script)
+	if err != nil {
+		return 0, err
+	}
+
+	var acted int
+	err = c.run(ctx, fmt.Sprintf(`reply(function () {
+  const app = chrome();
+  let acted = 0;
+  const windows = app.windows();
+  for (let w = 0; w < windows.length; w++) {
+    let tabs = [];
+    try { tabs = windows[w].tabs(); } catch (e) { continue; }
+    for (let t = 0; t < tabs.length; t++) {
+      try {
+        const out = JSON.parse(String(app.execute(tabs[t], { javascript: %s })));
+        if (out && out.ok && out.removed) acted++;
+      } catch (e) {}
+    }
+  }
+  return acted;
+});`, source), &acted)
+	if err != nil {
+		return 0, err
+	}
+	return acted, nil
+}
+
 // DoOnOwnTab runs a program in the tab VANS opened for itself, never the one
 // in front. Acting in a web application VANS navigated to is not the same act
 // as acting in the page the user is reading, and the two must not share a

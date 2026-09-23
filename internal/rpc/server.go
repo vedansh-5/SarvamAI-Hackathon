@@ -518,6 +518,13 @@ func asError(err error) *Error {
 			Data:    fixData(appleevents.Fix(err)),
 		}
 	}
+	if errors.Is(err, engine.ErrNoControlsToPointAt) {
+		return &Error{
+			Code:    CodeNoCoachHere,
+			Message: err.Error(),
+			Data:    fixData("Ask about the page itself and VANS works on it directly — reading it, filling it in, or restyling it."),
+		}
+	}
 	if errors.Is(err, synth.ErrNoAnswer) {
 		return &Error{
 			Code:    CodeModelSilent,

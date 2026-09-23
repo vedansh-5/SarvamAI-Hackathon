@@ -122,6 +122,11 @@ const applyScript = `(function () {
 `
 
 // Clear removes a restyle, leaving the page as it was.
+//
+// It reports whether it found one to remove, which is what lets a caller sweep
+// every tab and still say how many actually carried a restyle. Running it on a
+// page that was never restyled is not a failure — it is the answer "nothing
+// here" — so it succeeds either way.
 func Clear() string {
 	id, err := encode(StyleElementID)
 	if err != nil {
@@ -134,7 +139,7 @@ const clearScript = `(function () {
   try {
     const el = document.getElementById(%[1]s);
     if (el && el.parentNode) el.parentNode.removeChild(el);
-    return JSON.stringify({ ok: true, matched: 0 });
+    return JSON.stringify({ ok: true, matched: 0, removed: !!el });
   } catch (e) {
     return JSON.stringify({ ok: false, error: String((e && e.message) || e) });
   }
