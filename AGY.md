@@ -243,16 +243,30 @@ routing. `docs/decisions.md` carries the reasoning for all of it.
   does not exist fell through to the configured one and came back with a working
   program in 2.04s; a one-millisecond wait gave up in 2 ms saying the model did
   not answer, rather than after three minutes saying nothing (2026-09-23).
+- **The drive loop completed a task on a real window.** 2026-09-23, TextEdit, an
+  empty document, "type the word hello into the document". 44 controls read; the
+  model asked for a click on the text area; the occlusion guard refused it — "is
+  inside DBeaver Community's window, which is in front of TextEdit" — the step was
+  re-asked with that reason and came back as typing instead; the text landed; the
+  window read back `the AXTextArea "" now holds "hello"`; receipt verified on that
+  evidence. 5.54s, two model calls. The whole ladder in one run: capture, write,
+  validate, refuse with a reason, re-ask, act, read back, verify.
 
 ### Not proven
 
-- **A full click-to-result loop on a real application has never been watched
-  end to end.** Every piece is verified separately — capture, click point,
-  occlusion guard, CoreGraphics event posting — and the pieces have never been
-  stitched together on a live window successfully. The closest run reached the
-  input layer and died there, which is exactly what #44 replaced.
-- **The drive loop has never completed a task.** It could not, because until
-  #44 no click could land.
+- **A posted click has still never been watched landing on a real control.** The
+  drive loop completed a task on 2026-09-23, but by typing: the one click it
+  attempted was refused by the occlusion guard, correctly, because DBeaver was
+  over TextEdit. Every piece is verified separately and the click itself remains
+  the one that has never been seen through to an effect.
+- **And the reason it was refused is a gap worth closing.** `windowToWorkFrom`
+  only raises the target when `Capture` returns `ErrNoWindow`
+  (`internal/engine/drive.go:194`). TextEdit was publishing 44 controls while
+  sitting behind DBeaver, so it was readable, never raised, and every click into
+  it was unreachable. A step refused purely because another window is on top has
+  an obvious recovery — raise the target once, read again, re-ask — and the drive
+  loop does not take it. D-080a restricted raising to the callers that mean it,
+  and a caller about to click is one of them. This is the next thing to fix.
 - **The panel can no longer be stranded off screen** (#57), which is what made
   the coach look broken: the keystrokes were reaching a window above the menu
   bar.
@@ -633,20 +647,27 @@ exist and gets a working program back from the fallback in 2.04s, and
    in `.env`. The ladder is covered by hermetic tests against a server that never
    answers; it has not yet been seen switching models against a real provider,
    which needs an outage to happen again.
-2. **`TestLiveDriveTask` needs a safe target and has still never run.** The test
-   itself was rewritten in #78 — it asks a real model, performs the steps, and
-   reads the window back independently of the receipt. What it needs is a window
-   with nothing to lose. Nothing open on 2026-09-23 qualified: Chrome and Notion
-   are Chromium-shaped and hold real work, dbeaver is a database tool, Clock is
-   out by standing constraint. An empty TextEdit document is the target to use,
-   and VANS does not open it (D-032) — so it has to be opened by hand:
+2. **Raise a window that is only covered, not missing.** The first live drive run
+   exposed it: `windowToWorkFrom` raises the target only when `Capture` returns
+   `ErrNoWindow`, so a window that publishes controls while sitting behind another
+   application is read happily and every click into it is then refused as
+   unreachable. The recovery is one raise and one re-read. This is also what
+   stands between the run and the last unproven thing in the system — a posted
+   click seen landing on a real control.
+3. **A live drive run needs a target opened by hand** (VANS does not open
+   applications, D-032). An empty TextEdit document is the one to use; Chrome and
+   Notion are Chromium-shaped and hold real work, and Clock is out by standing
+   constraint.
 
    ```bash
    VANS_LIVE=1 VANS_LIVE_DRIVE_OK=1 VANS_LIVE_APP=TextEdit \
-     VANS_LIVE_TASK="type the word hello" \
+     VANS_LIVE_TASK="type the word hello into the document" \
      go test -tags integration -v -run TestLiveDriveTask ./internal/engine/
    ```
-3. ~~A real keypress reaching the panel.~~ **Done in #77**, see *Proven live*.
+
+   Done for the first time on 2026-09-23; #78 is what made the test capable of
+   failing.
+4. ~~A real keypress reaching the panel.~~ **Done in #77**, see *Proven live*.
 
 **Deferred, on purpose:**
 
@@ -689,8 +710,10 @@ window refuses is re-asked with the reason in hand, and the receipt is verified
 only when every step performed was seen to change the window (D-076). Each step
 carries its effect into the next request, so the model is told "nothing in the
 window changed" rather than assuming success. `TestLiveDriveTask` drives it
-against a real application behind `-tags integration` and `VANS_LIVE_DRIVE_OK=1`;
-that run has not happened yet.
+against a real application behind `-tags integration` and `VANS_LIVE_DRIVE_OK=1`.
+**That run happened on 2026-09-23 and passed** — TextEdit, an empty document,
+"type the word hello into the document", 5.54s. The numbers and what it exposed
+are under *Proven live* and *Not proven*.
 
 ### 9.5 Smaller, worth doing
 
