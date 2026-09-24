@@ -770,6 +770,25 @@ one-way and say so.
 
 ### 9.6 The bigger one after that — seeing what cannot be read
 
+**What Clicky does here, since it is kept installed as a reference.** Its bundle
+says a lot: `Resources/CodexRuntime/vendor/*/bin/codex` is OpenAI's Codex CLI
+shipped whole, and `Helpers/cua-driver` runs it in a `computer-use-compat` mode.
+The model names inside the bundled Codex are the GPT-5.x family, with
+`gpt-5.1-codex-max` named explicitly. Those are the models that binary knows
+about, not proof of what it asks for at runtime — settling that needs the network
+or its own logs.
+
+Two things worth taking from it. It reaches the screen through a **computer-use
+agent** rather than the accessibility API, which is how it works inside
+applications that publish nothing — the same hole this section is about, solved
+the way this section proposes. And it runs Codex with
+`--dangerously-bypass-approvals --no-permissions-gate`, which is the opposite of
+the confirmation gate here. That is a deliberate difference, not an oversight to
+copy: it is why Clicky feels smooth, and why §9.5 argues an undo is what buys
+smoothness honestly.
+
+
+
 Chromium and Electron publish nothing to the accessibility API (§8), which is
 Chrome, VS Code, Slack, Telegram, Notion and Discord — a large share of what
 anyone actually uses. Browsers are covered for pages by the page tier, so the hole
