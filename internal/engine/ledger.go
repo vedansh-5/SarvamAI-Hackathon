@@ -110,11 +110,7 @@ func previewOf(plan *Plan) string {
 // of recording this.
 func undoFor(plan *Plan) string {
 	if plan.Style != nil && !plan.Style.Clears {
-		return undoRestyle
+		return marshalUndo(howToUndo{Kind: undoByClearingTheStyle})
 	}
 	return ""
 }
-
-// The tier's own name for its inverse. A word rather than a program: the tier
-// knows how to reverse itself, and what it needs is to be told to.
-const undoRestyle = "restyle"

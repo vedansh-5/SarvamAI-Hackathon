@@ -124,6 +124,9 @@ type Engine struct {
 	// nothing else changes — recording is not a precondition for acting.
 	Deeds Ledger
 
+	// Recorded reads those back, to put one of them back.
+	Recorded DeedStore
+
 	// Model labels which backend wrote a program, stored as provenance.
 	Model string
 

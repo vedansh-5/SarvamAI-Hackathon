@@ -986,3 +986,6 @@ section:not([hidden]) {
   color: var(--ink-dim);
   font: 400 12px/1.4 var(--mono);
 }
+.deed-undo {
+  margin-top: 8px;
+}

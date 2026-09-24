@@ -11,6 +11,7 @@ type tabRecorder struct {
 	frontCalls int
 	ownCalls   int
 	html       string
+	frontErr   error
 }
 
 func (r *tabRecorder) Navigate(context.Context, string) error { return nil }
@@ -25,7 +26,10 @@ func (r *tabRecorder) Front(context.Context) (string, string, error) {
 	return "https://github.com/vedansh-5/VANS", r.html, nil
 }
 
-func (r *tabRecorder) Do(context.Context, string) error { r.frontCalls++; return nil }
+func (r *tabRecorder) Do(context.Context, string) error {
+	r.frontCalls++
+	return r.frontErr
+}
 
 func (r *tabRecorder) DoOnOwnTab(context.Context, string) error { r.ownCalls++; return nil }
 

@@ -927,12 +927,36 @@ async function showHistory() {
     // what the absence of it means.
     marks.push(d.verified ? "seen to happen" : "not confirmed");
     if (d.undone) marks.push("put back");
-    else if (d.undoable) marks.push("can be put back");
-    else marks.push("cannot be undone");
+    else if (!d.undoable) marks.push("cannot be undone");
     row.appendChild(el("div", "deed-marks", marks.join(" · ")));
 
     if (d.changed) row.appendChild(el("div", "deed-changed", d.changed));
+
+    // The offer replaces the words: a button that puts it back says "can be put
+    // back" better than the phrase does, and saying both is saying it twice.
+    if (d.undoable && !d.undone) {
+      const put = el("button", "btn quiet deed-undo", "Put it back") as HTMLButtonElement;
+      put.addEventListener("click", () => undoDeed(d.id, put));
+      row.appendChild(put);
+    }
+
     list.appendChild(row);
+  }
+}
+
+async function undoDeed(id: number, button: HTMLButtonElement) {
+  button.disabled = true;
+  button.textContent = "Putting it back…";
+  try {
+    await invoke("undo", { id });
+    // Read the list again rather than editing the row in place: whether
+    // something is still undoable is the engine's answer, not the panel's.
+    await showHistory();
+  } catch (e) {
+    button.disabled = false;
+    button.textContent = "Put it back";
+    const said = isRpcError(e) ? e.message : String(e);
+    button.insertAdjacentElement("afterend", el("div", "deed-changed", said));
   }
 }
 

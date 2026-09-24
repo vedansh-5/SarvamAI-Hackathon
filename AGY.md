@@ -736,7 +736,34 @@ and how to put it back. Failures are recorded too. Two hundred rows, then the
 oldest go. `history` returns it and the panel shows it under Setup — "what has
 this done to my machine" has an answer now.
 
-What remains is the undo itself, in the order below.
+**The undo machinery is built (#86).** `Undo(id)` reads a change back, carries
+out the tier's inverse, and marks it off — only once it is actually back, because
+a change recorded as undone while it is still there is a wrong answer to the
+question the ledger exists to answer. Reached by `undo` over the protocol and a
+"Put it back" button in the panel's record. No confirmation gate: undoing is not a
+side effect anyone needs protecting from.
+
+A restyle is the one tier with a real inverse today, so it is the one that offers
+the button. Everything else says "cannot be undone", which is the honest answer
+and is what the gate will use next.
+
+**What remains:**
+
+1. **Typing's inverse.** The prior value of the field is already in the tree
+   captured before the step, so the evidence is in hand; what is missing is a way
+   to put a value back. `AXUIElementSetAttributeValue` is already used in the cgo
+   layer for `kAXFrontmostAttribute`, so setting `kAXValueAttribute` is the same
+   call with a different attribute and an element addressed by its path. That is
+   exact, where a keystroke restore would need select-all — and the key table
+   deliberately holds only Delete, Enter, Escape, Space and Tab, because it is
+   shown to the model.
+2. **The gate learning the difference.** It treats every write the same today, so
+   it has to be equally alarming about all of them. With the ledger it can say
+   *this can be undone* or *this cannot*, and only be frightening about the
+   second. That is the change that alters how VANS feels to use, and it is why the
+   ledger was worth building first.
+3. **A multi-step run's inverse**, which is the composition of its steps' inverses
+   in reverse order. Worth doing only once a single step has one.
 
 **The gap.** VANS changes things in six ways — a scripting dictionary, a page, a
 window through accessibility, a web version, a multi-step drive, a restyle — and

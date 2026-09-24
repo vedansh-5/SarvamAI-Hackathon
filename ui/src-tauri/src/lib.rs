@@ -128,6 +128,13 @@ async fn history(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("history", None).await
 }
 
+/// Puts one recorded change back. No gate: undoing is not a thing to be
+/// protected from, and asking twice teaches people to dismiss the asking.
+#[tauri::command]
+async fn undo(engine: State<'_, Engine>, id: i64) -> Result<Value, RpcError> {
+    engine.call("undo", Some(json!({ "id": id }))).await
+}
+
 #[tauri::command]
 async fn destinations(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("destinations", None).await
@@ -322,6 +329,7 @@ pub fn run() {
             stop_guide,
             advance_guide,
             history,
+            undo,
             point_at,
             clear_pointer,
             finish_pointer,

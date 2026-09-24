@@ -87,6 +87,11 @@ const (
 	// failure cannot carry.
 	CodeNoCoachHere = "no_coach_here"
 
+	// CodeCannotUndo means there is no inverse for that change. Not a failure
+	// and its own code: the change stands, and the honest answer is that VANS
+	// does not know how to take it back rather than that something broke.
+	CodeCannotUndo = "cannot_undo"
+
 	// CodeSpent means a plan was already committed. Writes are never retried.
 	CodeSpent = "plan_spent"
 
@@ -270,6 +275,17 @@ type Deed struct {
 	// rather than the mechanism: what the panel needs is whether to offer it.
 	Undoable bool `json:"undoable"`
 	Undone   bool `json:"undone"`
+}
+
+// UndoParams names the change to put back.
+type UndoParams struct {
+	ID int64 `json:"id"`
+}
+
+// UndoResult reports that it was put back, and what it was.
+type UndoResult struct {
+	Undone bool   `json:"undone"`
+	Did    string `json:"did"`
 }
 
 // HistoryResult is what VANS has done, newest first.

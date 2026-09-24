@@ -158,6 +158,8 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.clearStyle(ctx)
 	case "history":
 		result, err = s.history(ctx)
+	case "undo":
+		result, err = s.undo(ctx, req)
 	case "guide":
 		result, err = s.guide(ctx, req)
 	case "stop_guide":
@@ -535,6 +537,10 @@ func asError(err error) *Error {
 			Data:    fixData(appleevents.Fix(err)),
 		}
 	}
+	if errors.Is(err, engine.ErrCannotBeUndone) || errors.Is(err, engine.ErrNothingToUndo) {
+		return &Error{Code: CodeCannotUndo, Message: err.Error()}
+	}
+
 	if errors.Is(err, engine.ErrCoachStopped) {
 		return &Error{
 			Code:    CodeCoachStopped,
@@ -759,6 +765,30 @@ func (s *Server) history(ctx context.Context) (HistoryResult, error) {
 		})
 	}
 	return HistoryResult{Deeds: out}, nil
+}
+
+// undo puts one recorded change back.
+//
+// No confirmation gate. Undoing is not a side effect anyone needs protecting
+// from, and asking twice before putting something back teaches people to dismiss
+// the asking.
+func (s *Server) undo(ctx context.Context, req Request) (UndoResult, error) {
+	var params UndoParams
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return UndoResult{}, &Error{
+			Code:    CodeBadRequest,
+			Message: fmt.Sprintf("rpc: undo takes an id: %v", err),
+		}
+	}
+	if params.ID == 0 {
+		return UndoResult{}, &Error{Code: CodeBadRequest, Message: "rpc: undo takes an id"}
+	}
+
+	deed, err := s.Engine.Undo(ctx, params.ID)
+	if err != nil {
+		return UndoResult{}, err
+	}
+	return UndoResult{Undone: true, Did: deed.Did}, nil
 }
 
 func (s *Server) screenContext(ctx context.Context, req Request) (ScreenContextResult, error) {

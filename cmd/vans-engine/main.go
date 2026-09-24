@@ -155,6 +155,7 @@ func run() error {
 			History:   st,
 			Chooser:   chooser,
 			Deeds:     st,
+			Recorded:  st,
 			UIScreen:  uiact.System{Runner: appleevents.Osascript{}},
 		},
 		Deeds: st,

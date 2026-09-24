@@ -2765,3 +2765,27 @@ about both, and only be frightening about the ones that deserve it.
 
 No tier claims an inverse it does not have. A hopeful guess here is worse than the
 gap, because it would be believed.
+
+## D-115 — Undoing asks nobody's permission
+
+Every other thing VANS does that touches the world goes through a confirmation.
+Putting one of them back does not, and the reasoning is the same one that decided
+clearing a restyle needs no gate (D-100): undoing is not a side effect anyone
+needs protecting from. A gate in front of it would be asking somebody to confirm
+that they meant the thing they just asked for, and every confirmation that guards
+nothing teaches people to dismiss the ones that do.
+
+## D-116 — Mark it undone only once it is back
+
+The obvious shape is to mark the change off and then reverse it. It is wrong in
+the way that matters: a change recorded as undone while it is still on screen is
+not a missing answer, it is a confident wrong one, to the exact question the
+ledger exists to answer.
+
+So the inverse runs first and the row is marked only if it succeeded. If the
+marking then fails, the log says so and the change stands as still-undoable —
+offering to put something back twice is harmless where claiming it is already back
+is not.
+
+The general form: when a record and the world can disagree, order the writes so
+the record is the thing that lags.
