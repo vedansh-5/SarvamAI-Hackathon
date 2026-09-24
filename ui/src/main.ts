@@ -765,6 +765,10 @@ const PLAIN: Record<string, { title: string; message: string }> = {
     title: "macOS blocked the write",
     message: "Automation access has not been granted yet.",
   },
+  coach_stopped: {
+    title: "The steps stopped",
+    message: "",
+  },
   app_not_open: {
     title: "That's done somewhere else",
     message:
@@ -833,6 +837,14 @@ function renderFailure(e: unknown) {
         el("pre", "fix", "System Settings › Privacy & Security › Automation, then try again."),
       );
       break;
+    case "coach_stopped": {
+      // The engine's sentence is the explanation, not a stack trace to hide
+      // behind a disclosure triangle. It says what the window was missing.
+      const where = (e.data as { app?: string })?.app;
+      $("failure-title").textContent = where ? `Stopped in ${where}` : "The steps stopped";
+      $("failure-message").textContent = withoutThePrefix(e.message);
+      return;
+    }
     case "app_not_open": {
       const data = e.data as { app?: string; why?: string };
       if (data?.app) {
@@ -852,6 +864,13 @@ function renderFailure(e: unknown) {
   }
 
   detail.appendChild(raw(e.message));
+}
+
+/// The engine names itself at the front of every message, which is right in a
+/// log and noise in a sentence being read by the person it happened to.
+function withoutThePrefix(message: string): string {
+  const said = message.replace(/^engine:\s*/, "").trim();
+  return said.charAt(0).toUpperCase() + said.slice(1);
 }
 
 function raw(text: string): HTMLElement {

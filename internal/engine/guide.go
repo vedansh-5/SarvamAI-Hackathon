@@ -146,7 +146,7 @@ func (e *Engine) planGuide(ctx context.Context, task string, lookingAt *screen.C
 		return nil, err
 	}
 	if len(tree.Elements) == 0 {
-		return nil, fmt.Errorf("engine: %s has nothing on screen to point at", app)
+		return nil, stopped(app, "engine: %s has nothing on screen to point at", app)
 	}
 
 	return &Plan{
@@ -190,7 +190,7 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 		step := program.Steps[0]
 		x, y, w, h, why := tree.RectFor(step.Target)
 		if why != "" {
-			return fmt.Errorf("engine: %s", why)
+			return stopped(g.App, "engine: %s", why)
 		}
 
 		// A step nobody has done yet is still the step. Pointing at it again
@@ -210,7 +210,7 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 				return err
 			}
 			if attempt >= timesToRepeatAStep {
-				return fmt.Errorf("engine: nothing happened in %s, so the steps stopped", g.App)
+				return stopped(g.App, "engine: nothing happened in %s, so the steps stopped", g.App)
 			}
 			e.logf("still on step %d: %s", number, describe)
 		}
@@ -226,9 +226,9 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 	// other than the one being looked at.
 	if run.Steps == 0 {
 		if why := strings.TrimSpace(run.Why); why != "" {
-			return 0, fmt.Errorf("engine: nothing in %s to point at — %s", g.App, why)
+			return 0, stopped(g.App, "engine: nothing in %s to point at — %s", g.App, why)
 		}
-		return 0, fmt.Errorf("engine: there was nothing in %s to point at", g.App)
+		return 0, stopped(g.App, "engine: there was nothing in %s to point at", g.App)
 	}
 	return run.Steps, nil
 }
@@ -289,7 +289,7 @@ func (e *Engine) waitForTheAppToOpen(ctx context.Context, g *GuidePlan, show fun
 		e.logf("still waiting for %s to be opened", g.App)
 	}
 
-	return fmt.Errorf("engine: %s was never opened, so the steps stopped", g.App)
+	return stopped(g.App, "engine: %s was never opened, so the steps stopped", g.App)
 }
 
 // What the verb needs spelled out: the text to type, or the keys to hold down.

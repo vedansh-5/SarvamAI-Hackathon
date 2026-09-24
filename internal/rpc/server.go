@@ -518,6 +518,14 @@ func asError(err error) *Error {
 			Data:    fixData(appleevents.Fix(err)),
 		}
 	}
+	if errors.Is(err, engine.ErrCoachStopped) {
+		return &Error{
+			Code:    CodeCoachStopped,
+			Message: err.Error(),
+			Data:    mustData(CoachStoppedData{App: engine.WhereItStopped(err)}),
+		}
+	}
+
 	var notOpen *engine.AppNotOpenError
 	if errors.As(err, &notOpen) {
 		return &Error{

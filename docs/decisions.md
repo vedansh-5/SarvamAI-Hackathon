@@ -2675,3 +2675,22 @@ and pressing a key need not touch the control at all.
 The general shape: when something can be observed directly, an inference about it
 is not a safety net. It is a second answer that will sometimes win and be wrong,
 and it wins exactly when the world is busiest.
+## D-111 — "Something went wrong inside VANS" is a claim, and usually a false one
+
+A coached run that ends short arrives at the panel as a failure, and the panel's
+fallback heading for a failure it has no view for is "That didn't work —
+something went wrong inside VANS". The messages underneath were accurate and
+already written for a person: `no part of the AXButton "Tahoe" is visible on
+screen`, `nothing happened in System Settings, so the steps stopped`. Nothing had
+gone wrong inside VANS in any of those cases. The window was not what the step
+needed, which is a different thing and points somewhere else entirely.
+
+The ways a coached run can stop now carry a sentinel, and the panel has a view for
+them: it names the application and shows the engine's own sentence as the
+explanation rather than hiding it behind a disclosure triangle. The generic
+heading stays for the thing it is actually about — a build missing a piece, a
+fault with no better account of itself.
+
+The engine's `engine: ` prefix is stripped on the way out. Naming yourself at the
+front of every line is right in a log and is noise in a sentence being read by the
+person it happened to.

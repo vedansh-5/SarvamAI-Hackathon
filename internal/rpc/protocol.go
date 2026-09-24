@@ -70,6 +70,12 @@ const (
 	// person looking for a fault on the wrong side of the network.
 	CodeModelSilent = "model_silent"
 
+	// CodeCoachStopped means a coached run ended because of what was on screen.
+	// Its own code because the messages are accurate and were written for a
+	// person to read, and arriving under "something went wrong inside VANS" told
+	// them the one thing that was not true.
+	CodeCoachStopped = "coach_stopped"
+
 	// CodeAppNotOpen means the task belongs to an application that is not
 	// running. Its own code because it is not a failure and there is exactly one
 	// thing to do about it, which VANS will not do itself (D-032).
@@ -234,6 +240,12 @@ type UnroutableData struct {
 	Instruction string   `json:"instruction"`
 	Why         string   `json:"why"`
 	Can         []string `json:"can"`
+}
+
+// CoachStoppedData names the application the run was working in, so the panel
+// can say where it got to.
+type CoachStoppedData struct {
+	App string `json:"app"`
 }
 
 // AppNotOpenData names where the task is done, so the panel can say it rather

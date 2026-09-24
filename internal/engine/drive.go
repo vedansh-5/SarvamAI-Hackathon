@@ -175,7 +175,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 		}
 
 		if !acted {
-			return taskRun{Steps: len(done), Landed: landed}, fmt.Errorf(
+			return taskRun{Steps: len(done), Landed: landed}, stopped(app,
 				"engine: nothing that fits %s's window survived being checked against it, after %d step(s)",
 				app, len(done))
 		}
