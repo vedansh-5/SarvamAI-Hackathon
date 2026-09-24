@@ -3,10 +3,12 @@ package engine
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/vedansh/vans/internal/capability"
 	"github.com/vedansh/vans/internal/screen"
 	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
@@ -14,9 +16,18 @@ import (
 
 func quickGuide(t *testing.T) {
 	t.Helper()
-	poll, timeout := guidePoll, guideStepTimeout
-	guidePoll, guideStepTimeout = time.Millisecond, 200*time.Millisecond
-	t.Cleanup(func() { guidePoll, guideStepTimeout = poll, timeout })
+	poll, timeout, settle := guidePoll, guideStepTimeout, settleBeforeJudging
+	guidePoll, guideStepTimeout, settleBeforeJudging = time.Millisecond, 200*time.Millisecond, 0
+	t.Cleanup(func() {
+		guidePoll, guideStepTimeout, settleBeforeJudging = poll, timeout, settle
+	})
+}
+
+func quickOpen(t *testing.T) {
+	t.Helper()
+	wait := openAppTimeout
+	openAppTimeout = 150 * time.Millisecond
+	t.Cleanup(func() { openAppTimeout = wait })
 }
 
 func guidePlan() *Plan {
@@ -353,9 +364,11 @@ func TestTheCoachIsToldToPointRatherThanDescribe(t *testing.T) {
 // A step nobody has got to yet is still that step. The coach points at it again,
 // with no new model call, rather than starting the task over from step one.
 func TestGuideStaysOnTheStepNobodyHasDoneYet(t *testing.T) {
-	poll, timeout := guidePoll, guideStepTimeout
-	guidePoll, guideStepTimeout = 5*time.Millisecond, 40*time.Millisecond
-	t.Cleanup(func() { guidePoll, guideStepTimeout = poll, timeout })
+	poll, timeout, settle := guidePoll, guideStepTimeout, settleBeforeJudging
+	guidePoll, guideStepTimeout, settleBeforeJudging = 5*time.Millisecond, 40*time.Millisecond, 0
+	t.Cleanup(func() {
+		guidePoll, guideStepTimeout, settleBeforeJudging = poll, timeout, settle
+	})
 
 	acted := editorTree()
 	acted.Elements[0].Value = "hello"
@@ -460,5 +473,194 @@ func TestGuideCarriesTheKeysToHoldDown(t *testing.T) {
 	}
 	if len(shown) == 0 || shown[0].Detail != "Command-Enter" {
 		t.Errorf("Detail = %q, want the combination spelled out", shown[0].Detail)
+	}
+}
+
+// closedThenOpen publishes nothing until it has been asked a few times, the way
+// an application does between being asked for and having drawn a window.
+type closedThenOpen struct {
+	fakeScreen
+	opensAfter int
+	asked      int
+}
+
+// Its own counter, so refusing to publish a window does not disturb the
+// bookkeeping the embedded fake uses to decide when the window has moved on.
+func (c *closedThenOpen) Capture(ctx context.Context, app string) (uiact.Tree, error) {
+	c.asked++
+	if c.asked <= c.opensAfter {
+		return uiact.Tree{}, uiact.ErrNoWindow
+	}
+	return c.fakeScreen.Capture(ctx, app)
+}
+
+// The task belongs somewhere that is not running. That is not a refusal — it is
+// the first step, and the person carries it out.
+func TestPlanGuideAsksForTheAppToBeOpened(t *testing.T) {
+	chooser := &saysApp{choice: synth.AppChoice{App: "System Settings", Why: "appearance lives there"}}
+	e := &Engine{
+		Apps:     capability.New(),
+		Chooser:  chooser,
+		Steps:    &alwaysStep{step: typeIntoMessage()},
+		UIScreen: &runningScreen{fakeScreen: fakeScreen{front: "Antigravity IDE"}, open: []string{"Antigravity IDE"}},
+		Log:      func(string, ...any) {},
+	}
+
+	plan, err := e.planGuide(context.Background(), "how do I change the wallpaper",
+		&screen.Context{AppName: "Antigravity IDE"})
+	if err != nil {
+		t.Fatalf("planGuide: %v", err)
+	}
+	if plan.Guide == nil || !plan.Guide.MustOpen {
+		t.Fatalf("plan does not ask for the application to be opened: %+v", plan.Guide)
+	}
+	if plan.Guide.App != "System Settings" {
+		t.Errorf("App = %q, want System Settings", plan.Guide.App)
+	}
+	if !strings.Contains(plan.Guide.Preview, "open it first") {
+		t.Errorf("the preview does not say it has to be opened: %q", plan.Guide.Preview)
+	}
+}
+
+// The step drawn while waiting has no control, because the window being asked
+// for does not exist yet.
+func TestGuideShowsOpenItWithNothingToPointAt(t *testing.T) {
+	quickGuide(t)
+	quickOpen(t)
+
+	moved := editorTree()
+	moved.Elements[0].Value = "hello"
+	screenReader := &closedThenOpen{
+		fakeScreen: fakeScreen{tree: editorTree(), afterwards: &moved, changesAfter: 1},
+		opensAfter: 2,
+	}
+	e := &Engine{UIScreen: screenReader, Steps: &scriptedSteps{
+		answers: []synth.StepAnswer{{Step: typeIntoMessage()}, {Done: true, Why: "that is all"}},
+	}}
+
+	var shown []GuideStep
+	plan := &Plan{Guide: &GuidePlan{
+		App: "Editor", Task: "say hello", MustOpen: true, Why: "the editor is where text goes",
+	}}
+
+	if _, err := e.RunGuide(context.Background(), plan, func(g GuideStep) { shown = append(shown, g) }, nil); err != nil {
+		t.Fatalf("RunGuide: %v", err)
+	}
+	if len(shown) == 0 {
+		t.Fatal("nothing was shown")
+	}
+
+	first := shown[0]
+	if first.Do != "open" {
+		t.Errorf("first step Do = %q, want open", first.Do)
+	}
+	if first.Label != "Open Editor" {
+		t.Errorf("first step Label = %q, want \"Open Editor\"", first.Label)
+	}
+	if first.W != 0 || first.H != 0 {
+		t.Errorf("the open step carries a control to ring (%dx%d); there is nothing on screen yet", first.W, first.H)
+	}
+	if first.Detail == "" {
+		t.Error("nothing said about why they are being sent there")
+	}
+	if first.Number != 1 {
+		t.Errorf("open step Number = %d, want 1", first.Number)
+	}
+
+	// Opening it was step one, so pointing at the first control is step two.
+	if len(shown) < 2 {
+		t.Fatal("the coach never got past opening the application")
+	}
+	if shown[1].Number != 2 {
+		t.Errorf("the step after opening is numbered %d, want 2", shown[1].Number)
+	}
+	if shown[1].W == 0 {
+		t.Error("the step after opening has no control, so nothing was pointed at")
+	}
+}
+
+// Nobody opened it. Saying so beats waiting forever with a dimmed screen.
+func TestGuideGivesUpWhenTheAppIsNeverOpened(t *testing.T) {
+	quickGuide(t)
+	quickOpen(t)
+
+	screenReader := &closedThenOpen{
+		fakeScreen: fakeScreen{tree: editorTree()},
+		opensAfter: 1 << 30,
+	}
+	e := &Engine{UIScreen: screenReader, Steps: &alwaysStep{step: typeIntoMessage()}}
+
+	plan := &Plan{Guide: &GuidePlan{App: "Editor", Task: "say hello", MustOpen: true}}
+
+	_, err := e.RunGuide(context.Background(), plan, func(GuideStep) {}, nil)
+	if err == nil {
+		t.Fatal("want an error")
+	}
+	if !strings.Contains(err.Error(), "never opened") {
+		t.Errorf("err = %v, want it to say the application was never opened", err)
+	}
+}
+
+// keepsChanging redraws itself for a while after being asked, the way an
+// application does when it has just been raised or has just opened.
+type keepsChanging struct {
+	fakeScreen
+	settlesAfter int
+	extra        int
+}
+
+func (k *keepsChanging) Capture(ctx context.Context, app string) (uiact.Tree, error) {
+	k.captures++
+	tree := editorTree()
+
+	// New controls arriving, which is what a window finishing its layout looks
+	// like and also what a click that opens something looks like.
+	grown := k.captures
+	if grown > k.settlesAfter {
+		grown = k.settlesAfter
+	}
+	for i := 0; i < grown+k.extra; i++ {
+		tree.Elements = append(tree.Elements, uiact.Element{
+			Role: "AXStaticText", Title: fmt.Sprintf("row %d", i),
+		})
+	}
+	return tree, nil
+}
+
+// The bug this fixes: the coach drew "Click the Wallpaper row", the window
+// finished settling, and it moved straight on with nobody having touched
+// anything — then told the person it was all done.
+func TestGuideDoesNotMistakeAWindowSettlingForSomebodyActing(t *testing.T) {
+	poll, timeout, settle := guidePoll, guideStepTimeout, settleBeforeJudging
+	guidePoll, guideStepTimeout, settleBeforeJudging = time.Millisecond, 60*time.Millisecond, 20*time.Millisecond
+	t.Cleanup(func() {
+		guidePoll, guideStepTimeout, settleBeforeJudging = poll, timeout, settle
+	})
+
+	// Grows for the first few reads and then holds still. Nobody ever acts.
+	screenReader := &keepsChanging{settlesAfter: 5}
+	e := &Engine{UIScreen: screenReader, Steps: &alwaysStep{step: uiact.Step{
+		Do:       "click",
+		Target:   uiact.Selector{Role: "AXTextArea", Title: "Message"},
+		Describe: "Click the Message area",
+	}}}
+
+	var shown []GuideStep
+	_, err := e.RunGuide(context.Background(), guidePlan(), func(g GuideStep) {
+		shown = append(shown, g)
+	}, nil)
+
+	if err == nil {
+		t.Fatal("the run finished, though nobody ever acted on the step")
+	}
+	if !strings.Contains(err.Error(), "nothing happened") {
+		t.Errorf("err = %v, want it to give up waiting rather than move on", err)
+	}
+
+	// The same step, pointed at again. Not a second step reached by mistake.
+	for _, g := range shown {
+		if g.Number != 1 {
+			t.Errorf("reached step %d without anybody acting", g.Number)
+		}
 	}
 }

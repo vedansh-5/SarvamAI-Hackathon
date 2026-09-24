@@ -2547,3 +2547,107 @@ and the tests that invent a process id say so.
 Worth generalising: this package fakes the accessibility API carefully and had one
 un-faked path left. A test that looks fully stubbed can still have exactly one
 line reaching the real machine, and that line decides the result.
+
+## D-105 — The step that VANS will not carry out is still a step
+
+The task belongs to an application that is not running. VANS does not open
+applications (D-032), which left two bad options: refuse, or tell the person to
+open it and ask again. The second is what shipped first and it breaks the one
+thing the coach is for — not having to work out the next move yourself. Being sent
+away to re-ask is working it out yourself.
+
+Opening it is now step one. It is drawn like any other step, the person carries it
+out, and the coach waits for the application to appear and picks up inside it. The
+constraint is unchanged: VANS still launches nothing. What changed is that the
+person doing it is treated as part of the flow rather than as the end of it.
+
+Readiness is the window publishing controls, not the process existing. An
+application that has launched but drawn nothing cannot be read, and planning a
+step against it fails for a reason nobody could act on. Ninety seconds, three
+times: finding an application and waiting for it to launch is slower than finding
+a button in a window that is already open.
+
+## D-106 — A step with nothing to point at is drawn as an instruction
+
+"Open System Settings" has no control, no rectangle, and nothing to ring. The
+overlay draws rings, brackets, a cursor and an arrow from a target rectangle, and
+a zero-sized one makes all of that collapse into a dot in a corner — worse than
+drawing none of it.
+
+A zero-sized target is now read as an instruction: everything that marks a control
+is taken off, nothing is cut out of the dimming, and the sentence goes in the
+middle of the screen. The whole screen going quiet behind one line is the right
+weight for a step that is about the Mac rather than about a control.
+
+Nothing is clicked to advance it either, which falls out for free: the click
+watcher only counts clicks inside the ring, and there is no ring.
+
+## D-107 — A control is addressed by the name it shows, wherever that name lives
+
+Two live runs died asking for "Wallpaper" while the word sat in the System
+Settings sidebar the whole time. The sidebar items have no title at all: each is
+an `AXStaticText` with an empty title and the value `"Wallpaper"`, `"Displays"`,
+`"Sound"`. Matching looked only at the title, so nothing matched. The model was
+shown only `AXStaticText (holds text)`, so it could not see the name either and
+was guessing it from knowing macOS. And `nearMiss` looked at titles too, so the
+refusal that exists to correct exactly this (D-089) came back empty and the model
+repeated its wrong answer until the run stopped.
+
+An element's label is now its title, or its value when the title is empty and the
+role is one whose value names the control. Short values only, on labelling roles
+only — the reason values are withheld has not gone away, and a message is not a
+label. Forty characters and no newlines is the line: a sidebar item is a word or
+two.
+
+With it, the run works and the correction loop finally does what it was built for:
+`nothing on screen is a AXRow named "Wallpaper" — that name is on screen as
+AXStaticText`, and the next answer is a step that lands.
+
+The general lesson is about the withholding rule rather than about System
+Settings. A conservative default — never show a value — was right for the case it
+was written for and quietly made whole applications unreachable. Worth asking of
+any blanket rule which things it is silently deleting.
+
+## D-108 — The overlay is the same application as the panel and has to look like it
+
+The coach drew its step on a dark card with its own hard-coded greys and blues
+while the panel was a light frosted surface. Two windows of one application that
+do not share a palette read as two applications, and on a light desktop the dark
+card sat on the content rather than above it.
+
+The overlay now carries the panel's tokens and reads the same stored choice, which
+Tauri shares between windows of one origin — no event to plumb and no second place
+for the answer to live. It is read on every step, because the overlay outlives any
+number of changes made in the panel behind it.
+
+One number is deliberately different. The panel is 0.82 opaque and gets the rest
+of the way from an AppKit material behind it; the overlay window has no material,
+so the same surface at the same value would leave text sitting on whatever
+application is underneath. It carries 0.97 and reads as the same material.
+
+## D-109 — A window finishing its own work is not somebody using it
+
+The coach decides a step is done by comparing the window before and after, and
+when nothing about the target itself changed it falls back to counting controls
+that came or went. Two controls is enough. An application that is still drawing
+clears that bar without anybody touching anything, so the coach walked through
+steps nobody had done and then reported the task complete.
+
+Folding the window's own settling into the baseline — whatever it does to itself
+in the first moment is what it looked like to begin with — fixes the case where an
+application has just been raised. It is not enough on its own, and the measurement
+says why: System Settings' Wallpaper pane loads thumbnails for several seconds,
+which no reasonable settling window covers.
+
+The rest of the fix is to stop inferring at all. The shell already watches for the
+real event: a global mouse-down monitor that fires when a click lands inside the
+ring, already wired to the channel the coach waits on. The coach has a direct
+observation of the thing it is trying to detect and is overriding it with a guess
+about window churn. The guess belongs to the drive loop, where VANS itself acted
+and any change is evidence; the coach is watching a person and should require
+either the observed click or evidence about the control.
+
+Recorded rather than finished: the settling half is in, the rest is the next
+thing. The general shape is worth keeping in mind — when a direct signal for
+something exists, an inference about it is not a fallback, it is a competing
+answer that will sometimes win and be wrong.

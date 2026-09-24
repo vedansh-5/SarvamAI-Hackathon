@@ -52,13 +52,48 @@ func (e Element) Pressable() bool {
 	return false
 }
 
+// MaxLabelLength is how long a value may be and still be read as a label rather
+// than as content. A sidebar item is a word or two; a message is not.
+const MaxLabelLength = 40
+
+// labelRoles name the roles whose value is what the control is called, rather
+// than something a person typed or received.
+var labelRoles = map[string]bool{"AXStaticText": true}
+
+// Label is what the element is called on screen.
+//
+// Usually the title, but a great many controls have none and carry their name in
+// the value instead. System Settings is the case that found this: every item in
+// its sidebar is an AXStaticText with an empty title and the value "Wallpaper",
+// "Displays", "Sound". Values are withheld from what the model is shown, for good
+// reason — a text field holds what someone typed — so the whole sidebar arrived
+// as a list of untitled AXStaticText, invisible and unaddressable. Two live runs
+// died asking for a control that was on screen the entire time.
+//
+// Short values on labelling roles only. A long one is content, and the reason
+// values are withheld has not gone away.
+func (e Element) Label() string {
+	if title := strings.TrimSpace(e.Title); title != "" {
+		return title
+	}
+
+	value := strings.TrimSpace(e.Value)
+	if !labelRoles[e.Role] || value == "" {
+		return ""
+	}
+	if strings.Contains(value, "\n") || len([]rune(value)) > MaxLabelLength {
+		return ""
+	}
+	return value
+}
+
 func (t Tree) Find(sel Selector) []Element {
 	var out []Element
 	for _, el := range t.Elements {
 		if role(el.Role) != role(sel.Role) {
 			continue
 		}
-		if sel.Title != "" && !strings.EqualFold(strings.TrimSpace(el.Title), strings.TrimSpace(sel.Title)) {
+		if sel.Title != "" && !strings.EqualFold(el.Label(), strings.TrimSpace(sel.Title)) {
 			continue
 		}
 		out = append(out, el)
@@ -74,23 +109,26 @@ func (t Tree) TextWithin(budget int) string {
 
 	counts := map[string]int{}
 	for _, el := range t.Elements {
-		key := role(el.Role) + "\x00" + strings.ToLower(el.Title)
+		key := role(el.Role) + "\x00" + strings.ToLower(el.Label())
 		counts[key]++
 	}
 
 	seen := map[string]int{}
 	for _, el := range t.Elements {
-		key := role(el.Role) + "\x00" + strings.ToLower(el.Title)
+		label := el.Label()
+		key := role(el.Role) + "\x00" + strings.ToLower(label)
 		seen[key]++
 
 		line := "  " + el.Role
-		if el.Title != "" {
-			line += fmt.Sprintf(" %q", el.Title)
+		if label != "" {
+			line += fmt.Sprintf(" %q", label)
 		}
 		if counts[key] > 1 {
 			line += fmt.Sprintf(" (index %d of %d)", seen[key], counts[key])
 		}
-		if el.Value != "" {
+		// Only when the value is not already the name above, or every sidebar
+		// item would read as holding text it does not hold.
+		if el.Value != "" && label != strings.TrimSpace(el.Value) {
 			if el.Focused {
 				line += fmt.Sprintf(" value=%q", truncate(el.Value, 60))
 			} else {

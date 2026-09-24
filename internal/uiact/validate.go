@@ -61,7 +61,7 @@ func (t Tree) nearMiss(sel Selector) string {
 	var roles []string
 	seen := map[string]bool{}
 	for _, el := range t.Elements {
-		if strings.ToLower(strings.TrimSpace(el.Title)) != title || seen[el.Role] {
+		if strings.ToLower(el.Label()) != title || seen[el.Role] {
 			continue
 		}
 		seen[el.Role] = true

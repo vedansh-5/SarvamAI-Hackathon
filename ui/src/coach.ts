@@ -8,6 +8,31 @@ function note(what: string) {
   invoke("note", { from: "coach", what }).catch(() => {});
 }
 
+/// The panel and the overlay are two windows of one application, and they have
+/// to look like it. The panel keeps the choice in localStorage, which Tauri
+/// shares between windows of the same origin, so reading it is the whole of it —
+/// no event to plumb, and no second place where the answer could be stored and
+/// drift.
+///
+/// Read again on every step rather than once at load: the overlay outlives any
+/// number of changes made in the panel behind it, and a step drawn in yesterday's
+/// colours is exactly the kind of thing nobody notices until it looks broken.
+const THEME_KEY = "vans.theme";
+
+function followTheme() {
+  let dark = false;
+  try {
+    dark = localStorage.getItem(THEME_KEY) === "dark";
+  } catch {
+    // Blocked or unavailable. Light is the default the panel falls back to too.
+  }
+  if (dark) {
+    document.documentElement.setAttribute("data-theme", "dark");
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+  }
+}
+
 interface Pointer {
   x: number;
   y: number;
@@ -219,7 +244,53 @@ function drawArrow(tip: DOMRect, target: Bounds) {
   arrow.setAttribute("opacity", "1");
 }
 
+/// Some steps have nothing on screen to point at.
+///
+/// "Open System Settings" is a step the person carries out before the
+/// application it is about exists, so there is no control, no rectangle and
+/// nothing to ring. Everything that marks a control is taken off and the
+/// instruction is placed in the middle of the screen — a ring drawn around a
+/// zero-sized rectangle is a dot in the corner, which is worse than no ring.
+function hasSomethingToPointAt(pointer: Pointer): boolean {
+  return pointer.w > 0 && pointer.h > 0;
+}
+
+function renderInstruction(pointer: Pointer) {
+  note(`instruction with no control: ${pointer.step} ${pointer.label}`);
+
+  for (const id of ["corners", "arrow"]) {
+    elementById<SVGElement>(id).setAttribute("d", "");
+  }
+  for (const id of ["tap", "caret", "cursor", "done"]) {
+    elementById<SVGElement>(id).setAttribute("opacity", "0");
+  }
+  for (const id of ["spotlight-hole", "spotlight-inner", "spotlight-glow"]) {
+    const el = elementById<SVGRectElement>(id);
+    el.setAttribute("width", "0");
+    el.setAttribute("height", "0");
+  }
+  elementById<SVGCircleElement>("spotlight-halo").setAttribute("r", "0");
+
+  // Nothing is cut out of the dimming, so the whole screen goes quiet behind
+  // one sentence. That is the right weight for a step that is about the Mac
+  // rather than about a control.
+  currentBounds = null;
+
+  const tip = elementById<HTMLElement>("tip");
+  tip.style.visibility = "hidden";
+  tip.classList.add("on");
+
+  requestAnimationFrame(() => {
+    const box = tip.getBoundingClientRect();
+    tip.style.top = `${Math.round((window.innerHeight - box.height) / 2)}px`;
+    tip.style.left = `${Math.round((window.innerWidth - box.width) / 2)}px`;
+    tip.style.visibility = "visible";
+    elementById<HTMLElement>("stage").classList.add("on");
+  });
+}
+
 function renderCoachStep(pointer: Pointer) {
+  followTheme();
   const targetBounds = calculateTargetBounds(pointer);
   note(
     `point ${pointer.w}x${pointer.h} at (${pointer.x}, ${pointer.y})` +
@@ -239,6 +310,11 @@ function renderCoachStep(pointer: Pointer) {
   const spelled = (pointer.detail ?? "").trim();
   detail.hidden = spelled === "";
   detail.textContent = currentVerb === "type" ? `"${spelled}"` : spelled;
+
+  if (!hasSomethingToPointAt(pointer)) {
+    renderInstruction(pointer);
+    return;
+  }
 
   if (currentBounds === null) {
     applySpotlightBounds(targetBounds);

@@ -21,6 +21,21 @@ var (
 	guideStepTimeout = 45 * time.Second
 )
 
+// How long a window is given to finish moving on its own before anything it does
+// is read as somebody using it.
+//
+// An application that has just been raised, or has just opened, keeps drawing for
+// a moment: rows arrive, a pane lays itself out, a scroll bar appears. That looks
+// exactly like the upheaval a click causes, and the coach was taking it as one —
+// it drew "Click the Wallpaper row", the window finished settling, and it moved
+// on to the next step with nobody having touched anything. The run then ended by
+// telling the person it was all done.
+//
+// The fix is not to ignore the change but to fold it into the baseline. Whatever
+// the window does by itself in this window of time is what it looked like to
+// begin with, and the comparison starts from there.
+var settleBeforeJudging = 900 * time.Millisecond
+
 // How many quiet spells one step is pointed at through before the coach accepts
 // that nobody is coming back. Three is a couple of minutes: long enough to find
 // a control, short enough not to leave a dimmed screen up for someone who walked
@@ -41,6 +56,17 @@ type GuidePlan struct {
 	App     string
 	Task    string
 	Preview string
+
+	// MustOpen reports that the application the task belongs to is not running.
+	// The coach asks the person to open it and waits — VANS does not open
+	// applications (D-032), and stopping to make them ask again would break the
+	// one thing the coach is for, which is not having to work out the next move
+	// yourself.
+	MustOpen bool
+
+	// Why is the model's line about what the application is for, said while they
+	// open it.
+	Why string
 }
 
 type GuideStep struct {
@@ -84,6 +110,24 @@ func (e *Engine) planGuide(ctx context.Context, task string, lookingAt *screen.C
 
 	// Where the task is done, which is usually not the window behind the panel.
 	app, err := e.appForTask(ctx, task, lookingAt)
+
+	// Not running is not a refusal. It becomes the first step, carried out by
+	// the person, and the coach picks up inside the application once it appears.
+	var notOpen *AppNotOpenError
+	if errors.As(err, &notOpen) {
+		return &Plan{
+			Task:        Task{Intent: task, Title: notOpen.App},
+			Destination: notOpen.App,
+			Guide: &GuidePlan{
+				App:      notOpen.App,
+				Task:     task,
+				MustOpen: true,
+				Why:      notOpen.Why,
+				Preview: fmt.Sprintf("Show you how to do this in %s, a step at a time — you will need to open it first:\n\n  %s",
+					notOpen.App, task),
+			},
+		}, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -124,6 +168,16 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 
 	g := plan.Guide
 
+	// Opening it is step one, and it is theirs to carry out. Nothing can be read
+	// or pointed at until that is done, so this comes before everything.
+	opened := 0
+	if g.MustOpen {
+		if err := e.waitForTheAppToOpen(ctx, g, show, advance); err != nil {
+			return 0, err
+		}
+		opened = 1
+	}
+
 	// The panel held the keyboard while the question was typed, and the person is
 	// about to act in their own application rather than in VANS. Handing it back
 	// is also what keeps the window readable: macOS withdraws the windows of an
@@ -144,7 +198,7 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 		// first step because someone was slow is the behaviour being avoided.
 		for attempt := 1; ; attempt++ {
 			show(GuideStep{
-				Number: number, Label: describe,
+				Number: number + opened, Label: describe,
 				X: x, Y: y, W: w, H: h,
 				Do: step.Do, Detail: detailOf(step),
 			})
@@ -177,6 +231,65 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 		return 0, fmt.Errorf("engine: there was nothing in %s to point at", g.App)
 	}
 	return run.Steps, nil
+}
+
+// How long someone gets to open an application before the coach accepts nobody
+// is coming back. Longer than a step: finding an application in Spotlight or the
+// dock, and waiting for it to launch, is slower than finding a button in a window
+// that is already open.
+var openAppTimeout = 90 * time.Second
+
+// waitForTheAppToOpen shows the one step VANS will not carry out itself, and
+// waits for the application to appear.
+//
+// Drawn with no rectangle, because there is nothing on screen to point at — the
+// window being asked for does not exist yet. The overlay reads a zero-sized
+// target as an instruction and puts it in the middle of the screen rather than
+// ringing a dot in the corner.
+//
+// Readiness is the window publishing controls, not the process existing. An
+// application that has launched but has not drawn anything cannot be read, and
+// going on to plan a step against it would fail for a reason nobody could act on.
+func (e *Engine) waitForTheAppToOpen(ctx context.Context, g *GuidePlan, show func(GuideStep), advance <-chan struct{}) error {
+	label := "Open " + g.App
+
+	if advance != nil {
+		select {
+		case <-advance:
+		default:
+		}
+	}
+
+	for attempt := 1; attempt <= timesToRepeatAStep; attempt++ {
+		show(GuideStep{
+			Number: 1,
+			Label:  label,
+			Do:     "open",
+			Detail: strings.TrimSpace(g.Why),
+		})
+
+		deadline := time.Now().Add(openAppTimeout)
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-advance:
+				return nil
+			case <-time.After(guidePoll):
+			}
+
+			if tree, err := e.UIScreen.Capture(ctx, g.App); err == nil && len(tree.Elements) > 0 {
+				e.logf("%s is open; carrying on", g.App)
+				return nil
+			}
+			if time.Now().After(deadline) {
+				break
+			}
+		}
+		e.logf("still waiting for %s to be opened", g.App)
+	}
+
+	return fmt.Errorf("engine: %s was never opened, so the steps stopped", g.App)
 }
 
 // What the verb needs spelled out: the text to type, or the keys to hold down.
@@ -212,7 +325,40 @@ func asTask(question string) string {
 // enough that nobody is there.
 var errStillWaiting = errors.New("engine: the window has not changed yet")
 
+// settledView re-reads the window until it stops changing by itself, and returns
+// what it finally looked like.
+//
+// The tree handed in was captured before the step was drawn, which is before the
+// application had finished appearing. Comparing against it attributes the
+// window's own arrival to the person.
+func (e *Engine) settledView(ctx context.Context, app string, before uiact.Tree) uiact.Tree {
+	if settleBeforeJudging <= 0 {
+		return before
+	}
+
+	deadline := time.Now().Add(settleBeforeJudging)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return before
+		case <-time.After(guidePoll):
+		}
+
+		if after, err := e.UIScreen.Capture(ctx, app); err == nil && len(after.Elements) > 0 {
+			before = after
+		}
+		if time.Now().After(deadline) {
+			return before
+		}
+	}
+}
+
 func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uiact.Tree, step uiact.Step, advance <-chan struct{}) error {
+	// Anything the window does to itself in the first moment belongs to the
+	// window, not to the person being coached.
+	before = e.settledView(ctx, app, before)
+
 	deadline := time.Now().Add(guideStepTimeout)
 	unreadable := false
 

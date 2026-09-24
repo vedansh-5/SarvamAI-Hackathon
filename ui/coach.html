@@ -4,7 +4,34 @@
     <meta charset="UTF-8" />
     <title>VANS</title>
     <style>
-      :root { color-scheme: dark; }
+      /* The panel's palette, kept in step with src/styles.css. The overlay is a
+         separate window with no frosted material behind it, so the surface is
+         carried at a higher opacity than the panel's 0.82 — the panel gets the
+         rest of the way there from AppKit, and this has to do it alone or the
+         text sits on whatever application is underneath. */
+      :root {
+        color-scheme: light;
+        --surface-rgb: 234, 233, 233;
+        --tint: 0.97;
+        --ink: #201e1d;
+        --ink-dim: rgba(29, 29, 31, 0.55);
+        --accent: #007aff;
+        --accent-soft: rgba(0, 122, 255, 0.12);
+        --accent-ink: #0a4da3;
+        --r-panel: 18px;
+        --edge: rgba(0, 0, 0, 0.08);
+      }
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+        --surface-rgb: 58, 56, 56;
+        --tint: 0.97;
+        --ink: #f8f4f4;
+        --ink-dim: rgba(245, 245, 247, 0.55);
+        --accent: #0a84ff;
+        --accent-soft: rgba(10, 132, 255, 0.22);
+        --accent-ink: #e9f2ff;
+        --edge: rgba(255, 255, 255, 0.12);
+      }
       html, body {
         margin: 0; padding: 0; width: 100%; height: 100%;
         background: transparent; overflow: hidden;
@@ -19,12 +46,12 @@
         position: fixed;
         max-width: 320px;
         padding: 12px 14px;
-        border-radius: 14px;
-        background: rgba(28, 28, 30, 0.92);
+        border-radius: var(--r-panel);
+        background: rgba(var(--surface-rgb), var(--tint));
         -webkit-backdrop-filter: blur(20px) saturate(180%);
         backdrop-filter: blur(20px) saturate(180%);
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), 0 0 0 0.5px rgba(255, 255, 255, 0.12) inset;
-        color: #f5f5f7;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28), 0 0 0 0.5px var(--edge) inset;
+        color: var(--ink);
         font-size: 14px;
         line-height: 1.45;
         letter-spacing: -0.01em;
@@ -42,8 +69,8 @@
         margin-top: 8px;
         padding: 5px 9px;
         border-radius: 8px;
-        background: rgba(10, 132, 255, 0.18);
-        color: #e9f2ff;
+        background: var(--accent-soft);
+        color: var(--accent-ink);
         font-size: 13px;
         font-weight: 550;
         letter-spacing: 0.01em;
@@ -55,16 +82,24 @@
         margin-top: 8px;
         font-size: 11px;
         letter-spacing: 0.01em;
-        color: #8e8e93;
+        color: var(--ink-dim);
       }
       #arrow { transition: opacity 200ms ease; }
+
+      /* The ring and the arrow carry the accent too. Set here rather than on the
+         elements, so the one palette decides it: a CSS rule beats a presentation
+         attribute, which is what the markup still has for anything that does not
+         reach a stylesheet. */
+      #corners, #arrow { stroke: var(--accent); }
+      #ripple { stroke: var(--accent); }
+      #spotlight-glow { stroke: var(--accent); }
       #step {
         display: block;
         font-size: 11px;
         font-weight: 590;
         letter-spacing: 0.06em;
         text-transform: uppercase;
-        color: #8e8e93;
+        color: var(--ink-dim);
         margin-bottom: 4px;
       }
     </style>

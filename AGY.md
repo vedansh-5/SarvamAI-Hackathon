@@ -243,6 +243,13 @@ routing. `docs/decisions.md` carries the reasoning for all of it.
   does not exist fell through to the configured one and came back with a working
   program in 2.04s; a one-millisecond wait gave up in 2 ms saying the model did
   not answer, rather than after three minutes saying nothing (2026-09-23).
+- **The coach sends you to the right application, and waits while you open it.**
+  2026-09-23, driven end to end with a posted hotkey: Chrome in front, asked "how
+  do I change the wallpaper". It chose System Settings over Chrome, drew
+  `Step 1 — Open System Settings` as an instruction with no control to ring,
+  noticed the application appear, then drew `Step 2` on the real search field at
+  (459, 100) 195x28. The question the panel is summoned over is no longer mistaken
+  for the question being asked (D-102).
 - **The drive loop completed a task on a real window.** 2026-09-23, TextEdit, an
   empty document, "type the word hello into the document". 44 controls read; the
   model asked for a click on the text area; the occlusion guard refused it — "is
@@ -805,6 +812,44 @@ needed — and it should be done first and separately.
 
 - Raise a window that is only covered rather than missing (see *Not proven*); it
   unblocks the last unproven piece in the system.
+- **A step still advances without anyone acting on it.** This is the next thing
+  to fix on the coach, and it is diagnosed rather than guessed at.
+
+  The coach decides somebody acted by comparing the window before and after. When
+  nothing about the target itself changed, it falls back to counting controls that
+  came or went — `upheaval >= minimumUpheaval`, which is 2. An application that is
+  still drawing produces that easily.
+
+  A settling period was added (`settleBeforeJudging`, 900ms: whatever the window
+  does to itself in that time becomes the baseline). It fixes the raise-and-settle
+  case and is not enough. Measured on 2026-09-24: System Settings' Wallpaper pane
+  loads thumbnails for several seconds, so the count keeps climbing long after any
+  reasonable settling window, and the coach walked from step 1 to step 3 with
+  nobody touching the machine.
+
+  **The fix is to stop inferring.** The shell already watches for the real thing —
+  `watch_for_the_click()` is a global mouse-down monitor that emits `coach://acted`
+  when a click lands inside the ring, and it is already wired to the `advance`
+  channel. The coach has a direct observation and is overriding it with a guess.
+  `ActedOn` should keep the upheaval fallback for the drive loop, where VANS itself
+  acted and any change is evidence, and the coach should require either the
+  observed click or evidence about the target — it disappeared, it took focus, its
+  value changed. A `press` step has nothing to observe and is the one case that
+  still needs a fallback.
+
+- **A failure inside a step still reads as "Something went wrong inside VANS".**
+  Seen again on 2026-09-24: `engine: no part of the AXButton "Tahoe" is visible on
+  screen`, under that heading. The message is accurate and the framing is wrong —
+  nothing went wrong inside VANS. The codes added for the model going quiet and for
+  a browser having nothing to point at (§9.5's pattern) should extend to the step
+  failures a coached run can end on.
+- **A refused step is being re-asked and answered identically.** The same run:
+  `step 2 rejected: nothing on screen is a AXButton named "Wallpaper"`, twice, and
+  then the run stopped. D-089 added the reason to the refusal precisely so the
+  re-ask could do better, and here it changed nothing — the sidebar row is an
+  `AXRow`, the refusal says so, and the model repeated `AXButton`. Either the
+  reason is not reaching the second request or it is not worded in a way that
+  moves the answer. Worth reading the actual prompt on the second attempt.
 - Draw the coach's rings and arrows over elements inside a web page, using
   geometry from the DOM. The refusal in #77 is honest but it is still a refusal.
 - Persist settings and the key, so the app does not depend on the launching
