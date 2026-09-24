@@ -2694,3 +2694,24 @@ fault with no better account of itself.
 The engine's `engine: ` prefix is stripped on the way out. Naming yourself at the
 front of every line is right in a log and is noise in a sentence being read by the
 person it happened to.
+## D-112 — Being covered is not a question for the model
+
+The first live drive run had TextEdit publishing 44 controls while sitting behind
+DBeaver. It was readable, so it was never raised, and the click was refused:
+`(508,379) is inside DBeaver Community's window, which is in front of TextEdit`.
+That refusal then went back to the model as a reason to write a different step —
+and the model, having no way to see or move a window, answered by avoiding the
+click altogether.
+
+Nothing about the step was wrong. The recovery for a covered window is to bring it
+forward, which is a thing VANS can do and the model cannot. A refusal that is only
+about occlusion now raises the window and retries the same step, with no second
+ask: the answer would be the same and it was never the problem.
+
+Once per step. A raise that did not take will not take on a third go, and
+`windowToWorkFrom` only ever raised when the window published nothing at all —
+readable-but-buried fell straight through the gap between those two.
+
+This is the sharper form of D-080a. Reading stays passive; the callers that mean
+to change the world say so. A caller about to click is one of them, and it had
+been left out.

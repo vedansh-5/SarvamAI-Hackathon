@@ -336,3 +336,60 @@ func TestADriveThatDidNothingIsNotVerified(t *testing.T) {
 		t.Errorf("performed %d step(s) on a run that had none", f.acts)
 	}
 }
+
+// refusesUntilRaised stands in for a window sitting behind another application:
+// the click point is unreachable until something brings it forward.
+type refusesUntilRaised struct {
+	fakeScreen
+	refusals int
+	asks     int
+}
+
+func (r *refusesUntilRaised) Act(ctx context.Context, p uiact.Program, t uiact.Tree) error {
+	r.asks++
+	if len(r.raised) == 0 {
+		r.refusals++
+		return &uiact.InvalidError{
+			App:     t.App,
+			Covered: true,
+			Reasons: []string{"step 1: (10,10) is inside Other's window, which is in front of Editor"},
+		}
+	}
+	return r.fakeScreen.Act(ctx, p, t)
+}
+
+// The first live drive run hit this: TextEdit was publishing 44 controls while
+// sitting behind DBeaver, so it was readable, never raised, and every click into
+// it was refused as unreachable. Re-asking the model cannot fix being covered.
+func TestACoveredWindowIsRaisedRatherThanReAsked(t *testing.T) {
+	typed := editorTree()
+	typed.Elements[0].Value = "hello"
+
+	screenReader := &refusesUntilRaised{
+		fakeScreen: fakeScreen{tree: editorTree(), afterwards: &typed},
+	}
+	writer := &recordedSteps{answers: []synth.StepAnswer{
+		{Step: typeIntoMessage()},
+		{Done: true, Why: "that is all"},
+	}}
+	e := &Engine{UIScreen: screenReader, Steps: writer}
+
+	if _, err := e.runDrive(context.Background(), drivePlan()); err != nil {
+		t.Fatalf("runDrive: %v", err)
+	}
+
+	if screenReader.refusals != 1 {
+		t.Errorf("refused %d time(s), want 1 before the raise", screenReader.refusals)
+	}
+	if len(screenReader.raised) == 0 {
+		t.Error("the window was never brought forward, so the click could never land")
+	}
+	if screenReader.acts != 1 {
+		t.Errorf("performed %d step(s), want 1 once it was reachable", screenReader.acts)
+	}
+
+	// The model is not asked to solve a problem it cannot see or fix.
+	if len(writer.requests) > 2 {
+		t.Errorf("asked the model %d times; being covered is not a question for it", len(writer.requests))
+	}
+}

@@ -130,7 +130,7 @@ func VerifyTargets(pid int, p Program, t Tree) error {
 		}
 
 		if owner, name, known := frontOwnerAt(x, y); known && owner != pid {
-			return &InvalidError{App: t.App, Reasons: []string{fmt.Sprintf(
+			return &InvalidError{App: t.App, Covered: true, Reasons: []string{fmt.Sprintf(
 				"step %d: (%d,%d) is inside %s's window, which is in front of %s, "+
 					"so clicking there would not reach it",
 				i+1, x, y, name, t.App)}}

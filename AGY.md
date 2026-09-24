@@ -810,8 +810,11 @@ needed — and it should be done first and separately.
 
 ### 9.7 Smaller, worth doing
 
-- Raise a window that is only covered rather than missing (see *Not proven*); it
-  unblocks the last unproven piece in the system.
+- ~~Raise a window that is only covered rather than missing.~~ **Done in #84.** A
+  step refused only because another application is on top now raises the window
+  and tries the same step again, without asking the model a question it cannot
+  answer. What is still unproven is the thing this unblocks: a posted click
+  watched landing on a real control.
 - **A step still advances without anyone acting on it.** This is the next thing
   to fix on the coach, and it is diagnosed rather than guessed at.
 

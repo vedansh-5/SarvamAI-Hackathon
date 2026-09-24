@@ -107,6 +107,10 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 		var failures []string
 		acted := false
 
+		// One raise per step. Bringing a window forward is a change to the
+		// world, so it is made deliberately and not in a loop (D-080a).
+		raised := false
+
 		// Twice, not once: a step refused by the window is worth re-asking with
 		// the reasons in hand, and a third try has never turned one around.
 		for attempt := 1; attempt <= 2; attempt++ {
@@ -155,8 +159,28 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 			}
 			e.logf("step %d: %s", i, describe)
 
-			if err := handle(ctx, tree, program, i, describe); err != nil {
-				var invalid *uiact.InvalidError
+			err = handle(ctx, tree, program, i, describe)
+
+			// Covered, not wrong. The model cannot write its way out of another
+			// application being on top of the one it is working in, so the window
+			// is brought forward and the same step tried again — no second ask,
+			// because the answer would be the same and it was never the problem.
+			// Once per step: a raise that did not take will not take on a third go.
+			var invalid *uiact.InvalidError
+			if errors.As(err, &invalid) && invalid.Covered && !raised {
+				raised = true
+				e.logf("step %d: %s", i, strings.Join(invalid.Reasons, "; "))
+
+				if err := e.UIScreen.BringToFront(ctx, app); err != nil {
+					return taskRun{Steps: len(done), Landed: landed}, err
+				}
+				if fresh, readErr := e.UIScreen.Capture(ctx, app); readErr == nil && len(fresh.Elements) > 0 {
+					tree = fresh
+				}
+				err = handle(ctx, tree, program, i, describe)
+			}
+
+			if err != nil {
 				if errors.As(err, &invalid) && attempt < 2 {
 					failures = invalid.Reasons
 					e.logf("step %d rejected: %s", i, strings.Join(invalid.Reasons, "; "))

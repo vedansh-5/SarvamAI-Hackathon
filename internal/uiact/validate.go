@@ -9,6 +9,12 @@ import (
 type InvalidError struct {
 	App     string
 	Reasons []string
+
+	// Covered reports that the step was refused only because another
+	// application's window is over the target. Nothing about the step is wrong,
+	// so re-asking the model wastes a turn on a question it cannot answer — the
+	// recovery is to bring the window forward and look again.
+	Covered bool
 }
 
 func (e *InvalidError) Error() string {
