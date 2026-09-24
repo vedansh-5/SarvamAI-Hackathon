@@ -396,7 +396,9 @@ func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uia
 		}
 		unreadable = false
 
-		if uiact.ActedOn(before, after, step) {
+		// The coach's test, not the drive loop's: somebody else is acting, and
+		// the shell reports their click directly (D-109).
+		if uiact.PersonActedOn(before, after, step) {
 			return nil
 		}
 

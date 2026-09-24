@@ -2651,3 +2651,27 @@ Recorded rather than finished: the settling half is in, the rest is the next
 thing. The general shape is worth keeping in mind — when a direct signal for
 something exists, an inference about it is not a fallback, it is a competing
 answer that will sometimes win and be wrong.
+
+## D-110 — Where a direct signal exists, an inference is a competing answer
+
+The coach decided somebody had acted by comparing the window before and after,
+falling back to counting controls that came or went. Two was enough. An
+application still drawing clears that without anybody touching anything, so the
+coach walked from step 1 to step 3 of a task nobody had started, then reported it
+complete.
+
+The fix is not a better threshold. The shell already watches for the real event —
+a global mouse-down monitor that fires when a click lands inside the ring, wired
+to the channel the coach waits on. The coach had a direct observation of the thing
+it was trying to detect and was overriding it with a guess.
+
+`ActedOn` and `PersonActedOn` are now two tests for two questions. The drive loop
+performed the step itself, so any change in the window is evidence it landed. The
+coach is watching somebody else and requires the observed click, or evidence about
+the control itself: it went, it took focus, what it holds changed, or the window
+retitled. A key press keeps the looser test, because there is no click to observe
+and pressing a key need not touch the control at all.
+
+The general shape: when something can be observed directly, an inference about it
+is not a safety net. It is a second answer that will sometimes win and be wrong,
+and it wins exactly when the world is busiest.
