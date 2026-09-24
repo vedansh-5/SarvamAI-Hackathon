@@ -137,6 +137,44 @@ static int cgFrontOwnerAt(double x, double y, int *owner, char *name, int nlen) 
     return found;
 }
 
+// Every application holding an ordinary window, newline separated.
+//
+// kCGWindowListOptionAll rather than OnScreenOnly, which means literally
+// displayed: a window on another Space, or behind a full-screen application, is
+// not on screen and its application is still open. The question here is what a
+// person could switch to, so the narrower list answered it wrongly — measured on
+// 2026-09-23, OnScreenOnly reported two applications on a Mac running eight.
+//
+// The window list needs no permission, so this costs nothing and never prompts.
+static int cgAppsOnScreen(char *out, int len) {
+    out[0] = 0;
+    CFArrayRef list = CGWindowListCopyWindowInfo(kCGWindowListOptionAll, kCGNullWindowID);
+    if (!list) return 0;
+    int used = 0;
+    CFIndex n = CFArrayGetCount(list);
+    for (CFIndex i = 0; i < n; i++) {
+        CFDictionaryRef d = (CFDictionaryRef)CFArrayGetValueAtIndex(list, i);
+        CFNumberRef v;
+        int layer = 0;
+        if ((v = (CFNumberRef)CFDictionaryGetValue(d, kCGWindowLayer)))
+            CFNumberGetValue(v, kCFNumberIntType, &layer);
+        if (layer != 0) continue;
+        CFStringRef on = (CFStringRef)CFDictionaryGetValue(d, kCGWindowOwnerName);
+        if (!on) continue;
+        char name[256];
+        if (!CFStringGetCString(on, name, sizeof(name), kCFStringEncodingUTF8)) continue;
+        if (!name[0]) continue;
+        int need = (int)strlen(name) + 1;
+        if (used + need >= len) break;
+        if (used > 0) out[used++] = '\n';
+        memcpy(out + used, name, strlen(name));
+        used += (int)strlen(name);
+        out[used] = 0;
+    }
+    CFRelease(list);
+    return used > 0;
+}
+
 static int cgFrontmostApp(char *name, int len) {
     name[0] = 0;
     CFArrayRef list = CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly, kCGNullWindowID);
@@ -194,6 +232,8 @@ import "C"
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"unsafe"
 )
 
@@ -249,6 +289,29 @@ func pidByWindowList(app string) (int, bool) {
 		return 0, false
 	}
 	return int(pid), true
+}
+
+// appsOnScreen is every application showing a window, deduplicated. One
+// application usually owns several windows, and the answer wanted here is which
+// applications a person could switch to.
+func appsOnScreen() []string {
+	var buf [8192]C.char
+	if C.cgAppsOnScreen(&buf[0], C.int(len(buf))) != 1 {
+		return nil
+	}
+
+	seen := map[string]bool{}
+	var out []string
+	for _, name := range strings.Split(C.GoString(&buf[0]), "\n") {
+		name = strings.TrimSpace(name)
+		if name == "" || seen[strings.ToLower(name)] {
+			continue
+		}
+		seen[strings.ToLower(name)] = true
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func frontmostApp() (string, bool) {

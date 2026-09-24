@@ -82,7 +82,8 @@ func (e *Engine) planGuide(ctx context.Context, task string, lookingAt *screen.C
 		return nil, fmt.Errorf("engine: this build cannot show you what to do on screen")
 	}
 
-	app, err := e.appInQuestion(ctx, lookingAt)
+	// Where the task is done, which is usually not the window behind the panel.
+	app, err := e.appForTask(ctx, task, lookingAt)
 	if err != nil {
 		return nil, err
 	}

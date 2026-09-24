@@ -220,6 +220,7 @@ func withWalker(t *testing.T, fn func(int, string) (Tree, error)) {
 // away from it.
 func TestCaptureDoesNotBringTheApplicationForward(t *testing.T) {
 	withOnScreen(t, true)
+	withProcessList(t, 42, true)
 	withFront(t, "Something Else")
 
 	raises := 0
@@ -235,6 +236,15 @@ func TestCaptureDoesNotBringTheApplicationForward(t *testing.T) {
 	if raises != 0 {
 		t.Errorf("raised the application %d time(s) from inside a read", raises)
 	}
+}
+
+// The process list is the real one unless a test says otherwise, so a test that
+// invents a process id has to say so or the machine answers instead.
+func withProcessList(t *testing.T, pid int, found bool) {
+	t.Helper()
+	original := askTheProcessList
+	askTheProcessList = func(context.Context, string) (int, bool) { return pid, found }
+	t.Cleanup(func() { askTheProcessList = original })
 }
 
 type pidRunner struct {
@@ -268,6 +278,7 @@ func withKeyPoster(t *testing.T, fn func(int, uint64)) {
 
 func TestRunScreenExecutesClickOnTargetControl(t *testing.T) {
 	withOnScreen(t, true)
+	withProcessList(t, 42, true)
 	withFront(t, "Telegram")
 	withFrontOwner(t, 42, "Telegram", true)
 	withLookup(t, "AXButton", "Send", true)
@@ -294,6 +305,7 @@ func TestRunScreenExecutesClickOnTargetControl(t *testing.T) {
 
 func TestRunScreenRefusesClickWhenTargetVerificationFails(t *testing.T) {
 	withOnScreen(t, true)
+	withProcessList(t, 42, true)
 	withFront(t, "Telegram")
 	withFrontOwner(t, 42, "Telegram", true)
 	withLookup(t, "AXButton", "Delete", true)
@@ -319,6 +331,7 @@ func TestRunScreenRefusesClickWhenTargetVerificationFails(t *testing.T) {
 // modifiers held, not as a bare key with the modifiers dropped on the floor.
 func TestRunScreenHoldsTheModifiersDownForAKeyCombination(t *testing.T) {
 	withOnScreen(t, true)
+	withProcessList(t, 42, true)
 	withFront(t, "Telegram")
 	withFrontOwner(t, 42, "Telegram", true)
 	withLookup(t, "AXTextArea", "Message", true)

@@ -124,7 +124,7 @@ var Specs = []Spec{
 	},
 	{
 		Kind:     KindAppGuide,
-		Describe: "Answer a question about the application on screen by pointing at the control: where something is, how to do something, which button to press. The user is shown what to do and does it themselves. Use this for \"where is\", \"how do I\", \"show me how\" and \"show me where\" about an application.",
+		Describe: "Answer a question about using the Mac by pointing at the control on screen: where something is, how to do something, which button to press. The user is shown what to do and does it themselves. Use this for \"where is\", \"how do I\", \"show me how\" and \"show me where\". The question does not have to be about the window in front — working out which application it belongs to happens afterwards, so do not decline because the task lives somewhere else.",
 		Slots: []Slot{
 			{"intent", "what they want to do or find, in plain words", true},
 		},

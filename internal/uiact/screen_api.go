@@ -10,7 +10,21 @@ type Screen interface {
 	Type(ctx context.Context, text string) error
 }
 
+// RunningApps reports which applications are holding a window, so a decision
+// about where a task belongs can prefer one that is already open.
+//
+// Optional rather than part of Screen: a build or a test double without it makes
+// the decision with less to go on, which is worse but not broken, and putting it
+// on Screen would oblige every fake to answer a question most of them do not care
+// about.
+type RunningApps interface {
+	Running() []string
+}
+
 type System struct{ Runner Runner }
+
+// Running needs no permission and prompts for nothing — it reads the window list.
+func (s System) Running() []string { return appsOnScreen() }
 
 func (s System) Capture(ctx context.Context, app string) (Tree, error) {
 	return Capture(ctx, s.Runner, app)

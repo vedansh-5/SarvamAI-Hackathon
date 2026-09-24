@@ -128,6 +128,11 @@ func run() error {
 		answers = a
 	}
 
+	var chooser engine.AppChooser
+	if c, ok := synthesizer.(engine.AppChooser); ok {
+		chooser = c
+	}
+
 	srv := &rpc.Server{
 		Engine: &engine.Engine{
 			Browser: browser,
@@ -148,6 +153,7 @@ func run() error {
 			Steps:     steps,
 			Styler:    styler,
 			History:   st,
+			Chooser:   chooser,
 			UIScreen:  uiact.System{Runner: appleevents.Osascript{}},
 		},
 		Probe: probe{

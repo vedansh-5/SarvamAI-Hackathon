@@ -765,6 +765,11 @@ const PLAIN: Record<string, { title: string; message: string }> = {
     title: "macOS blocked the write",
     message: "Automation access has not been granted yet.",
   },
+  app_not_open: {
+    title: "That's done somewhere else",
+    message:
+      "The application this belongs in is not open. VANS does not open applications for you \u2014 open it and ask again.",
+  },
   no_coach_here: {
     title: "Can't point at things in a browser",
     message:
@@ -828,6 +833,16 @@ function renderFailure(e: unknown) {
         el("pre", "fix", "System Settings › Privacy & Security › Automation, then try again."),
       );
       break;
+    case "app_not_open": {
+      const data = e.data as { app?: string; why?: string };
+      if (data?.app) {
+        $("failure-title").textContent = `That's done in ${data.app}`;
+        $("failure-message").textContent = data.why
+          ? `${data.why} VANS does not open applications for you \u2014 open it and ask again.`
+          : `Open ${data.app} and ask again. VANS does not open applications for you.`;
+      }
+      break;
+    }
     case "no_coach_here":
     case "model_silent": {
       const fix = (e.data as { fix?: string })?.fix;

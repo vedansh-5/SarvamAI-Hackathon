@@ -27,6 +27,12 @@ var askTheWindowList = frontmostApp
 
 var askTheWindowListForPid = pidByWindowList
 
+// Indirect so a test can answer it. It runs pgrep against the real machine, and
+// a test that fakes a process id for "Telegram" got the real Telegram's instead
+// on any Mac where Telegram happens to be open — passing or failing by what the
+// developer had running.
+var askTheProcessList = pidByProcessName
+
 var ErrWindowHidden = errors.New("uiact: the application is in front but none of its windows is on screen")
 
 const assistiveFix = "Grant access in System Settings › Privacy & Security › Accessibility, then ask again."
@@ -67,7 +73,7 @@ func Capture(ctx context.Context, r Runner, app string) (Tree, error) {
 // is the only path here that raises an Automation prompt, and an application with
 // a window on screen can almost always be named without it.
 func pidFor(ctx context.Context, r Runner, app string) (int, error) {
-	if pid, ok := pidByProcessName(ctx, app); ok {
+	if pid, ok := askTheProcessList(ctx, app); ok {
 		return pid, nil
 	}
 	if pid, ok := askTheWindowListForPid(app); ok {

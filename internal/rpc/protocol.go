@@ -70,6 +70,11 @@ const (
 	// person looking for a fault on the wrong side of the network.
 	CodeModelSilent = "model_silent"
 
+	// CodeAppNotOpen means the task belongs to an application that is not
+	// running. Its own code because it is not a failure and there is exactly one
+	// thing to do about it, which VANS will not do itself (D-032).
+	CodeAppNotOpen = "app_not_open"
+
 	// CodeNoCoachHere means the steps cannot be drawn where the question was
 	// asked — a browser window publishes no controls to point at. Its own code
 	// because there is something specific to offer instead, which a generic
@@ -229,6 +234,13 @@ type UnroutableData struct {
 	Instruction string   `json:"instruction"`
 	Why         string   `json:"why"`
 	Can         []string `json:"can"`
+}
+
+// AppNotOpenData names where the task is done, so the panel can say it rather
+// than only that something went wrong.
+type AppNotOpenData struct {
+	App string `json:"app"`
+	Why string `json:"why"`
 }
 
 // CommitParams confirms a plan. This is the only method with a side effect.

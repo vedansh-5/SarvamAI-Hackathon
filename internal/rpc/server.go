@@ -518,6 +518,17 @@ func asError(err error) *Error {
 			Data:    fixData(appleevents.Fix(err)),
 		}
 	}
+	var notOpen *engine.AppNotOpenError
+	if errors.As(err, &notOpen) {
+		return &Error{
+			Code:    CodeAppNotOpen,
+			Message: err.Error(),
+			Data: mustData(AppNotOpenData{
+				App: notOpen.App,
+				Why: notOpen.Why,
+			}),
+		}
+	}
 	if errors.Is(err, engine.ErrNoControlsToPointAt) {
 		return &Error{
 			Code:    CodeNoCoachHere,

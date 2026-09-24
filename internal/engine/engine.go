@@ -116,6 +116,10 @@ type Engine struct {
 	Steps     StepWriter
 	History   History
 
+	// Chooser decides which application a task is carried out in. Without one
+	// the application in front is used, which is what happened before it existed.
+	Chooser AppChooser
+
 	// Model labels which backend wrote a program, stored as provenance.
 	Model string
 

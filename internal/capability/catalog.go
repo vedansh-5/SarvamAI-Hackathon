@@ -34,7 +34,28 @@ func DefaultRoots() []string {
 
 func New() *Catalog { return &Catalog{Roots: DefaultRoots()} }
 
+// Scriptable is the applications that publish a scripting dictionary, which is
+// what the dictionary tier can drive.
 func (c *Catalog) Scriptable() []App {
+	return c.walk(func(path string) bool {
+		_, err := sdef.Locate(path)
+		return err == nil
+	})
+}
+
+// Installed is every application on the Mac, dictionary or not.
+//
+// A wider list than Scriptable and needed for a different question. Deciding
+// where a task is carried out is not the same as deciding what can be driven by
+// Apple Events: System Settings publishes almost no dictionary and is still the
+// answer to most questions about how a Mac is configured. Filtering it out of
+// that choice would leave the coach naming somewhere it can reach instead of
+// somewhere the task is done.
+func (c *Catalog) Installed() []App {
+	return c.walk(func(string) bool { return true })
+}
+
+func (c *Catalog) walk(keep func(path string) bool) []App {
 	seen := map[string]bool{}
 	var apps []App
 
@@ -52,7 +73,7 @@ func (c *Catalog) Scriptable() []App {
 				continue
 			}
 			path := filepath.Join(root, e.Name())
-			if _, err := sdef.Locate(path); err != nil {
+			if !keep(path) {
 				continue
 			}
 			seen[strings.ToLower(name)] = true
@@ -77,13 +98,29 @@ func (e *UnknownAppError) Error() string {
 	return msg
 }
 
+// Find resolves a name to an application that can be driven by Apple Events, so
+// it searches only the ones with a dictionary. A name that exists but declares
+// nothing is unknown *to this tier*, which is what the callers of this mean.
 func (c *Catalog) Find(name string) (App, error) {
+	return find(name, c.Scriptable())
+}
+
+// FindInstalled resolves a name to any application on the Mac.
+//
+// For deciding where a task belongs rather than what can be scripted. System
+// Settings and most of what people actually use publish no dictionary, and
+// resolving those through Find rejected them as unknown — a question about the
+// wallpaper would come back naming whatever happened to be in front, because the
+// right answer had been filtered out before it could be matched.
+func (c *Catalog) FindInstalled(name string) (App, error) {
+	return find(name, c.Installed())
+}
+
+func find(name string, apps []App) (App, error) {
 	want := normalise(name)
 	if want == "" {
 		return App{}, &UnknownAppError{Name: name}
 	}
-
-	apps := c.Scriptable()
 
 	for _, a := range apps {
 		if normalise(a.Name) == want {

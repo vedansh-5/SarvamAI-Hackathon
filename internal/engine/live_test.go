@@ -4,6 +4,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -12,6 +13,8 @@ import (
 	"time"
 
 	"github.com/vedansh/vans/internal/adapter/appleevents"
+	"github.com/vedansh/vans/internal/capability"
+	"github.com/vedansh/vans/internal/screen"
 	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
 )
@@ -126,4 +129,63 @@ func TestLiveDriveTask(t *testing.T) {
 	}
 	t.Logf("what changed in the window:\n  %s", strings.Join(changes, "\n  "))
 	t.Logf("receipt: title=%s verified=%v", receipt.Title, receipt.Verified)
+}
+
+// TestChoosesTheRightAppLive checks the decision that a task belongs somewhere
+// other than the window in front, against a real model and the real machine.
+//
+// The case it exists for: asking how to change the wallpaper while looking at an
+// editor. That used to hunt for wallpaper controls in the editor and report that
+// the window had nothing to point at.
+//
+//	go test -tags integration -v -run TestChoosesTheRightAppLive ./internal/engine/
+func TestChoosesTheRightAppLive(t *testing.T) {
+	backend, err := synth.FromEnv()
+	if err != nil {
+		t.Skipf("no model configured: %v", err)
+	}
+	chooser, canChoose := backend.(AppChooser)
+	if !canChoose {
+		t.Skip("the configured backend cannot choose an application")
+	}
+
+	e := &Engine{
+		Apps:     capability.New(),
+		Chooser:  chooser,
+		UIScreen: uiact.System{Runner: appleevents.Osascript{}},
+		Log:      func(format string, args ...any) { t.Logf(format, args...) },
+	}
+
+	// Named applications rather than whatever happens to be open, so the answer
+	// does not depend on the state of the machine it runs on.
+	for _, c := range []struct {
+		task  string
+		front string
+		want  string
+	}{
+		{"how do I change the wallpaper", "Antigravity IDE", "System Settings"},
+		{"how do I turn on dark mode", "Telegram", "System Settings"},
+		{"how do I start a new chat", "Telegram", "Telegram"},
+	} {
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		got, err := e.appForTask(ctx, c.task, &screen.Context{AppName: c.front})
+		cancel()
+
+		// Not open is the right answer too, and it names the application it
+		// would have used.
+		var notOpen *AppNotOpenError
+		if errors.As(err, &notOpen) {
+			got = notOpen.App
+			err = nil
+		}
+		if err != nil {
+			t.Errorf("%q with %s in front: %v", c.task, c.front, err)
+			continue
+		}
+		if got != c.want {
+			t.Errorf("%q with %s in front chose %q, want %q", c.task, c.front, got, c.want)
+			continue
+		}
+		t.Logf("%-34q front=%-16s -> %s", c.task, c.front, got)
+	}
 }

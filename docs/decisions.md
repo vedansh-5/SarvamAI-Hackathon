@@ -2495,3 +2495,55 @@ The shape to watch for: an assertion whose truth does not depend on the behaviou
 under test. `Verified == true` against a canned "done" was one. It is worth
 asking of any new assertion what would have to break for it to fail, and being
 suspicious when the answer is "nothing".
+
+## D-102 — The window behind the panel is context, not the question
+
+Asking the coach "how do I change the wallpaper" with an editor in front made it
+look for wallpaper controls in the editor. It found none and said the window had
+nothing to point at — true, and no use to anybody. The panel is summoned over
+whatever happens to be on screen, and what is on screen is rarely where the task
+is carried out: people ask how to change the wallpaper while reading mail.
+
+Where a task belongs is now its own question, asked of the model with the things
+only the machine knows — what is installed and what is open. The application in
+front is passed as context and is frequently not the answer. Measured on
+2026-09-23: "how do I change the wallpaper" with Antigravity IDE in front chose
+System Settings; "how do I start a new chat" with Telegram in front stayed in
+Telegram. Being asked the question is not a reason to send someone elsewhere.
+
+It is a separate call rather than a slot on the router because the router decides
+what kind of thing was asked from the sentence alone, and this needs the state of
+the Mac. The answer is three short fields against a list of names, so it costs a
+fraction of a step, and when it cannot be answered the application in front is
+used — failing to improve on the old behaviour is not a reason to refuse the
+request.
+
+## D-103 — Two catalogues, because "can be scripted" is not "exists"
+
+`Catalog.Find` searched only applications publishing a scripting dictionary, which
+is right for the tier that drives them through Apple Events and wrong for deciding
+where a task belongs. System Settings declares almost nothing, and most of what
+people use declares nothing at all, so resolving a chosen name through `Find`
+rejected the correct answer as unknown and fell back to whatever was in front.
+Telegram did exactly that and got the right answer by luck.
+
+`Installed` and `FindInstalled` are the wider pair. The filter that belongs to one
+question was doing damage in another, and the fix is two named questions rather
+than one list that means different things to different callers.
+
+## D-104 — A test that consults the machine is not hermetic, however it looks
+
+`TestRunScreenExecutesClickOnTargetControl` stubbed the front-window owner, the
+process id through a fake runner, the walker and the click poster, and still
+failed — because `pidFor` tries `pgrep` first, so on any Mac with Telegram open it
+got the real Telegram's process id instead of the invented one. It then refused
+the click with "Telegram's window, which is in front of Telegram", which is the
+guard being correct about two different processes and reading like nonsense.
+
+The test passed or failed by what the developer happened to have running. The
+process lookup is now indirect like the other machine-facing calls in the package,
+and the tests that invent a process id say so.
+
+Worth generalising: this package fakes the accessibility API carefully and had one
+un-faked path left. A test that looks fully stubbed can still have exactly one
+line reaching the real machine, and that line decides the result.
