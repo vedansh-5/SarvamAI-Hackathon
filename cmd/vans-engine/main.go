@@ -154,8 +154,10 @@ func run() error {
 			Styler:    styler,
 			History:   st,
 			Chooser:   chooser,
+			Deeds:     st,
 			UIScreen:  uiact.System{Runner: appleevents.Osascript{}},
 		},
+		Deeds: st,
 		Probe: probe{
 			hostPort: *hostPort,
 			notes:    notes,

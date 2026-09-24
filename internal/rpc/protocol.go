@@ -255,6 +255,28 @@ type AppNotOpenData struct {
 	Why string `json:"why"`
 }
 
+// Deed is one change VANS made, for the panel to show.
+type Deed struct {
+	ID       int64  `json:"id"`
+	At       int64  `json:"at"`
+	Kind     string `json:"kind"`
+	Where    string `json:"where"`
+	Asked    string `json:"asked"`
+	Did      string `json:"did"`
+	Changed  string `json:"changed,omitempty"`
+	Verified bool   `json:"verified"`
+
+	// Undoable reports that VANS knows how to put this back. Sent as the answer
+	// rather than the mechanism: what the panel needs is whether to offer it.
+	Undoable bool `json:"undoable"`
+	Undone   bool `json:"undone"`
+}
+
+// HistoryResult is what VANS has done, newest first.
+type HistoryResult struct {
+	Deeds []Deed `json:"deeds"`
+}
+
 // CommitParams confirms a plan. This is the only method with a side effect.
 type CommitParams struct {
 	PlanID string `json:"plan_id"`

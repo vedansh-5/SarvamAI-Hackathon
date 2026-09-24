@@ -955,3 +955,34 @@ section:not([hidden]) {
   background: var(--accent-soft);
   border-radius: var(--r-md);
 }
+
+/* What VANS has done. A record rather than a control: the sentence someone
+   agreed to comes first, and everything qualifying it is quieter than it. */
+.deed-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.deed-what {
+  color: var(--ink);
+  font-weight: 500;
+}
+.deed-when {
+  color: var(--ink-dim);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.deed-marks {
+  margin-top: 2px;
+  color: var(--ink-dim);
+  font-size: 12px;
+}
+.deed-changed {
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: var(--r-md);
+  background: var(--sunken);
+  color: var(--ink-dim);
+  font: 400 12px/1.4 var(--mono);
+}

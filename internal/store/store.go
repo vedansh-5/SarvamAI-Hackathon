@@ -99,7 +99,7 @@ func Open(path string) (*Store, error) {
 // Close releases the database.
 func (s *Store) Close() error { return s.db.Close() }
 
-const schemaVersion = 7
+const schemaVersion = 8
 
 func (s *Store) migrate(ctx context.Context) error {
 	var v int
@@ -176,6 +176,25 @@ CREATE TABLE IF NOT EXISTS instructions (
 	kind    TEXT    NOT NULL DEFAULT '',
 	used_at INTEGER NOT NULL
 );
+
+-- What VANS has actually done, as opposed to what it has learned how to do.
+-- Every other table here is a cache: losing one costs a model call. This one is
+-- the record of changes made to somebody's machine, and it is what an undo has
+-- to be built on — there was no way to answer "what has this thing done" before
+-- it existed, which is a bad thing for a program that acts on your behalf.
+CREATE TABLE IF NOT EXISTS deeds (
+	id        INTEGER PRIMARY KEY AUTOINCREMENT,
+	at        INTEGER NOT NULL,
+	kind      TEXT    NOT NULL,
+	where_    TEXT    NOT NULL DEFAULT '',
+	asked     TEXT    NOT NULL DEFAULT '',
+	did       TEXT    NOT NULL DEFAULT '',
+	changed   TEXT    NOT NULL DEFAULT '',
+	verified  INTEGER NOT NULL DEFAULT 0,
+	undo      TEXT    NOT NULL DEFAULT '',
+	undone_at INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS deeds_at ON deeds (at DESC);
 
 CREATE TABLE IF NOT EXISTS settings (
 	key   TEXT PRIMARY KEY,

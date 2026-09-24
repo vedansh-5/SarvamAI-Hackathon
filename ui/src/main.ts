@@ -873,6 +873,79 @@ function withoutThePrefix(message: string): string {
   return said.charAt(0).toUpperCase() + said.slice(1);
 }
 
+interface Deed {
+  id: number;
+  at: number;
+  kind: string;
+  where: string;
+  asked: string;
+  did: string;
+  changed?: string;
+  verified: boolean;
+  undoable: boolean;
+  undone: boolean;
+}
+
+/// What VANS has done to this machine.
+///
+/// Every other list in the panel is something it learned or offers to do. This
+/// one is what it actually changed, which is the thing a person is entitled to
+/// see without having to ask nicely for it.
+async function showHistory() {
+  show("history");
+  const list = $("deeds");
+  clear(list);
+  list.appendChild(el("p", "lede", "Reading…"));
+
+  let deeds: Deed[] = [];
+  try {
+    const result = await invoke<{ deeds?: Deed[] }>("history");
+    deeds = result?.deeds ?? [];
+  } catch (e) {
+    clear(list);
+    list.appendChild(el("p", "lede", `Could not read it: ${String(e)}`));
+    return;
+  }
+
+  clear(list);
+  if (deeds.length === 0) {
+    list.appendChild(el("p", "lede", "Nothing yet. VANS has not changed anything."));
+    return;
+  }
+
+  for (const d of deeds) {
+    const row = el("div", "setup-row");
+
+    const head = el("div", "deed-head");
+    head.appendChild(el("span", "deed-what", d.did || d.asked || d.kind));
+    head.appendChild(el("span", "deed-when", whenItWas(d.at)));
+    row.appendChild(head);
+
+    const marks: string[] = [d.kind];
+    if (d.where) marks.push(d.where);
+    // Said plainly, both ways round. "Verified" alone leaves someone guessing
+    // what the absence of it means.
+    marks.push(d.verified ? "seen to happen" : "not confirmed");
+    if (d.undone) marks.push("put back");
+    else if (d.undoable) marks.push("can be put back");
+    else marks.push("cannot be undone");
+    row.appendChild(el("div", "deed-marks", marks.join(" · ")));
+
+    if (d.changed) row.appendChild(el("div", "deed-changed", d.changed));
+    list.appendChild(row);
+  }
+}
+
+function whenItWas(at: number): string {
+  if (!at) return "";
+  const then = new Date(at * 1000);
+  const ago = Math.round((Date.now() - then.getTime()) / 1000);
+  if (ago < 60) return "just now";
+  if (ago < 3600) return `${Math.round(ago / 60)} min ago`;
+  if (ago < 86400) return `${Math.round(ago / 3600)} h ago`;
+  return then.toLocaleDateString();
+}
+
 function raw(text: string): HTMLElement {
   const box = el("details", "raw");
   box.appendChild(el("summary", undefined, "Details"));
@@ -1449,6 +1522,9 @@ $("blur").addEventListener("change", (e) => {
 $("dark").addEventListener("change", (e) => {
   applyTheme((e.target as HTMLInputElement).checked, true);
 });
+
+$("show-history").addEventListener("click", showHistory);
+$("history-back").addEventListener("click", () => show("preflight"));
 
 $("recheck").addEventListener("click", () => runPreflight(false));
 $("check-screen").addEventListener("click", checkScreenRecording);

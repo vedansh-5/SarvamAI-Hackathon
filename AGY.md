@@ -729,6 +729,15 @@ are under *Proven live* and *Not proven*.
 
 ### 9.5 The next feature — a ledger, and an undo built on it
 
+**The ledger is built (#85).** One row per committed change, written from
+`Commit` because every side effect passes through it: what was asked, which tier
+acted, where, the sentence the person agreed to, whether it was seen to happen,
+and how to put it back. Failures are recorded too. Two hundred rows, then the
+oldest go. `history` returns it and the panel shows it under Setup — "what has
+this done to my machine" has an answer now.
+
+What remains is the undo itself, in the order below.
+
 **The gap.** VANS changes things in six ways — a scripting dictionary, a page, a
 window through accessibility, a web version, a multi-step drive, a restyle — and
 exactly one of them can be undone. `grep -i undo` over the runtime returns

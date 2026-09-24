@@ -17,9 +17,19 @@ import (
 	"github.com/vedansh/vans/internal/engine"
 	"github.com/vedansh/vans/internal/extract"
 	"github.com/vedansh/vans/internal/runner"
+	"github.com/vedansh/vans/internal/store"
 	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
 )
+
+// ShownDeeds is how many changes the panel is given. The store keeps more; a
+// list nobody scrolls is not more accountable for being longer.
+const ShownDeeds = 50
+
+// DeedReader reads back what VANS has done. Implemented by store.
+type DeedReader interface {
+	RecentDeeds(ctx context.Context, limit int) ([]store.Deed, error)
+}
 
 // Prober reports whether an environment prerequisite is satisfied. Preflight
 // is built from these so the checks can be exercised without a browser or a
@@ -56,6 +66,11 @@ type Server struct {
 	// which is the right thing for someone watching and useless for working out
 	// afterwards why a run did what it did.
 	Trace io.Writer
+
+	// Deeds is the record of what VANS has done, for the panel to show back.
+	// Optional: a build without one answers with an empty list rather than
+	// refusing, which is the truth for a build that remembers nothing.
+	Deeds DeedReader
 
 	out   *json.Encoder
 	outMu sync.Mutex
@@ -141,6 +156,8 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.screenContext(ctx, req)
 	case "clear_style":
 		result, err = s.clearStyle(ctx)
+	case "history":
+		result, err = s.history(ctx)
 	case "guide":
 		result, err = s.guide(ctx, req)
 	case "stop_guide":
@@ -717,6 +734,31 @@ func (s *Server) clearStyle(ctx context.Context) (ClearStyleResult, error) {
 		return ClearStyleResult{}, err
 	}
 	return ClearStyleResult{Cleared: true}, nil
+}
+
+// history is what VANS has done to this machine.
+//
+// Read-only and ungated. A person is entitled to know what a program acting on
+// their behalf has changed, without asking it nicely.
+func (s *Server) history(ctx context.Context) (HistoryResult, error) {
+	if s.Deeds == nil {
+		return HistoryResult{}, nil
+	}
+
+	deeds, err := s.Deeds.RecentDeeds(ctx, ShownDeeds)
+	if err != nil {
+		return HistoryResult{}, err
+	}
+
+	out := make([]Deed, 0, len(deeds))
+	for _, d := range deeds {
+		out = append(out, Deed{
+			ID: d.ID, At: d.At.Unix(), Kind: d.Kind, Where: d.Where,
+			Asked: d.Asked, Did: d.Did, Changed: d.Changed,
+			Verified: d.Verified, Undoable: d.Undoable(), Undone: !d.UndoneAt.IsZero(),
+		})
+	}
+	return HistoryResult{Deeds: out}, nil
 }
 
 func (s *Server) screenContext(ctx context.Context, req Request) (ScreenContextResult, error) {

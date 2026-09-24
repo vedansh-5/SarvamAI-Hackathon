@@ -120,6 +120,10 @@ type Engine struct {
 	// the application in front is used, which is what happened before it existed.
 	Chooser AppChooser
 
+	// Deeds is what VANS has done. Without one nothing is remembered, and
+	// nothing else changes — recording is not a precondition for acting.
+	Deeds Ledger
+
 	// Model labels which backend wrote a program, stored as provenance.
 	Model string
 
@@ -476,6 +480,12 @@ func (e *Engine) snapshot(ctx context.Context, target string) (src, pageURL stri
 // executed write is never retried — verification ambiguity is not grounds for
 // writing twice — so a second call is refused rather than being allowed to
 // create a duplicate note the user has no reason to expect.
+// Commit carries out a plan, and writes down that it did.
+//
+// Every side effect VANS has passes through here, which is what makes the ledger
+// possible at all: one place to record from, so nothing can change the world
+// without being written down. The recording happens whatever the outcome — a
+// change that failed halfway is exactly the one somebody needs to see.
 func (e *Engine) Commit(ctx context.Context, plan *Plan) (Receipt, error) {
 	if plan == nil {
 		return Receipt{}, fmt.Errorf("engine: no plan to commit")
@@ -483,6 +493,13 @@ func (e *Engine) Commit(ctx context.Context, plan *Plan) (Receipt, error) {
 	if plan.committed {
 		return Receipt{}, fmt.Errorf("engine: this plan has already been committed; writes are never retried")
 	}
+
+	receipt, err := e.carryOut(ctx, plan)
+	e.writeItDown(ctx, plan, receipt, err)
+	return receipt, err
+}
+
+func (e *Engine) carryOut(ctx context.Context, plan *Plan) (Receipt, error) {
 	if plan.Web != nil {
 		plan.committed = true
 		return e.runWeb(ctx, plan)

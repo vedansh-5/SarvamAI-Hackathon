@@ -2715,3 +2715,53 @@ readable-but-buried fell straight through the gap between those two.
 This is the sharper form of D-080a. Reading stays passive; the callers that mean
 to change the world say so. A caller about to click is one of them, and it had
 been left out.
+
+## D-113 — A ledger, because "what has this done to my machine" had no answer
+
+Every table in the store was a cache. Routes, programs, window actions,
+instructions: losing any of them costs a model call and nothing else. There was
+no record of what VANS had actually changed, which meant the question a person is
+most entitled to ask about a program acting on their behalf — what have you done —
+could not be answered at all.
+
+One row per committed change: what was asked, which tier acted, where, the
+sentence the person agreed to, what the window showed afterwards, whether it was
+seen to happen, and how to put it back.
+
+Three things decided here and worth keeping.
+
+**It records from `Commit` and nowhere else.** Every side effect passes through
+that one function, so the record cannot be incomplete without the code being
+wrong in a way that is obvious. A recorder attached per tier would drift the first
+time a tier was added.
+
+**It records failures too.** A change that did not finish is the one somebody most
+needs to go and look at, and silence about it is the worst answer. The row says
+so in the same place as the rest.
+
+**Writing it down never fails the change.** The world has already moved by the
+time this runs, and reporting a change as failed because the reporting failed
+would be the worst of both. A build with no store acts exactly as it did before
+and remembers nothing, which is honest.
+
+The stored sentence is the preview the person confirmed, not a description
+written afterwards to fit what happened. What they agreed to is the thing worth
+keeping.
+
+Two hundred rows, then the oldest go. This exists to make VANS accountable and
+reversible, not to keep a record of everywhere somebody has been.
+
+## D-114 — Say both what can be put back and what cannot
+
+The ledger carries how to undo each change, and for almost everything today that
+is empty. Typing, clicking, a dictionary write and a multi-step run are all
+one-way. A restyle is the one tier with a real inverse, and it is a complete one.
+
+Empty is recorded and shown as "cannot be undone" rather than left blank. A blank
+invites the reader to assume the generous answer, and the generous answer is wrong
+for most of what VANS does. Saying it plainly is what makes the next step
+possible: once the gate can tell the two apart, it can stop being equally alarming
+about both, and only be frightening about the ones that deserve it.
+
+No tier claims an inverse it does not have. A hopeful guess here is worse than the
+gap, because it would be believed.

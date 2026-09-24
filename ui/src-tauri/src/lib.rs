@@ -122,6 +122,12 @@ async fn clear_style(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("clear_style", None).await
 }
 
+/// What VANS has changed on this machine. Read-only, and asks for nothing.
+#[tauri::command]
+async fn history(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("history", None).await
+}
+
 #[tauri::command]
 async fn destinations(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("destinations", None).await
@@ -315,6 +321,7 @@ pub fn run() {
             guide,
             stop_guide,
             advance_guide,
+            history,
             point_at,
             clear_pointer,
             finish_pointer,
