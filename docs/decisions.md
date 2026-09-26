@@ -2789,3 +2789,49 @@ is not.
 
 The general form: when a record and the world can disagree, order the writes so
 the record is the thing that lags.
+
+## D-117 — A drive trace is keyed by the shape, not by the window
+
+The obvious key for a cached run is everything that could make it wrong: the
+application, the instruction shape, and a signature of the window it started from.
+The signature is the one to leave out.
+
+A drive run exists precisely because the window has state that changes — a
+document with different text in it, a list with a different number of rows, a
+different unread count. Fold that into the key and almost every lookup misses, and
+the cache that was supposed to take a six-step task down to zero calls takes it
+down to six calls with an extra table.
+
+What the signature was meant to protect against is already covered, and covered
+better, by checking each step against the window as it actually is at the moment
+that step runs. A key can only say *this looks like the same situation*. Validation
+says *this step fits what is in front of me*, which is the question that matters,
+and it asks it once per step rather than once per run.
+
+So: `(app, shape)`, and per-step validation as the guard. The failure mode
+degrades instead of falling off a cliff — a trace that stops fitting costs model
+calls only from the step where it stopped fitting.
+
+## D-118 — A trace that cannot be templated is pinned, not discarded
+
+A cached run is only reusable if the values from the instruction have been lifted
+back out into their placeholders, so that `Fill` can rebuild it for new ones.
+Mostly they lift out cleanly: a typing step's text is usually the literal exactly,
+and a whole field can be swapped at any length.
+
+It is substrings that are dangerous. `uiact.Baked` already refuses to treat
+anything under three characters as a literal to look for inside a longer string,
+because replacing every "a" or "10" it finds would corrupt the step. So a trace
+with a short literal buried inside other text cannot be templated safely.
+
+The first instinct is to refuse to cache it. But there is something better
+available for nothing: keep the trace and pin it to the literal values it was
+recorded with, so it answers only for those. Asking for the identical thing a
+second time — which people do constantly — is then still free, and a request with
+different values misses cleanly and asks the model, which is what refusing to cache
+would have done for every request including the identical one.
+
+The rule underneath: when a cache cannot be made general, make it narrow before
+making it absent. What must never happen is a trace replayed for values it was not
+recorded with, because a step that types yesterday's text is wrong in a way no
+check downstream would catch.

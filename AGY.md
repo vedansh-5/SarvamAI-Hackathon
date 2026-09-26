@@ -896,6 +896,96 @@ needed — and it should be done first and separately.
 - Package a real `.app` so it does not need a checkout.
 - A second look at the coach's visual design by someone who can see it.
 
+### 9.8 Caching a drive run — the thesis reaching the tier that needs it
+
+Every tier follows the thesis except one. Extraction programs are cached by page
+signature, routing decisions by instruction shape, dictionary actions and
+single-step window actions by `(app, shape)`. A warm run on any of them costs
+zero model calls.
+
+The drive loop caches nothing. `stepThroughTask` calls `WriteStep` once per step,
+once more to hear "done", and again on every refusal. A six-step task is about
+seven calls, every time, forever, even when the task, the app and the window are
+identical to yesterday's. Multi-step work is where VANS is heading, so this is the
+tier where the thesis matters most and the one place it does not apply.
+
+**The idea.** A drive run that finished and landed every step *is* a program. The
+model wrote it a step at a time, but what came out is an ordered list of
+`uiact.Step` that got the task done in that app. Keep it under `(app, shape)`, the
+same key `window_actions` uses, and replay it with no model involved:
+
+    window_actions:  (app, shape) -> 1 step    validated against one reading
+    drive_traces:    (app, shape) -> n steps   each validated against a fresh one
+
+**Why it does not lower the accuracy floor.** The trace is a suggestion, not an
+authority. It passes the same checks a fresh answer passes: the window is captured
+again before each step, the step goes through `uiact.Validate` against *that*
+tree, the occlusion guard and the covered-window raise apply unchanged because
+replay calls the same `handle`, and `describeEffect` must report a change
+afterwards. A replayed step that changed nothing is a divergence, not a success.
+That the steps came from the cache is never itself the evidence.
+
+**Divergence resumes, it does not restart.** If replayed step *k* fails validation
+or lands without changing anything, the live loop picks up at *k* with `Done`
+already holding steps 1..*k*-1 and their effects — exactly the state it would have
+been in. Only the diverging tail costs calls. A run that diverged and then
+finished live produces a new full trace, which replaces the old one. Two
+divergences running and the entry is dropped (`MaxDivergences`), because by then
+the trace is wrong about the task rather than unlucky.
+
+**What makes a trace cacheable.** All four: the model said `Done` rather than the
+run hitting the step limit; `Landed` was true for every step; every literal from
+`route.Shape` was lifted back out into its placeholder so `Fill` can rebuild it;
+and it carries no content the model composed. The last is the one that matters —
+replaying a sentence the model wrote for a different request would be wrong in a
+way no check downstream catches, so such a run is not cached and the log says why.
+
+**Where a literal will not lift out.** `uiact.Baked` ignores literals under three
+characters because it looks for one *inside* a longer string, where blind
+substitution would corrupt the step. But a step whose text is *exactly* the
+literal can be swapped whole at any length, and that is the common case. What is
+left — a short literal buried inside other text — is stored *pinned* to the values
+it was recorded with, and answers only for those. Narrower than a templated trace
+and still free for asking the same thing twice.
+
+**Measured, not asserted.** The receipt and the progress lines say how many steps
+came from the cache and how many model calls were made, so warm and cold are
+visible in the panel rather than claimed here.
+
+**Beyond the cache — the other ways to spend fewer calls.** Caching only helps the
+second run. These help the first:
+
+1. **Repair a refused step instead of re-asking.** A refusal costs a second call
+   today, and most refusals are mechanical: "nothing on screen is a AXButton named
+   Wallpaper" when an `AXRow` of that exact name is right there. `nearMiss` already
+   works the right role out in order to word the message — using it to correct the
+   step costs no call at all. This is §9.7's "refused step answered identically",
+   solved from the other end.
+2. **One call for the whole plan.** Ask for the entire sequence upfront instead of
+   a step at a time. It is the same machinery as replay: a speculative plan is an
+   uncached trace, so it validates per step and resumes live where it diverges.
+   Steps past the first are guesses about a window the model has not seen, so it
+   will diverge on branchy tasks — and lose one call when it does, against saving
+   six when it does not.
+3. **Drop the "done" call.** One call per run exists only to hear that the task
+   finished. Let a step be marked as the last one instead. The engine still
+   verifies by evidence rather than by the model's word, so this changes what stops
+   the loop, not what counts as success. A warm replay needs none of it: a trace
+   knows its own length.
+4. **Provider-side prompt caching.** Every step call resends the same system
+   prompt, schema and task, and only the window tree changes. This cuts time per
+   call rather than the number of them — and whether the OpenAI-compatible Gemini
+   endpoint honours it is a thing to check, not to assume.
+
+**Out of scope.** Vision has no accessibility tree to key or validate against
+(Q-15), so nothing from that tier gets cached this way. Fuzzy shape matching stays
+out: exact `(app, shape)`, like every other cache here.
+
+**Done when** the same TextEdit task run twice shows the second run at zero model
+calls with a verified receipt, and both numbers are in *Proven live*.
+
+**Built so far:** the store (`drive_traces`, #87).
+
 ---
 
 ## 10. Running it

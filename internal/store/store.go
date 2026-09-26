@@ -99,7 +99,7 @@ func Open(path string) (*Store, error) {
 // Close releases the database.
 func (s *Store) Close() error { return s.db.Close() }
 
-const schemaVersion = 8
+const schemaVersion = 9
 
 func (s *Store) migrate(ctx context.Context) error {
 	var v int
@@ -157,9 +157,9 @@ CREATE TABLE IF NOT EXISTS actions (
 	PRIMARY KEY (app, shape)
 );
 
--- Small durable facts that are not programs. Currently the id of the tab
--- VANS opened for itself, so a restarted engine adopts it rather than opening
--- another one every time.
+-- One step inside an application's window, keyed the same way as actions. The
+-- rung below a scripting dictionary: reached when an application declares
+-- nothing and is not a page.
 CREATE TABLE IF NOT EXISTS window_actions (
 	app          TEXT    NOT NULL,
 	shape        TEXT    NOT NULL,
@@ -168,6 +168,29 @@ CREATE TABLE IF NOT EXISTS window_actions (
 	created_at   INTEGER NOT NULL,
 	last_used_at INTEGER NOT NULL DEFAULT 0,
 	uses         INTEGER NOT NULL DEFAULT 0,
+	PRIMARY KEY (app, shape)
+);
+
+-- A whole drive run that finished, keyed like window_actions. The same
+-- primitive one step longer: where window_actions holds a single step validated
+-- against one reading of the window, a trace holds the sequence a task took and
+-- every step of it is validated against a fresh reading as it is replayed.
+--
+-- Cached only when the run landed every step and the model said it was done, so
+-- nothing in here is a guess about whether the task works. pinned is empty for a
+-- trace that was fully templated and answers for any values of its shape; where a
+-- literal could not be lifted out safely it holds the values the trace was
+-- recorded with, and the trace answers only for those.
+CREATE TABLE IF NOT EXISTS drive_traces (
+	app          TEXT    NOT NULL,
+	shape        TEXT    NOT NULL,
+	program      TEXT    NOT NULL,
+	pinned       TEXT    NOT NULL DEFAULT '',
+	model        TEXT    NOT NULL DEFAULT '',
+	created_at   INTEGER NOT NULL,
+	last_used_at INTEGER NOT NULL DEFAULT 0,
+	uses         INTEGER NOT NULL DEFAULT 0,
+	divergences  INTEGER NOT NULL DEFAULT 0,
 	PRIMARY KEY (app, shape)
 );
 
