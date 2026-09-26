@@ -984,8 +984,10 @@ out: exact `(app, shape)`, like every other cache here.
 **Done when** the same TextEdit task run twice shows the second run at zero model
 calls with a verified receipt, and both numbers are in *Proven live*.
 
-**Built so far:** the store (`drive_traces`, #87), and recording (#88) — a run
-that finished and landed is templated and kept. Nothing replays one yet.
+**Built so far:** the store (`drive_traces`, #87), recording (#88) and replay
+(#89). A repeat of a known request now asks the model nothing at all. What is left
+is surfacing the counts in the panel and measuring it live on TextEdit, plus the
+four call-saving items above.
 
 ---
 

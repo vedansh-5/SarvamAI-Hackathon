@@ -2889,3 +2889,48 @@ and returning an error would report a change that was made as a failure.
 So it logs and carries on, the same rule the ledger follows for the same reason
 (D-114). The cost of losing a trace is one model call next time. The cost of
 reporting a successful change as failed is that somebody does it again by hand.
+
+## D-121 — Replay is a mode of the live loop, not a second loop
+
+A replayed step has to be captured against a fresh window, validated against that
+window, raised above anything covering it, and read back afterwards to confirm it
+moved something. That is the entire live loop. Writing a separate replay loop means
+writing all of it twice and then keeping the two the same forever — and the day
+they drift is the day a cached run stops being held to the standard a live one is.
+
+So there is one loop, and the trace is only a different answer to "what is the next
+step". Where the model would be asked, the trace is read instead; everything after
+that point is identical code. Divergence switches the source mid-loop rather than
+returning to a caller, which is also what makes resuming free: the state the live
+loop needs is already in the local variables.
+
+The general form: when two paths must be held to the same standard, share the code
+that enforces it rather than the intention to keep them alike.
+
+## D-122 — A trace's length is the answer to "is it finished"
+
+A live run spends one model call at the end purely to hear that the task is done.
+A warm replay must not, or the run that is supposed to cost nothing costs one call
+— which is most of the saving on a short task.
+
+It does not need to. A trace is only stored for a run the model itself called
+finished, so the sequence already encodes where the task ends. Reaching the end of
+the trace *is* the model's answer, recorded earlier.
+
+What makes this safe rather than a shortcut is that finishing was never the
+evidence. `Verified` comes from every step having been seen to change the window,
+and that check runs on replayed steps exactly as on live ones. The model's word
+decides when to stop; the window decides whether it worked.
+
+## D-123 — Count the divergence before deciding the run was empty
+
+`runDrive` returns early when a run performed no steps, and the trace bookkeeping
+sat after that return. So a trace that went off on its very first step produced a
+run that did nothing, took the early exit, and was never recorded as having gone
+off — which is exactly the trace that most needed recording. A sequence that
+reliably broke would have been retried forever and never forgotten.
+
+Found by a test asserting the divergence count, not by reading the code. The
+ordering looked right: handle the empty case first, then the bookkeeping. The bug
+is that "nothing happened" and "nothing was learned" are different claims, and the
+first does not imply the second.

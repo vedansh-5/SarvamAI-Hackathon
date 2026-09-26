@@ -19,6 +19,37 @@ type savedTrace struct {
 type traceRecorder struct {
 	saved   []savedTrace
 	saveErr error
+
+	// What a lookup answers with, and what the run reported back about it.
+	stored    uiact.Program
+	pinned    map[string]string
+	lookups   int
+	worked    int
+	diverged  int
+	dropAfter bool
+}
+
+func (r *traceRecorder) DriveTrace(_ context.Context, _, _ string, literals map[string]string) (uiact.Program, bool, error) {
+	r.lookups++
+	if len(r.stored.Steps) == 0 {
+		return uiact.Program{}, false, nil
+	}
+	for key, value := range r.pinned {
+		if literals[key] != value {
+			return uiact.Program{}, false, nil
+		}
+	}
+	return r.stored, true, nil
+}
+
+func (r *traceRecorder) DriveTraceWorked(context.Context, string, string) error {
+	r.worked++
+	return nil
+}
+
+func (r *traceRecorder) DriveTraceDiverged(context.Context, string, string) (bool, error) {
+	r.diverged++
+	return r.dropAfter, nil
 }
 
 func (r *traceRecorder) SaveDriveTrace(_ context.Context, app, shape string, p uiact.Program, pinned map[string]string, _ string) error {

@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 
+	"github.com/vedansh/vans/internal/route"
 	"github.com/vedansh/vans/internal/uiact"
 )
 
@@ -10,7 +11,74 @@ import (
 // store; an interface here so a build without one simply learns nothing rather
 // than refusing to act.
 type TraceStore interface {
+	DriveTrace(ctx context.Context, app, shape string, literals map[string]string) (uiact.Program, bool, error)
 	SaveDriveTrace(ctx context.Context, app, shape string, p uiact.Program, pinned map[string]string, model string) error
+	DriveTraceWorked(ctx context.Context, app, shape string) error
+	DriveTraceDiverged(ctx context.Context, app, shape string) (bool, error)
+}
+
+// stepsFromLastTime is the sequence this task took before, filled with this
+// request's values, or nothing when there is none to use.
+//
+// A miss is the ordinary case and never an error: the run simply costs what it
+// costs today. Nothing here is allowed to stop a task going ahead, because a
+// broken cache making VANS refuse to work would be worse than a slow VANS.
+func (e *Engine) stepsFromLastTime(ctx context.Context, app, shape string, literals map[string]string) []uiact.Step {
+	if e.Traces == nil || shape == "" {
+		return nil
+	}
+
+	stored, found, err := e.Traces.DriveTrace(ctx, app, shape, literals)
+	if err != nil {
+		e.logf("could not read back the steps kept for %s: %v", app, err)
+		return nil
+	}
+	if !found || len(stored.Steps) == 0 {
+		return nil
+	}
+
+	filled := stored.Fill(func(v string) string { return route.Fill(v, literals) })
+	return filled.Steps
+}
+
+// settleTheTrace records what became of a run: keeping the steps of one that
+// worked, and marking a stored sequence as having held up or gone off.
+//
+// Called on the failure path as well as the success one. A replay that went off
+// and then could not be repaired is exactly the case the divergence count exists
+// to notice, and only counting the runs that finished would mean never noticing a
+// trace that reliably breaks.
+func (e *Engine) settleTheTrace(ctx context.Context, d *DrivePlan, run taskRun) {
+	if e.Traces == nil || d.Shape == "" {
+		return
+	}
+
+	if len(d.Replay) == 0 {
+		e.rememberTheRun(ctx, d, run)
+		return
+	}
+
+	if !run.Diverged {
+		// It held up. The count is cleared, because it exists to find a trace
+		// that is reliably wrong rather than one that was once unlucky.
+		if err := e.Traces.DriveTraceWorked(ctx, d.App, d.Shape); err != nil {
+			e.logf("could not record that the kept steps worked: %v", err)
+		}
+		return
+	}
+
+	dropped, err := e.Traces.DriveTraceDiverged(ctx, d.App, d.Shape)
+	if err != nil {
+		e.logf("could not record that the kept steps went off: %v", err)
+	}
+	if dropped {
+		e.logf("the steps kept for %q went off twice running, so they are forgotten", d.Shape)
+	}
+
+	// Whatever the run turned into is the newest thing known to work, so it
+	// replaces what was there — including re-creating an entry just dropped,
+	// which is the right answer: a sequence that finished beats one that did not.
+	e.rememberTheRun(ctx, d, run)
 }
 
 // rememberTheRun keeps the steps of a run that got the task done, so the next

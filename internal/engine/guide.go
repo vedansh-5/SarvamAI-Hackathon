@@ -215,7 +215,7 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 			e.logf("still on step %d: %s", number, describe)
 		}
 	}
-	run, err := e.stepThroughTask(ctx, g.App, asTask(g.Task), MaxGuideSteps, point)
+	run, err := e.stepThroughTask(ctx, g.App, asTask(g.Task), MaxGuideSteps, point, nil)
 	if err != nil {
 		return run.Steps(), err
 	}
