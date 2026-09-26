@@ -124,6 +124,10 @@ type Engine struct {
 	// nothing else changes — recording is not a precondition for acting.
 	Deeds Ledger
 
+	// Traces keeps the steps of drive runs that worked, so a repeat of the same
+	// request costs no model calls.
+	Traces TraceStore
+
 	// Recorded reads those back, to put one of them back.
 	Recorded DeedStore
 

@@ -217,20 +217,20 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 	}
 	run, err := e.stepThroughTask(ctx, g.App, asTask(g.Task), MaxGuideSteps, point)
 	if err != nil {
-		return run.Steps, err
+		return run.Steps(), err
 	}
 
 	// Nothing was pointed at, and the panel would otherwise come back saying
 	// "that is all of it" having shown nobody anything. The model's own sentence
 	// is the only account of why — usually that the answer is in an application
 	// other than the one being looked at.
-	if run.Steps == 0 {
+	if run.Steps() == 0 {
 		if why := strings.TrimSpace(run.Why); why != "" {
 			return 0, stopped(g.App, "engine: nothing in %s to point at — %s", g.App, why)
 		}
 		return 0, stopped(g.App, "engine: there was nothing in %s to point at", g.App)
 	}
-	return run.Steps, nil
+	return run.Steps(), nil
 }
 
 // How long someone gets to open an application before the coach accepts nobody

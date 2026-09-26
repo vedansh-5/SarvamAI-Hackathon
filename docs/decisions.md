@@ -2835,3 +2835,57 @@ The rule underneath: when a cache cannot be made general, make it narrow before
 making it absent. What must never happen is a trace replayed for values it was not
 recorded with, because a step that types yesterday's text is wrong in a way no
 check downstream would catch.
+
+## D-119 — Typed text is judged harder than a selector
+
+A trace is generalised by lifting the instruction's values back out into
+placeholders. The question is what to do about whatever is left over, and the
+answer turns out to be different for a control's name than for text that gets
+typed in.
+
+A stale selector is safe. If a trace says click the row named "Tab 2" and there is
+no such row, validation refuses the step before anything happens, the run resumes
+live from there, and the worst case is some model calls. The guard is already
+built and it fires on exactly this.
+
+Stale text is not safe, because nothing downstream can tell. A step that types
+last week's sentence into a field passes validation — the field is there, it is
+typeable, the text is non-empty — and lands, and changes the window, and reports
+success. Every check VANS has says yes. The words are simply wrong.
+
+So every word a step types has to be traceable to the request. Three things count:
+a placeholder, a value pinned in place, and a word of the instruction that was
+never a value at all.
+
+That third one is the common case, and the first version of this refused it —
+which would have refused almost everything. `Shape` lifts URLs, quoted strings and
+numbers and nothing else, so "type hello into the document" carries no literals:
+"hello" is part of the shape. Baking it in is not a risk, it is exact, and the
+reason is worth stating because it is the load-bearing claim of the whole cache —
+two instructions with the same shape differ *only* in their literal values, so any
+part of the instruction that is not a literal is identical for every request that
+can ever hit that key.
+
+What is left after those three is a word the model supplied itself, and that is
+what makes a run unkeepable. Composed prose is the obvious case. Text copied off
+the window is the less obvious one and it is refused just as firmly: the window's
+contents are precisely what will have changed by the time the trace is replayed.
+
+One bounded imprecision, stated rather than hidden: the shape is lowercased, so
+"Type Hello" and "type hello" share a key and the stored trace types whichever
+case the first run used. This is inherent to caching by shape and is already true
+of the single-step window-action cache. It is a wrong capital letter, not wrong
+words.
+
+The general form: how strictly a cached thing must be checked depends on whether
+being wrong about it is detectable later, not on how likely it is to be wrong.
+
+## D-120 — Learning from a run is not part of carrying it out
+
+Writing the trace happens after the task has been done. If it fails — the disk is
+full, the value would not encode — the change in the world has already happened,
+and returning an error would report a change that was made as a failure.
+
+So it logs and carries on, the same rule the ledger follows for the same reason
+(D-114). The cost of losing a trace is one model call next time. The cost of
+reporting a successful change as failed is that somebody does it again by hand.

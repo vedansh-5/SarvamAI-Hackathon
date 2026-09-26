@@ -153,7 +153,7 @@ func Baked(p Program, literals map[string]string) []string {
 	for _, value := range p.Values() {
 		for _, literal := range literals {
 			literal = strings.TrimSpace(literal)
-			if len(literal) < 3 || seen[literal] {
+			if len(literal) < MinSubstringLiteral || seen[literal] {
 				continue
 			}
 			if strings.Contains(strings.ToLower(value), strings.ToLower(literal)) {

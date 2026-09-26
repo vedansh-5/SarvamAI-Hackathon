@@ -156,6 +156,7 @@ func run() error {
 			Chooser:   chooser,
 			Deeds:     st,
 			Recorded:  st,
+			Traces:    st,
 			UIScreen:  uiact.System{Runner: appleevents.Osascript{}},
 		},
 		Deeds: st,

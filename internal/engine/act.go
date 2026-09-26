@@ -85,7 +85,7 @@ func (e *Engine) actInApplication(ctx context.Context, r route.Route, shape stri
 					return plan, calls, nil
 				}
 				if e.canDrive() && !errors.Is(uiErr, uiact.ErrNoAssistiveAccess) {
-					if plan, driveErr := e.driveOn(ctx, name, r.Slot("action")); driveErr == nil {
+					if plan, driveErr := e.driveOn(ctx, name, r.Slot("action"), shape, r.Literals); driveErr == nil {
 						e.logf("%s needs more than one step; working through it on screen", name)
 						return plan, 0, nil
 					}

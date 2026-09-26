@@ -20,13 +20,20 @@ type DrivePlan struct {
 	App     string
 	Task    string
 	Preview string
+
+	// Shape and Literals are what the instruction generalises to and the values
+	// taken out of it. Carried so a run that works can be kept under the same
+	// key every other tier caches by, with this request's values lifted back out
+	// of it (§9.8).
+	Shape    string
+	Literals map[string]string
 }
 
 func (e *Engine) canDrive() bool {
 	return e.Steps != nil && e.UIScreen != nil
 }
 
-func (e *Engine) driveOn(ctx context.Context, app, task string) (*Plan, error) {
+func (e *Engine) driveOn(ctx context.Context, app, task, shape string, literals map[string]string) (*Plan, error) {
 	if !e.canDrive() {
 		return nil, fmt.Errorf("engine: this build cannot work through a task on screen")
 	}
@@ -47,7 +54,13 @@ func (e *Engine) driveOn(ctx context.Context, app, task string) (*Plan, error) {
 	return &Plan{
 		Task:        Task{Intent: task, Title: tree.App},
 		Destination: tree.App,
-		Drive:       &DrivePlan{App: tree.App, Task: task, Preview: preview},
+		Drive: &DrivePlan{
+			App:      tree.App,
+			Task:     task,
+			Preview:  preview,
+			Shape:    shape,
+			Literals: literals,
+		},
 	}, nil
 }
 
@@ -72,10 +85,13 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	// A run that performed nothing has nothing to verify, and every step having
 	// landed is trivially true of no steps. Left alone it reported success for
 	// having done nothing at all — the same hole D-095 closed on the coach side.
-	if run.Steps == 0 {
+	if run.Steps() == 0 {
 		e.logf("nothing was done in %s: %s", d.App, reasonOr(run.Why, "the model gave no reason"))
 		return Receipt{Title: d.App, Verified: false}, nil
 	}
+
+	e.rememberTheRun(ctx, d, run)
+
 	return Receipt{Title: d.App, Verified: run.Landed}, nil
 }
 
@@ -83,25 +99,36 @@ type stepHandler func(ctx context.Context, tree uiact.Tree, program uiact.Progra
 
 // What a run through a task came to.
 type taskRun struct {
-	// Steps is how many were carried out or pointed at.
-	Steps int
+	// Did is the steps carried out or pointed at, in order. Kept as the steps
+	// themselves and not just a count because a run that worked is the best
+	// description of how to do that task again (§9.8).
+	Did []uiact.Step
 
 	// Landed reports that every step was followed by a change in the window.
 	Landed bool
+
+	// Finished reports that the model said the task was done, as against the run
+	// reaching the step limit. Only the first is evidence that the sequence is
+	// the whole of the task.
+	Finished bool
 
 	// Why is the model's own sentence about stopping, which is the only thing
 	// that can explain a run of no steps at all.
 	Why string
 }
 
+// Steps is how many were carried out.
+func (r taskRun) Steps() int { return len(r.Did) }
+
 func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit int, handle stepHandler) (taskRun, error) {
 	var done []string
+	var did []uiact.Step
 	landed := true
 
 	for i := 1; i <= limit; i++ {
 		tree, err := e.windowToWorkFrom(ctx, app)
 		if err != nil {
-			return taskRun{Steps: len(done), Landed: landed}, err
+			return taskRun{Did: did, Landed: landed}, err
 		}
 
 		var failures []string
@@ -134,19 +161,19 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 					e.logf("step %d: nothing usable came back, asking again", i)
 					continue
 				}
-				return taskRun{Steps: len(done), Landed: landed}, err
+				return taskRun{Did: did, Landed: landed}, err
 			}
 
 			if answer.Done {
 				e.logf("finished after %d step(s): %s", len(done), answer.Why)
-				return taskRun{Steps: len(done), Landed: landed, Why: answer.Why}, nil
+				return taskRun{Did: did, Landed: landed, Finished: true, Why: answer.Why}, nil
 			}
 
 			program := uiact.Program{App: tree.App, Steps: []uiact.Step{answer.Step}}
 			if err := uiact.Validate(program, tree); err != nil {
 				var invalid *uiact.InvalidError
 				if !errors.As(err, &invalid) {
-					return taskRun{Steps: len(done), Landed: landed}, err
+					return taskRun{Did: did, Landed: landed}, err
 				}
 				failures = invalid.Reasons
 				e.logf("step %d rejected: %s", i, strings.Join(invalid.Reasons, "; "))
@@ -172,7 +199,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 				e.logf("step %d: %s", i, strings.Join(invalid.Reasons, "; "))
 
 				if err := e.UIScreen.BringToFront(ctx, app); err != nil {
-					return taskRun{Steps: len(done), Landed: landed}, err
+					return taskRun{Did: did, Landed: landed}, err
 				}
 				if fresh, readErr := e.UIScreen.Capture(ctx, app); readErr == nil && len(fresh.Elements) > 0 {
 					tree = fresh
@@ -186,7 +213,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 					e.logf("step %d rejected: %s", i, strings.Join(invalid.Reasons, "; "))
 					continue
 				}
-				return taskRun{Steps: len(done), Landed: landed}, err
+				return taskRun{Did: did, Landed: landed}, err
 			}
 
 			effect, changed := describeEffect(ctx, e, app, tree)
@@ -194,18 +221,19 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 				landed = false
 			}
 			done = append(done, describe+" — "+effect)
+			did = append(did, answer.Step)
 			acted = true
 			break
 		}
 
 		if !acted {
-			return taskRun{Steps: len(done), Landed: landed}, stopped(app,
+			return taskRun{Did: did, Landed: landed}, stopped(app,
 				"engine: nothing that fits %s's window survived being checked against it, after %d step(s)",
 				app, len(done))
 		}
 	}
 
-	return taskRun{Steps: len(done), Landed: landed}, fmt.Errorf(
+	return taskRun{Did: did, Landed: landed}, fmt.Errorf(
 		"engine: stopped after %d steps without finishing", limit)
 }
 
