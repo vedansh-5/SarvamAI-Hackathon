@@ -54,6 +54,17 @@ interface Receipt {
   id: string;
   title: string;
   verified: boolean;
+
+  // Only present for a run that stepped through a task on screen. Absent and
+  // zero mean different things: a run that asked the model nothing is the good
+  // case, and no counts at all means this was not that kind of run.
+  work?: StepWork;
+}
+
+interface StepWork {
+  steps: number;
+  replayed: number;
+  calls: number;
 }
 
 interface Attempt {
@@ -724,7 +735,9 @@ async function confirmWrite() {
       showClearStyle(!/\b(clear|remove|undo|reset|revert)\b/i.test(currentPlan.title ?? ""));
     }
     if (acting) {
-      toast(receipt.verified ? `Done in ${where}` : `Done in ${where}, unverified`);
+      const how = howItWent(receipt.work);
+      const done = receipt.verified ? `Done in ${where}` : `Done in ${where}, unverified`;
+      toast(how ? `${done} · ${how}` : done);
     } else {
       toast(receipt.verified ? `Saved to ${where}` : `Written to ${where}, unverified`);
     }
@@ -738,6 +751,28 @@ async function confirmWrite() {
     button.textContent = "Confirm & write";
     currentPlan = null;
   }
+}
+
+// What a run through a task on screen cost, in words.
+//
+// Shown because the claim that repeating a task is free is only worth making if
+// the number is in front of the person being told it. A run that reused nothing
+// still reports its calls: knowing the first run was expensive is what makes the
+// second one meaning something.
+function howItWent(work?: StepWork): string {
+  if (!work || work.steps === 0) return "";
+
+  const asked = work.calls === 1 ? "1 model call" : `${work.calls} model calls`;
+
+  if (work.replayed === 0) return `${plural(work.steps, "step")}, ${asked}`;
+  if (work.replayed === work.steps && work.calls === 0) {
+    return `all ${plural(work.steps, "step")} from last time, nothing asked`;
+  }
+  return `${work.replayed} of ${plural(work.steps, "step")} from last time, ${asked}`;
+}
+
+function plural(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
 // --- failures ---

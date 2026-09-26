@@ -303,6 +303,20 @@ type CommitResult struct {
 	ID       string `json:"id"`
 	Title    string `json:"title"`
 	Verified bool   `json:"verified"`
+
+	// Work is present only for a plan that stepped through a task on screen.
+	//
+	// Its own object rather than three omitempty fields, because the case most
+	// worth showing is a run that asked the model nothing — and omitempty would
+	// drop exactly that number on exactly that run.
+	Work *CommitWork `json:"work,omitempty"`
+}
+
+// CommitWork is how much of a run came from what was kept last time.
+type CommitWork struct {
+	Steps    int `json:"steps"`
+	Replayed int `json:"replayed"`
+	Calls    int `json:"calls"`
 }
 
 // UnresolvedData is rung 3 rendered for a person.

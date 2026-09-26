@@ -60,7 +60,35 @@ type Receipt struct {
 	// (D-013). A false here is not a failure — it means the tier could not
 	// confirm, and the caller should say so rather than claim success.
 	Verified bool
+
+	// Work describes a run that stepped through a task on screen, and is nil for
+	// every tier that does not — which is most of them.
+	//
+	// A pointer rather than plain counters, because absent and zero mean
+	// different things here and both occur. Zero calls is the good case, the
+	// whole claim of the step cache; zero calls on a note written to Notes is
+	// not a fact about anything.
+	Work *StepWork
 }
+
+// StepWork is what a run through a task on screen was made of.
+//
+// Counted rather than asserted. The claim that a repeated task costs no model
+// calls is only worth making if the number is in front of the person who was
+// told it, so this exists to be shown (§9.8).
+type StepWork struct {
+	// Steps is how many were carried out.
+	Steps int
+
+	// Replayed is how many came from the steps kept last time.
+	Replayed int
+
+	// Calls is how many times the model was asked.
+	Calls int
+}
+
+// Warm reports that the whole run came from what was kept last time.
+func (w StepWork) Warm() bool { return w.Calls == 0 && w.Replayed > 0 }
 
 // Task is a user instruction.
 type Task struct {

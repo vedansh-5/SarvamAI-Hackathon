@@ -344,6 +344,11 @@ func TestCommitWritesOnlyAfterPrepare(t *testing.T) {
 	if receipt.ID == "" || !receipt.Verified {
 		t.Errorf("receipt = %+v, want a verified write", receipt)
 	}
+	// Absent, not zero. This plan stepped through nothing, and sending counts
+	// for it would have the panel report "0 model calls" about a page it read.
+	if receipt.Work != nil {
+		t.Errorf("receipt carries step counts (%+v) for a plan that took no steps", *receipt.Work)
+	}
 	if n := l.sink.writes.Load(); n != 1 {
 		t.Errorf("sink saw %d writes", n)
 	}

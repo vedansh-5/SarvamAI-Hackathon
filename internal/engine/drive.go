@@ -121,12 +121,14 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	// A run that performed nothing has nothing to verify, and every step having
 	// landed is trivially true of no steps. Left alone it reported success for
 	// having done nothing at all — the same hole D-095 closed on the coach side.
+	work := &StepWork{Steps: run.Steps(), Replayed: run.Replayed, Calls: run.Calls}
+
 	if run.Steps() == 0 {
 		e.logf("nothing was done in %s: %s", d.App, reasonOr(run.Why, "the model gave no reason"))
-		return Receipt{Title: d.App, Verified: false}, nil
+		return Receipt{Title: d.App, Verified: false, Work: work}, nil
 	}
 
-	return Receipt{Title: d.App, Verified: run.Landed}, nil
+	return Receipt{Title: d.App, Verified: run.Landed, Work: work}, nil
 }
 
 type stepHandler func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) error

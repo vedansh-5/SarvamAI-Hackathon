@@ -477,7 +477,15 @@ func (s *Server) commit(ctx context.Context, req Request) (CommitResult, error) 
 	if err != nil {
 		return CommitResult{}, err
 	}
-	return CommitResult{ID: receipt.ID, Title: receipt.Title, Verified: receipt.Verified}, nil
+	out := CommitResult{ID: receipt.ID, Title: receipt.Title, Verified: receipt.Verified}
+	if receipt.Work != nil {
+		out.Work = &CommitWork{
+			Steps:    receipt.Work.Steps,
+			Replayed: receipt.Work.Replayed,
+			Calls:    receipt.Work.Calls,
+		}
+	}
+	return out, nil
 }
 
 func newID() (string, error) {

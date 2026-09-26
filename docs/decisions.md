@@ -2934,3 +2934,36 @@ Found by a test asserting the divergence count, not by reading the code. The
 ordering looked right: handle the empty case first, then the bookkeeping. The bug
 is that "nothing happened" and "nothing was learned" are different claims, and the
 first does not imply the second.
+
+## D-124 — Absent and zero are different answers, so the counts are an object
+
+A run that stepped through a task reports how many steps came from what was kept
+last time and how many times the model was asked. The obvious way to carry that is
+three integers on the receipt, left at zero where they do not apply.
+
+It does not work, because the most interesting number here is a zero. A repeated
+task asking the model nothing is the entire claim of the cache; `omitempty` drops
+exactly that field on exactly that run, and a plain zero is indistinguishable from
+a note written to Notes, which asked nothing through this path because it has no
+such path.
+
+So the counts live in their own object, absent for every tier that does not step
+through anything. Absent means "not a question about this kind of work"; present
+and zero means "asked nothing", which is the good news.
+
+The general form: a field whose zero value is meaningful cannot share a
+representation with a field that is merely unset.
+
+## D-125 — The saving is shown, not claimed
+
+The panel now says "all 3 steps from last time, nothing asked" or "3 steps, 4
+model calls" alongside the result.
+
+This is here because a performance claim that a person cannot check is a claim
+they have to take on trust, and this one is easy to get wrong in a way nobody would
+notice: a trace that silently stops matching costs the model calls it was supposed
+to save, and the only visible difference is that things feel slower. Printing the
+count turns that from a suspicion into an observation.
+
+A run that reused nothing reports its calls too. Knowing the first run cost four
+calls is what gives the second one's zero any meaning.

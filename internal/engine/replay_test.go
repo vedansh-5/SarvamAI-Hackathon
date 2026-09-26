@@ -216,3 +216,70 @@ func TestDrivingWithoutATraceStoreLooksUpNothing(t *testing.T) {
 		t.Errorf("plan carries %d replay step(s) with no store", len(plan.Drive.Replay))
 	}
 }
+
+// The counts are the whole point of the cache, so the receipt carries them and a
+// test pins them. "It got faster" is not a claim worth making without a number.
+func TestAWarmRunReportsWhatItCost(t *testing.T) {
+	steps := &countingSteps{}
+	e := &Engine{UIScreen: &movingScreen{}, Traces: &traceRecorder{}, Steps: steps}
+
+	receipt, err := e.runDrive(context.Background(),
+		replayPlanWith(typeIntoMessage(), pressEnter()))
+	if err != nil {
+		t.Fatalf("runDrive: %v", err)
+	}
+
+	if receipt.Work == nil {
+		t.Fatal("receipt carries no counts for a run that stepped through a task")
+	}
+	got := *receipt.Work
+	if got.Steps != 2 || got.Replayed != 2 || got.Calls != 0 {
+		t.Errorf("work = %+v, want 2 steps, 2 replayed, 0 calls", got)
+	}
+	if !got.Warm() {
+		t.Error("Warm() = false for a run that asked the model nothing")
+	}
+}
+
+func TestAColdRunReportsTheCallsItMade(t *testing.T) {
+	steps := &countingSteps{answers: []synth.StepAnswer{
+		{Step: typeIntoMessage()},
+		{Done: true, Why: "done"},
+	}}
+	e := &Engine{UIScreen: &movingScreen{}, Traces: &traceRecorder{}, Steps: steps, Model: "m"}
+
+	receipt, err := e.runDrive(context.Background(), tracePlan())
+	if err != nil {
+		t.Fatalf("runDrive: %v", err)
+	}
+
+	if receipt.Work == nil {
+		t.Fatal("receipt carries no counts")
+	}
+	got := *receipt.Work
+	if got.Steps != 1 || got.Replayed != 0 {
+		t.Errorf("work = %+v, want 1 step and nothing reused", got)
+	}
+	if got.Calls != 2 {
+		t.Errorf("calls = %d, want the 2 asks it actually made", got.Calls)
+	}
+	if got.Warm() {
+		t.Error("Warm() = true for a run that asked the model twice")
+	}
+}
+
+// Absent is not zero. A note written to Notes made no step and asked nothing
+// through this path, and reporting "0 model calls" about it would be reporting a
+// fact about nothing.
+func TestATierThatStepsThroughNothingReportsNoCounts(t *testing.T) {
+	f := &fakeScreen{tree: editorTree()}
+	e := &Engine{UIScreen: f, UIWriter: stubUIWriter{}}
+
+	receipt, err := e.runUI(context.Background(), uiPlan())
+	if err != nil {
+		t.Fatalf("runUI: %v", err)
+	}
+	if receipt.Work != nil {
+		t.Errorf("work = %+v, want nil for a tier that does not step", *receipt.Work)
+	}
+}
