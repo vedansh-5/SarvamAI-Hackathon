@@ -174,8 +174,12 @@ func contributed(field, asked string, literals map[string]string) string {
 		rest = strings.ReplaceAll(rest, value, " ")
 	}
 
+	// Case-insensitively: a model told to type "hello" often types "Hello", and
+	// that is not the model inventing anything. Whichever case it chose is stored
+	// and replayed verbatim, and it is constant for the key either way.
+	lowered := strings.ToLower(asked)
 	for _, word := range strings.Fields(rest) {
-		if !strings.Contains(asked, word) {
+		if !strings.Contains(lowered, strings.ToLower(word)) {
 			return word
 		}
 	}

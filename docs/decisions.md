@@ -2967,3 +2967,43 @@ count turns that from a suspicion into an observation.
 
 A run that reused nothing reports its calls too. Knowing the first run cost four
 calls is what gives the second one's zero any meaning.
+
+## D-126 — The live measurement gets a store of its own
+
+The test that proves a repeated task is free runs the task twice and asserts the
+second run asked the model nothing. Pointed at the real database, the first run
+would only be the first run the very first time anybody ran it — after that the
+trace is already there, the "cold" run is warm, and the test passes while proving
+the opposite of what it says.
+
+So it opens a store in a temporary directory. The first run is the first run every
+time, and the test asserts that too: a cold run that made no model calls fails,
+because that means the store was not empty and the comparison is meaningless.
+
+The general form: a test about a cache has to control the cache's starting state,
+or it is a test about what happened to be lying around.
+
+## D-127 — Assert on the calls, and the clock will follow
+
+Written first as "read the calls, not the clock", on the reasoning that a warm run
+still reads the window before every step, validates against it, and reads it back
+afterwards — so those reads would dominate a short task and the seconds would
+barely move. The advice was to quote the call count, because "we built a cache and
+saved 300ms" reads as a failure where "four model calls down to none" is the same
+run described by what changed.
+
+The measurement contradicted the prediction. TextEdit, one step: 6,052 ms cold
+against 866 ms warm. Reading and acting on a window takes well under a second; a
+model call takes about two. So the calls were most of the wall time even on the
+shortest task there is.
+
+The conclusion survives with a different reason. Assert on the call count, because
+it is exact and does not move with the network — a test that asserts on seconds
+fails on a slow morning. But do not apologise for the clock in advance. It moved
+seven times.
+
+Kept rather than rewritten, because the wrong prediction is the useful part: the
+cost model here was guessed from which layer *felt* slow, and the layer that felt
+slow was the one that had been optimised already (D-057 moved window reads to cgo
+and took System Settings from 23.9s to 132ms). The remaining cost was the network,
+which is where it usually is.

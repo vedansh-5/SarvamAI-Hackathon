@@ -264,3 +264,20 @@ func TestAWordFromNeitherTheInstructionNorItsValuesIsRefused(t *testing.T) {
 		t.Errorf("why = %q, want it to name the word that was not asked for", got.Why)
 	}
 }
+
+// A model told to type "hello" often types "Hello". That is not it inventing
+// anything: whichever case it chose is stored and replayed as it is, and it is
+// the same for every request that can hit this key.
+func TestACapitalLetterTheModelAddedIsStillTheInstructionsWord(t *testing.T) {
+	got := Templatize(
+		programOf(typeStep("Hello")),
+		"type the word hello",
+		map[string]string{})
+
+	if !got.Keep() {
+		t.Fatalf("Keep() = false, why = %q", got.Why)
+	}
+	if text := got.Program.Steps[0].Text; text != "Hello" {
+		t.Errorf("text = %q, want the case the model actually used", text)
+	}
+}

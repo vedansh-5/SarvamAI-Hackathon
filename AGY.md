@@ -219,6 +219,23 @@ routing. `docs/decisions.md` carries the reasoning for all of it.
 
 - **Warm path is free.** Application actions: cold 2,970 ms / 2 model calls →
   warm 11 ms / **0 calls**, same shape.
+- **A repeated drive run is free too.** `TestLiveDriveTaskTwice` on 2026-09-26,
+  TextEdit, "type the word hello", a fresh store and the real model:
+
+  | run  | steps | model calls | time     |
+  |------|-------|-------------|----------|
+  | cold | 1     | 3           | 6,052 ms |
+  | warm | 1     | **0**       | 866 ms   |
+
+  Seven times faster on a one-step task, and the whole difference is model calls
+  not being made. The cold run's three calls for one step are worth reading: one
+  to work the step out, one because the first answer was refused, one to hear the
+  task was finished. The two call-saving items in §9.8 would take that to one.
+- **The covered-window guard works in the wild.** During that same cold run another
+  application's window was sitting over TextEdit, and the step was refused before
+  it could click the wrong thing: `(508,379) is inside <other app>'s window, which
+  is in front of TextEdit`. The window was then raised and the step landed (D-112).
+  This is the first time that guard has been seen to fire outside a test.
 - **Reading a window is cheap.** Notes: 119 controls in 132 ms through the
   C accessibility API. Before that, through Apple Events, System Settings took
   23.9 s — which is why D-057 moved it to cgo.
@@ -989,10 +1006,31 @@ and the counts (#90). A repeat of a known request now asks the model nothing at
 all, and the panel says how much of a run came from last time and how many calls
 it made.
 
-**What is left:** measuring it live on TextEdit, twice, and writing both numbers
-into *Proven live* — until that happens the zero is only shown against a fake
-window. Then the four call-saving items above, which help the first run rather
-than the repeat.
+**Measured, on 2026-09-26.** `TestLiveDriveTaskTwice` (#92) runs the same task
+twice against a real window with a real model, on a store of its own so the first
+run is genuinely the first. TextEdit, "type the word hello": cold 3 model calls in
+6,052 ms, warm **0 calls** in 866 ms. The numbers and what they say are under
+*Proven live*. To run it again — TextEdit has to be open with an empty document,
+and the run types into it twice:
+
+```bash
+VANS_LIVE=1 VANS_LIVE_DRIVE_OK=1 VANS_LIVE_APP=TextEdit VANS_LIVE_TASK="type the word hello" go test -tags integration -v -count=1 -run TestLiveDriveTaskTwice ./internal/engine/
+```
+
+**The clock moved more than expected, and the prediction here was wrong.** This
+section used to say a warm run would be faster but not dramatically, because the
+window reads a replay still has to do would dominate a short task. The measurement
+says otherwise: 6,052 ms to 866 ms on one step. Reading and acting on the window
+takes well under a second; a model call takes about two. So the calls were most of
+the wall time even on the shortest task there is, and skipping them is most of the
+saving.
+
+The call count is still the number to assert on, because it is exact and does not
+move with the network. But the clock is not the disappointing measure it was
+predicted to be.
+
+**Then** the four call-saving items above, which help the first run rather than the
+repeat.
 
 ---
 

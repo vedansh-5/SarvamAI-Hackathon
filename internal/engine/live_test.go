@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -14,7 +15,9 @@ import (
 
 	"github.com/vedansh/vans/internal/adapter/appleevents"
 	"github.com/vedansh/vans/internal/capability"
+	"github.com/vedansh/vans/internal/route"
 	"github.com/vedansh/vans/internal/screen"
+	"github.com/vedansh/vans/internal/store"
 	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
 )
@@ -187,5 +190,130 @@ func TestChoosesTheRightAppLive(t *testing.T) {
 			continue
 		}
 		t.Logf("%-34q front=%-16s -> %s", c.task, c.front, got)
+	}
+}
+
+// TestLiveDriveTaskTwice runs the same task twice against a real window with a
+// real model, and measures what each run cost.
+//
+// This is the test the step cache exists to pass. Everything else about it is
+// proved against fakes, where "asked the model nothing" is something a test
+// double was told to report. Here the model is real, the window is real, and the
+// second run's zero is the actual number of requests that left the machine.
+//
+//	VANS_LIVE=1 VANS_LIVE_DRIVE_OK=1 \
+//	VANS_LIVE_APP=TextEdit VANS_LIVE_TASK="type the word hello" \
+//	go test -tags integration -v -count=1 -run TestLiveDriveTaskTwice ./internal/engine/
+//
+// The target must be something with nothing to lose — an empty TextEdit
+// document, not a window holding work. The task runs twice, so whatever it does
+// happens twice.
+func TestLiveDriveTaskTwice(t *testing.T) {
+	app, ctx := liveApp(t)
+	if os.Getenv("VANS_LIVE_DRIVE_OK") == "" {
+		t.Skip("set VANS_LIVE_DRIVE_OK=1 to run a live driving task on screen")
+	}
+
+	task := os.Getenv("VANS_LIVE_TASK")
+	if task == "" {
+		t.Skip("set VANS_LIVE_TASK to the task to carry out, e.g. VANS_LIVE_TASK=\"type the word hello\"")
+	}
+
+	backend, err := synth.FromEnv()
+	if err != nil {
+		t.Skipf("no model configured: %v", err)
+	}
+	writer, canWriteSteps := backend.(StepWriter)
+	if !canWriteSteps {
+		t.Skip("the configured backend cannot write steps")
+	}
+
+	// A store of its own, so the first run is genuinely the first. Pointing this
+	// at the real database would make the result depend on what had been run
+	// before it, which is the one thing this test must not do.
+	st, err := store.Open(filepath.Join(t.TempDir(), "traces.db"))
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	t.Cleanup(func() { st.Close() })
+
+	runner := appleevents.Osascript{Timeout: 120 * time.Second}
+	screen := uiact.System{Runner: runner}
+	shape, literals := route.Shape(task)
+	t.Logf("task %q has shape %q with values %v", task, shape, literals)
+
+	cold := driveOnceLive(ctx, t, "cold", app, task, shape, literals, screen, writer, st)
+	warm := driveOnceLive(ctx, t, "warm", app, task, shape, literals, screen, writer, st)
+
+	if cold.work == nil || warm.work == nil {
+		t.Fatal("a run reported no counts, so there is nothing to compare")
+	}
+
+	if cold.work.Calls == 0 {
+		t.Error("the first run asked the model nothing, so it was not a cold run and this proves nothing")
+	}
+	if cold.work.Replayed != 0 {
+		t.Errorf("the first run reused %d step(s), so the store was not empty", cold.work.Replayed)
+	}
+
+	if warm.replayOffered == 0 {
+		t.Fatal("the second run was offered no steps from the first, so the first was never kept " +
+			"— the log above says why")
+	}
+	if warm.work.Calls != 0 {
+		t.Errorf("the second run asked the model %d time(s), want none", warm.work.Calls)
+	}
+	if !warm.work.Warm() {
+		t.Errorf("the second run was not warm: %+v", *warm.work)
+	}
+	if !warm.verified {
+		t.Error("the second run was not verified, so replaying is not doing the task")
+	}
+
+	t.Logf("cold: %d step(s), %d model call(s), %s", cold.work.Steps, cold.work.Calls, cold.took.Round(time.Millisecond))
+	t.Logf("warm: %d step(s), %d model call(s), %s", warm.work.Steps, warm.work.Calls, warm.took.Round(time.Millisecond))
+	if warm.took < cold.took {
+		t.Logf("the warm run was %s faster", (cold.took - warm.took).Round(time.Millisecond))
+	} else {
+		t.Logf("the warm run was not faster in wall time (%s against %s), though it asked nothing; "+
+			"on a task this short the window reads dominate", warm.took.Round(time.Millisecond), cold.took.Round(time.Millisecond))
+	}
+}
+
+type liveRun struct {
+	work          *StepWork
+	took          time.Duration
+	verified      bool
+	replayOffered int
+}
+
+func driveOnceLive(
+	ctx context.Context, t *testing.T, which, app, task, shape string,
+	literals map[string]string, screen uiact.Screen, writer StepWriter, st *store.Store,
+) liveRun {
+	t.Helper()
+
+	said := &lines{}
+	eng := &Engine{UIScreen: screen, Steps: writer, Traces: st, Log: said.logf, Model: "live"}
+
+	plan, err := eng.driveOn(ctx, app, task, shape, literals)
+	if err != nil {
+		t.Fatalf("%s: driveOn: %v", which, err)
+	}
+
+	start := time.Now()
+	receipt, err := eng.Commit(ctx, plan)
+	took := time.Since(start)
+
+	t.Logf("--- %s run ---\n%s", which, said.all())
+	if err != nil {
+		t.Fatalf("%s: Commit: %v", which, err)
+	}
+
+	return liveRun{
+		work:          receipt.Work,
+		took:          took,
+		verified:      receipt.Verified,
+		replayOffered: len(plan.Drive.Replay),
 	}
 }
