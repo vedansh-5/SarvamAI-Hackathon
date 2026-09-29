@@ -215,7 +215,19 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 			e.logf("still on step %d: %s", number, describe)
 		}
 	}
-	run, err := e.stepThroughTask(ctx, g.App, asTask(g.Task), MaxGuideSteps, point, nil)
+	// Planned once, up front. Without it the next step was only worked out after
+	// the person had done the current one, so every step began with a wait for the
+	// model — about two seconds of nothing, every time. With it the next step is
+	// already known when they finish this one, and only has to be checked against
+	// the window they left.
+	var planned []uiact.Step
+	if e.Plans != nil {
+		if tree, err := e.windowToWorkFrom(ctx, g.App); err == nil && len(tree.Elements) > 0 {
+			planned, _ = e.planAhead(ctx, asTask(g.Task), tree, MaxGuideSteps)
+		}
+	}
+
+	run, err := e.stepThroughTask(ctx, g.App, asTask(g.Task), MaxGuideSteps, point, planned, false)
 	if err != nil {
 		return run.Steps(), err
 	}

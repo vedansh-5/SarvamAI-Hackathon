@@ -113,6 +113,11 @@ func run() error {
 		uiWriter = w
 	}
 
+	var plans engine.PlanWriter
+	if w, ok := synthesizer.(engine.PlanWriter); ok {
+		plans = w
+	}
+
 	var steps engine.StepWriter
 	if w, ok := synthesizer.(engine.StepWriter); ok {
 		steps = w
@@ -151,6 +156,7 @@ func run() error {
 			UIWriter:  uiWriter,
 			UIActions: st,
 			Steps:     steps,
+			Plans:     plans,
 			Styler:    styler,
 			History:   st,
 			Chooser:   chooser,

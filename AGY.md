@@ -962,6 +962,12 @@ needed — and it should be done first and separately.
     now say what they are.
   - *"Displays number 14, and there are 1"* cost a model call. A number pointing past
     the only control of that kind is now dropped without asking.
+- **One model call for the whole task, #99.** A drive run or a coached run with nothing
+  remembered for it now asks for every step at once, then checks each one against the
+  real window as it comes up and works out the rest live from the first that no
+  longer fits. Two steps cost two calls instead of three; six cost two instead of
+  about seven. For the coach it is what removes the pause before each step: the next
+  one is already known when the person finishes this one (D-139).
 - **Still open from that test:** the model pointed at "Big Sur", a wallpaper scrolled
   out of view. It should prefer what is visible, or say to scroll.
 - Draw the coach's rings and arrows over elements inside a web page, using
@@ -1261,7 +1267,7 @@ nobody but one person can run VANS today, so there is no feedback to learn from.
 
 1. ~~Measure the warm drive run live.~~ **Done 2026-09-26**, numbers under *Proven
    live*: cold 3 calls / 6,052 ms, warm 0 calls / 866 ms.
-2. **One model call for the whole task** (§9.10 #3). The model call and its prompt
+2. ~~**One model call for the whole task**~~ **Built in #99.** (§9.10 #3). The model call and its prompt
    are written and parked on `one-call-plan`; nothing is wired up. A plan made up
    front is an uncached trace, so it validates per step and resumes live where it
    diverges — the machinery from #89 is most of it. One caution that the product

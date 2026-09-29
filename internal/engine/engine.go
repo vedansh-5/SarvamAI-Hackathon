@@ -156,6 +156,10 @@ type Engine struct {
 	// request costs no model calls.
 	Traces TraceStore
 
+	// Plans asks for a whole task in one call, so a first run need not ask once
+	// per step (D-139).
+	Plans PlanWriter
+
 	// Recorded reads those back, to put one of them back.
 	Recorded DeedStore
 

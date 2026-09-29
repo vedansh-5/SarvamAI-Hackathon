@@ -28,9 +28,58 @@ type DrivePlan struct {
 	Shape    string
 	Literals map[string]string
 
-	// Replay is the steps this task took last time, already filled with this
-	// request's values. Empty means the model works them out as it goes.
+	// Replay is the steps to try before asking the model anything, already
+	// filled with this request's values. Empty means every step is worked out as
+	// it goes.
 	Replay []uiact.Step
+
+	// Kept reports that Replay came out of the store — steps that worked last
+	// time and that the model called the whole task. Otherwise Replay is a plan
+	// written for this run, which is a good guess and nothing more.
+	Kept bool
+
+	// PlanCalls is what writing that plan cost, so the count a run reports is
+	// the whole of what the task cost and not just what happened after it
+	// started.
+	PlanCalls int
+}
+
+// PlanWriter asks for a whole task in one go. Optional: without one, every step
+// is worked out as the run goes, which is how it always worked.
+type PlanWriter interface {
+	WritePlan(ctx context.Context, req synth.PlanRequest) (synth.PlanAnswer, error)
+}
+
+// planAhead asks for every step of a task at once, before any of them is done.
+//
+// One call instead of one per step. The steps after the first are the model's
+// expectation of windows it has not seen yet, so they are checked against the
+// real window as each one comes up, exactly as a remembered step is, and the run
+// is worked out live from the first one that no longer fits (D-139). A plan that
+// is right about the first few steps and wrong about the rest still saved every
+// call up to where it went wrong.
+//
+// Never a reason to stop. No planner, a failed call or an empty plan all mean
+// the run works itself out one step at a time, as it did before this existed.
+func (e *Engine) planAhead(ctx context.Context, task string, tree uiact.Tree, most int) ([]uiact.Step, int) {
+	if e.Plans == nil {
+		return nil, 0
+	}
+
+	e.logf("planning the whole of it in one go")
+	answer, err := e.Plans.WritePlan(ctx, synth.PlanRequest{Task: task, Tree: tree, Most: most})
+	if err != nil {
+		e.logf("could not plan ahead, so working it out step by step: %v", err)
+		return nil, 1
+	}
+	if len(answer.Steps) == 0 {
+		e.logf("no plan came back (%s), so working it out step by step",
+			reasonOr(answer.Why, "no reason given"))
+		return nil, 1
+	}
+
+	e.logf("planned %d step(s)", len(answer.Steps))
+	return answer.Steps, 1
 }
 
 func (e *Engine) canDrive() bool {
@@ -51,6 +100,11 @@ func (e *Engine) driveOn(ctx context.Context, app, task, shape string, literals 
 	}
 
 	replay := e.stepsFromLastTime(ctx, tree.App, shape, literals)
+	kept := len(replay) > 0
+	planCalls := 0
+	if !kept {
+		replay, planCalls = e.planAhead(ctx, task, tree, MaxDriveSteps)
+	}
 
 	// A known sequence gets a confirmation that names the steps, because it can.
 	// "Up to 12 steps" is the honest thing to say about a run nobody has planned
@@ -60,11 +114,18 @@ func (e *Engine) driveOn(ctx context.Context, app, task, shape string, literals 
 		"Work through this in %s, on screen, one step at a time:\n\n  %s\n\n"+
 			"Up to %d steps. Every click and every keystroke happens where you can watch it.",
 		tree.App, task, MaxDriveSteps)
-	if len(replay) > 0 {
+	switch {
+	case kept:
 		preview = fmt.Sprintf(
 			"Do this in %s, on screen, the way it worked last time:\n\n%s\n\n"+
 				"Every step is checked against the window before it runs, and anything that "+
 				"no longer fits is worked out again.",
+			tree.App, uiact.Preview(uiact.Program{App: tree.App, Steps: replay}))
+	case len(replay) > 0:
+		preview = fmt.Sprintf(
+			"Do this in %s, on screen:\n\n%s\n\n"+
+				"This is the plan. Every step is checked against the window before it runs, "+
+				"and anything that turns out differently is worked out again from there.",
 			tree.App, uiact.Preview(uiact.Program{App: tree.App, Steps: replay}))
 	}
 
@@ -72,13 +133,16 @@ func (e *Engine) driveOn(ctx context.Context, app, task, shape string, literals 
 		Task:        Task{Intent: task, Title: tree.App},
 		Destination: tree.App,
 		Drive: &DrivePlan{
-			App:      tree.App,
-			Task:     task,
-			Preview:  preview,
-			Shape:    shape,
-			Literals: literals,
-			Replay:   replay,
+			App:       tree.App,
+			Task:      task,
+			Preview:   preview,
+			Shape:     shape,
+			Literals:  literals,
+			Replay:    replay,
+			Kept:      kept,
+			PlanCalls: planCalls,
 		},
+		SynthesisCalls: planCalls,
 	}, nil
 }
 
@@ -92,8 +156,11 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 		return e.UIScreen.Act(ctx, program, tree)
 	}
 
-	if len(d.Replay) > 0 {
+	switch {
+	case d.Kept:
 		e.logf("%d step(s) kept from last time; the model is only asked if one stops fitting", len(d.Replay))
+	case len(d.Replay) > 0:
+		e.logf("%d step(s) planned; the model is only asked again if one stops fitting", len(d.Replay))
 	}
 
 	// Verified is evidence, not a claim. The model saying the task is done is
@@ -101,7 +168,7 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	// counts is that the window moved for every step VANS performed. A replayed
 	// step is held to exactly the same standard, so where the steps came from
 	// never enters into whether the run is verified.
-	run, err := e.stepThroughTask(ctx, d.App, d.Task, MaxDriveSteps, act, d.Replay)
+	run, err := e.stepThroughTask(ctx, d.App, d.Task, MaxDriveSteps, act, d.Replay, d.Kept)
 	if err != nil {
 		e.settleTheTrace(ctx, d, run)
 		return Receipt{}, err
@@ -121,7 +188,7 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	// A run that performed nothing has nothing to verify, and every step having
 	// landed is trivially true of no steps. Left alone it reported success for
 	// having done nothing at all — the same hole D-095 closed on the coach side.
-	work := &StepWork{Steps: run.Steps(), Replayed: run.Replayed, Calls: run.Calls}
+	work := &StepWork{Steps: run.Steps(), Replayed: run.Replayed, Calls: run.Calls + d.PlanCalls}
 
 	if run.Steps() == 0 {
 		e.logf("nothing was done in %s: %s", d.App, reasonOr(run.Why, "the model gave no reason"))
@@ -179,7 +246,12 @@ const modelAttempts = 2
 // That is the point: a replayed step goes through the same validation, the same
 // covered-window raise and the same read-back as a live one, and it cannot drift
 // from them because there is only one of each.
-func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit int, handle stepHandler, trace []uiact.Step) (taskRun, error) {
+// confirmed says whether the model has already called the trace the whole task.
+// A stored trace was only kept for a run it called finished, so running out of
+// one is that answer. A plan written up front for this run promised nothing of
+// the kind, so running out of it is not evidence of anything and the model is
+// asked once whether there is more.
+func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit int, handle stepHandler, trace []uiact.Step, confirmed bool) (taskRun, error) {
 	var done []string
 	var did []uiact.Step
 	landed := true
@@ -220,6 +292,13 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 		mended := false
 
 		for asks <= modelAttempts {
+			// A plan written this run has been carried out to the end. Whether
+			// that finished the task is the model's to say, with the window it
+			// left in view.
+			if replaying && i > len(trace) && !confirmed {
+				replaying = false
+				e.logf("the %d planned step(s) are done; asking whether that is all of it", len(trace))
+			}
 			fromTrace := replaying && i <= len(trace)
 
 			var answer synth.StepAnswer

@@ -3211,3 +3211,28 @@ colour — the shape Clicky uses, and for the same reason. It turns to face the 
 it is travelling, so the tip leads round the curve and lands on the control first.
 It carries on from wherever the last step left it, because a hand that teleports
 between steps is not a hand.
+
+## D-139 — Plan the whole task once, and check it a step at a time
+
+Every step used to be its own model call, made after the step before it had
+happened. On a drive run that is a call per step plus one to hear it is finished;
+in the coach it is a pause of about two seconds before every step, because the
+next one is not worked out until the person has done this one.
+
+So a run with nothing remembered for it asks for the whole sequence in one call,
+up front. The steps after the first are the model's expectation of windows it has
+not seen, and they are treated exactly as a remembered step is (D-121): checked
+against the real window when their turn comes, and the run worked out live from
+the first one that no longer fits. A plan that is right about the first three steps
+and wrong about the fourth still saved three calls.
+
+The one difference from a remembered run is what running out means. A stored trace
+was only kept for a run the model itself called finished, so reaching its end is
+that answer (D-122). A plan written for this run promised nothing of the kind — the
+model saw one window when it wrote it and there is a different one now — so when
+it runs out the model is asked once whether that was all of it. That is the call
+this does not save, deliberately: skipping it would mean a run that stops a step
+short reports itself finished.
+
+A plan is never a reason to stop. No planner, a failed call or an empty plan all
+leave the run working itself out a step at a time, which is what it did before.

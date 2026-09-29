@@ -53,7 +53,10 @@ func (e *Engine) settleTheTrace(ctx context.Context, d *DrivePlan, run taskRun) 
 		return
 	}
 
-	if len(d.Replay) == 0 {
+	// A plan written for this run is not in the store, so there is nothing there
+	// to mark as having held up or gone off. The run is judged as any first run
+	// is, and kept if it earns it.
+	if !d.Kept {
 		e.rememberTheRun(ctx, d, run)
 		return
 	}

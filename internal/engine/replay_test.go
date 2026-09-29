@@ -34,9 +34,12 @@ func pressEnter() uiact.Step {
 	}
 }
 
+// A run whose steps came out of the store — the model already called this
+// sequence the whole task, which is what lets running out of it mean "done".
 func replayPlanWith(steps ...uiact.Step) *Plan {
 	plan := tracePlan()
 	plan.Drive.Replay = steps
+	plan.Drive.Kept = true
 	return plan
 }
 
