@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
@@ -152,7 +153,10 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	}
 
 	d := plan.Drive
-	act := func(ctx context.Context, tree uiact.Tree, program uiact.Program, _ int, _ string) error {
+	act := func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) error {
+		if err := e.showBeforeActing(ctx, tree, program.Steps[0], number, describe); err != nil {
+			return err
+		}
 		return e.UIScreen.Act(ctx, program, tree)
 	}
 
@@ -196,6 +200,47 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	}
 
 	return Receipt{Title: d.App, Verified: run.Landed, Work: work}, nil
+}
+
+// How long a step is shown before it is performed: long enough for the ghost to
+// glide to the control and land, and a beat after that. It is also the window in
+// which Escape stops the run with the step not done, so it is the dial between
+// too quick to veto and slow (ghost cursor spec).
+var lookBeforeActing = 850 * time.Millisecond
+
+// showBeforeActing draws where a step is about to happen, then waits before it
+// does. Showing the click before making it is what makes a run watchable rather
+// than something that happened, and the pause is a veto that costs nothing
+// unless it is used.
+//
+// A step with no rectangle to draw is performed without the pause: there is
+// nothing to show, and waiting to show nothing is only slower.
+func (e *Engine) showBeforeActing(ctx context.Context, tree uiact.Tree, step uiact.Step, number int, describe string) error {
+	if e.ShowStep == nil {
+		return nil
+	}
+	x, y, w, h, why := tree.RectFor(step.Target)
+	if why != "" {
+		return nil
+	}
+
+	e.ShowStep(GuideStep{
+		Number: number,
+		Label:  describe,
+		X:      x, Y: y, W: w, H: h,
+		Do:     strings.ToLower(strings.TrimSpace(step.Do)),
+		Detail: detailOf(step),
+	})
+
+	if lookBeforeActing <= 0 {
+		return nil
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(lookBeforeActing):
+		return nil
+	}
 }
 
 type stepHandler func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) error

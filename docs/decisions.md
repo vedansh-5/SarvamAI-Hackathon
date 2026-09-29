@@ -3236,3 +3236,23 @@ short reports itself finished.
 
 A plan is never a reason to stop. No planner, a failed call or an empty plan all
 leave the run working itself out a step at a time, which is what it did before.
+
+## D-140 — A step is shown before it is made, and the showing is the veto
+
+A run that acts on screen used to reach its controls with nothing to say it was
+coming — a field filled, a button pressed, and the person left to work out
+afterwards what had happened. Each step is now announced just before it is
+performed: the ghost cursor glides to the control and lands, and the step follows
+about 850 ms later.
+
+That pause is doing two jobs. It makes the run watchable, which is most of what
+makes an agent acting on your own machine tolerable. And it is a veto: Escape
+during it stops the run with that step not done. The confirmation gate protects
+the plan as a whole, before anything starts; this protects each step, at the
+moment it is about to happen, and costs nothing unless it is used.
+
+The length is a dial rather than a detail — long enough for the ghost to arrive
+and be seen, short enough that a six-step run does not feel staged — so it is a
+named value rather than a number in the code. A step with nothing to draw is
+performed without the pause, since waiting to show nothing is only slower, and a
+build with no shell watching has no pause at all.

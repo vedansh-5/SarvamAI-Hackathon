@@ -123,6 +123,11 @@ const PINNED = new Set(["preflight", "guiding"]);
 // coach knows whose window it is drawing over.
 let coachedApp = "";
 
+// The application a confirmed action is running in, while it runs. Set for the
+// length of the commit so Escape knows there is something to stop and the ghost
+// knows whose window it is in.
+let actingIn: string | null = null;
+
 const ICONS: Record<string, string> = {
   rss: '<path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.6"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
@@ -428,11 +433,47 @@ async function showTheWay(plan: Plan) {
 // Escape handler never hears it; the shell holds the key for as long as the coach
 // is on screen and reports it here.
 listen("coach://stop", async () => {
+  // A run that is acting on screen stops the same way a coached one does. The
+  // result comes back through the commit, which reports it as stopped.
+  if (actingIn !== null) {
+    invoke("stop_guide").catch(console.error);
+    return;
+  }
   if ($("guiding").hidden) return;
   invoke("compact_panel", { compact: false }).catch(console.error);
   await invoke("stop_guide").catch(console.error);
   await invoke("clear_pointer").catch(console.error);
   show("ask");
+});
+
+// A step of a confirmed action, announced just before it is performed. Drawn with
+// the same ghost cursor and ring the coach uses — the difference is only that here
+// VANS does the step, and the ghost shows where, a moment before it happens.
+listen<{
+  params: {
+    number: number;
+    label: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    do?: string;
+    detail?: string;
+  };
+}>("engine://drive_step", (event) => {
+  if (actingIn === null) return;
+  const s = event.payload.params;
+  invoke("point_at", {
+    x: s.x,
+    y: s.y,
+    w: s.w,
+    h: s.h,
+    label: s.label,
+    step: `Step ${s.number}`,
+    verb: s.do ?? "",
+    detail: s.detail ?? "",
+    appName: actingIn,
+  }).catch(console.error);
 });
 
 // The shell saw the person click what the coach pointed at. That is the step
@@ -759,13 +800,18 @@ async function confirmWrite() {
   // first step can reach for its control before the window server has taken the
   // panel off the screen.
   if (acting) {
+    actingIn = currentPlan.app ?? where;
     await invoke("dismiss").catch(console.error);
     await new Promise((resolve) => setTimeout(resolve, 150));
   }
 
   try {
     const receipt = await invoke<Receipt>("commit", { planId: currentPlan.plan_id });
-    if (acting) await invoke("summon").catch(console.error);
+    if (acting) {
+      actingIn = null;
+      invoke("finish_pointer").catch(console.error);
+      await invoke("summon").catch(console.error);
+    }
     if (currentPlan.kind === "page.style") {
       showClearStyle(!/\b(clear|remove|undo|reset|revert)\b/i.test(currentPlan.title ?? ""));
     }
@@ -779,7 +825,11 @@ async function confirmWrite() {
     ($("intent") as HTMLInputElement).value = "";
     show("ask");
   } catch (e) {
-    if (acting) await invoke("summon").catch(console.error);
+    if (acting) {
+      actingIn = null;
+      invoke("clear_pointer").catch(console.error);
+      await invoke("summon").catch(console.error);
+    }
     renderFailure(e);
     show("failure");
   } finally {

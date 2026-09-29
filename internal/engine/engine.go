@@ -160,6 +160,11 @@ type Engine struct {
 	// per step (D-139).
 	Plans PlanWriter
 
+	// ShowStep, when set, is told about each step of a run that acts on screen
+	// just before the step is performed, so the shell can draw where it is about
+	// to happen. Set per request by the server; nil runs silently, as before.
+	ShowStep func(GuideStep)
+
 	// Recorded reads those back, to put one of them back.
 	Recorded DeedStore
 

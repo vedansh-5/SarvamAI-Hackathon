@@ -146,7 +146,24 @@ func (e *Engine) runUI(ctx context.Context, plan *Plan) (Receipt, error) {
 		return Receipt{}, fmt.Errorf("engine: %s's window changed after the plan was made: %w", plan.UI.App, err)
 	}
 
-	if err := e.UIScreen.Act(ctx, plan.UI.program, fresh); err != nil {
+	// One step at a time when there is someone to show them to, so the ghost can
+	// go to each control before it is reached. Every step is still acted against
+	// the window as it was read above, exactly as the whole program was.
+	if e.ShowStep != nil {
+		for i, step := range plan.UI.program.Steps {
+			one := uiact.Program{App: plan.UI.program.App, Steps: []uiact.Step{step}}
+			describe := strings.TrimSpace(step.Describe)
+			if describe == "" {
+				describe = uiact.Preview(one)
+			}
+			if err := e.showBeforeActing(ctx, fresh, step, i+1, describe); err != nil {
+				return Receipt{}, err
+			}
+			if err := e.UIScreen.Act(ctx, one, fresh); err != nil {
+				return Receipt{}, err
+			}
+		}
+	} else if err := e.UIScreen.Act(ctx, plan.UI.program, fresh); err != nil {
 		return Receipt{}, err
 	}
 

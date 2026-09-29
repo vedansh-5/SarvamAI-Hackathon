@@ -1209,8 +1209,12 @@ show up there first.
 
 **Drawn, for the coach, in #98.** A glowing rounded triangle that glides along a
 curve to each step, faces the way it is going, and presses with a ripple as it
-lands (D-138). Not yet shown on a drive run: `runDrive` still has no way to
-announce a step before performing it.
+lands (D-138).
+
+**And for runs where VANS acts, in #100.** Each step is announced just before it is
+performed: the ghost glides to the control, lands, and about 850 ms later the step
+happens. Escape during that pause stops the run with the step not done — the
+approval stops being a dialog and becomes a moment you let pass (D-140).
 
 **What it is.** A drawn pointer glides to a control and lands on it before
 anything happens to that control. Per step on a drive run: the ghost arrives, the

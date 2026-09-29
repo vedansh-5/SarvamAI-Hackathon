@@ -80,6 +80,11 @@ type Server struct {
 	running      map[int]context.CancelFunc
 	guideCancel  context.CancelFunc
 	guideAdvance chan struct{}
+
+	// actCancel stops a run that is acting on screen. Kept beside guideCancel and
+	// stopped by the same request, because from where the person sits they are
+	// the same thing: VANS doing something in their window, and Escape to stop it.
+	actCancel context.CancelFunc
 }
 
 // Serve reads requests from in and writes responses to out until in ends.
@@ -473,8 +478,38 @@ func (s *Server) commit(ctx context.Context, req Request) (CommitResult, error) 
 	eng := *s.Engine
 	eng.Log = func(format string, args ...any) { s.notify(req.ID, format, args...) }
 
-	receipt, err := eng.Commit(ctx, plan)
+	// Each step of a run that acts on screen is announced just before it happens,
+	// so the shell can draw the ghost cursor gliding to where it is about to be.
+	eng.ShowStep = func(g engine.GuideStep) {
+		s.push(req.ID, "drive_step", GuideStepParams{
+			Number: g.Number, Label: g.Label,
+			X: g.X, Y: g.Y, W: g.W, H: g.H,
+			Do: g.Do, Detail: g.Detail,
+		})
+	}
+
+	runCtx, cancel := context.WithCancel(ctx)
+	s.mu.Lock()
+	s.actCancel = cancel
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		s.actCancel = nil
+		s.mu.Unlock()
+		cancel()
+	}()
+
+	receipt, err := eng.Commit(runCtx, plan)
 	if err != nil {
+		// Stopped on purpose, not broken. Said as a stop in the application it
+		// was working in, the same way a coached run that is stopped is.
+		if runCtx.Err() != nil && ctx.Err() == nil {
+			return CommitResult{}, &Error{
+				Code:    CodeCoachStopped,
+				Message: "stopped before the next step",
+				Data:    mustData(CoachStoppedData{App: plan.Destination}),
+			}
+		}
 		return CommitResult{}, err
 	}
 	out := CommitResult{ID: receipt.ID, Title: receipt.Title, Verified: receipt.Verified}
@@ -750,11 +785,14 @@ func (s *Server) guide(ctx context.Context, req Request) (GuideResult, error) {
 
 func (s *Server) stopGuide() (StopGuideResult, error) {
 	s.mu.Lock()
-	cancel := s.guideCancel
+	guide, act := s.guideCancel, s.actCancel
 	s.mu.Unlock()
 
-	if cancel != nil {
-		cancel()
+	if guide != nil {
+		guide()
+	}
+	if act != nil {
+		act()
 	}
 	return StopGuideResult{Stopped: true}, nil
 }
