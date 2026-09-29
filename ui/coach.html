@@ -93,6 +93,25 @@
       #corners, #arrow { stroke: var(--accent); }
       #ripple { stroke: var(--accent); }
       #spotlight-glow { stroke: var(--accent); }
+      /* The ghost cursor: a soft, rounded triangle in the accent colour with a
+         glow of the same colour. Deliberately not shaped like a mouse pointer —
+         it should read as VANS moving, never as the person's own cursor having
+         jumped. It turns to face where it is going, and lands tip first. */
+      #ghost { transition: opacity 180ms ease; pointer-events: none; }
+      #ghost-body {
+        transform-origin: 0 0;
+        transition: transform 110ms ease-out;
+        filter: drop-shadow(0 0 7px var(--accent)) drop-shadow(0 0 2px var(--accent));
+      }
+      #ghost-shape { fill: var(--accent); stroke: var(--accent); }
+      #ghost.pressing #ghost-body { transform: scale(0.82); }
+      #ghost-press { transform-origin: center; }
+      #ghost.landed #ghost-press { animation: ghost-press 520ms ease-out 1; }
+      @keyframes ghost-press {
+        from { r: 4; opacity: 0.9; }
+        to   { r: 30; opacity: 0; }
+      }
+
       #step {
         display: block;
         font-size: 11px;
@@ -157,6 +176,17 @@
                   stroke-linejoin="round" />
             <animateTransform attributeName="transform" type="translate"
                               values="0 0; 0 -4; 0 0" dur="1.6s" repeatCount="indefinite" />
+          </g>
+        </g>
+        <g id="ghost" opacity="0">
+          <circle id="ghost-press" cx="0" cy="0" r="4" fill="none"
+                  stroke="rgba(10,132,255,0.9)" stroke-width="2.5" opacity="0" />
+          <g id="ghost-body">
+            <!-- Points along +x with the rounded tip at the origin, so rotating the
+                 group turns it to face its heading and the tip is what lands. The
+                 thick stroke in the fill colour is what rounds the corners. -->
+            <path id="ghost-shape" d="M -3 0 L -20 -9.5 L -20 9.5 Z"
+                  stroke-width="5" stroke-linejoin="round" />
           </g>
         </g>
       </svg>

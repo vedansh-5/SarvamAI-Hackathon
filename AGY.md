@@ -1201,6 +1201,11 @@ accessibility and the real pointer is left alone. Nothing is drawn yet, and it
 has not been run live: a class of control that quietly ignores `AXPress` would
 show up there first.
 
+**Drawn, for the coach, in #98.** A glowing rounded triangle that glides along a
+curve to each step, faces the way it is going, and presses with a ripple as it
+lands (D-138). Not yet shown on a drive run: `runDrive` still has no way to
+announce a step before performing it.
+
 **What it is.** A drawn pointer glides to a control and lands on it before
 anything happens to that control. Per step on a drive run: the ghost arrives, the
 control gets a ring, a short pause, then the action. It is the base for the rest of

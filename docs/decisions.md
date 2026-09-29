@@ -3198,3 +3198,16 @@ asked for it. Seen live, with ⌥Space pressed before System Settings was opened
 Next now makes the coach look. If the application is open the run carries on; if it
 is not, the step stays where it is. Pressing Next early costs nothing and cannot
 skip anything.
+
+## D-138 — The ghost cursor is not shaped like a cursor
+
+The first version was a mouse arrow, drawn larger and shadowed. It read as the
+person's own pointer having jumped somewhere — which is the one thing the ghost
+must never be mistaken for, since the whole design turns on VANS not touching the
+real pointer (D-134).
+
+So it is a soft, rounded triangle in the accent colour with a glow of the same
+colour — the shape Clicky uses, and for the same reason. It turns to face the way
+it is travelling, so the tip leads round the curve and lands on the control first.
+It carries on from wherever the last step left it, because a hand that teleports
+between steps is not a hand.

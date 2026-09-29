@@ -60,6 +60,18 @@ let currentBounds: Bounds | null = null;
 let currentVerb = "click";
 let animationFrameId: number | null = null;
 
+// Where the ghost cursor is resting, so the next step's glide starts from where
+// the last one ended rather than from nowhere. A hand that teleports is not a
+// hand.
+let ghostAt: { x: number; y: number } | null = null;
+let ghostFrame: number | null = null;
+
+// Which way the ghost is facing, in degrees. Kept between steps so it does not
+// snap back to a default before turning towards the next target.
+let ghostHeading = -35;
+
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 function elementById<T extends HTMLElement | SVGElement>(id: string): T {
   const el = document.getElementById(id);
   if (!el) throw new Error(`missing #${id}`);
@@ -97,12 +109,110 @@ function cornerBrackets(b: Bounds): string {
 /// a key combination gets neither, because there is nothing on screen to press.
 /// All of them are placed inside the control rather than at its centre, so the
 /// label someone is reading stays legible.
+function landingPoint(b: Bounds, verb: string): { x: number; y: number } {
+  const x = verb === "type" ? b.x + 14 : b.x + Math.min(b.w * 0.5, 40);
+  return { x, y: b.y + b.h / 2 };
+}
+
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+/// The ghost cursor glides to where the step happens, then presses.
+///
+/// Along a curve rather than a straight line: a linear tween reads as a glitch,
+/// and a slight arc is how a hand on a trackpad actually travels. The glide takes
+/// longer for a longer journey, within limits, so a neighbouring control is a
+/// flick and the far side of the screen is a sweep.
+///
+/// The first step of a run has nowhere to come from, so the ghost arrives from
+/// below and to the left of its target, the way a hand enters from the edge.
+function flyGhostTo(to: { x: number; y: number }, press: boolean) {
+  const ghost = elementById<SVGGElement>("ghost");
+  const from = ghostAt ?? { x: to.x - 150, y: to.y + 120 };
+
+  if (ghostFrame !== null) cancelAnimationFrame(ghostFrame);
+  ghost.classList.remove("landed", "pressing");
+  ghost.setAttribute("opacity", "1");
+
+  const place = (x: number, y: number) =>
+    ghost.setAttribute("transform", `translate(${x} ${y}) rotate(${ghostHeading})`);
+
+  const land = () => {
+    ghostAt = to;
+    ghostFrame = null;
+    place(to.x, to.y);
+    if (!press) return;
+    ghost.classList.remove("landed");
+    // Read layout between removing the class and adding it back, or a press on the
+    // same spot as the last one would not replay its ripple.
+    void ghost.getBoundingClientRect();
+    ghost.classList.add("pressing");
+    ghost.classList.add("landed");
+    window.setTimeout(() => ghost.classList.remove("pressing"), 140);
+  };
+
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const distance = Math.hypot(dx, dy);
+
+  if (reducedMotion || distance < 2) {
+    land();
+    return;
+  }
+
+  // The control point sits off to one side of the straight line, a fifth of the
+  // way out, which bends the path without making it loop.
+  const bend = Math.min(90, distance * 0.2);
+  const cx = (from.x + to.x) / 2 - (dy / distance) * bend;
+  const cy = (from.y + to.y) / 2 + (dx / distance) * bend;
+  const duration = Math.min(900, Math.max(380, distance * 0.9));
+  const start = performance.now();
+
+  const frame = (now: number) => {
+    const t = Math.min(1, (now - start) / duration);
+    const e = easeInOutCubic(t);
+    const u = 1 - e;
+
+    // Face along the curve: the derivative of the quadratic gives the direction
+    // of travel at this point, so the tip leads the whole way round the bend.
+    const tx = 2 * u * (cx - from.x) + 2 * e * (to.x - cx);
+    const ty = 2 * u * (cy - from.y) + 2 * e * (to.y - cy);
+    if (Math.hypot(tx, ty) > 0.01) {
+      ghostHeading = (Math.atan2(ty, tx) * 180) / Math.PI;
+    }
+
+    place(
+      u * u * from.x + 2 * u * e * cx + e * e * to.x,
+      u * u * from.y + 2 * u * e * cy + e * e * to.y,
+    );
+    if (t < 1) {
+      ghostFrame = requestAnimationFrame(frame);
+    } else {
+      land();
+    }
+  };
+  ghostFrame = requestAnimationFrame(frame);
+}
+
+function hideGhost() {
+  if (ghostFrame !== null) cancelAnimationFrame(ghostFrame);
+  ghostFrame = null;
+  ghostAt = null;
+  const ghost = elementById<SVGGElement>("ghost");
+  ghost.setAttribute("opacity", "0");
+  ghost.classList.remove("landed", "pressing");
+}
+
 function showWhatToDo(b: Bounds, verb: string) {
   const typing = verb === "type";
   const pressing = verb === "press";
 
-  const x = typing ? b.x + 14 : b.x + Math.min(b.w * 0.5, 40);
-  const y = b.y + b.h / 2;
+  const { x, y } = landingPoint(b, verb);
+
+  // The ghost is the cursor now. The small one that used to bob on the control
+  // would put two pointers on screen at the same spot.
+  elementById<SVGGElement>("cursor").setAttribute("opacity", "0");
 
   elementById<SVGCircleElement>("ripple").setAttribute("cx", `${x}`);
   elementById<SVGCircleElement>("ripple").setAttribute("cy", `${y}`);
@@ -110,7 +220,6 @@ function showWhatToDo(b: Bounds, verb: string) {
   elementById<SVGGElement>("caret").setAttribute("transform", `translate(${x} ${y})`);
 
   elementById<SVGCircleElement>("ripple").setAttribute("opacity", typing || pressing ? "0" : "1");
-  elementById<SVGGElement>("cursor").setAttribute("opacity", typing ? "0" : "1");
   elementById<SVGGElement>("caret").setAttribute("opacity", typing ? "1" : "0");
   elementById<SVGGElement>("tap").setAttribute("opacity", pressing ? "0" : "1");
 }
@@ -312,9 +421,18 @@ function renderCoachStep(pointer: Pointer) {
   detail.textContent = currentVerb === "type" ? `"${spelled}"` : spelled;
 
   if (!hasSomethingToPointAt(pointer)) {
+    hideGhost();
     renderInstruction(pointer);
     return;
   }
+
+  // Once per step, from here and not from the drawing code: the spotlight is
+  // redrawn on every frame while it moves, and a glide restarted on every frame
+  // never gets anywhere.
+  flyGhostTo(
+    landingPoint(targetBounds, currentVerb),
+    currentVerb !== "type" && currentVerb !== "press",
+  );
 
   if (currentBounds === null) {
     applySpotlightBounds(targetBounds);
@@ -380,6 +498,7 @@ function dismissCoach() {
   elementById<SVGPathElement>("arrow").setAttribute("opacity", "0");
   elementById<SVGGElement>("tap").setAttribute("opacity", "0");
   elementById<SVGGElement>("done").setAttribute("opacity", "0");
+  hideGhost();
   currentBounds = null;
 }
 
