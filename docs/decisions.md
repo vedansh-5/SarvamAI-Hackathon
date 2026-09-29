@@ -3007,3 +3007,55 @@ cost model here was guessed from which layer *felt* slow, and the layer that fel
 slow was the one that had been optimised already (D-057 moved window reads to cgo
 and took System Settings from 23.9s to 132ms). The remaining cost was the network,
 which is where it usually is.
+
+## D-128 — Waiting for a window is not waiting for it to be in front
+
+Bringing an application forward ended with `waitForWindow`, which polls whether
+that application has a window on screen. That is the right question when a window
+is hidden, and the wrong one after a raise: a window with something on top of it is
+on screen. So the wait returned the instant it was asked, the step was retried
+while the raise was still happening, and it was refused a second time for being
+covered — by a window that was on its way out of the way. Measured on 2026-09-26:
+one wasted model call on a one-step task.
+
+Two conditions that read as the same thing and are not. "Is it there" and "is it in
+front" both sound like "can I use it".
+
+The wait for frontmost is best effort and deliberately not an error. Whether the
+target is actually reachable is settled by `VerifyTargets` against the window
+itself, which was always the real guard; this only gives the raise time to happen.
+An application whose window-list name differs from the name asked for would never
+satisfy the check, and failing a step over that would be worse than trying it.
+
+## D-129 — Correct the step when the window already says what it should be
+
+The model asks for the `AXButton` "Wallpaper"; System Settings has an `AXRow` by
+that name. The refusal says so, because `nearMiss` works the right role out in
+order to word the message — and then the step was re-asked and came back identical.
+Twice, live, and then the run stopped. Two model calls to arrive nowhere with the
+answer in hand the whole time.
+
+So it is corrected in Go. The condition is that there is nothing to decide: the name
+matches exactly one control on screen and only its role is wrong. Several matches is
+a question about which one was meant, and guessing that is how something gets
+clicked that nobody asked for — that still goes to the model.
+
+What makes this safe is that a corrected step is trusted no further than one the
+model wrote. It goes through `Validate`, through `VerifyTargets` against the live
+window, and through the read-back afterwards. If the correction does not fit either,
+the model gets asked, because then the window was never the problem.
+
+The general form: when the code can already compute the answer it is about to pay
+to ask for, the question is the bug.
+
+## D-130 — A refusal is written for the answer, not for the record
+
+With the unambiguous refusals corrected in Go (D-129), what still reaches the model
+is a name that matches several controls. That message used to describe the problem —
+"4 elements are a AXRow named Wallpaper, so it does not say which one" — which is
+accurate and leaves the reader to work out what to send instead.
+
+It now says how many of each there are and that an index is wanted. The audience for
+an error here is something composing its next answer, so the message is worth
+writing as an instruction rather than as a report. The version that only described
+the problem was answered identically twice.

@@ -214,6 +214,11 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 		// an attempt. Only the asks are counted.
 		asks := 0
 
+		// One correction per step. A name that is on screen under a different
+		// role is fixed here rather than asked about, and if the fixed step is
+		// refused too then the window was never the problem.
+		mended := false
+
 		for asks <= modelAttempts {
 			fromTrace := replaying && i <= len(trace)
 
@@ -267,19 +272,44 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 			}
 
 			program := uiact.Program{App: tree.App, Steps: []uiact.Step{answer.Step}}
+
+			var refused *uiact.InvalidError
 			if err := uiact.Validate(program, tree); err != nil {
-				var invalid *uiact.InvalidError
-				if !errors.As(err, &invalid) {
+				if !errors.As(err, &refused) {
 					return state(), err
 				}
-				failures = invalid.Reasons
+			}
+
+			// The window often already says what the step should have said: the
+			// name is there, under a different role. Correcting it costs nothing,
+			// where asking again costs a call and — seen twice, live — came back
+			// with the same answer.
+			if refused != nil && !mended {
+				if fixed, what, ok := uiact.Repair(answer.Step, tree); ok {
+					candidate := uiact.Program{App: tree.App, Steps: []uiact.Step{fixed}}
+					if uiact.Validate(candidate, tree) == nil {
+						e.logf("step %d: %s — corrected without asking", i, what)
+						mended = true
+						answer.Step, program, refused = fixed, candidate, nil
+
+						// A corrected trace step means the stored sequence has
+						// drifted, so what actually worked replaces it.
+						if fromTrace {
+							diverged = true
+						}
+					}
+				}
+			}
+
+			if refused != nil {
+				failures = refused.Reasons
 				if fromTrace {
 					replaying, diverged = false, true
 					e.logf("step %d no longer fits %s, so the rest is worked out fresh: %s",
-						i, app, strings.Join(invalid.Reasons, "; "))
+						i, app, strings.Join(refused.Reasons, "; "))
 					continue
 				}
-				e.logf("step %d rejected: %s", i, strings.Join(invalid.Reasons, "; "))
+				e.logf("step %d rejected: %s", i, strings.Join(refused.Reasons, "; "))
 				continue
 			}
 

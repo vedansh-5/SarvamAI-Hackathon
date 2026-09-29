@@ -899,13 +899,13 @@ needed — and it should be done first and separately.
   nothing went wrong inside VANS. The codes added for the model going quiet and for
   a browser having nothing to point at (§9.5's pattern) should extend to the step
   failures a coached run can end on.
-- **A refused step is being re-asked and answered identically.** The same run:
-  `step 2 rejected: nothing on screen is a AXButton named "Wallpaper"`, twice, and
-  then the run stopped. D-089 added the reason to the refusal precisely so the
-  re-ask could do better, and here it changed nothing — the sidebar row is an
-  `AXRow`, the refusal says so, and the model repeated `AXButton`. Either the
-  reason is not reaching the second request or it is not worded in a way that
-  moves the answer. Worth reading the actual prompt on the second attempt.
+- ~~**A refused step is being re-asked and answered identically.**~~ **Fixed in
+  #93.** `step 2 rejected: nothing on screen is a AXButton named "Wallpaper"`,
+  twice, then the run stopped — while the window said the whole time that the name
+  was on screen as an `AXRow`. It is now corrected in Go rather than asked about,
+  the refusal that remains says how many of each control there are and that an
+  index is wanted, and the covered-window raise waits for the raise to land
+  instead of retrying into it.
 - Draw the coach's rings and arrows over elements inside a web page, using
   geometry from the DOM. The refusal in #77 is honest but it is still a refusal.
 - Persist settings and the key, so the app does not depend on the launching
@@ -1031,6 +1031,105 @@ predicted to be.
 
 **Then** the four call-saving items above, which help the first run rather than the
 repeat.
+
+### 9.9 Three calls for one step — fixing it without asking again
+
+The live measurement of the step cache (§9.8) showed a one-step task costing three
+model calls: one to work the step out, one because the first answer was refused,
+one to hear the task had finished. Only the first is work. **#93** takes out the
+second.
+
+**The raise was being retried into.** When another application's window is over
+the one being driven, the step is refused before it can click the wrong thing, the
+window is brought forward, and the step is tried again. It failed again, because
+`waitForWindow` asks whether the application *has a window on screen* — and a
+covered window has one. So it returned the instant it was asked, while the raise
+was still happening, and the second refusal spent a model call. It now also waits
+for the application to actually be in front. Best effort, not an error: whether the
+target is really reachable is settled by `VerifyTargets` against the window, and
+this only gives the raise time to happen.
+
+**A wrong role is corrected, not asked about.** The model asks for the `AXButton`
+"Wallpaper" and System Settings has an `AXRow` of that name. `nearMiss` already
+works the right role out in order to word the refusal, and then the step was
+re-asked and came back identical — twice, live. `uiact.Repair` now rewrites the
+role when the name matches exactly one control and only the role is wrong. Several
+matches is a question about which one was meant, and guessing that is how something
+gets clicked that nobody asked for, so that still goes to the model. A corrected
+step is trusted no further than an asked-for one: it goes through `Validate`,
+`VerifyTargets` and the read-back exactly as it would have.
+
+**What is left to ask about is worded for answering.** With the unambiguous case
+handled in Go, what reaches the model is a name matching several controls. The
+refusal now says how many of each there are and that an index is wanted, rather
+than only describing the problem.
+
+A corrected step on a replayed run counts as a divergence, so the stored sequence
+is replaced by what actually worked — a trace that has drifted repairs itself
+instead of being thrown away.
+
+### 9.10 What is big, next — in order
+
+Ordered by what would change most about using VANS, not by effort. The first two
+are the ones worth arguing about.
+
+**1. Undo for the tiers that have none, and a gate that knows the difference.**
+The project's own rule is that every feature ships with its undo, and one tier of
+six has one. `grep -i undo` over the runtime still finds `webstyle.go` and nothing
+else. Typing into a window, clicking a button, driving twelve steps, writing into
+Notes: all one-way. Typing's inverse is already half-built and parked on a branch —
+the prior value is in the tree captured before the step, and
+`AXUIElementSetAttributeValue` is the same call already used for
+`kAXFrontmostAttribute`.
+
+Then the gate. It is equally alarming about everything today, so it has to be, and
+that trains people to dismiss it. With the ledger it can say *this can be put back*
+or *this cannot*, and only be frightening about the second. That is the change that
+alters how VANS feels rather than what it can do, and it is why the ledger was
+built first.
+
+**2. Something that can be installed.** VANS needs a checkout, a terminal, and
+environment variables inherited from the shell that launched it. Settings and the
+key do not persist. So it cannot be used without a terminal open, and nobody else
+can run it at all. Everything else on this list is a better version of a thing that
+only one person on one machine can start.
+
+**3. One model call for the whole task.** The remaining big lever for cold runs:
+ask for the entire sequence up front instead of a step at a time. It is the same
+machinery as replay — a speculative plan is an uncached trace, validated per step,
+resuming live where it diverges — so most of it already exists. Steps past the first
+are guesses about a window the model has not seen, so it will diverge on branchy
+tasks and lose one call when it does, against saving several when it does not.
+Together with dropping the finished-call, a one-step task goes from three calls to
+one.
+
+**4. Seeing what has no accessibility tree.** The ceiling on what VANS can do at
+all. A canvas, a game, an application that publishes nothing useful — the ladder
+has no rung for it. The cheap half first and it needs no vision model: draw the
+coach's rings over elements inside a web page using geometry from the DOM. The
+refusal in #77 is honest and it is still a refusal.
+
+**5. A task that spans two applications.** The chooser picks one application and
+the run happens there. "Put this in Notes and then message it to him" is two, and
+it is a normal thing to ask for. This is a capability that does not exist rather
+than one that is slow.
+
+**6. A run that stopped halfway.** Six steps, dead at four: the world is
+half-changed, nothing says so beyond a log line, and there is no way back. Needs
+the inverses from item 1 before it can mean anything.
+
+**7. Re-verify the coach advancing without anybody acting.** The mechanism was
+fixed in #82 by waiting for the click the shell already sees, and the live flow was
+never run again to confirm it end to end. A known-unverified claim, and small.
+
+**8. Longer tasks.** `MaxDriveSteps` is 12 and `MaxSteps` is 8, both chosen when
+every step cost a model call. A warm run costs none, so the limits are now about
+patience rather than money and could be raised on the strength of a trace.
+
+**Also worth doing, smaller:** provider-side prompt caching, so the unchanged part
+of each step prompt is not resent — that cuts time per call rather than the number
+of them, and whether the OpenAI-compatible Gemini endpoint honours it needs
+checking rather than assuming.
 
 ---
 

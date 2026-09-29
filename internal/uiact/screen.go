@@ -114,6 +114,10 @@ var (
 
 var windowWait = 1200 * time.Millisecond
 
+// How long a raise gets to take effect. Shorter than windowWait: coming to the
+// front is the fast part, and every millisecond here is spent on every raise.
+var frontWait = 800 * time.Millisecond
+
 func VerifyTargets(pid int, p Program, t Tree) error {
 	for i, step := range p.Steps {
 		if verb(step.Do) == "press" {
@@ -196,6 +200,21 @@ func settled(ctx context.Context, app string, pid int) error {
 	if !waitForWindow(ctx, pid) {
 		return fmt.Errorf("%w — %s", ErrWindowHidden, app)
 	}
+
+	// Then wait for it to actually be in front, which is a different question.
+	// waitForWindow asks whether the application has a window on screen, and a
+	// window with something on top of it has one — so raising a covered window
+	// used to return the instant it was asked, while the raise was still in
+	// flight. The step that followed was refused for being covered, by a window
+	// that was on its way out of the way (measured 2026-09-26: it cost a model
+	// call on a one-step task).
+	//
+	// Best effort, and deliberately not an error. Whether the target is really
+	// reachable is settled by VerifyTargets against the window itself; this only
+	// gives the raise time to happen. An application whose window-list name
+	// differs from the name asked for would never satisfy this, and failing the
+	// step over that would be worse than trying it.
+	waitUntilInFront(ctx, app)
 	return nil
 }
 
@@ -222,6 +241,23 @@ func forwardWithEvents(ctx context.Context, r Runner, app string, pid int) error
 	}
 
 	return settled(ctx, app, pid)
+}
+
+func waitUntilInFront(ctx context.Context, app string) bool {
+	deadline := time.Now().Add(frontWait)
+	for {
+		if alreadyInFront(app) {
+			return true
+		}
+		if time.Now().After(deadline) {
+			return false
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
 }
 
 func waitForWindow(ctx context.Context, pid int) bool {

@@ -51,35 +51,6 @@ func (t Tree) resolve(sel Selector) (Element, string) {
 	}
 }
 
-// What was there under that name, when the kind was wrong.
-//
-// A rejected step is re-asked with the reason in hand, and "nothing on screen is
-// a AXButton named Wallpaper" gives the model nothing to correct: the row is
-// right there, as an AXRow. Naming what was found turns a wasted turn into a
-// step that lands. Sidebar items are the common case — the same word is a
-// button, a row or a static text depending on the application.
-func (t Tree) nearMiss(sel Selector) string {
-	title := strings.ToLower(strings.TrimSpace(sel.Title))
-	if title == "" {
-		return ""
-	}
-
-	var roles []string
-	seen := map[string]bool{}
-	for _, el := range t.Elements {
-		if strings.ToLower(el.Label()) != title || seen[el.Role] {
-			continue
-		}
-		seen[el.Role] = true
-		roles = append(roles, el.Role)
-	}
-	if len(roles) == 0 {
-		return ""
-	}
-	sort.Strings(roles)
-	return fmt.Sprintf(" — that name is on screen as %s", strings.Join(roles, " and "))
-}
-
 func Validate(p Program, t Tree) error {
 	var reasons []string
 	add := func(format string, args ...any) {
