@@ -75,6 +75,8 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 		}
 	}
 
+	res.Route = e.aimedAtWhatIsInFront(ctx, res.Route, in.Context)
+
 	switch res.Route.Kind {
 	case route.KindWebExtract:
 		plan, err := e.Prepare(ctx, Task{
@@ -252,4 +254,38 @@ func (e *Engine) canRun(k route.Kind) bool {
 // through a request rather than before starting one.
 func (e *Engine) canAct() bool {
 	return e.Apps != nil && e.Writer != nil && e.Actions != nil && e.Runner != nil
+}
+
+// aimedAtWhatIsInFront sends a page action to the application in front when that
+// application is not a browser.
+//
+// The router decides "this is about a web page" from the words alone, and "type
+// hello" reads identically whether the person is looking at a web page or at
+// TextEdit. The page tier then acted on whatever tab the browser had open — seen
+// live with TextEdit in front, when VANS asked a model how to type into a LinkedIn
+// profile nobody was looking at, and reported that it could not.
+//
+// Only the one request is redirected. The stored decision stays a page action,
+// which is the right answer the next time a browser is what is in front.
+func (e *Engine) aimedAtWhatIsInFront(ctx context.Context, r route.Route, lookingAt *screen.Context) route.Route {
+	if r.Kind != route.KindPageAction || e.UIScreen == nil {
+		return r
+	}
+
+	front, err := e.appInQuestion(ctx, lookingAt)
+	if err != nil || strings.TrimSpace(front) == "" || isBrowser(front) {
+		return r
+	}
+
+	e.logf("%s is in front, not a browser, so this is done there rather than on a page", front)
+
+	slots := make(map[string]string, len(r.Slots)+1)
+	for k, v := range r.Slots {
+		slots[k] = v
+	}
+	slots["app"] = front
+
+	r.Kind = route.KindAppAction
+	r.Slots = slots
+	return r
 }

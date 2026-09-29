@@ -35,6 +35,14 @@ var askTheProcessList = pidByProcessName
 
 var ErrWindowHidden = errors.New("uiact: the application is in front but none of its windows is on screen")
 
+// NotRunningError is an application that is not open, named so the answer can
+// be "open this one" rather than a report of something having gone wrong.
+type NotRunningError struct{ App string }
+
+func (e *NotRunningError) Error() string {
+	return fmt.Sprintf("uiact: %s does not seem to be running", e.App)
+}
+
 const assistiveFix = "Grant access in System Settings › Privacy & Security › Accessibility, then ask again."
 
 const hiddenFix = "Something is keeping the window off screen. Stage Manager does this to the windows of applications that are not active — turn it off in System Settings › Desktop & Dock, or bring the window onto this desktop, then ask again."
@@ -88,7 +96,7 @@ func pidFor(ctx context.Context, r Runner, app string) (int, error) {
 		// Three ways of finding it have come up empty, and what System Events
 		// says about that is "Can't get object.", which tells the person
 		// nothing. The likeliest reason by far is that it is not open.
-		return 0, fmt.Errorf("uiact: %s does not seem to be running", app)
+		return 0, &NotRunningError{App: app}
 	}
 }
 
@@ -136,7 +144,7 @@ func pidViaEvents(ctx context.Context, r Runner, app string) (int, error) {
 		return 0, classify(envelope.Error, fmt.Errorf("uiact: %s", envelope.Error))
 	}
 	if envelope.Value <= 0 {
-		return 0, fmt.Errorf("uiact: %s is not running", app)
+		return 0, &NotRunningError{App: app}
 	}
 	return envelope.Value, nil
 }

@@ -131,6 +131,27 @@ pub fn frontmost_app_name() -> Option<String> {
     None
 }
 
+/// Whether the application in front is VANS itself.
+///
+/// The panel is meant to be non-activating, but typing into it can still make this
+/// process the active one — seen live, with the panel's own header reading
+/// "Active: vans". Anything deciding what the person is looking at has to treat
+/// that as "still here", not "gone somewhere else".
+#[cfg(target_os = "macos")]
+pub fn vans_is_in_front() -> bool {
+    use objc2_app_kit::NSWorkspace;
+
+    NSWorkspace::sharedWorkspace()
+        .frontmostApplication()
+        .map(|app| app.processIdentifier() as u32 == std::process::id())
+        .unwrap_or(false)
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn vans_is_in_front() -> bool {
+    false
+}
+
 #[cfg(target_os = "macos")]
 fn get_frontmost_app_info() -> (String, String, String, i32) {
     use objc2_app_kit::NSWorkspace;

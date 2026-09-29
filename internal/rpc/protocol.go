@@ -92,6 +92,13 @@ const (
 	// does not know how to take it back rather than that something broke.
 	CodeCannotUndo = "cannot_undo"
 
+	// CodeCannotDoThere means the request was understood and the place it was
+	// aimed at cannot do it — the model looked and said so. Not CodeInternal:
+	// nothing in VANS went wrong, and saying it did sends someone looking for a
+	// fault that is not there. Not CodeUnroutable either: VANS knew exactly what
+	// was meant.
+	CodeCannotDoThere = "cannot_do_there"
+
 	// CodeSpent means a plan was already committed. Writes are never retried.
 	CodeSpent = "plan_spent"
 

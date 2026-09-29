@@ -13,6 +13,7 @@ use tauri::{
     AppHandle, Emitter, Listener, LogicalPosition, LogicalSize, Manager, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder,
 };
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Shortcut, ShortcutState};
 
 pub const LABEL: &str = "coach";
 
@@ -25,6 +26,52 @@ static POINTED_AT: Mutex<Option<(f64, f64, f64, f64)>> = Mutex::new(None);
 
 /// Emitted to the panel when the person clicks what the coach pointed at.
 pub const ACTED: &str = "coach://acted";
+
+/// Emitted to the panel when the person presses Escape during a coached run.
+pub const STOP: &str = "coach://stop";
+
+/// Whether Escape is currently held for the coach.
+static HOLDING_ESCAPE: AtomicBool = AtomicBool::new(false);
+
+fn escape() -> Shortcut {
+    Shortcut::new(None, Code::Escape)
+}
+
+/// Makes Escape stop the coach, for as long as the coach is on screen.
+///
+/// The panel already stops a run on Escape — but only while the panel has the
+/// keyboard, and during a coached run the panel has put itself away so the person
+/// can use their own application. So Escape went to that application and VANS
+/// never heard it, which is the one key everyone reaches for to make something go
+/// away.
+///
+/// Registered the same way as ⌥Space, which needs no permission, and only while
+/// coaching. Holding Escape any longer would take it from every other
+/// application on the machine.
+fn hold_escape(app: &AppHandle) {
+    if HOLDING_ESCAPE.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let handle = app.clone();
+    let registered = app
+        .global_shortcut()
+        .on_shortcut(escape(), move |_, _, event| {
+            if event.state() == ShortcutState::Pressed {
+                eprintln!("[vans] escape: stopping the coached run");
+                let _ = handle.emit(STOP, ());
+            }
+        });
+    if let Err(e) = registered {
+        HOLDING_ESCAPE.store(false, Ordering::SeqCst);
+        eprintln!("[vans] could not take Escape for the coach: {e}");
+    }
+}
+
+fn release_escape(app: &AppHandle) {
+    if HOLDING_ESCAPE.swap(false, Ordering::SeqCst) {
+        let _ = app.global_shortcut().unregister(escape());
+    }
+}
 
 /// Sent by the coach page once its listeners are attached.
 const READY: &str = "coach://ready";
@@ -86,6 +133,13 @@ fn watch_who_is_in_front(app: &AppHandle) {
             continue;
         };
 
+        // VANS in front means the person is using VANS, which is not the same as
+        // having left. Hiding here took the ring away the instant the panel was
+        // touched, so it was drawn and gone before anyone saw it.
+        if crate::screen::vans_is_in_front() {
+            continue;
+        }
+
         let front = crate::screen::frontmost_app_name();
 
         // Unreadable is not "somewhere else". Leaving the ring up on a maybe is
@@ -93,8 +147,6 @@ fn watch_who_is_in_front(app: &AppHandle) {
         // answered.
         let Some(front) = front else { continue };
 
-        // VANS's own panel is a non-activating window, so summoning it does not
-        // make VANS frontmost and this stays true while the panel is open.
         let here = front.eq_ignore_ascii_case(&coached);
 
         if here == SHOWING.load(Ordering::Relaxed) {
@@ -311,9 +363,18 @@ pub fn point_at(app: &AppHandle, p: Pointer) {
 
 fn draw(app: &AppHandle, mut p: Pointer) {
     *LAST.lock().unwrap() = Some(p.clone());
-    if !p.app.is_empty() {
-        *COACHING.lock().unwrap() = Some(p.app.clone());
-    }
+
+    // Only a step with a control to point at belongs to one application's window.
+    // A step with nothing to point at is an instruction — usually "open System
+    // Settings" — and the application it names is by definition not in front yet.
+    // Watching for it hid the one step telling the person to go and open it, the
+    // moment it appeared (seen live 2026-09-29).
+    let points_at_something = p.w > 0.0 && p.h > 0.0;
+    *COACHING.lock().unwrap() = if points_at_something && !p.app.is_empty() {
+        Some(p.app.clone())
+    } else {
+        None
+    };
     watch_who_is_in_front(app);
 
     let Some(win) = build(app) else { return };
@@ -329,6 +390,7 @@ fn draw(app: &AppHandle, mut p: Pointer) {
 
     show_without_taking_the_keyboard(&win);
     SHOWING.store(true, Ordering::Relaxed);
+    hold_escape(app);
     eprintln!(
         "[vans] coach: drawing {}x{} at ({}, {}) in window coordinates, visible = {:?}",
         p.w,
@@ -397,6 +459,7 @@ pub fn clear(app: &AppHandle) {
     *LAST.lock().unwrap() = None;
     *COACHING.lock().unwrap() = None;
     SHOWING.store(false, Ordering::Relaxed);
+    release_escape(app);
 
     let handle = app.clone();
     let _ = app.run_on_main_thread(move || {

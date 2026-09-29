@@ -35,6 +35,22 @@ func Repair(step Step, t Tree) (Step, string, bool) {
 		return step, "", false
 	}
 
+	// Right name, right role, and a number saying which of several — when there is
+	// only one of that kind. The model reads "(index 14 of 30)" off a list of rows
+	// and carries the 14 over to a control that stands alone (seen live: "Displays
+	// number 14, and there are 1"). Counted by role as well as name, because the
+	// same word is usually on screen twice: the sidebar row, and the heading of
+	// the page it opens.
+	if step.Target.Index > 0 {
+		sameKind := t.Find(Selector{Role: step.Target.Role, Title: title})
+		if len(sameKind) == 1 {
+			n := step.Target.Index
+			step.Target.Index = 0
+			return step, fmt.Sprintf("there is only one %s %q here, not a number %d",
+				step.Target.Role, title, n), true
+		}
+	}
+
 	var found []Element
 	for _, el := range t.Elements {
 		if strings.EqualFold(strings.TrimSpace(el.Label()), title) {

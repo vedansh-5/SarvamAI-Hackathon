@@ -16,10 +16,10 @@ import (
 
 func quickGuide(t *testing.T) {
 	t.Helper()
-	poll, timeout, settle := guidePoll, guideStepTimeout, settleBeforeJudging
-	guidePoll, guideStepTimeout, settleBeforeJudging = time.Millisecond, 200*time.Millisecond, 0
+	poll, timeout, settle, click := guidePoll, guideStepTimeout, settleBeforeJudging, afterAClick
+	guidePoll, guideStepTimeout, settleBeforeJudging, afterAClick = time.Millisecond, 200*time.Millisecond, 0, 20*time.Millisecond
 	t.Cleanup(func() {
-		guidePoll, guideStepTimeout, settleBeforeJudging = poll, timeout, settle
+		guidePoll, guideStepTimeout, settleBeforeJudging, afterAClick = poll, timeout, settle, click
 	})
 }
 
@@ -661,6 +661,38 @@ func TestGuideDoesNotMistakeAWindowSettlingForSomebodyActing(t *testing.T) {
 	for _, g := range shown {
 		if g.Number != 1 {
 			t.Errorf("reached step %d without anybody acting", g.Number)
+		}
+	}
+}
+
+// Next on the "open it" step is a claim that the application is open, and it is
+// checked before it is believed. Seen live: ⌥Space pressed before System
+// Settings was opened carried the run on into an application that was not
+// running, and it stopped with an error instead of the step asking for it.
+func TestPressingNextBeforeOpeningTheAppDoesNotSkipTheStep(t *testing.T) {
+	quickGuide(t)
+	quickOpen(t)
+
+	screenReader := &closedThenOpen{
+		fakeScreen: fakeScreen{tree: editorTree()},
+		opensAfter: 1 << 30,
+	}
+	e := &Engine{UIScreen: screenReader, Steps: &alwaysStep{step: typeIntoMessage()}}
+
+	advance := make(chan struct{}, 4)
+	advance <- struct{}{}
+	advance <- struct{}{}
+
+	var shown []GuideStep
+	plan := &Plan{Guide: &GuidePlan{App: "Editor", Task: "say hello", MustOpen: true}}
+	_, err := e.RunGuide(context.Background(), plan, func(s GuideStep) { shown = append(shown, s) }, advance)
+
+	if err == nil || !strings.Contains(err.Error(), "never opened") {
+		t.Fatalf("err = %v; pressing Next must not stand in for opening the application", err)
+	}
+	for _, s := range shown {
+		if s.Do != "open" {
+			t.Fatalf("moved on to %q though the application was never opened", s.Label)
 		}
 	}
 }

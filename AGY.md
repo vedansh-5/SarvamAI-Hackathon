@@ -937,6 +937,33 @@ needed — and it should be done first and separately.
   that jumps is a cartoon, and with the real one left alone the drawn one is the
   only pointer in the room. See
   `docs/specs/2026-09-26-ghost-cursor-design.md`.
+- **Found in the live test on 2026-09-29, fixed in #97:**
+  - *"type hello" with TextEdit in front went to a LinkedIn tab.* The router decides
+    "this is about a page" from the words alone, and the page tier acted on whatever
+    tab the browser had. A page action now goes to the application in front when that
+    is not a browser (D-135).
+  - *The panel sat on the control it was about to reach.* A step in TextEdit failed
+    with "nothing is on screen" because the thing on screen was VANS. The panel now
+    steps aside while an action runs and comes back with the result.
+  - *Every coached run showed its first step twice.* The click was reported the
+    instant it happened, the window was read before the application had moved, the
+    step was written down as having changed nothing, and the model asked for it again.
+    That repeat was most of the 4–5 seconds between steps (D-136).
+  - *The ring vanished as soon as it was drawn.* The coach hid itself whenever the
+    coached application was not in front — including when VANS itself was, and on the
+    "open System Settings" step, where the application is by definition not in front
+    yet.
+  - *⌥Space on "open System Settings" skipped the step* and ran into an application
+    that was not open. Next is now checked before it is believed (D-137).
+  - *Escape did not stop the coach*, because the panel is put away while coaching and
+    never heard it. The coach now holds Escape for as long as it is on screen.
+  - *Errors that were not faults said "something went wrong inside VANS"*: an
+    application not running, and a model saying a page cannot do what was asked. Both
+    now say what they are.
+  - *"Displays number 14, and there are 1"* cost a model call. A number pointing past
+    the only control of that kind is now dropped without asking.
+- **Still open from that test:** the model pointed at "Big Sur", a wallpaper scrolled
+  out of view. It should prefer what is visible, or say to scroll.
 - Draw the coach's rings and arrows over elements inside a web page, using
   geometry from the DOM. The refusal in #77 is honest but it is still a refusal.
 - Persist settings and the key, so the app does not depend on the launching

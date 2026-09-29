@@ -233,6 +233,41 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 	return run.Steps(), nil
 }
 
+// How long a click gets to show up in the window before it is judged.
+var afterAClick = 1500 * time.Millisecond
+
+// waitForTheWindowToAnswer holds on after the person acts until the window has
+// shown it.
+//
+// The shell reports a click the instant it happens (D-109), which is before the
+// application has done anything about it. Reading the window at that moment
+// found it unchanged, the step was written down as "clicked Displays — nothing in
+// the window changed", and the model, told the click had done nothing, asked for
+// it again. Every coached run showed its first step twice (measured 2026-09-29),
+// and that repeat was most of the wait between steps.
+//
+// So it waits for the window to move, then for it to finish moving. A click that
+// genuinely changes nothing runs out the wait and is recorded as such, which is
+// the truth.
+func (e *Engine) waitForTheWindowToAnswer(ctx context.Context, app string, before uiact.Tree) {
+	deadline := time.Now().Add(afterAClick)
+	for time.Now().Before(deadline) {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(guidePoll / 5):
+		}
+		after, err := e.UIScreen.Capture(ctx, app)
+		if err != nil || len(after.Elements) == 0 {
+			continue
+		}
+		if len(uiact.Changes(before, after)) > 0 {
+			e.settledView(ctx, app, after)
+			return
+		}
+	}
+}
+
 // How long someone gets to open an application before the coach accepts nobody
 // is coming back. Longer than a step: finding an application in Spotlight or the
 // dock, and waiting for it to launch, is slower than finding a button in a window
@@ -270,17 +305,32 @@ func (e *Engine) waitForTheAppToOpen(ctx context.Context, g *GuidePlan, show fun
 
 		deadline := time.Now().Add(openAppTimeout)
 		for {
+			// Next is a claim that it is open, and the window is asked before the
+			// claim is believed. Taking it on trust carried a run on into an
+			// application that was not running, and it stopped there with an error
+			// about the application rather than the step telling them to open it
+			// (seen 2026-09-29, when ⌥Space was pressed before opening it).
+			pressedNext := false
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			case <-advance:
-				return nil
+				pressedNext = true
 			case <-time.After(guidePoll):
 			}
 
 			if tree, err := e.UIScreen.Capture(ctx, g.App); err == nil && len(tree.Elements) > 0 {
 				e.logf("%s is open; carrying on", g.App)
 				return nil
+			}
+			if pressedNext {
+				e.logf("%s is not open yet, so this step stays", g.App)
+				show(GuideStep{
+					Number: 1,
+					Label:  label,
+					Do:     "open",
+					Detail: strings.TrimSpace(g.Why),
+				})
 			}
 			if time.Now().After(deadline) {
 				break
@@ -355,13 +405,9 @@ func (e *Engine) settledView(ctx context.Context, app string, before uiact.Tree)
 }
 
 func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uiact.Tree, step uiact.Step, advance <-chan struct{}) error {
-	// Anything the window does to itself in the first moment belongs to the
-	// window, not to the person being coached.
-	before = e.settledView(ctx, app, before)
-
-	deadline := time.Now().Add(guideStepTimeout)
-	unreadable := false
-
+	// A Next left over from the step before belongs to that step. Cleared before
+	// settling rather than after, so a click the person makes while the window is
+	// still settling is kept rather than thrown away with the stale one.
 	if advance != nil {
 		select {
 		case <-advance:
@@ -369,11 +415,19 @@ func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uia
 		}
 	}
 
+	// Anything the window does to itself in the first moment belongs to the
+	// window, not to the person being coached.
+	before = e.settledView(ctx, app, before)
+
+	deadline := time.Now().Add(guideStepTimeout)
+	unreadable := false
+
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-advance:
+			e.waitForTheWindowToAnswer(ctx, app, before)
 			return nil
 		case <-time.After(guidePoll):
 		}

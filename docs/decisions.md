@@ -3158,3 +3158,43 @@ This is also what makes the ghost cursor honest rather than decorative
 (`docs/specs/2026-09-26-ghost-cursor-design.md`). A drawn pointer next to a real
 one that jumps is a cartoon. With the real pointer left alone, the drawn one is the
 only pointer in the room, and it can show exactly where a mouse would have gone.
+
+## D-135 — A page action goes where the person is looking
+
+The router decides what kind of thing is being asked from the words alone, and
+"type hello" reads the same whether the person is looking at a web page or at
+TextEdit. When it chose "a page", the page tier acted on whatever tab the browser
+had open. Seen live: TextEdit in front, and VANS asked a model how to type into a
+LinkedIn profile nobody was looking at, then reported that it could not.
+
+So a page action is redirected to the application in front when that application
+is not a browser. Only the one request is redirected. The stored routing decision
+stays a page action, which is the right answer the next time a browser is what is
+in front — the words did not change, only what was in front of them.
+
+## D-136 — The coach waits for the window to answer the click
+
+The shell reports a click on the pointed-at control the instant it happens (D-109),
+which was meant to make the coach feel immediate. It made it worse. The instant a
+click happens is before the application has done anything about it, so the window
+read at that moment was unchanged, the step was written down as "clicked Displays
+— nothing in the window changed", and the model, told the click had done nothing,
+reasonably asked for it again. Every coached run showed its first step twice.
+
+The fix is to wait, after the click, for the window to move and then to finish
+moving — up to a second and a half. A click that genuinely changes nothing runs
+out the wait and is recorded as having changed nothing, which is then the truth.
+
+The general form: an event saying something happened is not the same as the world
+showing it, and a record of what happened has to be read from the world.
+
+## D-137 — Next is a claim, and it is checked
+
+On the step that asks someone to open an application, pressing Next was taken as
+"it is open" and the run carried on — into an application that was not running,
+where it stopped with an error about the application instead of the step that
+asked for it. Seen live, with ⌥Space pressed before System Settings was opened.
+
+Next now makes the coach look. If the application is open the run carries on; if it
+is not, the step stays where it is. Pressing Next early costs nothing and cannot
+skip anything.

@@ -424,6 +424,17 @@ async function showTheWay(plan: Plan) {
 }
 
 
+// Escape during a coached run. The panel is put away while coaching, so its own
+// Escape handler never hears it; the shell holds the key for as long as the coach
+// is on screen and reports it here.
+listen("coach://stop", async () => {
+  if ($("guiding").hidden) return;
+  invoke("compact_panel", { compact: false }).catch(console.error);
+  await invoke("stop_guide").catch(console.error);
+  await invoke("clear_pointer").catch(console.error);
+  show("ask");
+});
+
 // The shell saw the person click what the coach pointed at. That is the step
 // done, told to the runtime immediately rather than inferred from the window a
 // poll later.
@@ -738,8 +749,23 @@ async function confirmWrite() {
   button.disabled = true;
   button.textContent = acting ? "Doing…" : "Writing…";
 
+  // Step aside while VANS acts in another application. The panel floats above
+  // everything, so left where it was it sat on top of the very control a step
+  // was about to reach — seen live on TextEdit, where the step failed with
+  // "nothing is on screen" because the thing on screen was VANS. It comes back
+  // with the result either way.
+  //
+  // The pause is for a remembered run, which acts almost at once: without it the
+  // first step can reach for its control before the window server has taken the
+  // panel off the screen.
+  if (acting) {
+    await invoke("dismiss").catch(console.error);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+
   try {
     const receipt = await invoke<Receipt>("commit", { planId: currentPlan.plan_id });
+    if (acting) await invoke("summon").catch(console.error);
     if (currentPlan.kind === "page.style") {
       showClearStyle(!/\b(clear|remove|undo|reset|revert)\b/i.test(currentPlan.title ?? ""));
     }
@@ -753,6 +779,7 @@ async function confirmWrite() {
     ($("intent") as HTMLInputElement).value = "";
     show("ask");
   } catch (e) {
+    if (acting) await invoke("summon").catch(console.error);
     renderFailure(e);
     show("failure");
   } finally {
@@ -790,6 +817,10 @@ const PLAIN: Record<string, { title: string; message: string }> = {
   unresolved: {
     title: "Could not read that page",
     message: "The page loaded, but nothing on it matched what you asked for.",
+  },
+  cannot_do_there: {
+    title: "Can't do that there",
+    message: "VANS understood you, but what's in front can't do it. The reason is below.",
   },
   unroutable: {
     title: "Not sure what you meant",

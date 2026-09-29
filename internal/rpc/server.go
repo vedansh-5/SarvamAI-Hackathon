@@ -559,6 +559,18 @@ func asError(err error) *Error {
 
 	// The same thing to say as an application that is not running: VANS will not
 	// open it, and the one thing to do about it is done by the person.
+	var notRunning *uiact.NotRunningError
+	if errors.As(err, &notRunning) {
+		return &Error{
+			Code:    CodeAppNotOpen,
+			Message: err.Error(),
+			Data: mustData(AppNotOpenData{
+				App: notRunning.App,
+				Why: "it is not open, and VANS does not open applications",
+			}),
+		}
+	}
+
 	var cannotRaise *uiact.CannotRaiseError
 	if errors.As(err, &cannotRaise) {
 		return &Error{
@@ -588,6 +600,10 @@ func asError(err error) *Error {
 			Message: err.Error(),
 			Data:    fixData("Ask about the page itself and VANS works on it directly — reading it, filling it in, or restyling it."),
 		}
+	}
+	var cannot *synth.UnwritableError
+	if errors.As(err, &cannot) {
+		return &Error{Code: CodeCannotDoThere, Message: cannot.Why}
 	}
 	if errors.Is(err, synth.ErrNoAnswer) {
 		return &Error{

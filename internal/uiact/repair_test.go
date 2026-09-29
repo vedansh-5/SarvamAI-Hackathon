@@ -147,3 +147,48 @@ func TestTheRefusalTellsTheModelWhatToWriteInstead(t *testing.T) {
 		t.Errorf("refusal describes the problem without saying what to do: %q", why)
 	}
 }
+
+// Seen live: "it asks for AXButton named Displays number 14 and there are 1". The
+// model carried an index over from a list of rows to a control that stands alone.
+func TestRepairDropsAnIndexWhenThereIsOnlyOne(t *testing.T) {
+	tree := settingsTree()
+	step := Step{Do: "click", Target: Selector{Role: "AXButton", Title: "Add Folder", Index: 14}}
+
+	if Validate(Program{App: tree.App, Steps: []Step{step}}, tree) == nil {
+		t.Fatal("the step already validates, so this proves nothing")
+	}
+
+	fixed, what, ok := Repair(step, tree)
+	if !ok {
+		t.Fatal("Repair left an index pointing past the only match")
+	}
+	if fixed.Target.Index != 0 {
+		t.Errorf("index = %d, want it dropped", fixed.Target.Index)
+	}
+	if err := Validate(Program{App: tree.App, Steps: []Step{fixed}}, tree); err != nil {
+		t.Errorf("the repaired step still does not validate: %v", err)
+	}
+	if !strings.Contains(what, "only one") {
+		t.Errorf("what = %q, want it to say why", what)
+	}
+}
+
+// The live case exactly: the word is on screen twice — a sidebar row and the
+// heading of the page it opened — so counting by name alone finds two and refuses.
+// Only controls of the same kind are candidates for the index.
+func TestAnIndexIsDroppedEvenWhenTheNameAlsoAppearsAsAHeading(t *testing.T) {
+	tree := settingsTree()
+	tree.Elements = append(tree.Elements, Element{
+		Role: "AXStaticText", Title: "Add Folder", Enabled: true,
+		Position: []int{400, 20}, Size: []int{120, 30}, Path: []int{0, 9},
+	})
+	step := Step{Do: "click", Target: Selector{Role: "AXButton", Title: "Add Folder", Index: 14}}
+
+	fixed, _, ok := Repair(step, tree)
+	if !ok {
+		t.Fatal("Repair refused because the heading shares the name")
+	}
+	if err := Validate(Program{App: tree.App, Steps: []Step{fixed}}, tree); err != nil {
+		t.Errorf("the repaired step does not validate: %v", err)
+	}
+}
