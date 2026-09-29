@@ -557,6 +557,20 @@ func asError(err error) *Error {
 		}
 	}
 
+	// The same thing to say as an application that is not running: VANS will not
+	// open it, and the one thing to do about it is done by the person.
+	var cannotRaise *uiact.CannotRaiseError
+	if errors.As(err, &cannotRaise) {
+		return &Error{
+			Code:    CodeAppNotOpen,
+			Message: err.Error(),
+			Data: mustData(AppNotOpenData{
+				App: cannotRaise.App,
+				Why: "it would not come to the front, and VANS does not open applications",
+			}),
+		}
+	}
+
 	var notOpen *engine.AppNotOpenError
 	if errors.As(err, &notOpen) {
 		return &Error{

@@ -3059,3 +3059,31 @@ It now says how many of each there are and that an index is wanted. The audience
 an error here is something composing its next answer, so the message is worth
 writing as an instruction rather than as a report. The version that only described
 the problem was answered identically twice.
+
+## D-131 — Nothing here opens an application, including the fallback
+
+Bringing an application to the front tried accessibility first and fell back to
+System Events, on the reasoning that accessibility is already granted and Apple
+Events costs a second permission — so the fallback was there for the rare case
+accessibility could not do it.
+
+The fallback ran `Application(x).activate()`, and that **launches an application
+that is not running**. So the one rule this runtime has had from the start — it
+attaches to what is already open and never starts anything (D-032) — was broken by
+its own error path. Seen live: a coached run opened System Settings rather than
+saying to open it.
+
+Worse, the fallback was reached exactly when the accessibility raise had failed,
+which is exactly when the application is least likely to be in the state the caller
+assumed. The path most likely to launch something was the path taken when the
+assumptions were already wrong.
+
+So the fallback is gone and the script with it. Setting `kAXFrontmostAttribute`
+raises a running application or fails, and it cannot launch anything. A failure is
+now a `CannotRaiseError` naming the application, which the panel shows under the
+code it already has for an application that is not open — because it is the same
+thing to say: here is the one, and you open it.
+
+The general form: a rule that the happy path keeps and the error path breaks is not
+a rule. The error path is where it matters, because that is where the assumptions
+have already failed.

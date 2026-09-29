@@ -2,7 +2,7 @@ package uiact
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -163,19 +163,44 @@ func sameControl(want Element, role, title string) bool {
 	return strings.EqualFold(strings.TrimSpace(title), strings.TrimSpace(want.Title))
 }
 
-// Raising an application is done through accessibility, which VANS already has
-// to hold in order to read a window at all. System Events can raise it too, and
-// that asks for Automation on top — a second permission, for something the
-// first one already covers. It stays as the fallback for the case where
-// accessibility cannot do it.
+// ErrCannotBringForward is an application that would not come to the front.
+//
+// Its own error because there is exactly one thing to do about it and VANS is not
+// the one to do it: the person brings the application up themselves.
+var ErrCannotBringForward = errors.New("uiact: that application would not come to the front")
+
+// CannotRaiseError names the application, so the caller can say which one to open
+// rather than only that something did not work.
+type CannotRaiseError struct{ App string }
+
+func (e *CannotRaiseError) Error() string {
+	return fmt.Sprintf("uiact: %s would not come to the front — open it yourself, then ask again", e.App)
+}
+
+func (e *CannotRaiseError) Unwrap() error { return ErrCannotBringForward }
+
+// Raising an application is done through accessibility, and only through
+// accessibility.
+//
+// This used to fall back to System Events, which asks for a second permission and
+// — the reason the fallback is gone — opens the application. `Application(x).
+// activate()` launches something that is not running, so an application that had
+// merely lost its window was started by a runtime whose first rule is that it does
+// not start things (D-032). It was reached exactly when the accessibility raise
+// had failed, which is exactly when the application is least likely to be in the
+// state the caller assumed.
+//
+// Setting kAXFrontmostAttribute cannot launch anything. It raises a running
+// application or it fails, and failing is the honest answer: the caller says so
+// and the person opens it.
 func bringForward(ctx context.Context, r Runner, app string, pid int) error {
 	if alreadyInFront(app) {
 		return settled(ctx, app, pid)
 	}
-	if err := raise(pid); err == nil {
-		return settled(ctx, app, pid)
+	if err := raise(pid); err != nil {
+		return &CannotRaiseError{App: app}
 	}
-	return forwardWithEvents(ctx, r, app, pid)
+	return settled(ctx, app, pid)
 }
 
 // BringToFront gives an application the keyboard and waits for its window.
@@ -218,31 +243,6 @@ func settled(ctx context.Context, app string, pid int) error {
 	return nil
 }
 
-func forwardWithEvents(ctx context.Context, r Runner, app string, pid int) error {
-	name, err := literal(app)
-	if err != nil {
-		return err
-	}
-
-	out, err := r.Run(ctx, fmt.Sprintf(forwardScript, name))
-	if err != nil {
-		return classify(err.Error(), err)
-	}
-
-	var envelope struct {
-		OK    bool   `json:"ok"`
-		Error string `json:"error"`
-	}
-	if err := json.Unmarshal(out, &envelope); err != nil {
-		return fmt.Errorf("uiact: unreadable reply (output %q): %w", truncate(string(out), 200), err)
-	}
-	if !envelope.OK {
-		return classify(envelope.Error, fmt.Errorf("uiact: %s", envelope.Error))
-	}
-
-	return settled(ctx, app, pid)
-}
-
 func waitUntilInFront(ctx context.Context, app string) bool {
 	deadline := time.Now().Add(frontWait)
 	for {
@@ -276,25 +276,3 @@ func waitForWindow(ctx context.Context, pid int) bool {
 		}
 	}
 }
-
-const forwardScript = `(function () {
-  ObjC.import('Foundation');
-  const se = Application('System Events');
-  function wait(seconds) {
-    $.NSThread.sleepForTimeInterval(seconds);
-  }
-  function reply(f) {
-    try { return JSON.stringify({ ok: true, value: f() }); }
-    catch (e) { return JSON.stringify({ ok: false, error: String((e && e.message) || e) }); }
-  }
-  return reply(function () {
-    const proc = se.applicationProcesses.byName(%[1]s);
-    if (proc.frontmost()) return 'front';
-    try { Application(%[1]s).activate(); }
-    catch (e) { proc.frontmost = true; }
-    wait(0.5);
-    if (!proc.frontmost()) throw new Error('could not bring that application to the front');
-    return 'front';
-  });
-})();
-`

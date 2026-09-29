@@ -906,6 +906,22 @@ needed — and it should be done first and separately.
   the refusal that remains says how many of each control there are and that an
   index is wanted, and the covered-window raise waits for the raise to land
   instead of retrying into it.
+- **The coach shows a step twice.** The panel draws the current step with Next and
+  Stop, and the coach overlay draws the same step with its own caption and its own
+  Next or Stop. One step, two cards, two sets of buttons. Seen 2026-09-26 on
+  "2. Click on General in the sidebar".
+- **Noticing a step was done takes up to about 1.4 seconds.** `settleBeforeJudging`
+  is 900 ms before watching starts and `guidePoll` is 500 ms between looks. The
+  shell reports a click directly (D-109) and that path should make it immediate, so
+  a delay this long means the direct signal is not arriving and the poll is doing
+  all the work. Worth finding out which before tuning either number.
+- **The overlays follow you to other Spaces.** Both the panel and the coach window
+  are set to `CanJoinAllSpaces`, so swiping to another desktop takes them along.
+  They should hide when the application being coached is not in front and come back
+  when it is, with the coach resuming on the step it was on rather than restarting.
+- **⌥Space cannot open the panel during a coached run**, because the coach takes
+  the hotkey over for Next and Stop. Both are wanted: advancing a step, and opening
+  the panel somewhere else.
 - Draw the coach's rings and arrows over elements inside a web page, using
   geometry from the DOM. The refusal in #77 is honest but it is still a refusal.
 - Persist settings and the key, so the app does not depend on the launching
@@ -1401,3 +1417,9 @@ every change unless a later instruction says otherwise.
   fixed list (backlog B-001).
 - **A destination that shows the answer in another application** (backlog
   B-002).
+
+
+i encountered this - two steps open at a time even though the previous step was already completed. 
+Also it has a delay in reading whether the step is complete or not. 
+Also it has another problem as well - If I change the screens like actually move to other apps by 3 finger slides it should close the window actively - more like hide the things (actions, multi step coach etc) and multi step coach should resume from that point itself when we move back to the window- option space should open the window in other apps as well
+Also it automatically opens the apps that contains the steps. It shall not do that, it must instruct the user to open the required App as a part of the multi step guide.

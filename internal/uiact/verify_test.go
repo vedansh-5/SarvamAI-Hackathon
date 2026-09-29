@@ -118,6 +118,8 @@ func withOnScreen(t *testing.T, there bool) {
 // the accessibility API being unhelpful rather than a window being hidden.
 func TestBringForwardRefusesWhenNoWindowReachesTheScreen(t *testing.T) {
 	withOnScreen(t, false)
+	withFront(t, "Something Else")
+	withRaise(t, nil)
 
 	err := bringForward(context.Background(), frontRunner{}, "Notes", 42)
 	if !errors.Is(err, ErrWindowHidden) {
@@ -133,6 +135,8 @@ func TestBringForwardRefusesWhenNoWindowReachesTheScreen(t *testing.T) {
 
 func TestBringForwardAcceptsAWindowThatIsOnScreen(t *testing.T) {
 	withOnScreen(t, true)
+	withFront(t, "Something Else")
+	withRaise(t, nil)
 
 	if err := bringForward(context.Background(), frontRunner{}, "Notes", 42); err != nil {
 		t.Errorf("refused a window that is on screen: %v", err)
@@ -180,17 +184,24 @@ func TestBringForwardRaisesWithoutAskingForAutomation(t *testing.T) {
 	}
 }
 
-func TestBringForwardFallsBackToEventsWhenAccessibilityCannotRaise(t *testing.T) {
+// The fallback this replaces went through System Events, whose activate() opens
+// an application that is not running. VANS does not open applications (D-032), so
+// a raise that fails is the end of it: the person is told to open it themselves.
+func TestBringForwardWillNotOpenAnApplicationItCannotRaise(t *testing.T) {
 	withOnScreen(t, true)
 	withFront(t, "Something Else")
 	withRaise(t, errors.New("accessibility error -25211"))
 
 	r := &countingRunner{}
-	if err := bringForward(context.Background(), r, "Notes", 42); err != nil {
-		t.Fatalf("bringForward: %v", err)
+	err := bringForward(context.Background(), r, "Notes", 42)
+	if !errors.Is(err, ErrCannotBringForward) {
+		t.Fatalf("err = %v, want it to refuse rather than open Notes", err)
 	}
-	if r.calls != 1 {
-		t.Errorf("fell back %d time(s), want 1", r.calls)
+	if r.calls != 0 {
+		t.Errorf("ran %d script(s); the only way left to raise something must be accessibility", r.calls)
+	}
+	if !strings.Contains(err.Error(), "Notes") {
+		t.Errorf("err = %v, which does not say which application to open", err)
 	}
 }
 
@@ -393,5 +404,25 @@ func TestAKeyCombinationReadsBackTheWayAPersonSaysIt(t *testing.T) {
 	}
 	if got := (Step{Do: "press", Key: "Enter"}).Chord(); got != "Enter" {
 		t.Errorf("Chord() = %q, want %q for a key with nothing held", got, "Enter")
+	}
+}
+
+// The application has to be named, because the whole answer is "open this one".
+func TestARefusedRaiseNamesTheApplication(t *testing.T) {
+	withOnScreen(t, true)
+	withFront(t, "Something Else")
+	withRaise(t, errors.New("accessibility error -25211"))
+
+	err := bringForward(context.Background(), frontRunner{}, "System Settings", 42)
+
+	var cannot *CannotRaiseError
+	if !errors.As(err, &cannot) {
+		t.Fatalf("err = %v, want a CannotRaiseError", err)
+	}
+	if cannot.App != "System Settings" {
+		t.Errorf("App = %q, want System Settings", cannot.App)
+	}
+	if !errors.Is(err, ErrCannotBringForward) {
+		t.Error("the typed error does not match the sentinel, so callers cannot test for it")
 	}
 }
