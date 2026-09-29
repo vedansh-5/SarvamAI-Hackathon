@@ -4,7 +4,9 @@
 //! where the user put it; the coach covers the screen, never takes a click, and
 //! exists only while it is pointing at something.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+use std::time::Duration;
 
 use serde::Serialize;
 use tauri::{
@@ -34,6 +36,88 @@ const READY: &str = "coach://ready";
 /// first step of every run, so the first thing anyone was ever shown was
 /// nothing. The page says when it is listening, and the pointer is drawn again.
 static LAST: Mutex<Option<Pointer>> = Mutex::new(None);
+
+/// The application the current run is being coached in.
+///
+/// The coach draws over somebody else's window, so it only belongs on screen
+/// while that window is the one in front. Swiping to another desktop used to
+/// take the ring along — the window joins all Spaces so that it can be summoned
+/// anywhere, and the same flag makes it follow you when you leave.
+static COACHING: Mutex<Option<String>> = Mutex::new(None);
+
+/// Whether the ring is on screen right now, as against merely remembered.
+///
+/// Read by the hotkey: while the coach is showing, the hotkey means "next step",
+/// and while it is not, it means "open the panel".
+static SHOWING: AtomicBool = AtomicBool::new(false);
+
+/// One watcher for the life of the process, started the first time anything is
+/// pointed at.
+static WATCHING: AtomicBool = AtomicBool::new(false);
+
+/// How often to check whether the person is still looking at the application
+/// being coached. Fast enough that leaving feels like it dismissed itself,
+/// slow enough to be free.
+const LOOK_EVERY: Duration = Duration::from_millis(250);
+
+/// is_showing reports that the coach is on screen and the hotkey should advance
+/// the step rather than open the panel.
+pub fn is_showing() -> bool {
+    SHOWING.load(Ordering::Relaxed)
+}
+
+/// Watches which application is in front, and takes the coach off the screen
+/// while it is not the one being coached.
+///
+/// The step is kept, not cancelled. The engine goes on waiting through the whole
+/// of this — a window that publishes nothing is somebody having stepped away, and
+/// coaching is meant to survive that — so coming back redraws the step that was
+/// already there rather than starting the run again.
+fn watch_who_is_in_front(app: &AppHandle) {
+    if WATCHING.swap(true, Ordering::SeqCst) {
+        return;
+    }
+
+    let handle = app.clone();
+    std::thread::spawn(move || loop {
+        std::thread::sleep(LOOK_EVERY);
+
+        let Some(coached) = COACHING.lock().unwrap().clone() else {
+            continue;
+        };
+
+        let front = crate::screen::frontmost_app_name();
+
+        // Unreadable is not "somewhere else". Leaving the ring up on a maybe is
+        // better than flickering it off every time the question cannot be
+        // answered.
+        let Some(front) = front else { continue };
+
+        // VANS's own panel is a non-activating window, so summoning it does not
+        // make VANS frontmost and this stays true while the panel is open.
+        let here = front.eq_ignore_ascii_case(&coached);
+
+        if here == SHOWING.load(Ordering::Relaxed) {
+            continue;
+        }
+
+        if here {
+            let last = LAST.lock().unwrap().clone();
+            if let Some(p) = last {
+                let inner = handle.clone();
+                let _ = handle.run_on_main_thread(move || draw(&inner, p));
+            }
+        } else {
+            let inner = handle.clone();
+            let _ = handle.run_on_main_thread(move || {
+                if let Some(win) = inner.get_webview_window(LABEL) {
+                    let _ = win.hide();
+                }
+            });
+            SHOWING.store(false, Ordering::Relaxed);
+        }
+    });
+}
 
 fn redraw_when_the_page_is_listening(app: &AppHandle) {
     let handle = app.clone();
@@ -102,6 +186,10 @@ pub struct Pointer {
     pub verb: String,
     /// The text to type or the keys to hold, when the verb needs one.
     pub detail: String,
+
+    /// The application being coached, so the coach can tell when the person has
+    /// gone somewhere else and take itself off the screen.
+    pub app: String,
 }
 
 fn build(app: &AppHandle) -> Option<WebviewWindow> {
@@ -223,6 +311,10 @@ pub fn point_at(app: &AppHandle, p: Pointer) {
 
 fn draw(app: &AppHandle, mut p: Pointer) {
     *LAST.lock().unwrap() = Some(p.clone());
+    if !p.app.is_empty() {
+        *COACHING.lock().unwrap() = Some(p.app.clone());
+    }
+    watch_who_is_in_front(app);
 
     let Some(win) = build(app) else { return };
 
@@ -236,6 +328,7 @@ fn draw(app: &AppHandle, mut p: Pointer) {
     }
 
     show_without_taking_the_keyboard(&win);
+    SHOWING.store(true, Ordering::Relaxed);
     eprintln!(
         "[vans] coach: drawing {}x{} at ({}, {}) in window coordinates, visible = {:?}",
         p.w,
@@ -302,6 +395,8 @@ pub fn finish(app: &AppHandle) {
 pub fn clear(app: &AppHandle) {
     *POINTED_AT.lock().unwrap() = None;
     *LAST.lock().unwrap() = None;
+    *COACHING.lock().unwrap() = None;
+    SHOWING.store(false, Ordering::Relaxed);
 
     let handle = app.clone();
     let _ = app.run_on_main_thread(move || {

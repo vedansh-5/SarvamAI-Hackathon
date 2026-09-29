@@ -110,6 +110,27 @@ pub fn capture_display_to_temp() -> Result<String, String> {
     Err("screen capture not supported on this OS".into())
 }
 
+/// The name of the application in front, or None when it cannot be read.
+///
+/// Costs no permission — AppKit answers this directly. Cheap enough to ask
+/// several times a second, which is what the coach does to notice that the person
+/// has gone somewhere else.
+#[cfg(target_os = "macos")]
+pub fn frontmost_app_name() -> Option<String> {
+    use objc2_app_kit::NSWorkspace;
+
+    let workspace = NSWorkspace::sharedWorkspace();
+    workspace
+        .frontmostApplication()
+        .and_then(|app| app.localizedName())
+        .map(|name| name.to_string())
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn frontmost_app_name() -> Option<String> {
+    None
+}
+
 #[cfg(target_os = "macos")]
 fn get_frontmost_app_info() -> (String, String, String, i32) {
     use objc2_app_kit::NSWorkspace;

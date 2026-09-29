@@ -906,22 +906,27 @@ needed — and it should be done first and separately.
   the refusal that remains says how many of each control there are and that an
   index is wanted, and the covered-window raise waits for the raise to land
   instead of retrying into it.
-- **The coach shows a step twice.** The panel draws the current step with Next and
-  Stop, and the coach overlay draws the same step with its own caption and its own
-  Next or Stop. One step, two cards, two sets of buttons. Seen 2026-09-26 on
-  "2. Click on General in the sidebar".
-- **Noticing a step was done takes up to about 1.4 seconds.** `settleBeforeJudging`
-  is 900 ms before watching starts and `guidePoll` is 500 ms between looks. The
-  shell reports a click directly (D-109) and that path should make it immediate, so
-  a delay this long means the direct signal is not arriving and the poll is doing
-  all the work. Worth finding out which before tuning either number.
-- **The overlays follow you to other Spaces.** Both the panel and the coach window
-  are set to `CanJoinAllSpaces`, so swiping to another desktop takes them along.
-  They should hide when the application being coached is not in front and come back
-  when it is, with the coach resuming on the step it was on rather than restarting.
-- **⌥Space cannot open the panel during a coached run**, because the coach takes
-  the hotkey over for Next and Stop. Both are wanted: advancing a step, and opening
-  the panel somewhere else.
+- ~~**The coach showed one step as two cards.**~~ **Fixed in #95.** The caption
+  beside the ring says ⌥Space means Next; ⌥Space toggled the panel, which still
+  held the step it had shown. Pressing it put a second copy of the step on screen
+  with its own Next and Stop. The hotkey now advances the step while the coach is
+  showing, and summons the panel only when it is not (D-132).
+- ~~**The coach followed you to other Spaces.**~~ **Fixed in #95.** The window
+  joins all Spaces so it can draw over a window wherever that window is, and the
+  same flag made it follow the person when they left. It now watches which
+  application is in front and takes itself off the screen while that is not the one
+  being coached, redrawing the same step on return (D-133). The panel is untouched:
+  being summonable from any Space is what that flag is there for.
+- ~~**⌥Space could not open the panel during a coached run.**~~ **Answered in #95**,
+  by the coach taking itself off the screen. While the ring is up the hotkey
+  advances the step; once the person has gone elsewhere the coach is hidden and the
+  hotkey is what it always was. The mode follows what is actually in front of them
+  rather than a flag they cannot see (D-132).
+- **Noticing a step was done still takes up to about 1.4 seconds.** 900 ms before
+  watching starts (`settleBeforeJudging`) and 500 ms between looks (`guidePoll`).
+  The shell reports a click directly (D-109) and that path should make it
+  immediate, so a delay this long means the direct signal is not arriving and the
+  poll is doing all the work. Find out which before tuning either number.
 - Draw the coach's rings and arrows over elements inside a web page, using
   geometry from the DOM. The refusal in #77 is honest but it is still a refusal.
 - Persist settings and the key, so the app does not depend on the launching
@@ -1146,6 +1151,98 @@ patience rather than money and could be raised on the strength of a trace.
 of each step prompt is not resent — that cuts time per call rather than the number
 of them, and whether the OpenAI-compatible Gemini endpoint honours it needs
 checking rather than assuming.
+
+### 9.11 The ghost cursor — and the order it changes
+
+Full spec: `docs/specs/2026-09-26-ghost-cursor-design.md`. The direction and the
+reasoning behind the ordering live in `docs/ideas.md`, which is a local working
+file and deliberately not in the repository — so what matters from it is repeated
+here rather than referred to.
+
+**What it is.** A drawn pointer glides to a control and lands on it before
+anything happens to that control. Per step on a drive run: the ghost arrives, the
+control gets a ring, a short pause, then the action. It is the base for the rest of
+the on-screen work — hand-drawn marks, narration captions, the step trail — because
+each of those hangs off knowing where the ghost is and when it got there.
+
+**The decision it turns on: the real cursor must not move.** A drive step clicks
+through `CGEvent` today, which takes over the person's mouse, and that is what makes
+an agent feel like it pushed somebody out of their chair. The accessibility API can
+press a control directly — `AXPress`, and setting a value for typing — without
+moving the pointer, and on a window that is not even in front. So act through
+accessibility, draw the ghost to show where a mouse would have gone, and leave the
+real cursor where its owner left it. `CGEvent` stays as the fallback for controls
+that publish no action.
+
+That is what makes the ghost honest rather than decorative: it is not a cartoon of
+the click, it is the only pointer involved.
+
+**It is also a gate that costs nothing.** The pause between landing and acting is a
+veto — Escape during it cancels the step. The tension `ideas.md` names is the
+confirmation gate against smoothness, and Clicky is fluid because it skips
+approvals. This is the answer to that: an approval stops being a dialog to dismiss
+and becomes a moment to let pass, per step, and only where something is about to be
+touched.
+
+**What it needs.** The overlay is mostly there — `coach.html` is already
+transparent, click-through, on every Space, and converts screen points into window
+coordinates (`cover()` in `coach.rs`). The engine-side gap is that `runDrive` has no
+way to announce a step before performing it: `RunGuide` takes a `show` callback and
+the drive path has nothing equivalent. That notification, a wait, and Escape wired
+to the run's context is the whole of it.
+
+**The hazard to test early.** Accessibility points are global across displays, so
+the overlay needs per-display coordinates and the right backing scale factor. A
+ghost that glides to the wrong monitor is worse than no ghost.
+
+**Consequences to plan for rather than discover.** An `AXPress` does not care what
+is on top of the window, so the covered-window guard (D-112) means something
+different for AX-acted steps — being covered still means the person cannot see what
+VANS is doing, so it should not simply be skipped. "Landed" is still read back from
+the window (D-004), unchanged.
+
+**Not in the first version:** the coach (it already points and the person clicks),
+hand-drawn marks, captions, the step trail, and pausing when the person grabs the
+real mouse.
+
+### 9.12 Where the order stands now
+
+§9.10 was written from the engineering side. `docs/ideas.md` reorders it from the
+product side, and the product order is the one being followed. The change that
+matters: shipping something installable is ranked above undo, on the grounds that
+nobody but one person can run VANS today, so there is no feedback to learn from.
+
+1. ~~Measure the warm drive run live.~~ **Done 2026-09-26**, numbers under *Proven
+   live*: cold 3 calls / 6,052 ms, warm 0 calls / 866 ms.
+2. **One model call for the whole task** (§9.10 #3). The model call and its prompt
+   are written and parked on `one-call-plan`; nothing is wired up. A plan made up
+   front is an uncached trace, so it validates per step and resumes live where it
+   diverges — the machinery from #89 is most of it. One caution that the product
+   note does not make: a *stored* trace is only kept for a run the model called
+   finished, so running out of it means the task is done (D-122). A plan guessed
+   this run promises nothing of the kind, so running out of it is not evidence and
+   still costs the one confirming call. Cold one-step task: three calls to two.
+3. **Ghost cursor** (§9.11).
+4. **Voice, local.** Hold ⌥Space to talk, live transcript, coach steps read aloud.
+   On-device speech to text; the intent is text by the time the engine sees it, so
+   it touches nothing here.
+5. **Something installable.** Settings that persist, the key in the Keychain, a
+   signed `.app`.
+6. **Undo for typing, and a gate that knows the difference** (§9.10 #1). Half built
+   on `put-typing-back`, committed locally and unpushed.
+
+Later, unchanged: tasks across two applications, the vision ladder, raising the step
+limits now that a warm run is free.
+
+**A tension to settle deliberately.** `docs/ideas.md` proposes revisiting D-032 —
+that VANS never launches an application — on the grounds that doing tasks on
+someone's behalf eventually means opening things, and that launching belongs behind
+the gate rather than banned. #94 has just made the rule *stricter* by deleting the
+fallback that opened applications by accident. Those are not in conflict yet:
+removing an accidental launch is not the same as refusing a deliberate one. But if
+launching is ever allowed, it should arrive as a gated action with the ghost
+cursor's pause in front of it, not by restoring a fallback. Worth deciding rather
+than drifting into.
 
 ---
 

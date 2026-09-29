@@ -90,6 +90,7 @@ fn point_at(
     step: String,
     verb: Option<String>,
     detail: Option<String>,
+    app_name: Option<String>,
 ) {
     coach::point_at(
         &app,
@@ -100,6 +101,7 @@ fn point_at(
             h,
             label,
             step,
+            app: app_name.unwrap_or_default(),
             verb: verb.unwrap_or_default(),
             detail: detail.unwrap_or_default(),
         },

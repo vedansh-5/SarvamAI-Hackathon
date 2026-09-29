@@ -3087,3 +3087,44 @@ thing to say: here is the one, and you open it.
 The general form: a rule that the happy path keeps and the error path breaks is not
 a rule. The error path is where it matters, because that is where the assumptions
 have already failed.
+
+## D-132 — The hotkey means what is in front of you
+
+⌥Space summons the panel. During a coached run the caption beside the ring also
+says ⌥Space is how to move to the next step. Both were true of the same key, and
+what it actually did was toggle the panel — which still held the step it had
+already shown. So pressing it put a second copy of the step on screen, with its
+own Next and Stop. One step, two cards, and the caption was lying.
+
+The fix is not a setting or a modifier. While the coach is on screen the hotkey
+advances the step; while it is not, the hotkey summons the panel. The mode is
+decided by what the person is looking at, which is a thing they can see, rather
+than by state they would have to remember.
+
+That only works because the coach now takes itself off the screen when they go
+somewhere else (D-133). The two changes are one idea: the coach is on screen
+exactly when it is relevant, and the hotkey means the obvious thing in each case.
+
+## D-133 — The coach joins every Space, and hides itself when you leave
+
+The coach window is set to join all Spaces. It has to be: it draws over somebody
+else's window wherever that window is, including a full-screen application, and a
+window belongs to the Space it was created on.
+
+The same flag meant that swiping to another desktop took the ring along. A pointer
+circling empty space on a desktop with nothing to do with the task.
+
+So the flag stays and the window is hidden instead, by watching which application
+is in front and taking the ring off the screen while that is not the one being
+coached. Asked four times a second through AppKit, which needs no permission.
+
+The step is kept, not cancelled. The engine already waits through exactly this —
+a window that publishes nothing is usually somebody having stepped away (D-075),
+and the wait is deliberately patient about it — so coming back redraws the step
+that was already there rather than starting the run again.
+
+Two deliberate softenings, both erring towards leaving it up: an unreadable
+frontmost application is not treated as "somewhere else", because flickering the
+ring off every time the question cannot be answered is worse than leaving it on a
+maybe; and the panel is untouched, because being summonable from any Space is the
+thing that flag is there for.

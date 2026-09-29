@@ -668,10 +668,27 @@ pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let handle = app.clone();
     app.global_shortcut().on_shortcut(hotkey(), move |_, _, event| {
         // Fire on press. Acting on release too would toggle twice per tap.
-        if event.state() == ShortcutState::Pressed {
-            eprintln!("[vans] hotkey fired");
-            toggle(&handle);
+        if event.state() != ShortcutState::Pressed {
+            return;
         }
+
+        // While the coach is on screen the hotkey means "next step", which is
+        // what the caption beside the ring has always said it means. It used to
+        // toggle the panel instead, and the panel still held the step it had
+        // shown — so pressing it put a second copy of the same step on screen,
+        // with its own Next and Stop. One step, two cards.
+        //
+        // Only while it is showing. Once the person has gone to another
+        // application the coach takes itself off the screen, and there the
+        // hotkey is what it always was: the way to summon VANS.
+        if crate::coach::is_showing() {
+            eprintln!("[vans] hotkey fired: advancing the coached step");
+            let _ = handle.emit(crate::coach::ACTED, ());
+            return;
+        }
+
+        eprintln!("[vans] hotkey fired");
+        toggle(&handle);
     })?;
 
     // Registration can fail silently from the user's point of view — another

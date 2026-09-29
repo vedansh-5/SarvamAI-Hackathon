@@ -119,6 +119,10 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 // nothing to drive it.
 const PINNED = new Set(["preflight", "guiding"]);
 
+// The application the current coached run is in. Sent with every step so the
+// coach knows whose window it is drawing over.
+let coachedApp = "";
+
 const ICONS: Record<string, string> = {
   rss: '<path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.6"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
@@ -383,6 +387,7 @@ interface GuideResult {
 /// working out the next, so this returns only once they are done or it gives up.
 async function showTheWay(plan: Plan) {
   let finished = false;
+  coachedApp = plan.app ?? "";
   $("guiding-where").textContent = plan.app ? `Showing you — ${plan.app}` : "Showing you";
   $("guiding-step").textContent = "Looking at the window…";
   show("guiding");
@@ -457,6 +462,10 @@ listen<{
       step: `Step ${s.number}`,
       verb: s.do ?? "",
       detail: s.detail ?? "",
+
+      // So the coach can tell when the person has gone to another application
+      // and take itself off the screen until they come back.
+      appName: coachedApp,
     }).catch(console.error);
   },
 );
