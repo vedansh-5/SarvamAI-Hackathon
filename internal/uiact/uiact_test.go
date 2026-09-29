@@ -47,9 +47,12 @@ func reasons(t *testing.T, err error) []string {
 	return invalid.Reasons
 }
 
+// A step reaches its control either by pressing it or by giving it the keyboard,
+// and both carry the same point as the fallback for a control that publishes
+// neither. What these tests are about is which control and where, so both count.
 func clicked(acts []Act, x, y int) bool {
 	for _, a := range acts {
-		if a.Do == "click" && a.X == x && a.Y == y {
+		if (a.Do == "click" || a.Do == "focus") && a.X == x && a.Y == y {
 			return true
 		}
 	}
@@ -602,4 +605,123 @@ func TestARefusedStepSaysWhatWasThereUnderThatName(t *testing.T) {
 	if !strings.Contains(got, "AXRow") {
 		t.Errorf("reasons = %q, want the kind that is actually on screen", got)
 	}
+}
+
+func withPresser(t *testing.T, pressed bool, err error) *int {
+	t.Helper()
+	calls := 0
+	original := elementPresser
+	elementPresser = func(int, []int) (bool, error) {
+		calls++
+		return pressed, err
+	}
+	t.Cleanup(func() { elementPresser = original })
+	return &calls
+}
+
+func withClickCounter(t *testing.T) *int {
+	t.Helper()
+	clicks := 0
+	original := clickPoster
+	clickPoster = func(int, int) { clicks++ }
+	t.Cleanup(func() { clickPoster = original })
+	return &clicks
+}
+
+// The pointer belongs to the person sitting there. A control that can be pressed
+// through accessibility is pressed where it stands, and nothing of theirs moves.
+func TestAControlThatCanBePressedIsNotClicked(t *testing.T) {
+	presses := withPresser(t, true, nil)
+	clicks := withClickCounter(t)
+
+	reachFor(42, Act{Do: "click", X: 10, Y: 20, Path: []int{0, 1}})
+
+	if *presses != 1 {
+		t.Errorf("pressed %d time(s), want 1", *presses)
+	}
+	if *clicks != 0 {
+		t.Errorf("moved the mouse %d time(s) for a control that publishes a press", *clicks)
+	}
+}
+
+// A control that publishes no press still has to be reachable, so the mouse is
+// the fallback rather than the default.
+func TestAControlWithNoPressIsStillClicked(t *testing.T) {
+	presses := withPresser(t, false, nil)
+	clicks := withClickCounter(t)
+
+	reachFor(42, Act{Do: "click", X: 10, Y: 20, Path: []int{0, 1}})
+
+	if *presses != 1 {
+		t.Errorf("asked %d time(s) whether it could be pressed, want 1", *presses)
+	}
+	if *clicks != 1 {
+		t.Errorf("clicked %d time(s), want 1 — the control had no press to use", *clicks)
+	}
+}
+
+// An accessibility error is not a reason to skip the step. The click still
+// reaches it, and the window is read back either way.
+func TestAPressThatErrorsFallsBackToTheMouse(t *testing.T) {
+	withPresser(t, false, errors.New("accessibility error -25205"))
+	clicks := withClickCounter(t)
+
+	reachFor(42, Act{Do: "click", X: 10, Y: 20, Path: []int{0, 1}})
+
+	if *clicks != 1 {
+		t.Errorf("clicked %d time(s), want 1", *clicks)
+	}
+}
+
+// Typing needs the control to hold the keyboard, which asking for directly does
+// without moving anything.
+func TestTypingTakesTheKeyboardWithoutClicking(t *testing.T) {
+	original := elementFocuser
+	focused := 0
+	elementFocuser = func(int, []int) error { focused++; return nil }
+	t.Cleanup(func() { elementFocuser = original })
+
+	clicks := withClickCounter(t)
+
+	takeTheKeyboard(42, Act{Do: "focus", X: 10, Y: 20, Path: []int{0, 1}})
+
+	if focused != 1 {
+		t.Errorf("asked for the keyboard %d time(s), want 1", focused)
+	}
+	if *clicks != 0 {
+		t.Errorf("clicked %d time(s) to focus a field", *clicks)
+	}
+}
+
+func TestAFieldThatWillNotTakeTheKeyboardIsClicked(t *testing.T) {
+	original := elementFocuser
+	elementFocuser = func(int, []int) error { return errors.New("refused") }
+	t.Cleanup(func() { elementFocuser = original })
+
+	clicks := withClickCounter(t)
+
+	takeTheKeyboard(42, Act{Do: "focus", X: 10, Y: 20, Path: []int{0, 1}})
+
+	if *clicks != 1 {
+		t.Errorf("clicked %d time(s), want 1", *clicks)
+	}
+}
+
+// A typing step plans the path of the field it is about to fill, or there is
+// nothing to ask for the keyboard with and every typing step moves the mouse.
+func TestATypingStepCarriesTheControlsPath(t *testing.T) {
+	acts, err := Plan(send(), window())
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+
+	for _, a := range acts {
+		if a.Do == "focus" {
+			if len(a.Path) == 0 {
+				t.Error("the focus act carries no path, so it can only click")
+			}
+			return
+		}
+	}
+	t.Error("a typing step planned no focus act")
 }

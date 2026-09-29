@@ -927,6 +927,16 @@ needed — and it should be done first and separately.
   The shell reports a click directly (D-109) and that path should make it
   immediate, so a delay this long means the direct signal is not arriving and the
   poll is doing all the work. Find out which before tuning either number.
+- ~~**A drive step moved the real mouse.**~~ **Fixed in #96.** Clicking by posting
+  a mouse event at the control's centre moves the actual cursor across the actual
+  screen, which is the single thing that makes a runtime feel like it took the
+  chair rather than pulled one up. Steps now reach their control through
+  accessibility — `AXPress` for a click, asking for the keyboard for a typing step
+  — and the mouse is the fallback for controls that publish nothing (D-134). This
+  is also the foundation the ghost cursor needs: a drawn pointer beside a real one
+  that jumps is a cartoon, and with the real one left alone the drawn one is the
+  only pointer in the room. See
+  `docs/specs/2026-09-26-ghost-cursor-design.md`.
 - Draw the coach's rings and arrows over elements inside a web page, using
   geometry from the DOM. The refusal in #77 is honest but it is still a refusal.
 - Persist settings and the key, so the app does not depend on the launching
@@ -1158,6 +1168,11 @@ Full spec: `docs/specs/2026-09-26-ghost-cursor-design.md`. The direction and the
 reasoning behind the ordering live in `docs/ideas.md`, which is a local working
 file and deliberately not in the repository — so what matters from it is repeated
 here rather than referred to.
+
+**Built so far:** the foundation, in #96 — steps reach their control through
+accessibility and the real pointer is left alone. Nothing is drawn yet, and it
+has not been run live: a class of control that quietly ignores `AXPress` would
+show up there first.
 
 **What it is.** A drawn pointer glides to a control and lands on it before
 anything happens to that control. Per step on a drive run: the ghost arrives, the

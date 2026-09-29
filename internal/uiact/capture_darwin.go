@@ -221,6 +221,76 @@ static int cgPidForOwner(const char *want, int *pid) {
     return found;
 }
 
+// Walks down from the application's first window by the index chain a captured
+// element carries.
+static AXUIElementRef axAtPath(int pid, const int *path, int n) {
+    AXUIElementRef app = AXUIElementCreateApplication((pid_t)pid);
+    if (!app) return NULL;
+
+    CFArrayRef windows = axCopyList(app, 1);
+    CFRelease(app);
+    if (!windows || CFArrayGetCount(windows) == 0) {
+        if (windows) CFRelease(windows);
+        return NULL;
+    }
+
+    AXUIElementRef el = (AXUIElementRef)CFRetain(axAt(windows, 0));
+    CFRelease(windows);
+
+    for (int i = 0; i < n; i++) {
+        CFArrayRef kids = axCopyList(el, 0);
+        if (!kids || path[i] < 0 || path[i] >= CFArrayGetCount(kids)) {
+            if (kids) CFRelease(kids);
+            CFRelease(el);
+            return NULL;
+        }
+        AXUIElementRef next = (AXUIElementRef)CFRetain(axAt(kids, path[i]));
+        CFRelease(kids);
+        CFRelease(el);
+        el = next;
+    }
+    return el;
+}
+
+static int axPublishesPress(AXUIElementRef el) {
+    CFArrayRef names = NULL;
+    if (AXUIElementCopyActionNames(el, &names) != kAXErrorSuccess || !names) return 0;
+
+    int found = 0;
+    CFIndex n = CFArrayGetCount(names);
+    for (CFIndex i = 0; i < n && !found; i++) {
+        CFStringRef s = (CFStringRef)CFArrayGetValueAtIndex(names, i);
+        if (s && CFStringCompare(s, kAXPressAction, 0) == kCFCompareEqualTo) found = 1;
+    }
+    CFRelease(names);
+    return found;
+}
+
+// 1 pressed, 0 the control publishes no press, negative an accessibility error.
+static int axPress(int pid, const int *path, int n) {
+    AXUIElementRef el = axAtPath(pid, path, n);
+    if (!el) return -1;
+
+    if (!axPublishesPress(el)) {
+        CFRelease(el);
+        return 0;
+    }
+
+    AXError e = AXUIElementPerformAction(el, kAXPressAction);
+    CFRelease(el);
+    return e == kAXErrorSuccess ? 1 : -2;
+}
+
+// Gives a control the keyboard without clicking it.
+static int axFocus(int pid, const int *path, int n) {
+    AXUIElementRef el = axAtPath(pid, path, n);
+    if (!el) return -1;
+
+    AXError e = AXUIElementSetAttributeValue(el, kAXFocusedAttribute, kCFBooleanTrue);
+    CFRelease(el);
+    return e == kAXErrorSuccess ? 1 : -2;
+}
+
 static int axRaise(int pid) {
     AXUIElementRef app = AXUIElementCreateApplication((pid_t)pid);
     if (!app) return -1;
@@ -266,6 +336,59 @@ func rect(el C.AXUIElementRef) ([]int, []int) {
 		return nil, nil
 	}
 	return []int{int(x), int(y)}, []int{int(w), int(h)}
+}
+
+// pressElement presses a control through accessibility, and says whether it
+// could.
+//
+// False and no error means the control publishes no press — a plain view, a cell
+// in some tables — and the caller moves the mouse instead. That is asked before
+// pressing rather than inferred from a failure, because AXPress returning success
+// on a control that ignores it would leave a step that never happened looking like
+// one that did.
+func pressElement(pid int, path []int) (bool, error) {
+	if !trusted() {
+		return false, ErrNoAssistiveAccess
+	}
+
+	indices := cPath(path)
+	switch rc := int(C.axPress(C.int(pid), &indices[0], C.int(len(path)))); rc {
+	case 1:
+		return true, nil
+	case 0:
+		return false, nil
+	case -1:
+		return false, ErrNoWindow
+	default:
+		return false, fmt.Errorf("uiact: the control refused to be pressed (accessibility error %d)", rc)
+	}
+}
+
+// focusElement gives a control the keyboard without clicking it.
+func focusElement(pid int, path []int) error {
+	if !trusted() {
+		return ErrNoAssistiveAccess
+	}
+
+	indices := cPath(path)
+	switch rc := int(C.axFocus(C.int(pid), &indices[0], C.int(len(path)))); rc {
+	case 1:
+		return nil
+	case -1:
+		return ErrNoWindow
+	default:
+		return fmt.Errorf("uiact: the control would not take the keyboard (accessibility error %d)", rc)
+	}
+}
+
+// One longer than the path, so &indices[0] is an address even for a path that
+// names the window itself.
+func cPath(path []int) []C.int {
+	indices := make([]C.int, len(path)+1)
+	for i, step := range path {
+		indices[i] = C.int(step)
+	}
+	return indices
 }
 
 func raiseApp(pid int) error {

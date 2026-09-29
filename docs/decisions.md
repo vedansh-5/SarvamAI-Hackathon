@@ -3128,3 +3128,33 @@ frontmost application is not treated as "somewhere else", because flickering the
 ring off every time the question cannot be answered is worse than leaving it on a
 maybe; and the panel is untouched, because being summonable from any Space is the
 thing that flag is there for.
+
+## D-134 — The pointer belongs to the person sitting there
+
+A drive step clicked by posting a mouse event at the control's centre, which moves
+the actual cursor across the actual screen. It works, and it is the single thing
+that makes a runtime feel like it has taken the chair rather than pulled one up.
+
+It is also not necessary. A control that publishes `AXPress` can be pressed where
+it stands — no pointer involved, on a window that is not even in front. Typing
+wants the field to hold the keyboard, and a click is only one way of arranging
+that; asking for it directly is the other, and it moves nothing.
+
+So accessibility is the way a step reaches its control, and the mouse is the
+fallback for controls that publish nothing of their own.
+
+**Asked before pressing, not inferred from failing.** `AXPress` can return success
+on a control that quietly ignores it, which would leave a step that never happened
+looking like one that did. So the action list is read first and the press is only
+used where it is published. That is one extra accessibility call per step, against
+reading action names for all 250 elements of every capture — the question is only
+ever about the one control being acted on.
+
+An accessibility error is not a reason to skip the step: the mouse still reaches
+it, and the window is read back afterwards either way (D-004), so nothing about how
+a step was performed changes what counts as having worked.
+
+This is also what makes the ghost cursor honest rather than decorative
+(`docs/specs/2026-09-26-ghost-cursor-design.md`). A drawn pointer next to a real
+one that jumps is a cartoon. With the real pointer left alone, the drawn one is the
+only pointer in the room, and it can show exactly where a mouse would have gone.

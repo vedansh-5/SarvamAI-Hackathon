@@ -33,3 +33,7 @@ func appsOnScreen() []string { return nil }
 func pidByWindowList(string) (int, bool) { return 0, false }
 
 func raiseApp(int) error { return errNoAccessibilityAPI }
+
+func pressElement(int, []int) (bool, error) { return false, errNoAccessibilityAPI }
+
+func focusElement(int, []int) error { return errNoAccessibilityAPI }

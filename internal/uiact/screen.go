@@ -17,6 +17,11 @@ type Act struct {
 	Text  string
 	Code  int
 	Flags uint64
+
+	// Path addresses the control through accessibility, so it can be pressed or
+	// focused without the pointer going anywhere. X and Y stay as the fallback
+	// for a control that publishes no action of its own.
+	Path []int
 }
 
 func Plan(p Program, t Tree) ([]Act, error) {
@@ -39,7 +44,15 @@ func Plan(p Program, t Tree) ([]Act, error) {
 					"step %d: no part of the %s %q is visible on screen, so it cannot be clicked",
 					i+1, el.Role, el.Title)}}
 			}
-			out = append(out, Act{Step: i, Do: "click", X: x, Y: y})
+
+			// Typing wants the control to have the keyboard, which a click is
+			// only one way of arranging. Asking for it directly is the other, and
+			// it does not move the pointer.
+			reach := "click"
+			if verb(step.Do) == "type" {
+				reach = "focus"
+			}
+			out = append(out, Act{Step: i, Do: reach, X: x, Y: y, Path: el.Path})
 			if verb(step.Do) == "type" {
 				out = append(out, Act{Step: i, Do: "type", X: x, Y: y, Text: step.Text})
 			}
@@ -71,7 +84,9 @@ func RunScreen(ctx context.Context, r Runner, p Program, t Tree) error {
 	for _, a := range acts {
 		switch a.Do {
 		case "click":
-			clickPoster(a.X, a.Y)
+			reachFor(pid, a)
+		case "focus":
+			takeTheKeyboard(pid, a)
 		case "type":
 			textPoster(a.Text)
 		case "press":
@@ -82,6 +97,35 @@ func RunScreen(ctx context.Context, r Runner, p Program, t Tree) error {
 		}
 	}
 	return nil
+}
+
+// reachFor presses a control, through accessibility where it can and with the
+// mouse where it cannot.
+//
+// The pointer belongs to the person sitting there. Moving it to click something
+// is what makes a runtime feel like it has taken the chair — and it is not needed:
+// a control that publishes AXPress can be pressed where it stands, on a window
+// that is not even in front, without anything of theirs moving. The mouse is the
+// fallback for controls that publish nothing, not the default.
+func reachFor(pid int, a Act) {
+	if len(a.Path) > 0 {
+		switch pressed, err := elementPresser(pid, a.Path); {
+		case err != nil:
+			// Not fatal. The click still reaches it, and the step is verified by
+			// the window afterwards either way.
+		case pressed:
+			return
+		}
+	}
+	clickPoster(a.X, a.Y)
+}
+
+// takeTheKeyboard gives a control the cursor before text is typed into it.
+func takeTheKeyboard(pid int, a Act) {
+	if len(a.Path) > 0 && elementFocuser(pid, a.Path) == nil {
+		return
+	}
+	clickPoster(a.X, a.Y)
 }
 
 func TypeHere(ctx context.Context, text string) error {
@@ -110,6 +154,9 @@ var (
 	clickPoster  = postClick
 	textPoster   = postText
 	keyPoster    = postKey
+
+	elementPresser = pressElement
+	elementFocuser = focusElement
 )
 
 var windowWait = 1200 * time.Millisecond
