@@ -112,6 +112,43 @@
         to   { r: 30; opacity: 0; }
       }
 
+      #caption {
+        position: fixed;
+        left: 0; top: 0;
+        max-width: 260px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: -0.005em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25), 0 0 10px var(--accent-soft);
+        opacity: 0;
+        transition: opacity 160ms ease;
+        pointer-events: none;
+        will-change: transform;
+      }
+      #caption.on { opacity: 1; }
+      #caption small {
+        font-weight: 500;
+        opacity: 0.75;
+        margin-left: 6px;
+      }
+      #tip.quiet { display: none; }
+
+      #trail-line { stroke: var(--accent); }
+      .trail-dot circle { fill: rgba(var(--surface-rgb), 0.95); stroke: var(--accent); }
+      .trail-dot text {
+        fill: var(--accent);
+        font: 700 10px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+        text-anchor: middle;
+        dominant-baseline: central;
+      }
+
       #step {
         display: block;
         font-size: 11px;
@@ -178,6 +215,11 @@
                               values="0 0; 0 -4; 0 0" dur="1.6s" repeatCount="indefinite" />
           </g>
         </g>
+        <g id="trail">
+          <path id="trail-line" d="" fill="none" stroke-width="1.5"
+                stroke-dasharray="3 5" stroke-linecap="round" opacity="0.7" />
+          <g id="trail-dots"></g>
+        </g>
         <g id="ghost" opacity="0">
           <circle id="ghost-press" cx="0" cy="0" r="4" fill="none"
                   stroke="rgba(10,132,255,0.9)" stroke-width="2.5" opacity="0" />
@@ -195,6 +237,7 @@
         <span id="detail" hidden></span>
         <span id="hint">⌥Space for Next or Stop</span>
       </div>
+      <div id="caption"></div>
     </div>
     <script type="module" src="/src/coach.ts"></script>
   </body>

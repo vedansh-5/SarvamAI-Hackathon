@@ -91,6 +91,7 @@ fn point_at(
     verb: Option<String>,
     detail: Option<String>,
     app_name: Option<String>,
+    mode: Option<String>,
 ) {
     coach::point_at(
         &app,
@@ -104,6 +105,9 @@ fn point_at(
             app: app_name.unwrap_or_default(),
             verb: verb.unwrap_or_default(),
             detail: detail.unwrap_or_default(),
+            mode: mode.unwrap_or_default(),
+            ox: 0.0,
+            oy: 0.0,
         },
     );
 }

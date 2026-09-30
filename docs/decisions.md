@@ -3329,3 +3329,24 @@ Three parts:
 Each step now reports the window as it stood just before the step was carried out.
 Without that, the scroll itself counted as the step's effect, and a click that did
 nothing would have been verified by the list having moved.
+
+## D-145 — The ghost carries a caption, and the steps done leave a trail
+
+Two additions to the overlay, both drawn from where the ghost already is.
+
+**A caption rides with the ghost.** A short pill beside it that follows it through
+the glide. In a drive run it is the step itself ("Type your Mac's name"), with
+"Esc to stop" beside it, and it replaces the tip card: the person is watching, not
+acting, so a card telling them what to do was the wrong message, and its hint
+("⌥Space for Next or Stop") was wrong for a drive run anyway. In the coach the card
+stays, because it is the instruction, and the caption is only the verb ("Click
+here", "Type “Studio”", "Scroll down ↓"). It sits on the side of the control
+away from the card so the two never overlap.
+
+**A trail of the steps done.** Each finished step leaves a small numbered dot where
+it happened, joined to the next by a dotted line that ends at the current step. It
+shows where a run has been without anyone reading a list, and it makes a step that
+went back to an earlier control visible as a line doubling back. The last eight are
+kept. Points are held in screen coordinates and drawn only on the display they
+belong to, since the overlay covers one display at a time. A lower step number than
+the last starts a new trail, and dismissing the overlay clears it.

@@ -1316,8 +1316,10 @@ spot. In order:
    out of view. The model is now told which controls are out of view, a drive run
    scrolls to them first, and the coach asks the person to scroll (D-144).
    **Built.**
-4. **Captions** next to the ghost saying what it is about to do.
-5. **A step trail** showing the steps already done.
+4. **Captions** next to the ghost saying what it is about to do. In drive runs the
+   caption replaces the tip card (D-145). **Built.**
+5. **A step trail** showing the steps already done: numbered dots joined by a
+   dotted line (D-145). **Built.**
 6. **Pause when the person touches the mouse** during a run VANS is doing.
 
 Voice, the installable app and undo for typing (§9.12 #4–6) come after these.

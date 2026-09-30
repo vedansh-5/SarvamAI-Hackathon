@@ -475,6 +475,7 @@ listen<{
     verb: s.do ?? "",
     detail: s.detail ?? "",
     appName: actingIn,
+    mode: "drive",
   }).catch(console.error);
 });
 
@@ -520,6 +521,7 @@ listen<{
       // So the coach can tell when the person has gone to another application
       // and take itself off the screen until they come back.
       appName: coachedApp,
+      mode: "coach",
     }).catch(console.error);
   },
 );

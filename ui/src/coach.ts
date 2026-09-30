@@ -42,6 +42,9 @@ interface Pointer {
   step: string;
   verb?: string;
   detail?: string;
+  mode?: string;
+  ox?: number;
+  oy?: number;
 }
 
 interface Bounds {
@@ -71,6 +74,119 @@ let ghostFrame: number | null = null;
 let ghostHeading = -35;
 
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+let runMode = "coach";
+let origin = { x: 0, y: 0 };
+
+interface Mark {
+  n: number;
+  x: number;
+  y: number;
+}
+
+const TRAIL_MOST = 8;
+let trail: Mark[] = [];
+let lastShown: Mark | null = null;
+
+function stepNumber(p: Pointer): number {
+  const m = /\d+/.exec(p.step ?? "");
+  return m ? Number(m[0]) : 0;
+}
+
+function rememberStep(n: number, at: { x: number; y: number } | null) {
+  if (lastShown && n > lastShown.n) {
+    const done = lastShown;
+    trail = [...trail.filter((m) => m.n !== done.n), done].slice(-TRAIL_MOST);
+  } else if (lastShown && n < lastShown.n) {
+    trail = [];
+  }
+  lastShown = at ? { n, x: at.x + origin.x, y: at.y + origin.y } : null;
+}
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function drawTrail(current: { x: number; y: number } | null) {
+  const dots = elementById<SVGGElement>("trail-dots");
+  const line = elementById<SVGPathElement>("trail-line");
+  dots.replaceChildren();
+
+  const onThisScreen = trail
+    .map((m) => ({ n: m.n, x: m.x - origin.x, y: m.y - origin.y }))
+    .filter((m) => m.x >= 0 && m.y >= 0 && m.x <= window.innerWidth && m.y <= window.innerHeight);
+
+  const points = current ? [...onThisScreen, current] : onThisScreen;
+  line.setAttribute(
+    "d",
+    points.length > 1 ? points.map((p, i) => `${i ? "L" : "M"} ${p.x} ${p.y}`).join(" ") : "",
+  );
+
+  for (const m of onThisScreen) {
+    const g = document.createElementNS(SVG_NS, "g");
+    g.setAttribute("class", "trail-dot");
+    g.setAttribute("transform", `translate(${m.x} ${m.y})`);
+    const circle = document.createElementNS(SVG_NS, "circle");
+    circle.setAttribute("r", "9");
+    circle.setAttribute("stroke-width", "1.5");
+    const label = document.createElementNS(SVG_NS, "text");
+    label.textContent = `${m.n}`;
+    g.append(circle, label);
+    dots.append(g);
+  }
+}
+
+function clearTrail() {
+  trail = [];
+  lastShown = null;
+  elementById<SVGGElement>("trail-dots").replaceChildren();
+  elementById<SVGPathElement>("trail-line").setAttribute("d", "");
+}
+
+const KEYS_SHOWN: Record<string, string> = { up: "↑", down: "↓", left: "←", right: "→" };
+
+function captionFor(pointer: Pointer, verb: string): string {
+  const detail = (pointer.detail ?? "").trim();
+  if (runMode === "drive") return pointer.label;
+  switch (verb) {
+    case "type":
+      return detail ? `Type “${detail}”` : "Type here";
+    case "press":
+      return detail ? `Press ${detail}` : "Press the keys";
+    case "scroll":
+      return `Scroll ${detail} ${KEYS_SHOWN[detail] ?? ""}`.trim();
+    default:
+      return "Click here";
+  }
+}
+
+let captionWidth = 0;
+let captionAbove = false;
+let captionLift = 40;
+
+function setCaption(text: string, hint: string) {
+  const caption = elementById<HTMLElement>("caption");
+  caption.textContent = text;
+  if (hint) {
+    const small = document.createElement("small");
+    small.textContent = hint;
+    caption.append(small);
+  }
+  caption.classList.add("on");
+  captionWidth = caption.offsetWidth;
+}
+
+function moveCaption(x: number, y: number) {
+  const caption = elementById<HTMLElement>("caption");
+  let left = x + 18;
+  if (left + captionWidth > window.innerWidth - 8) left = x - 18 - captionWidth;
+  const top = captionAbove
+    ? Math.max(8, y - captionLift)
+    : Math.min(y + 12, window.innerHeight - 34);
+  caption.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
+}
+
+function hideCaption() {
+  elementById<HTMLElement>("caption").classList.remove("on");
+}
 
 function elementById<T extends HTMLElement | SVGElement>(id: string): T {
   const el = document.getElementById(id);
@@ -138,8 +254,10 @@ function flyGhostTo(to: { x: number; y: number }, press: boolean) {
   ghost.classList.remove("landed", "pressing");
   ghost.setAttribute("opacity", "1");
 
-  const place = (x: number, y: number) =>
+  const place = (x: number, y: number) => {
     ghost.setAttribute("transform", `translate(${x} ${y}) rotate(${ghostHeading})`);
+    moveCaption(x, y);
+  };
 
   const land = () => {
     ghostAt = to;
@@ -154,6 +272,8 @@ function flyGhostTo(to: { x: number; y: number }, press: boolean) {
     ghost.classList.add("landed");
     window.setTimeout(() => ghost.classList.remove("pressing"), 140);
   };
+
+  place(from.x, from.y);
 
   const dx = to.x - from.x;
   const dy = to.y - from.y;
@@ -205,6 +325,7 @@ function hideGhost() {
   const ghost = elementById<SVGGElement>("ghost");
   ghost.setAttribute("opacity", "0");
   ghost.classList.remove("landed", "pressing");
+  hideCaption();
 }
 
 function showWhatToDo(b: Bounds, verb: string) {
@@ -356,6 +477,14 @@ function drawArrow(tip: DOMRect, target: Bounds) {
   arrow.setAttribute("opacity", "1");
 }
 
+function pointFromTheTip(tip: DOMRect, target: Bounds) {
+  if (runMode === "drive") {
+    elementById<SVGPathElement>("arrow").setAttribute("opacity", "0");
+    return;
+  }
+  drawArrow(tip, target);
+}
+
 /// Some steps have nothing on screen to point at.
 ///
 /// "Open System Settings" is a step the person carries out before the
@@ -403,6 +532,8 @@ function renderInstruction(pointer: Pointer) {
 
 function renderCoachStep(pointer: Pointer) {
   followTheme();
+  runMode = pointer.mode === "drive" ? "drive" : "coach";
+  origin = { x: pointer.ox ?? 0, y: pointer.oy ?? 0 };
   const targetBounds = calculateTargetBounds(pointer);
   note(
     `point ${pointer.w}x${pointer.h} at (${pointer.x}, ${pointer.y})` +
@@ -429,19 +560,32 @@ function renderCoachStep(pointer: Pointer) {
     detail.textContent = spelled;
   }
 
+  tip.classList.toggle("quiet", runMode === "drive");
+
   if (!hasSomethingToPointAt(pointer)) {
+    rememberStep(stepNumber(pointer), null);
+    drawTrail(null);
     hideGhost();
+    tip.classList.remove("quiet");
     renderInstruction(pointer);
     return;
   }
 
+  const landing = landingPoint(targetBounds, currentVerb);
+  const tipBelow = targetBounds.y + targetBounds.h + GAP + 140 <= window.innerHeight - 8;
+  captionLift = targetBounds.h / 2 + 30;
+  captionAbove = runMode === "coach" && tipBelow && landing.y - captionLift >= 8;
+  rememberStep(stepNumber(pointer), landing);
+  drawTrail(landing);
+  setCaption(
+    captionFor(pointer, currentVerb),
+    runMode === "drive" ? "Esc to stop" : "",
+  );
+
   // Once per step, from here and not from the drawing code: the spotlight is
   // redrawn on every frame while it moves, and a glide restarted on every frame
   // never gets anywhere.
-  flyGhostTo(
-    landingPoint(targetBounds, currentVerb),
-    currentVerb === "click" || currentVerb === "",
-  );
+  flyGhostTo(landing, currentVerb === "click" || currentVerb === "");
 
   if (currentBounds === null) {
     applySpotlightBounds(targetBounds);
@@ -456,7 +600,7 @@ function renderCoachStep(pointer: Pointer) {
       tip.style.top = `${pos.top}px`;
       tip.style.left = `${pos.left}px`;
       tip.style.visibility = "visible";
-      drawArrow(new DOMRect(pos.left, pos.top, box.width, box.height), targetBounds);
+      pointFromTheTip(new DOMRect(pos.left, pos.top, box.width, box.height), targetBounds);
       elementById<HTMLElement>("stage").classList.add("on");
     });
   } else {
@@ -464,7 +608,7 @@ function renderCoachStep(pointer: Pointer) {
     const pos = calculateTooltipPosition(targetBounds, box);
     tip.style.top = `${pos.top}px`;
     tip.style.left = `${pos.left}px`;
-    drawArrow(new DOMRect(pos.left, pos.top, box.width, box.height), targetBounds);
+    pointFromTheTip(new DOMRect(pos.left, pos.top, box.width, box.height), targetBounds);
 
     animateSpotlightTransition(currentBounds, targetBounds);
   }
@@ -495,6 +639,7 @@ function markItDone() {
   done.setAttribute("opacity", "1");
   elementById<HTMLElement>("text").textContent = "That is all of it";
   elementById<HTMLElement>("detail").hidden = true;
+  setCaption("Done", "");
 }
 
 function dismissCoach() {
@@ -508,6 +653,7 @@ function dismissCoach() {
   elementById<SVGGElement>("tap").setAttribute("opacity", "0");
   elementById<SVGGElement>("done").setAttribute("opacity", "0");
   hideGhost();
+  clearTrail();
   currentBounds = null;
 }
 

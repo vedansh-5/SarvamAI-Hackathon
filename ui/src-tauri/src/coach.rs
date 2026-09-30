@@ -242,6 +242,10 @@ pub struct Pointer {
     /// The application being coached, so the coach can tell when the person has
     /// gone somewhere else and take itself off the screen.
     pub app: String,
+
+    pub mode: String,
+    pub ox: f64,
+    pub oy: f64,
 }
 
 fn build(app: &AppHandle) -> Option<WebviewWindow> {
@@ -386,6 +390,8 @@ fn draw(app: &AppHandle, mut p: Pointer) {
     if let Some(origin) = cover(&win, (p.x, p.y)) {
         p.x -= origin.0;
         p.y -= origin.1;
+        p.ox = origin.0;
+        p.oy = origin.1;
     }
 
     show_without_taking_the_keyboard(&win);
