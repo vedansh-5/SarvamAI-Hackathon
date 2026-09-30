@@ -31,6 +31,16 @@ static void cgTypeChunk(UniChar *chars, int n) {
     }
 }
 
+static int cgPointer(double *x, double *y) {
+    CGEventRef e = CGEventCreate(NULL);
+    if (!e) return 0;
+    CGPoint p = CGEventGetLocation(e);
+    CFRelease(e);
+    *x = p.x;
+    *y = p.y;
+    return 1;
+}
+
 static void cgKey(int code, unsigned long long flags) {
     CGEventRef down = CGEventCreateKeyboardEvent(NULL, (CGKeyCode)code, true);
     if (down) {
@@ -54,6 +64,14 @@ import (
 )
 
 func postClick(x, y int) { C.cgClick(C.double(x), C.double(y)) }
+
+func pointerAt() (int, int, bool) {
+	var x, y C.double
+	if C.cgPointer(&x, &y) != 1 {
+		return 0, 0, false
+	}
+	return int(x), int(y), true
+}
 
 func postKey(code int, flags uint64) { C.cgKey(C.int(code), C.ulonglong(flags)) }
 

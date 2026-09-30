@@ -530,8 +530,14 @@ function renderInstruction(pointer: Pointer) {
   });
 }
 
+function showPaused() {
+  elementById<SVGGElement>("ghost").classList.add("waiting");
+  setCaption("Paused", "⌥Space to carry on · Esc to stop");
+}
+
 function renderCoachStep(pointer: Pointer) {
   followTheme();
+  elementById<SVGGElement>("ghost").classList.remove("waiting");
   runMode = pointer.mode === "drive" ? "drive" : "coach";
   origin = { x: pointer.ox ?? 0, y: pointer.oy ?? 0 };
   const targetBounds = calculateTargetBounds(pointer);
@@ -665,6 +671,7 @@ void Promise.all([
   listen<Pointer>("coach:point", (event) => renderCoachStep(event.payload)),
   listen("coach:clear", () => dismissCoach()),
   listen("coach:done", () => markItDone()),
+  listen("coach:paused", () => showPaused()),
 ]).then(() => {
   note("listening");
   return emit("coach://ready");

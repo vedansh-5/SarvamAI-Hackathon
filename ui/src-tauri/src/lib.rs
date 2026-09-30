@@ -113,6 +113,16 @@ fn point_at(
 }
 
 #[tauri::command]
+async fn resume_drive(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("resume_drive", None).await
+}
+
+#[tauri::command]
+fn pause_pointer(app: tauri::AppHandle) {
+    coach::paused(&app);
+}
+
+#[tauri::command]
 fn clear_pointer(app: tauri::AppHandle) {
     coach::clear(&app);
 }
@@ -334,6 +344,8 @@ pub fn run() {
             guide,
             stop_guide,
             advance_guide,
+            resume_drive,
+            pause_pointer,
             history,
             undo,
             point_at,

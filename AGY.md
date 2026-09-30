@@ -1321,6 +1321,13 @@ spot. In order:
 5. **A step trail** showing the steps already done: numbered dots joined by a
    dotted line (D-145). **Built.**
 6. **Pause when the person touches the mouse** during a run VANS is doing.
+   ⌥Space carries on after the window is checked again, Escape stops (D-146).
+   **Built.**
+
+All six are built (#101–#104) and none has been tried live yet. What to watch
+for in the first live run: whether the application accepts the change observer
+(the log says "cannot hear … change" if not), whether `AXScrollToVisible` works in
+System Settings, and whether a pause fires when nobody touched anything.
 
 Voice, the installable app and undo for typing (§9.12 #4–6) come after these.
 

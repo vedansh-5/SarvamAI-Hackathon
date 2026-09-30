@@ -105,6 +105,7 @@
       }
       #ghost-shape { fill: var(--accent); stroke: var(--accent); }
       #ghost.pressing #ghost-body { transform: scale(0.82); }
+      #ghost.waiting #ghost-body { opacity: 0.45; }
       #ghost-press { transform-origin: center; }
       #ghost.landed #ghost-press { animation: ghost-press 520ms ease-out 1; }
       @keyframes ghost-press {

@@ -487,6 +487,20 @@ listen("coach://acted", () => {
   invoke("advance_guide").catch(console.error);
 });
 
+listen("coach://next", () => {
+  if (actingIn !== null) {
+    invoke("resume_drive").catch(console.error);
+    return;
+  }
+  if ($("guiding").hidden) return;
+  invoke("advance_guide").catch(console.error);
+});
+
+listen("engine://drive_paused", () => {
+  if (actingIn === null) return;
+  invoke("pause_pointer").catch(console.error);
+});
+
 listen<{
   params: {
     number: number;

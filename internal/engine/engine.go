@@ -165,6 +165,9 @@ type Engine struct {
 	// to happen. Set per request by the server; nil runs silently, as before.
 	ShowStep func(GuideStep)
 
+	Paused func(GuideStep)
+	Resume <-chan struct{}
+
 	// Recorded reads those back, to put one of them back.
 	Recorded DeedStore
 

@@ -157,12 +157,23 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	}
 
 	d := plan.Drive
+	hand := e.watchTheHand()
 	act := func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) (uiact.Tree, error) {
 		tree = e.bringIntoView(ctx, tree, program.Steps[0])
 		if err := e.showBeforeActing(ctx, tree, program.Steps[0], number, describe); err != nil {
 			return tree, err
 		}
-		return tree, e.UIScreen.Act(ctx, program, tree)
+		if hand.moved() {
+			fresh, err := e.waitOutThePause(ctx, d.App, tree, program, number, describe)
+			hand.rest()
+			if err != nil {
+				return fresh, err
+			}
+			tree = fresh
+		}
+		err := e.UIScreen.Act(ctx, program, tree)
+		hand.rest()
+		return tree, err
 	}
 
 	switch {
@@ -246,6 +257,98 @@ func (e *Engine) showBeforeActing(ctx context.Context, tree uiact.Tree, step uia
 	case <-time.After(lookBeforeActing):
 		return nil
 	}
+}
+
+var (
+	pointerSlack = 4
+	pausedFor    = 2 * time.Minute
+)
+
+type hand struct {
+	read func() (int, int, bool)
+	x, y int
+	ok   bool
+}
+
+func (e *Engine) watchTheHand() *hand {
+	p, ok := e.UIScreen.(uiact.PointerReader)
+	if !ok || e.Paused == nil || e.Resume == nil {
+		return &hand{}
+	}
+	h := &hand{read: p.PointerAt}
+	h.rest()
+	return h
+}
+
+func (h *hand) rest() {
+	if h.read == nil {
+		return
+	}
+	h.x, h.y, h.ok = h.read()
+}
+
+func (h *hand) moved() bool {
+	if h.read == nil || !h.ok {
+		return false
+	}
+	x, y, ok := h.read()
+	if !ok {
+		return false
+	}
+	return abs(x-h.x) > pointerSlack || abs(y-h.y) > pointerSlack
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
+}
+
+func (e *Engine) waitOutThePause(ctx context.Context, app string, tree uiact.Tree, program uiact.Program, number int, describe string) (uiact.Tree, error) {
+	step := program.Steps[0]
+	e.logf("the pointer moved, so step %d waits until you carry on", number)
+
+drain:
+	for {
+		select {
+		case <-e.Resume:
+		default:
+			break drain
+		}
+	}
+
+	x, y, w, h, _ := tree.RectFor(step.Target)
+	e.Paused(GuideStep{
+		Number: number, Label: describe,
+		X: x, Y: y, W: w, H: h,
+		Do: strings.ToLower(strings.TrimSpace(step.Do)), Detail: detailOf(step),
+	})
+
+	select {
+	case <-ctx.Done():
+		return tree, ctx.Err()
+	case <-time.After(pausedFor):
+		return tree, stopped(app, "engine: paused in %s and nobody carried on, so it stopped", app)
+	case <-e.Resume:
+	}
+	e.logf("carrying on from step %d", number)
+
+	fresh, err := e.windowToWorkFrom(ctx, app)
+	if err != nil {
+		return tree, err
+	}
+	if len(fresh.Elements) == 0 {
+		fresh = tree
+	}
+	if err := uiact.Validate(program, fresh); err != nil {
+		return fresh, err
+	}
+	fresh = e.bringIntoView(ctx, fresh, step)
+	if err := e.showBeforeActing(ctx, fresh, step, number, describe); err != nil {
+		return fresh, err
+	}
+	return fresh, nil
 }
 
 type stepHandler func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) (uiact.Tree, error)

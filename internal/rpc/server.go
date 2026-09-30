@@ -85,6 +85,7 @@ type Server struct {
 	// stopped by the same request, because from where the person sits they are
 	// the same thing: VANS doing something in their window, and Escape to stop it.
 	actCancel context.CancelFunc
+	actResume chan struct{}
 }
 
 // Serve reads requests from in and writes responses to out until in ends.
@@ -171,6 +172,8 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.stopGuide()
 	case "advance_guide":
 		result, err = s.advanceGuide()
+	case "resume_drive":
+		result, err = s.resumeDrive()
 	default:
 		err = &Error{Code: CodeBadRequest, Message: fmt.Sprintf("unknown method %q", req.Method)}
 	}
@@ -488,13 +491,25 @@ func (s *Server) commit(ctx context.Context, req Request) (CommitResult, error) 
 		})
 	}
 
+	resume := make(chan struct{}, 1)
+	eng.Resume = resume
+	eng.Paused = func(g engine.GuideStep) {
+		s.push(req.ID, "drive_paused", GuideStepParams{
+			Number: g.Number, Label: g.Label,
+			X: g.X, Y: g.Y, W: g.W, H: g.H,
+			Do: g.Do, Detail: g.Detail,
+		})
+	}
+
 	runCtx, cancel := context.WithCancel(ctx)
 	s.mu.Lock()
 	s.actCancel = cancel
+	s.actResume = resume
 	s.mu.Unlock()
 	defer func() {
 		s.mu.Lock()
 		s.actCancel = nil
+		s.actResume = nil
 		s.mu.Unlock()
 		cancel()
 	}()
@@ -812,6 +827,21 @@ func (s *Server) advanceGuide() (AdvanceGuideResult, error) {
 		}
 	}
 	return AdvanceGuideResult{Advanced: true}, nil
+}
+
+func (s *Server) resumeDrive() (ResumeDriveResult, error) {
+	s.mu.Lock()
+	resume := s.actResume
+	s.mu.Unlock()
+
+	if resume == nil {
+		return ResumeDriveResult{}, nil
+	}
+	select {
+	case resume <- struct{}{}:
+	default:
+	}
+	return ResumeDriveResult{Resumed: true}, nil
 }
 
 func (s *Server) clearStyle(ctx context.Context) (ClearStyleResult, error) {

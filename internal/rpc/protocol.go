@@ -164,6 +164,10 @@ type AdvanceGuideResult struct {
 	Advanced bool `json:"advanced"`
 }
 
+type ResumeDriveResult struct {
+	Resumed bool `json:"resumed"`
+}
+
 type GuideStepParams struct {
 	Number int    `json:"number"`
 	Label  string `json:"label"`

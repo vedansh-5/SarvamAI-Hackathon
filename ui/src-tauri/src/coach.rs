@@ -27,6 +27,10 @@ static POINTED_AT: Mutex<Option<(f64, f64, f64, f64)>> = Mutex::new(None);
 /// Emitted to the panel when the person clicks what the coach pointed at.
 pub const ACTED: &str = "coach://acted";
 
+pub const NEXT: &str = "coach://next";
+
+static PAUSED: AtomicBool = AtomicBool::new(false);
+
 /// Emitted to the panel when the person presses Escape during a coached run.
 pub const STOP: &str = "coach://stop";
 
@@ -359,6 +363,7 @@ fn cover(win: &WebviewWindow, at: (f64, f64)) -> Option<(f64, f64)> {
 /// process down when they arrive from anywhere else — which is not a failure
 /// the caller of a drawing function should have to know about.
 pub fn point_at(app: &AppHandle, p: Pointer) {
+    PAUSED.store(false, Ordering::Relaxed);
     let handle = app.clone();
     if let Err(e) = app.run_on_main_thread(move || draw(&handle, p)) {
         eprintln!("[vans] could not reach the main thread to draw a tip: {e}");
@@ -407,6 +412,9 @@ fn draw(app: &AppHandle, mut p: Pointer) {
     );
     if let Err(e) = win.emit_to(LABEL, "coach:point", p) {
         eprintln!("[vans] could not draw the tip: {e}");
+    }
+    if PAUSED.load(Ordering::Relaxed) {
+        let _ = win.emit_to(LABEL, "coach:paused", ());
     }
 }
 
@@ -459,12 +467,23 @@ pub fn finish(app: &AppHandle) {
     });
 }
 
+pub fn paused(app: &AppHandle) {
+    PAUSED.store(true, Ordering::Relaxed);
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        if let Some(win) = handle.get_webview_window(LABEL) {
+            let _ = win.emit_to(LABEL, "coach:paused", ());
+        }
+    });
+}
+
 /// clear takes the coach off the screen.
 pub fn clear(app: &AppHandle) {
     *POINTED_AT.lock().unwrap() = None;
     *LAST.lock().unwrap() = None;
     *COACHING.lock().unwrap() = None;
     SHOWING.store(false, Ordering::Relaxed);
+    PAUSED.store(false, Ordering::Relaxed);
     release_escape(app);
 
     let handle = app.clone();

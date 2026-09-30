@@ -682,8 +682,8 @@ pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         // application the coach takes itself off the screen, and there the
         // hotkey is what it always was: the way to summon VANS.
         if crate::coach::is_showing() {
-            eprintln!("[vans] hotkey fired: advancing the coached step");
-            let _ = handle.emit(crate::coach::ACTED, ());
+            eprintln!("[vans] hotkey fired: next step, or carry on");
+            let _ = handle.emit(crate::coach::NEXT, ());
             return;
         }
 

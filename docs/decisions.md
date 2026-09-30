@@ -3350,3 +3350,30 @@ went back to an earlier control visible as a line doubling back. The last eight 
 kept. Points are held in screen coordinates and drawn only on the display they
 belong to, since the overlay covers one display at a time. A lower step number than
 the last starts a new trail, and dismissing the overlay clears it.
+
+## D-146 — Touching the mouse pauses a run VANS is doing
+
+A drive run acts through accessibility and leaves the pointer alone (D-134), so
+the person's hand on the mouse is free during a run — and a hand moving is the
+clearest sign they want to do something themselves. Carrying on regardless means
+VANS and the person acting on the same window at once.
+
+So before each step is carried out, the pointer's position is compared with where
+it was after VANS's own last action. Moved by more than a few points, the step
+waits: the overlay says "Paused", with ⌥Space to carry on and Escape to stop.
+Carrying on reads the window again and checks the step against it before doing
+anything, because the person may have changed what the step was aimed at. A step
+that no longer fits goes through the usual path — re-planned, or worked out again —
+as if it had been refused.
+
+The baseline is taken again after every action of VANS's own. That is what stops
+the mouse fallback, which does move the pointer, from pausing the run it belongs
+to. A pause nobody answers stops the run after two minutes, with nothing done.
+
+⌥Space now sends its own signal ("next") rather than the one a click inside the
+ring sends. During a coached run the two mean the same thing; during a drive run a
+click on the ring is the person touching things, and it must not count as carrying
+on.
+
+Only the pointer is watched. Typing is not, because VANS's own typing is
+indistinguishable from the person's at the level this reads.
