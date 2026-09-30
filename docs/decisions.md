@@ -3305,3 +3305,27 @@ plan wrong at step two of six now costs one call to recover, not four.
 
 Bounded at two re-plans a run and one per step. A task the model cannot predict at
 all falls back to working it out a step at a time, as before.
+
+## D-144 — A control out of view is scrolled to, not pointed at blind
+
+The live coach test pointed at "Big Sur" in a list where it had scrolled out of
+sight. The window lists every control whether it is on screen or not, and nothing
+told the model which ones the person could see. The coach drew a ring round a
+rectangle below the bottom of the window.
+
+Three parts:
+
+- The list the model reads marks such a control `[out of view]`, and both prompts
+  say to prefer one in view that does the same job, and otherwise to name it
+  anyway. Scrolling is never a step the model writes; it is handled underneath.
+- A drive run scrolls it into view through accessibility (`AXScrollToVisible`)
+  before the ghost is sent there. The pointer does not move, the same as a press
+  (D-134). If the application does not support that action, the step fails as it
+  did before, with the reason in the log.
+- The coach does not scroll for the person, because in the coach the hand is
+  theirs. It rings the list the control is in, says which way to scroll, and
+  waits until the control is in view. Then it points at it as the same step.
+
+Each step now reports the window as it stood just before the step was carried out.
+Without that, the scroll itself counted as the step's effect, and a click that did
+nothing would have been verified by the list having moved.

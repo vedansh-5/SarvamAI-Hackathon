@@ -157,11 +157,12 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	}
 
 	d := plan.Drive
-	act := func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) error {
+	act := func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) (uiact.Tree, error) {
+		tree = e.bringIntoView(ctx, tree, program.Steps[0])
 		if err := e.showBeforeActing(ctx, tree, program.Steps[0], number, describe); err != nil {
-			return err
+			return tree, err
 		}
-		return e.UIScreen.Act(ctx, program, tree)
+		return tree, e.UIScreen.Act(ctx, program, tree)
 	}
 
 	switch {
@@ -247,7 +248,27 @@ func (e *Engine) showBeforeActing(ctx context.Context, tree uiact.Tree, step uia
 	}
 }
 
-type stepHandler func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) error
+type stepHandler func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) (uiact.Tree, error)
+
+func (e *Engine) bringIntoView(ctx context.Context, tree uiact.Tree, step uiact.Step) uiact.Tree {
+	if !tree.OutOfView(step.Target) {
+		return tree
+	}
+	scroller, ok := e.UIScreen.(uiact.Scroller)
+	if !ok {
+		return tree
+	}
+	if err := scroller.ScrollIntoView(ctx, tree, step.Target); err != nil {
+		e.logf("could not scroll %s into view: %v", step.Target.Title, err)
+		return tree
+	}
+	fresh, err := e.UIScreen.Capture(ctx, tree.App)
+	if err != nil || len(fresh.Elements) == 0 {
+		return tree
+	}
+	e.logf("scrolled %s into view", step.Target.Title)
+	return fresh
+}
 
 // What a run through a task came to.
 type taskRun struct {
@@ -478,7 +499,10 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 			}
 			e.logf("step %d: %s", i, describe)
 
-			err = handle(ctx, tree, program, i, describe)
+			startedFrom, err := handle(ctx, tree, program, i, describe)
+			if len(startedFrom.Elements) > 0 {
+				tree = startedFrom
+			}
 
 			// Covered, not wrong. The model cannot write its way out of another
 			// application being on top of the one it is working in, so the window
@@ -496,7 +520,10 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 				if fresh, readErr := e.UIScreen.Capture(ctx, app); readErr == nil && len(fresh.Elements) > 0 {
 					tree = fresh
 				}
-				err = handle(ctx, tree, program, i, describe)
+				startedFrom, err = handle(ctx, tree, program, i, describe)
+				if len(startedFrom.Elements) > 0 {
+					tree = startedFrom
+				}
 			}
 
 			if err != nil {

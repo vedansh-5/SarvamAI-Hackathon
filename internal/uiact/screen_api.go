@@ -25,7 +25,23 @@ type WindowWatcher interface {
 	Watch(ctx context.Context, app string) (<-chan struct{}, error)
 }
 
+type Scroller interface {
+	ScrollIntoView(ctx context.Context, t Tree, sel Selector) error
+}
+
 type System struct{ Runner Runner }
+
+func (s System) ScrollIntoView(ctx context.Context, t Tree, sel Selector) error {
+	el, why := t.resolve(sel)
+	if why != "" {
+		return &InvalidError{App: t.App, Reasons: []string{why}}
+	}
+	pid, err := pidFor(ctx, s.Runner, t.App)
+	if err != nil {
+		return err
+	}
+	return scrollElement(pid, el.Path)
+}
 
 func (s System) Watch(ctx context.Context, app string) (<-chan struct{}, error) {
 	pid, err := pidFor(ctx, s.Runner, app)

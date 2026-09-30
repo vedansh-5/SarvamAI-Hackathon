@@ -291,6 +291,15 @@ static int axFocus(int pid, const int *path, int n) {
     return e == kAXErrorSuccess ? 1 : -2;
 }
 
+static int axScrollToVisible(int pid, const int *path, int n) {
+    AXUIElementRef el = axAtPath(pid, path, n);
+    if (!el) return -1;
+
+    AXError e = AXUIElementPerformAction(el, CFSTR("AXScrollToVisible"));
+    CFRelease(el);
+    return e == kAXErrorSuccess ? 1 : -2;
+}
+
 static int axRaise(int pid) {
     AXUIElementRef app = AXUIElementCreateApplication((pid_t)pid);
     if (!app) return -1;
@@ -378,6 +387,22 @@ func focusElement(pid int, path []int) error {
 		return ErrNoWindow
 	default:
 		return fmt.Errorf("uiact: the control would not take the keyboard (accessibility error %d)", rc)
+	}
+}
+
+func scrollElement(pid int, path []int) error {
+	if !trusted() {
+		return ErrNoAssistiveAccess
+	}
+
+	indices := cPath(path)
+	switch rc := int(C.axScrollToVisible(C.int(pid), &indices[0], C.int(len(path)))); rc {
+	case 1:
+		return nil
+	case -1:
+		return ErrNoWindow
+	default:
+		return fmt.Errorf("uiact: the control could not be scrolled into view (accessibility error %d)", rc)
 	}
 }
 

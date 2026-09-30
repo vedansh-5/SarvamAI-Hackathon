@@ -42,3 +42,5 @@ func pressElement(int, []int) (bool, error) { return false, errNoAccessibilityAP
 func focusElement(int, []int) error { return errNoAccessibilityAPI }
 
 func watchWindow(context.Context, int) (<-chan struct{}, error) { return nil, errNoAccessibilityAPI }
+
+func scrollElement(int, []int) error { return errNoAccessibilityAPI }

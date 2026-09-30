@@ -110,9 +110,12 @@ function cornerBrackets(b: Bounds): string {
 /// All of them are placed inside the control rather than at its centre, so the
 /// label someone is reading stays legible.
 function landingPoint(b: Bounds, verb: string): { x: number; y: number } {
+  if (verb === "scroll") return { x: b.x + b.w / 2, y: b.y + b.h / 2 };
   const x = verb === "type" ? b.x + 14 : b.x + Math.min(b.w * 0.5, 40);
   return { x, y: b.y + b.h / 2 };
 }
+
+const SCROLL_ARROWS: Record<string, string> = { up: "↑", down: "↓", left: "←", right: "→" };
 
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -206,7 +209,7 @@ function hideGhost() {
 
 function showWhatToDo(b: Bounds, verb: string) {
   const typing = verb === "type";
-  const pressing = verb === "press";
+  const pressing = verb === "press" || verb === "scroll";
 
   const { x, y } = landingPoint(b, verb);
 
@@ -418,7 +421,13 @@ function renderCoachStep(pointer: Pointer) {
   const detail = elementById<HTMLElement>("detail");
   const spelled = (pointer.detail ?? "").trim();
   detail.hidden = spelled === "";
-  detail.textContent = currentVerb === "type" ? `"${spelled}"` : spelled;
+  if (currentVerb === "type") {
+    detail.textContent = `"${spelled}"`;
+  } else if (currentVerb === "scroll") {
+    detail.textContent = `${SCROLL_ARROWS[spelled] ?? "↕"} Scroll ${spelled}`;
+  } else {
+    detail.textContent = spelled;
+  }
 
   if (!hasSomethingToPointAt(pointer)) {
     hideGhost();
@@ -431,7 +440,7 @@ function renderCoachStep(pointer: Pointer) {
   // never gets anywhere.
   flyGhostTo(
     landingPoint(targetBounds, currentVerb),
-    currentVerb !== "type" && currentVerb !== "press",
+    currentVerb === "click" || currentVerb === "",
   );
 
   if (currentBounds === null) {

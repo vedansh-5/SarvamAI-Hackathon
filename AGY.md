@@ -1313,7 +1313,9 @@ spot. In order:
    again it costs no model calls (D-142). A guessed plan that goes wrong is planned
    again in one call rather than walked a step at a time (D-143). **Built.**
 3. **Controls that are off screen.** The "Big Sur" run pointed at a row scrolled
-   out of view.
+   out of view. The model is now told which controls are out of view, a drive run
+   scrolls to them first, and the coach asks the person to scroll (D-144).
+   **Built.**
 4. **Captions** next to the ghost saying what it is about to do.
 5. **A step trail** showing the steps already done.
 6. **Pause when the person touches the mouse** during a run VANS is doing.

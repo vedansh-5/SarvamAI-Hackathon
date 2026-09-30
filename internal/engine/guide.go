@@ -217,11 +217,18 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 
 	changed := e.watchTheWindow(ctx, g.App)
 
-	point := func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) error {
+	point := func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) (uiact.Tree, error) {
 		step := program.Steps[0]
+		if tree.OutOfView(step.Target) {
+			scrolled, err := e.waitForTheScroll(ctx, g.App, tree, step, number+opened, show, advance, changed)
+			if err != nil {
+				return tree, err
+			}
+			tree = scrolled
+		}
 		x, y, w, h, why := tree.RectFor(step.Target)
 		if why != "" {
-			return stopped(g.App, "engine: %s", why)
+			return tree, stopped(g.App, "engine: %s", why)
 		}
 
 		// A step nobody has done yet is still the step. Pointing at it again
@@ -238,10 +245,10 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 			// worked out once the window shows they have done this one.
 			err := e.waitForTheUserToAct(ctx, g.App, tree, step, advance, changed)
 			if !errors.Is(err, errStillWaiting) {
-				return err
+				return tree, err
 			}
 			if attempt >= timesToRepeatAStep {
-				return stopped(g.App, "engine: nothing happened in %s, so the steps stopped", g.App)
+				return tree, stopped(g.App, "engine: nothing happened in %s, so the steps stopped", g.App)
 			}
 			e.logf("still on step %d: %s", number, describe)
 		}
@@ -413,6 +420,45 @@ func (e *Engine) waitForTheAppToOpen(ctx context.Context, g *GuidePlan, show fun
 	}
 
 	return stopped(g.App, "engine: %s was never opened, so the steps stopped", g.App)
+}
+
+func (e *Engine) waitForTheScroll(ctx context.Context, app string, tree uiact.Tree, step uiact.Step, number int, show func(GuideStep), advance <-chan struct{}, changed <-chan struct{}) (uiact.Tree, error) {
+	x, y, w, h, way, ok := tree.ScrollHint(step.Target)
+	if !ok {
+		return tree, stopped(app, "engine: the %s %q is out of view and there is nothing to scroll to reach it", step.Target.Role, step.Target.Title)
+	}
+
+	name := strings.TrimSpace(step.Target.Title)
+	if name == "" {
+		name = "it"
+	}
+	label := fmt.Sprintf("Scroll %s to find %s", way, name)
+	e.logf("step %d is out of view; asking for a scroll %s", number, way)
+
+	for attempt := 1; attempt <= timesToRepeatAStep; attempt++ {
+		show(GuideStep{Number: number, Label: label, X: x, Y: y, W: w, H: h, Do: "scroll", Detail: way})
+
+		deadline := time.Now().Add(guideStepTimeout)
+		for time.Now().Before(deadline) {
+			select {
+			case <-ctx.Done():
+				return tree, ctx.Err()
+			case <-advance:
+			case <-changed:
+			case <-time.After(guidePoll):
+			}
+			now, err := e.UIScreen.Capture(ctx, app)
+			if err != nil || len(now.Elements) == 0 {
+				continue
+			}
+			if !now.OutOfView(step.Target) {
+				if _, _, _, _, why := now.RectFor(step.Target); why == "" {
+					return e.settledView(ctx, app, now, changed), nil
+				}
+			}
+		}
+	}
+	return tree, stopped(app, "engine: %s was never scrolled into view, so the steps stopped", name)
 }
 
 // What the verb needs spelled out: the text to type, or the keys to hold down.

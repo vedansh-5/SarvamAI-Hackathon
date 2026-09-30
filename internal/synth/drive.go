@@ -25,6 +25,7 @@ Rules that decide whether your step is usable:
 
 - Address a control by its role and title, spelled exactly as the screen lists them.
 - If several controls share a role and title, the screen numbers them; say which with index.
+- A control marked [out of view] is scrolled out of sight. If one in view does the same job, choose that. If the one you need is out of view, name it anyway: it is scrolled to before the step happens. Never describe scrolling as a step of its own.
 - Only choose a control that is actually listed. One that is not there is a step that gets thrown away.
 - Describe the step in the words a person would use. That line is shown while it happens, and it is how someone watching knows what you are doing.
 - Do the task and nothing else. An extra click to "tidy up" is a change nobody asked for.

@@ -138,6 +138,9 @@ func (t Tree) TextWithin(budget int) string {
 		if !el.Enabled {
 			line += " [disabled]"
 		}
+		if t.outOfView(el) {
+			line += " [out of view]"
+		}
 		line += "\n"
 
 		if b.Len()+len(line) > budget {
@@ -299,6 +302,66 @@ func (t Tree) ClickPoint(el Element) (x, y int, ok bool) {
 		return 0, 0, false
 	}
 	return b.x0 + (b.x1-b.x0)/2, b.y0 + (b.y1-b.y0)/2, true
+}
+
+func (t Tree) OutOfView(sel Selector) bool {
+	el, why := t.resolve(sel)
+	if why != "" {
+		return false
+	}
+	return t.outOfView(el)
+}
+
+func (t Tree) outOfView(el Element) bool {
+	if _, ok := el.box(); !ok {
+		return false
+	}
+	_, visible := t.visibleBox(el)
+	return !visible
+}
+
+func (t Tree) ScrollHint(sel Selector) (x, y, w, h int, way string, ok bool) {
+	el, why := t.resolve(sel)
+	if why != "" || !t.outOfView(el) {
+		return 0, 0, 0, 0, "", false
+	}
+	target, _ := el.box()
+
+	var scroller, nearest *Element
+	for i, a := range t.Elements {
+		if !encloses(a.Path, el.Path) {
+			continue
+		}
+		if _, visible := t.visibleBox(a); !visible {
+			continue
+		}
+		if nearest == nil || len(a.Path) > len(nearest.Path) {
+			nearest = &t.Elements[i]
+		}
+		if role(a.Role) == "scrollarea" && (scroller == nil || len(a.Path) > len(scroller.Path)) {
+			scroller = &t.Elements[i]
+		}
+	}
+	if scroller == nil {
+		scroller = nearest
+	}
+	if scroller == nil {
+		return 0, 0, 0, 0, "", false
+	}
+	area := *scroller
+
+	b, _ := t.visibleBox(area)
+	switch {
+	case target.y1 <= b.y0:
+		way = "up"
+	case target.y0 >= b.y1:
+		way = "down"
+	case target.x1 <= b.x0:
+		way = "left"
+	default:
+		way = "right"
+	}
+	return b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0, way, true
 }
 
 func (t Tree) RectFor(sel Selector) (x, y, w, h int, why string) {
