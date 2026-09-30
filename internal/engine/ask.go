@@ -138,7 +138,7 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 		// The user's own words, not the slot: routing reduces "where is the
 		// search bar" to "the search bar", and a noun is not a task anyone can
 		// work out the next step of.
-		plan, err := e.planGuide(ctx, in.Instruction, in.Context)
+		plan, err := e.planGuideFor(ctx, in.Instruction, res.Shape, res.Route.Literals, in.Context)
 		if err != nil {
 			return nil, err
 		}

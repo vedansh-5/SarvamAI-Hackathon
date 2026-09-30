@@ -2,7 +2,10 @@
 
 package uiact
 
-import "errors"
+import (
+	"context"
+	"errors"
+)
 
 var errNoAccessibilityAPI = errors.New("uiact: this build was made without the accessibility API")
 
@@ -37,3 +40,5 @@ func raiseApp(int) error { return errNoAccessibilityAPI }
 func pressElement(int, []int) (bool, error) { return false, errNoAccessibilityAPI }
 
 func focusElement(int, []int) error { return errNoAccessibilityAPI }
+
+func watchWindow(context.Context, int) (<-chan struct{}, error) { return nil, errNoAccessibilityAPI }

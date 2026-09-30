@@ -55,6 +55,9 @@ type PlanRequest struct {
 	// Most is the longest plan worth giving, which is the same limit the run
 	// itself will stop at.
 	Most int
+
+	Done     []string
+	Failures []string
 }
 
 // PlanAnswer is the sequence the model expects to do the task, and its own
@@ -70,8 +73,22 @@ func BuildPlanPrompt(req PlanRequest) string {
 	b.WriteString("THE TASK\n")
 	b.WriteString(req.Task)
 
+	if len(req.Done) > 0 {
+		b.WriteString("\n\nALREADY DONE, SO PLAN ONLY WHAT IS LEFT\n")
+		for i, d := range req.Done {
+			fmt.Fprintf(&b, "  %d. %s\n", i+1, d)
+		}
+	}
+
 	b.WriteString("\n\nWHAT IS ON SCREEN NOW\n")
 	b.WriteString(req.Tree.TextWithin(uiact.MaxTreeBytes))
+
+	if len(req.Failures) > 0 {
+		b.WriteString("\nTHE PLANNED NEXT STEP DID NOT FIT THIS SCREEN\n")
+		for _, f := range req.Failures {
+			fmt.Fprintf(&b, "  - %s\n", f)
+		}
+	}
 
 	if req.Most > 0 {
 		fmt.Fprintf(&b, "\nAt most %d steps.\n", req.Most)

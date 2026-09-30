@@ -21,7 +21,19 @@ type RunningApps interface {
 	Running() []string
 }
 
+type WindowWatcher interface {
+	Watch(ctx context.Context, app string) (<-chan struct{}, error)
+}
+
 type System struct{ Runner Runner }
+
+func (s System) Watch(ctx context.Context, app string) (<-chan struct{}, error) {
+	pid, err := pidFor(ctx, s.Runner, app)
+	if err != nil {
+		return nil, err
+	}
+	return watchWindow(ctx, pid)
+}
 
 // Running needs no permission and prompts for nothing — it reads the window list.
 func (s System) Running() []string { return appsOnScreen() }

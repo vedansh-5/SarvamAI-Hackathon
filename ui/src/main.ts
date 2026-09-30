@@ -384,6 +384,7 @@ async function extract() {
 interface GuideResult {
   steps: number;
   stopped?: boolean;
+  work?: StepWork;
 }
 
 /// Walks the person through the steps, pointing at each control in turn.
@@ -413,7 +414,8 @@ async function showTheWay(plan: Plan) {
     // should not look the same.
     finished = true;
     invoke("finish_pointer").catch(console.error);
-    toast("That is all of it");
+    const how = howItWent(res?.work);
+    toast(how ? `That is all of it · ${how}` : "That is all of it");
     show("ask");
   } catch (e) {
     renderFailure(e);

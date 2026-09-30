@@ -1301,6 +1301,25 @@ launching is ever allowed, it should arrive as a gated action with the ghost
 cursor's pause in front of it, not by restoring a fallback. Worth deciding rather
 than drifting into.
 
+### 9.13 Six fixes from the first live coach test (2026-10-01)
+
+Picked over voice after the live test in #97 showed the coach itself was the weak
+spot. In order:
+
+1. **Faster coach steps.** It listens for the window changing instead of
+   re-reading it on a timer, and calls a window settled once it has been quiet for
+   250 ms instead of always waiting 900 ms (D-141). **Built.**
+2. **The coach remembers.** A coached question that finished is kept, and asked
+   again it costs no model calls (D-142). A guessed plan that goes wrong is planned
+   again in one call rather than walked a step at a time (D-143). **Built.**
+3. **Controls that are off screen.** The "Big Sur" run pointed at a row scrolled
+   out of view.
+4. **Captions** next to the ghost saying what it is about to do.
+5. **A step trail** showing the steps already done.
+6. **Pause when the person touches the mouse** during a run VANS is doing.
+
+Voice, the installable app and undo for typing (§9.12 #4–6) come after these.
+
 ---
 
 ## 10. Running it

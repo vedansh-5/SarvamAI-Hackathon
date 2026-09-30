@@ -3256,3 +3256,52 @@ and be seen, short enough that a six-step run does not feel staged — so it is 
 named value rather than a number in the code. A step with nothing to draw is
 performed without the pause, since waiting to show nothing is only slower, and a
 build with no shell watching has no pause at all.
+
+## D-141 — The coach listens for the window changing, and judges it once it is quiet
+
+Between a click and the next step the coach used to spend about a second doing
+nothing useful: it re-read the whole window on a timer to see whether the click had
+landed, then waited a fixed 900 ms for the window to finish moving before it would
+trust what it saw. Most windows finish moving in a fraction of that.
+
+Two changes. The coach asks macOS to tell it when the coached application's window
+changes (an accessibility observer on the application), so it hears the click land
+instead of finding out a poll later. And "settled" now means the window has been
+quiet for 250 ms, not that 900 ms have passed; 900 ms stays as the most it will
+wait. Without the observer — a build without the accessibility API, or an
+application that refuses it — the same quiet rule runs on re-reads every 150 ms.
+
+A change heard is only believed if the window really differs from before the click.
+A notification left over from before the click is not evidence of anything, and
+taking it as one would bring back the step-shown-twice bug D-136 fixed.
+
+The window read after a step is also the one the next step is checked against,
+rather than reading it again straight away.
+
+## D-142 — The coach keeps the steps of a question it answered, under its own key
+
+A drive run that worked is kept and replayed for free (D-117). The coach walks the
+same loop and can keep its runs the same way: the second time somebody asks how to
+change the wallpaper, the steps come from last time and the model is not asked.
+
+Kept under `coach: <shape>`, never under the bare shape. A coached question and a
+drive request can reduce to the same shape, and a drive trace is VANS's clicks while
+a coach trace is the person's, which is not the same claim about the window.
+
+Every rule for keeping a drive run applies unchanged — the model called it
+finished, every step changed the window, and nothing typed came from the model. A
+coached step the person skipped with Next and did not do changes nothing, so a run
+like that is never kept.
+
+## D-143 — A plan that goes wrong is planned again, twice at most
+
+D-139 planned the whole task once and, from the first step that did not fit, went
+back to one call per step. The plan prompt already told the model that anything not
+fitting "is planned again from that point", which was not true.
+
+It is now. When a planned step does not fit, the rest is planned in one call with
+the window in view, the steps already done and the reason the step did not fit. A
+plan wrong at step two of six now costs one call to recover, not four.
+
+Bounded at two re-plans a run and one per step. A task the model cannot predict at
+all falls back to working it out a step at a time, as before.

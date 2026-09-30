@@ -151,8 +151,9 @@ type GuideParams struct {
 }
 
 type GuideResult struct {
-	Steps   int  `json:"steps"`
-	Stopped bool `json:"stopped,omitempty"`
+	Steps   int         `json:"steps"`
+	Stopped bool        `json:"stopped,omitempty"`
+	Work    *CommitWork `json:"work,omitempty"`
 }
 
 type StopGuideResult struct {

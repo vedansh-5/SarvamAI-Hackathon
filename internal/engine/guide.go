@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/vedansh/vans/internal/screen"
+	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
 )
 
@@ -35,6 +36,11 @@ var (
 // the window does by itself in this window of time is what it looked like to
 // begin with, and the comparison starts from there.
 var settleBeforeJudging = 900 * time.Millisecond
+
+var (
+	settlePoll = 150 * time.Millisecond
+	quietFor   = 250 * time.Millisecond
+)
 
 // How many quiet spells one step is pointed at through before the coach accepts
 // that nobody is coming back. Three is a couple of minutes: long enough to find
@@ -67,6 +73,9 @@ type GuidePlan struct {
 	// Why is the model's line about what the application is for, said while they
 	// open it.
 	Why string
+
+	Shape    string
+	Literals map[string]string
 }
 
 type GuideStep struct {
@@ -104,6 +113,10 @@ func (e *Engine) appInQuestion(ctx context.Context, lookingAt *screen.Context) (
 }
 
 func (e *Engine) planGuide(ctx context.Context, task string, lookingAt *screen.Context) (*Plan, error) {
+	return e.planGuideFor(ctx, task, "", nil, lookingAt)
+}
+
+func (e *Engine) planGuideFor(ctx context.Context, task, shape string, literals map[string]string, lookingAt *screen.Context) (*Plan, error) {
 	if !e.canGuide() {
 		return nil, fmt.Errorf("engine: this build cannot show you what to do on screen")
 	}
@@ -123,6 +136,8 @@ func (e *Engine) planGuide(ctx context.Context, task string, lookingAt *screen.C
 				Task:     task,
 				MustOpen: true,
 				Why:      notOpen.Why,
+				Shape:    shape,
+				Literals: literals,
 				Preview: fmt.Sprintf("Show you how to do this in %s, a step at a time — you will need to open it first:\n\n  %s",
 					notOpen.App, task),
 			},
@@ -153,8 +168,10 @@ func (e *Engine) planGuide(ctx context.Context, task string, lookingAt *screen.C
 		Task:        Task{Intent: task, Title: tree.App},
 		Destination: tree.App,
 		Guide: &GuidePlan{
-			App:  tree.App,
-			Task: task,
+			App:      tree.App,
+			Task:     task,
+			Shape:    shape,
+			Literals: literals,
 			Preview: fmt.Sprintf("Show you how to do this in %s, a step at a time:\n\n  %s",
 				tree.App, task),
 		},
@@ -162,8 +179,20 @@ func (e *Engine) planGuide(ctx context.Context, task string, lookingAt *screen.C
 }
 
 func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep), advance <-chan struct{}) (int, error) {
+	work, err := e.RunGuideCounted(ctx, plan, show, advance)
+	return work.Steps, err
+}
+
+func coachKey(shape string) string {
+	if strings.TrimSpace(shape) == "" {
+		return ""
+	}
+	return "coach: " + shape
+}
+
+func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(GuideStep), advance <-chan struct{}) (StepWork, error) {
 	if !e.canGuide() {
-		return 0, fmt.Errorf("engine: this build cannot show you what to do on screen")
+		return StepWork{}, fmt.Errorf("engine: this build cannot show you what to do on screen")
 	}
 
 	g := plan.Guide
@@ -173,7 +202,7 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 	opened := 0
 	if g.MustOpen {
 		if err := e.waitForTheAppToOpen(ctx, g, show, advance); err != nil {
-			return 0, err
+			return StepWork{}, err
 		}
 		opened = 1
 	}
@@ -183,8 +212,10 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 	// is also what keeps the window readable: macOS withdraws the windows of an
 	// application that is not the active one (D-075).
 	if err := e.UIScreen.BringToFront(ctx, g.App); err != nil {
-		return 0, err
+		return StepWork{}, err
 	}
+
+	changed := e.watchTheWindow(ctx, g.App)
 
 	point := func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) error {
 		step := program.Steps[0]
@@ -205,7 +236,7 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 
 			// The hand is theirs. Nothing is clicked here — the next step is only
 			// worked out once the window shows they have done this one.
-			err := e.waitForTheUserToAct(ctx, g.App, tree, step, advance)
+			err := e.waitForTheUserToAct(ctx, g.App, tree, step, advance, changed)
 			if !errors.Is(err, errStillWaiting) {
 				return err
 			}
@@ -220,16 +251,24 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 	// model — about two seconds of nothing, every time. With it the next step is
 	// already known when they finish this one, and only has to be checked against
 	// the window they left.
-	var planned []uiact.Step
-	if e.Plans != nil {
+	memo := &DrivePlan{App: g.App, Task: g.Task, Shape: coachKey(g.Shape), Literals: g.Literals}
+	planned := e.stepsFromLastTime(ctx, g.App, memo.Shape, g.Literals)
+	memo.Kept = len(planned) > 0
+	planCalls := 0
+	switch {
+	case memo.Kept:
+		e.logf("%d step(s) kept from showing this last time; the model is only asked if one stops fitting", len(planned))
+	case e.Plans != nil:
 		if tree, err := e.windowToWorkFrom(ctx, g.App); err == nil && len(tree.Elements) > 0 {
-			planned, _ = e.planAhead(ctx, asTask(g.Task), tree, MaxGuideSteps)
+			planned, planCalls = e.planAhead(ctx, synth.PlanRequest{Task: asTask(g.Task), Tree: tree, Most: MaxGuideSteps})
 		}
 	}
 
-	run, err := e.stepThroughTask(ctx, g.App, asTask(g.Task), MaxGuideSteps, point, planned, false)
+	run, err := e.stepThroughTask(ctx, g.App, asTask(g.Task), MaxGuideSteps, point, planned, memo.Kept)
+	e.settleTheTrace(context.WithoutCancel(ctx), memo, run)
+	work := StepWork{Steps: run.Steps(), Replayed: run.Replayed, Calls: run.Calls + planCalls}
 	if err != nil {
-		return run.Steps(), err
+		return work, err
 	}
 
 	// Nothing was pointed at, and the panel would otherwise come back saying
@@ -238,11 +277,11 @@ func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep),
 	// other than the one being looked at.
 	if run.Steps() == 0 {
 		if why := strings.TrimSpace(run.Why); why != "" {
-			return 0, stopped(g.App, "engine: nothing in %s to point at — %s", g.App, why)
+			return work, stopped(g.App, "engine: nothing in %s to point at — %s", g.App, why)
 		}
-		return 0, stopped(g.App, "engine: there was nothing in %s to point at", g.App)
+		return work, stopped(g.App, "engine: there was nothing in %s to point at", g.App)
 	}
-	return run.Steps(), nil
+	return work, nil
 }
 
 // How long a click gets to show up in the window before it is judged.
@@ -261,23 +300,45 @@ var afterAClick = 1500 * time.Millisecond
 // So it waits for the window to move, then for it to finish moving. A click that
 // genuinely changes nothing runs out the wait and is recorded as such, which is
 // the truth.
-func (e *Engine) waitForTheWindowToAnswer(ctx context.Context, app string, before uiact.Tree) {
+func (e *Engine) waitForTheWindowToAnswer(ctx context.Context, app string, before uiact.Tree, changed <-chan struct{}) {
 	deadline := time.Now().Add(afterAClick)
 	for time.Now().Before(deadline) {
+		heard := false
 		select {
 		case <-ctx.Done():
 			return
+		case <-changed:
+			heard = true
 		case <-time.After(guidePoll / 5):
+		}
+		if heard {
+			if settled := e.settledView(ctx, app, before, changed); len(uiact.Changes(before, settled)) > 0 {
+				return
+			}
+			continue
 		}
 		after, err := e.UIScreen.Capture(ctx, app)
 		if err != nil || len(after.Elements) == 0 {
 			continue
 		}
 		if len(uiact.Changes(before, after)) > 0 {
-			e.settledView(ctx, app, after)
+			e.settledView(ctx, app, after, changed)
 			return
 		}
 	}
+}
+
+func (e *Engine) watchTheWindow(ctx context.Context, app string) <-chan struct{} {
+	w, ok := e.UIScreen.(uiact.WindowWatcher)
+	if !ok {
+		return nil
+	}
+	changed, err := w.Watch(ctx, app)
+	if err != nil {
+		e.logf("cannot hear %s change, so it is checked on a timer: %v", app, err)
+		return nil
+	}
+	return changed
 }
 
 // How long someone gets to open an application before the coach accepts nobody
@@ -393,30 +454,52 @@ var errStillWaiting = errors.New("engine: the window has not changed yet")
 // The tree handed in was captured before the step was drawn, which is before the
 // application had finished appearing. Comparing against it attributes the
 // window's own arrival to the person.
-func (e *Engine) settledView(ctx context.Context, app string, before uiact.Tree) uiact.Tree {
+func (e *Engine) settledView(ctx context.Context, app string, before uiact.Tree, changed <-chan struct{}) uiact.Tree {
 	if settleBeforeJudging <= 0 {
 		return before
 	}
 
-	deadline := time.Now().Add(settleBeforeJudging)
+	start := time.Now()
+	deadline := start.Add(settleBeforeJudging)
+	lastMoved := start
+
+	if changed != nil {
+		for time.Since(lastMoved) < quietFor && time.Now().Before(deadline) {
+			wait := min(quietFor-time.Since(lastMoved), time.Until(deadline))
+			select {
+			case <-ctx.Done():
+				return before
+			case <-changed:
+				lastMoved = time.Now()
+			case <-time.After(wait):
+			}
+		}
+		if after, err := e.UIScreen.Capture(ctx, app); err == nil && len(after.Elements) > 0 {
+			return after
+		}
+		return before
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return before
-		case <-time.After(guidePoll):
+		case <-time.After(settlePoll):
 		}
 
 		if after, err := e.UIScreen.Capture(ctx, app); err == nil && len(after.Elements) > 0 {
+			if len(uiact.Changes(before, after)) > 0 {
+				lastMoved = time.Now()
+			}
 			before = after
 		}
-		if time.Now().After(deadline) {
+		if time.Since(lastMoved) >= quietFor || time.Now().After(deadline) {
 			return before
 		}
 	}
 }
 
-func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uiact.Tree, step uiact.Step, advance <-chan struct{}) error {
+func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uiact.Tree, step uiact.Step, advance <-chan struct{}, changed <-chan struct{}) error {
 	// A Next left over from the step before belongs to that step. Cleared before
 	// settling rather than after, so a click the person makes while the window is
 	// still settling is kept rather than thrown away with the stale one.
@@ -429,7 +512,7 @@ func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uia
 
 	// Anything the window does to itself in the first moment belongs to the
 	// window, not to the person being coached.
-	before = e.settledView(ctx, app, before)
+	before = e.settledView(ctx, app, before, changed)
 
 	deadline := time.Now().Add(guideStepTimeout)
 	unreadable := false
@@ -439,8 +522,9 @@ func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uia
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-advance:
-			e.waitForTheWindowToAnswer(ctx, app, before)
+			e.waitForTheWindowToAnswer(ctx, app, before, changed)
 			return nil
+		case <-changed:
 		case <-time.After(guidePoll):
 		}
 

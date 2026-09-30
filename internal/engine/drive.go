@@ -62,13 +62,17 @@ type PlanWriter interface {
 //
 // Never a reason to stop. No planner, a failed call or an empty plan all mean
 // the run works itself out one step at a time, as it did before this existed.
-func (e *Engine) planAhead(ctx context.Context, task string, tree uiact.Tree, most int) ([]uiact.Step, int) {
+func (e *Engine) planAhead(ctx context.Context, req synth.PlanRequest) ([]uiact.Step, int) {
 	if e.Plans == nil {
 		return nil, 0
 	}
 
-	e.logf("planning the whole of it in one go")
-	answer, err := e.Plans.WritePlan(ctx, synth.PlanRequest{Task: task, Tree: tree, Most: most})
+	if len(req.Done) > 0 {
+		e.logf("planning the rest of it in one go")
+	} else {
+		e.logf("planning the whole of it in one go")
+	}
+	answer, err := e.Plans.WritePlan(ctx, req)
 	if err != nil {
 		e.logf("could not plan ahead, so working it out step by step: %v", err)
 		return nil, 1
@@ -104,7 +108,7 @@ func (e *Engine) driveOn(ctx context.Context, app, task, shape string, literals 
 	kept := len(replay) > 0
 	planCalls := 0
 	if !kept {
-		replay, planCalls = e.planAhead(ctx, task, tree, MaxDriveSteps)
+		replay, planCalls = e.planAhead(ctx, synth.PlanRequest{Task: task, Tree: tree, Most: MaxDriveSteps})
 	}
 
 	// A known sequence gets a confirmation that names the steps, because it can.
@@ -284,6 +288,8 @@ func (r taskRun) Steps() int { return len(r.Did) }
 // reasons in hand, and a third try has never turned one around.
 const modelAttempts = 2
 
+const mostReplans = 2
+
 // stepThroughTask works through a task one step at a time, taking each step from
 // the trace where there is one and from the model where there is not.
 //
@@ -307,6 +313,9 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 	// fitting the window, and the model takes over from that step onwards (§9.8).
 	replaying := len(trace) > 0
 
+	replans, replannedAt := 0, 0
+	var next uiact.Tree
+
 	state := func() taskRun {
 		return taskRun{
 			Did: did, Landed: landed,
@@ -315,9 +324,32 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 	}
 
 	for i := 1; i <= limit; i++ {
-		tree, err := e.windowToWorkFrom(ctx, app)
+		tree, err := next, error(nil)
+		next = uiact.Tree{}
+		if len(tree.Elements) == 0 {
+			tree, err = e.windowToWorkFrom(ctx, app)
+		}
 		if err != nil {
 			return state(), err
+		}
+
+		replan := func(against uiact.Tree, why []string) bool {
+			if e.Plans == nil || replans >= mostReplans || replannedAt == i || i > len(trace) {
+				return false
+			}
+			replans++
+			replannedAt = i
+			steps, n := e.planAhead(ctx, synth.PlanRequest{
+				Task: task, Tree: against, Most: limit - i + 1,
+				Done: done, Failures: why,
+			})
+			calls += n
+			if len(steps) == 0 {
+				return false
+			}
+			trace = append(append([]uiact.Step{}, trace[:i-1]...), steps...)
+			replaying, confirmed, diverged = true, false, true
+			return true
 		}
 
 		var failures []string
@@ -428,9 +460,12 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 			if refused != nil {
 				failures = refused.Reasons
 				if fromTrace {
+					e.logf("step %d no longer fits %s: %s", i, app, strings.Join(refused.Reasons, "; "))
+					if replan(tree, refused.Reasons) {
+						continue
+					}
 					replaying, diverged = false, true
-					e.logf("step %d no longer fits %s, so the rest is worked out fresh: %s",
-						i, app, strings.Join(refused.Reasons, "; "))
+					e.logf("so the rest is worked out a step at a time")
 					continue
 				}
 				e.logf("step %d rejected: %s", i, strings.Join(refused.Reasons, "; "))
@@ -468,9 +503,12 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 				if errors.As(err, &invalid) {
 					if fromTrace {
 						failures = invalid.Reasons
+						e.logf("step %d would not run against %s: %s", i, app, strings.Join(invalid.Reasons, "; "))
+						if replan(tree, invalid.Reasons) {
+							continue
+						}
 						replaying, diverged = false, true
-						e.logf("step %d would not run against %s, so the rest is worked out fresh: %s",
-							i, app, strings.Join(invalid.Reasons, "; "))
+						e.logf("so the rest is worked out a step at a time")
 						continue
 					}
 					if asks < modelAttempts {
@@ -482,15 +520,19 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 				return state(), err
 			}
 
-			effect, changed := describeEffect(ctx, e, app, tree)
+			effect, changed, after := describeEffect(ctx, e, app, tree)
 
 			// A replayed step that changed nothing is a divergence, not a success
 			// — the same rule D-076 applies to a live one. Nothing moved, so
 			// nothing has been spoiled by trying: the model is asked about this
 			// same step instead.
 			if !changed && fromTrace {
+				e.logf("step %d changed nothing in %s", i, app)
+				if replan(after, []string{describe + " changed nothing on screen"}) {
+					continue
+				}
 				replaying, diverged = false, true
-				e.logf("step %d changed nothing in %s, so the rest is worked out fresh", i, app)
+				e.logf("so the rest is worked out a step at a time")
 				continue
 			}
 			if !changed {
@@ -499,6 +541,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 
 			done = append(done, describe+" — "+effect)
 			did = append(did, answer.Step)
+			next = after
 			if fromTrace {
 				replayed++
 			}
@@ -536,14 +579,14 @@ func (e *Engine) windowToWorkFrom(ctx context.Context, app string) (uiact.Tree, 
 	return e.UIScreen.Capture(ctx, app)
 }
 
-func describeEffect(ctx context.Context, e *Engine, app string, before uiact.Tree) (string, bool) {
+func describeEffect(ctx context.Context, e *Engine, app string, before uiact.Tree) (string, bool, uiact.Tree) {
 	after, err := e.UIScreen.Capture(ctx, app)
 	if err != nil {
-		return "could not read the window back", false
+		return "could not read the window back", false, uiact.Tree{}
 	}
 	changes := uiact.Changes(before, after)
 	if len(changes) == 0 {
-		return "nothing in the window changed", false
+		return "nothing in the window changed", false, after
 	}
-	return strings.Join(changes, "; "), true
+	return strings.Join(changes, "; "), true, after
 }

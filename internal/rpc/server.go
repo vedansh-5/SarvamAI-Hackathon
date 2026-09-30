@@ -766,7 +766,7 @@ func (s *Server) guide(ctx context.Context, req Request) (GuideResult, error) {
 	eng := *s.Engine
 	eng.Log = func(format string, args ...any) { s.notify(req.ID, format, args...) }
 
-	steps, err := eng.RunGuide(guideCtx, plan, func(g engine.GuideStep) {
+	work, err := eng.RunGuideCounted(guideCtx, plan, func(g engine.GuideStep) {
 		s.push(req.ID, "guide", GuideStepParams{
 			Number: g.Number, Label: g.Label,
 			X: g.X, Y: g.Y, W: g.W, H: g.H,
@@ -775,12 +775,15 @@ func (s *Server) guide(ctx context.Context, req Request) (GuideResult, error) {
 	}, advance)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || guideCtx.Err() != nil {
-			return GuideResult{Steps: steps, Stopped: true}, nil
+			return GuideResult{Steps: work.Steps, Stopped: true}, nil
 		}
 		return GuideResult{}, err
 	}
 
-	return GuideResult{Steps: steps}, nil
+	return GuideResult{
+		Steps: work.Steps,
+		Work:  &CommitWork{Steps: work.Steps, Replayed: work.Replayed, Calls: work.Calls},
+	}, nil
 }
 
 func (s *Server) stopGuide() (StopGuideResult, error) {
