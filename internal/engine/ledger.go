@@ -25,11 +25,26 @@ func (e *Engine) writeItDown(ctx context.Context, plan *Plan, receipt Receipt, f
 		return
 	}
 
+	did := previewOf(plan)
+	if plan.Drive != nil {
+		steps := receipt.Did
+		if len(steps) == 0 {
+			steps = plan.Drive.Done
+		}
+		if len(steps) > 0 {
+			var b strings.Builder
+			for i, step := range steps {
+				fmt.Fprintf(&b, "%d. %s\n", i+1, strings.SplitN(step, " \u2014 ", 2)[0])
+			}
+			did = strings.TrimRight(b.String(), "\n")
+		}
+	}
+
 	deed := store.Deed{
 		Kind:     kindOf(plan),
 		Where:    whereItHappened(plan, receipt),
 		Asked:    strings.TrimSpace(plan.Task.Intent),
-		Did:      previewOf(plan),
+		Did:      did,
 		Verified: failure == nil && receipt.Verified,
 		Undo:     undoFor(plan),
 	}

@@ -2,6 +2,7 @@ package uiact
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -41,4 +42,35 @@ var messageFields = regexp.MustCompile(`(?i)\b(message|reply|comment|chat|compos
 
 func looksLikeAMessage(el Element) bool {
 	return messageFields.MatchString(el.Label())
+}
+
+var spending = regexp.MustCompile(`(?i)\b(pay|buy|purchase|order|checkout|check out|book|donate|transfer|subscribe)\b`)
+
+func Spends(step Step, el Element) bool {
+	if verb(step.Do) != "click" {
+		return false
+	}
+	name := strings.TrimSpace(el.Label())
+	if name == "" {
+		name = strings.TrimSpace(step.Target.Title)
+	}
+	return spending.MatchString(name)
+}
+
+var money = regexp.MustCompile(`(?i)(?:\x{20B9}|rs\.?\s?|inr\s?|\$|usd\s?|\x{20AC}|eur\s?|\x{00A3}|gbp\s?)\s?(\d[\d,]*(?:\.\d+)?)`)
+
+func Amounts(t Tree) []float64 {
+	var out []float64
+	read := func(text string) {
+		for _, m := range money.FindAllStringSubmatch(text, -1) {
+			if v, err := strconv.ParseFloat(strings.ReplaceAll(m[1], ",", ""), 64); err == nil && v > 0 {
+				out = append(out, v)
+			}
+		}
+	}
+	for _, el := range t.Elements {
+		read(el.Title)
+		read(el.Value)
+	}
+	return out
 }

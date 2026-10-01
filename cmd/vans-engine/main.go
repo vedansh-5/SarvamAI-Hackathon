@@ -184,11 +184,13 @@ func run() error {
 			Traces:     st,
 			Map:        st,
 			Tasks:      st,
+			Rulebook:   st,
 			UIScreen:   desktop,
 			PageScreen: page,
 			Eyes:       looking(synthesizer, desktop),
 		},
 		Deeds: st,
+		Rules: st,
 		Probe: probe{
 			hostPort: *hostPort,
 			notes:    notes,

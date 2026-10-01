@@ -72,6 +72,8 @@ type Server struct {
 	// refusing, which is the truth for a build that remembers nothing.
 	Deeds DeedReader
 
+	Rules RuleStore
+
 	out   *json.Encoder
 	outMu sync.Mutex
 
@@ -180,6 +182,10 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.answerGuide(req)
 	case "answer_question":
 		result, err = s.answerQuestion(req)
+	case "rules":
+		result, err = s.rules(ctx)
+	case "set_rules":
+		result, err = s.setRules(ctx, req)
 	default:
 		err = &Error{Code: CodeBadRequest, Message: fmt.Sprintf("unknown method %q", req.Method)}
 	}
@@ -636,6 +642,15 @@ func asError(err error) *Error {
 
 	// The same thing to say as an application that is not running: VANS will not
 	// open it, and the one thing to do about it is done by the person.
+	var notAllowed *engine.NotAllowedError
+	if errors.As(err, &notAllowed) {
+		return &Error{
+			Code:    CodeNotAllowed,
+			Message: err.Error(),
+			Data:    mustData(NotAllowedData{Where: notAllowed.Where, Rule: notAllowed.Rule}),
+		}
+	}
+
 	var notRunning *uiact.NotRunningError
 	if errors.As(err, &notRunning) {
 		return &Error{
@@ -858,6 +873,39 @@ func (s *Server) advanceGuide() (AdvanceGuideResult, error) {
 		}
 	}
 	return AdvanceGuideResult{Advanced: true}, nil
+}
+
+type RuleStore interface {
+	Rules(ctx context.Context) (store.Rules, error)
+	SetRules(ctx context.Context, r store.Rules) error
+}
+
+func (s *Server) rules(ctx context.Context) (RulesData, error) {
+	if s.Rules == nil {
+		return RulesData{Never: []string{}}, nil
+	}
+	r, err := s.Rules.Rules(ctx)
+	if err != nil {
+		return RulesData{}, err
+	}
+	if r.Never == nil {
+		r.Never = []string{}
+	}
+	return RulesData{Never: r.Never, SpendLimit: r.SpendLimit}, nil
+}
+
+func (s *Server) setRules(ctx context.Context, req Request) (RulesData, error) {
+	var p RulesData
+	if err := json.Unmarshal(req.Params, &p); err != nil {
+		return RulesData{}, &Error{Code: CodeBadRequest, Message: err.Error()}
+	}
+	if s.Rules == nil {
+		return RulesData{}, &Error{Code: CodeBadRequest, Message: "this build keeps no rules"}
+	}
+	if err := s.Rules.SetRules(ctx, store.Rules{Never: p.Never, SpendLimit: p.SpendLimit}); err != nil {
+		return RulesData{}, err
+	}
+	return s.rules(ctx)
 }
 
 var questionWait = 5 * time.Minute

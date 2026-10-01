@@ -61,6 +61,8 @@ type Receipt struct {
 	// confirm, and the caller should say so rather than claim success.
 	Verified bool
 
+	Did []string
+
 	// Work describes a run that stepped through a task on screen, and is nil for
 	// every tier that does not — which is most of them.
 	//
@@ -178,6 +180,8 @@ type Engine struct {
 
 	Map   AppMap
 	Tasks TaskLog
+
+	Rulebook Rulebook
 
 	// Recorded reads those back, to put one of them back.
 	Recorded DeedStore
@@ -551,12 +555,19 @@ func (e *Engine) Commit(ctx context.Context, plan *Plan) (Receipt, error) {
 	if plan == nil {
 		return Receipt{}, fmt.Errorf("engine: no plan to commit")
 	}
-	if plan.committed {
+	carryingOn := plan.Drive != nil && plan.Drive.Resumed
+	if plan.committed && !carryingOn {
 		return Receipt{}, fmt.Errorf("engine: this plan has already been committed; writes are never retried")
+	}
+	if err := e.allowedToAct(ctx, plan); err != nil {
+		return Receipt{}, err
 	}
 
 	receipt, err := e.carryOut(ctx, plan)
 	e.writeItDown(ctx, plan, receipt, err)
+	if err == nil && plan.Drive != nil {
+		plan.Drive.Resumed, plan.Drive.Done = false, nil
+	}
 	return receipt, err
 }
 

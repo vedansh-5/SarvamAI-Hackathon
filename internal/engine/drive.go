@@ -212,6 +212,9 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 		if err := e.showBeforeActing(ctx, tree, program.Steps[0], number, describe); err != nil {
 			return tree, err
 		}
+		if err := e.overTheLimit(ctx, tree, program.Steps[0]); err != nil {
+			return tree, err
+		}
 		if ask := e.askFirst(tree, program.Steps[0]); ask != "" {
 			fresh, err := e.waitOutThePause(ctx, d.App, tree, program, number, describe, ask)
 			if err != nil {
@@ -270,7 +273,7 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 		return Receipt{Title: d.App, Verified: false, Work: work}, nil
 	}
 
-	return Receipt{Title: d.App, Verified: run.Landed, Work: work}, nil
+	return Receipt{Title: d.App, Verified: run.Landed, Work: work, Did: run.Told}, nil
 }
 
 // How long a step is shown before it is performed: long enough for the ghost to

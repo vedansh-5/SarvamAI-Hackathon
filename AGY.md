@@ -1427,9 +1427,9 @@ aloud).
 
 **D. Trust.**
 
-- D1. An activity log a person can read, with undo where there is one.
-- D2. Permissions per application ("never act in my bank's").
-- D3. Limits on spending and sending that cannot be crossed.
+- D1. **Built.** An activity log a person can read, with undo where there is one. Multi-step runs now record the steps taken (D-175).
+- D2. **Built (D-175).** Permissions per application ("never act in my bank's").
+- D3. **Spending built (D-175); sending is not.** Limits on spending and sending that cannot be crossed.
 - D4. A dry run: what would be done, without doing it.
 - D5. **Built (D-171).** Recovery when a task breaks partway: say where it got to, offer to carry on
   or back out.

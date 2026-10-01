@@ -3958,3 +3958,35 @@ selected. Read from the focused element of the application that was in front, or
 from the page's own selection in the browser, cut at 600 characters. With a
 selection, the note says "this" means that text; without one, it means what was in
 front. Nothing is read at all for a request that does not point.
+
+## D-175 — Two rules the person sets, enforced by code: where never to act, and a spending limit
+
+A program that acts for someone needs limits that do not depend on a model's
+judgement or on reading a confirmation closely. Two, to start, set in the panel
+under Setup.
+
+**Never act in these.** A list of applications and sites. Checked when a plan is
+made and again when it is committed, so a kept plan cannot slip past a rule added
+since. Applications are matched by name the way names are compared everywhere
+(D-154); a site by its own address and anything under it, or by a name that is one
+of the address's own parts. Not by substring: the first version matched "Mail"
+against "Gmail Notifier", and a rule that forbids more than was said is a rule
+nobody can reason about. The coach is not covered. It shows and touches nothing,
+and saying so is part of the refusal.
+
+**A spending limit.** A step that pays — its control says pay, buy, order, book,
+checkout and the like — is not taken when the screen shows an amount over the
+limit. The largest amount on screen is the one compared, which errs towards
+stopping: a limit that lets a payment through because it read the smaller of two
+numbers is worse than one that stops and says which number it saw. With no amount
+readable the step is not refused; it still waits to be told to go ahead (D-151).
+
+Both come back as "your rules say no", with the place and the rule, and not as an
+error.
+
+Two things fixed on the way. The record of a multi-step run now holds the steps
+that were taken, numbered, where it used to hold the plan as shown at the
+confirmation. And carrying on after a break (D-171) could never have worked from
+the panel: a plan may only be committed once, and the test for carrying on had
+gone round that gate. A plan that broke off may be committed again; one that
+finished may not.

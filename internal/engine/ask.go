@@ -155,6 +155,11 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 			plan.Guide.Looking = looking
 		}
 	}
+	if err == nil && plan != nil {
+		if notAllowed := e.allowedToAct(ctx, plan); notAllowed != nil {
+			return nil, notAllowed
+		}
+	}
 	if err != nil || plan == nil || plan.Route == nil || !isTask(plan.Route.Kind) || plan.Mode != "" {
 		return plan, err
 	}

@@ -293,6 +293,18 @@ type CoachStoppedData struct {
 	App string `json:"app"`
 }
 
+const CodeNotAllowed = "not_allowed"
+
+type NotAllowedData struct {
+	Where string `json:"where"`
+	Rule  string `json:"rule"`
+}
+
+type RulesData struct {
+	Never      []string `json:"never"`
+	SpendLimit float64  `json:"spend_limit"`
+}
+
 const CodeBrokeOff = "broke_off"
 
 type BrokeOffData struct {

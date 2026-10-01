@@ -131,6 +131,25 @@ async fn answer_question(engine: State<'_, Engine>, answer: String) -> Result<Va
 }
 
 #[tauri::command]
+async fn rules(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("rules", None).await
+}
+
+#[tauri::command]
+async fn set_rules(
+    engine: State<'_, Engine>,
+    never: Vec<String>,
+    spend_limit: f64,
+) -> Result<Value, RpcError> {
+    engine
+        .call(
+            "set_rules",
+            Some(json!({ "never": never, "spend_limit": spend_limit })),
+        )
+        .await
+}
+
+#[tauri::command]
 async fn resume_drive(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("resume_drive", None).await
 }
@@ -365,6 +384,8 @@ pub fn run() {
             resume_drive,
             answer_guide,
             answer_question,
+            rules,
+            set_rules,
             pause_pointer,
             history,
             undo,

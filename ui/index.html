@@ -211,6 +211,20 @@
 
             <div class="divider"></div>
 
+            <div class="kicker">rules</div>
+            <p class="field-note">VANS will never act in these apps or sites. It can still show you how.</p>
+            <input id="rules-never" class="ask" type="text" autocomplete="off" spellcheck="false"
+                   placeholder="e.g. Mail, mybank.com" />
+            <p class="field-note">Never take a step that pays more than this. Leave empty for no limit.</p>
+            <input id="rules-limit" class="ask" type="text" inputmode="decimal" autocomplete="off"
+                   placeholder="e.g. 5000" />
+            <div class="row">
+              <button id="rules-save" class="btn secondary" type="button">Save rules</button>
+              <span id="rules-saved" class="field-note"></span>
+            </div>
+
+            <div class="divider"></div>
+
             <div class="kicker">record</div>
             <div class="row">
               <button id="show-history" class="btn quiet">What VANS has done</button>

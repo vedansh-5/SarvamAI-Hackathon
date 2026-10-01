@@ -1096,6 +1096,10 @@ const PLAIN: Record<string, { title: string; message: string }> = {
     title: "Stopped partway",
     message: "",
   },
+  not_allowed: {
+    title: "Your rules say no",
+    message: "",
+  },
   app_not_open: {
     title: "That's done somewhere else",
     message:
@@ -1170,6 +1174,13 @@ function renderFailure(e: unknown) {
       const where = (e.data as { app?: string })?.app;
       $("failure-title").textContent = where ? `Stopped in ${where}` : "The steps stopped";
       $("failure-message").textContent = withoutThePrefix(e.message);
+      return;
+    }
+    case "not_allowed": {
+      const data = e.data as { where?: string; rule?: string };
+      $("failure-title").textContent = data?.where ? `Not in ${data.where}` : "Your rules say no";
+      const rule = data?.rule ?? withoutThePrefix(e.message);
+      $("failure-message").textContent = rule.charAt(0).toUpperCase() + rule.slice(1) + ".";
       return;
     }
     case "broke_off": {
@@ -1917,6 +1928,38 @@ $("blur").addEventListener("change", (e) => {
 $("dark").addEventListener("change", (e) => {
   applyTheme((e.target as HTMLInputElement).checked, true);
 });
+
+interface Rules {
+  never: string[];
+  spend_limit: number;
+}
+
+async function loadRules() {
+  try {
+    const r = await invoke<Rules>("rules");
+    ($("rules-never") as HTMLInputElement).value = (r?.never ?? []).join(", ");
+    ($("rules-limit") as HTMLInputElement).value = r?.spend_limit ? String(r.spend_limit) : "";
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+$("rules-save").addEventListener("click", async () => {
+  const never = ($("rules-never") as HTMLInputElement).value
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s !== "");
+  const limit = Number(($("rules-limit") as HTMLInputElement).value.replace(/[^0-9.]/g, "")) || 0;
+  try {
+    await invoke<Rules>("set_rules", { never, spendLimit: limit });
+    $("rules-saved").textContent = "Saved";
+    window.setTimeout(() => ($("rules-saved").textContent = ""), 1800);
+  } catch (e) {
+    $("rules-saved").textContent = "Could not save";
+    console.error(e);
+  }
+});
+void loadRules();
 
 $("show-history").addEventListener("click", showHistory);
 $("history-back").addEventListener("click", () => show("preflight"));
