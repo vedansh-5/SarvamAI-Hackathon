@@ -123,7 +123,20 @@ pub fn frontmost_app_name() -> Option<String> {
     workspace
         .frontmostApplication()
         .and_then(|app| app.localizedName())
-        .map(|name| name.to_string())
+        .map(|name| clean_name(&name.to_string()))
+}
+
+pub fn clean_name(name: &str) -> String {
+    name.chars()
+        .filter(|c| {
+            !matches!(*c,
+                '\u{00AD}' | '\u{200B}'..='\u{200F}' | '\u{202A}'..='\u{202E}'
+                | '\u{2060}'..='\u{2064}' | '\u{FEFF}')
+                && !c.is_control()
+        })
+        .collect::<String>()
+        .trim()
+        .to_string()
 }
 
 #[cfg(not(target_os = "macos"))]

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/vedansh/vans/internal/names"
 	"strings"
 	"time"
 )
@@ -265,7 +266,7 @@ func BringToFront(ctx context.Context, r Runner, app string) error {
 
 func alreadyInFront(app string) bool {
 	name, ok := askTheWindowList()
-	return ok && strings.EqualFold(strings.TrimSpace(name), strings.TrimSpace(app))
+	return ok && names.Same(name, app)
 }
 
 func settled(ctx context.Context, app string, pid int) error {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vedansh/vans/internal/names"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -81,6 +82,7 @@ func Capture(ctx context.Context, r Runner, app string) (Tree, error) {
 // is the only path here that raises an Automation prompt, and an application with
 // a window on screen can almost always be named without it.
 func pidFor(ctx context.Context, r Runner, app string) (int, error) {
+	app = names.Clean(app)
 	if pid, ok := askTheProcessList(ctx, app); ok {
 		return pid, nil
 	}
@@ -101,7 +103,7 @@ func pidFor(ctx context.Context, r Runner, app string) (int, error) {
 }
 
 func pidByProcessName(ctx context.Context, app string) (int, bool) {
-	out, err := exec.CommandContext(ctx, "pgrep", "-x", app).Output()
+	out, err := exec.CommandContext(ctx, "pgrep", "-ix", names.Clean(app)).Output()
 	if err != nil {
 		return 0, false
 	}

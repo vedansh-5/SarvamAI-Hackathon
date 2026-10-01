@@ -3538,3 +3538,34 @@ A related hole closed in the same change: an application that is installed but n
 open is reported as not open, so the person opens it. It used to fall through to
 opening the application's website instead, which is not what "on WhatsApp" means
 to someone who has WhatsApp installed.
+
+## D-154 — A name is compared by what a person would read
+
+WhatsApp was open and in front, and VANS said it was not running. The application
+is installed as `WhatsApp.app` with a left-to-right mark (U+200E) in front of the
+W: invisible in the Finder, in the menu bar and in every log, and one character
+longer than "whatsapp" to a string comparison. All three ways of finding the
+process compared names exactly, so all three missed.
+
+Names are now compared the way they are read. `internal/names` removes format
+characters (the Unicode Cf class: direction marks, zero-width spaces, the byte
+order mark), folds spacing, and ignores case. It is used where a process is looked
+up, where the window list and the application in front are read, where installed
+applications are listed, and in the shell where the overlay asks whether the
+coached application is still in front. The path on disk keeps its real name; only
+the name used for matching and for showing is cleaned.
+
+The same application puts the same mark inside its control names ("New Chat",
+"More"), so those are stripped as a window is read. A model asked to spell a name
+exactly cannot be expected to reproduce a character nobody can see.
+
+One step further in the same direction, and bounded: a control asked for by a name
+that is not on screen is matched to the single control whose name is that name plus
+decoration — "Suhani" for `Suhani 🐥`, "Core+Tech Team 2027" for the same with
+", 3 unread messages" after it. Letters and digits are compared, whole words only,
+and only when exactly one control fits. Two candidates is a question for the model,
+not a guess (the rule Repair has always had).
+
+Found only because the log line printed the mark. The lesson for the next one: an
+"is not running" about something visibly running is a naming bug until shown
+otherwise.

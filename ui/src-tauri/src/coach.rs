@@ -159,7 +159,7 @@ fn watch_who_is_in_front(app: &AppHandle) {
         // answered.
         let Some(front) = front else { continue };
 
-        let here = front.eq_ignore_ascii_case(&coached);
+        let here = front.eq_ignore_ascii_case(&crate::screen::clean_name(&coached));
 
         if here == SHOWING.load(Ordering::Relaxed) {
             continue;

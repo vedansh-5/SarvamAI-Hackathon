@@ -192,3 +192,36 @@ func TestAnIndexIsDroppedEvenWhenTheNameAlsoAppearsAsAHeading(t *testing.T) {
 		t.Errorf("the repaired step does not validate: %v", err)
 	}
 }
+
+func chats() Tree {
+	return Tree{App: "WhatsApp", Window: "WhatsApp", Elements: []Element{
+		{Role: "AXButton", Title: "Suhani \U0001F425", Enabled: true, Position: []int{0, 0}, Size: []int{10, 10}, Path: []int{0}},
+		{Role: "AXButton", Title: "Core+Tech Team 2027, 3 unread messages", Enabled: true, Position: []int{0, 20}, Size: []int{10, 10}, Path: []int{1}},
+		{Role: "AXButton", Title: "Vedant Vats", Enabled: true, Position: []int{0, 40}, Size: []int{10, 10}, Path: []int{2}},
+		{Role: "AXButton", Title: "Vedansh Saini", Enabled: true, Position: []int{0, 60}, Size: []int{10, 10}, Path: []int{3}},
+	}}
+}
+
+func TestANameWithoutItsDecorationStillFindsTheOneControlItMeans(t *testing.T) {
+	for _, c := range []struct{ asked, want string }{
+		{"Suhani", "Suhani \U0001F425"},
+		{"suhani", "Suhani \U0001F425"},
+		{"Core+Tech Team 2027", "Core+Tech Team 2027, 3 unread messages"},
+		{"Vedansh", "Vedansh Saini"},
+	} {
+		step := Step{Do: "click", Target: Selector{Role: "AXButton", Title: c.asked}}
+		fixed, _, ok := Repair(step, chats())
+		if !ok || fixed.Target.Title != c.want {
+			t.Errorf("asked for %q, got %q (ok=%v), want %q", c.asked, fixed.Target.Title, ok, c.want)
+		}
+	}
+}
+
+func TestANameThatCouldMeanTwoControlsIsNotGuessed(t *testing.T) {
+	for _, asked := range []string{"Ved", "Veda", "Jo", "Mum"} {
+		step := Step{Do: "click", Target: Selector{Role: "AXButton", Title: asked}}
+		if fixed, what, ok := Repair(step, chats()); ok {
+			t.Errorf("asked for %q and it was taken to mean %q (%s)", asked, fixed.Target.Title, what)
+		}
+	}
+}

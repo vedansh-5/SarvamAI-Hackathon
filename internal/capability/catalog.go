@@ -2,6 +2,7 @@ package capability
 
 import (
 	"fmt"
+	"github.com/vedansh/vans/internal/names"
 	"os"
 	"path/filepath"
 	"sort"
@@ -68,8 +69,8 @@ func (c *Catalog) walk(keep func(path string) bool) []App {
 			if !strings.HasSuffix(e.Name(), ".app") {
 				continue
 			}
-			name := strings.TrimSuffix(e.Name(), ".app")
-			if seen[strings.ToLower(name)] {
+			name := names.Clean(strings.TrimSuffix(e.Name(), ".app"))
+			if name == "" || seen[strings.ToLower(name)] {
 				continue
 			}
 			path := filepath.Join(root, e.Name())
@@ -147,7 +148,7 @@ func find(name string, apps []App) (App, error) {
 }
 
 func normalise(s string) string {
-	s = strings.ToLower(strings.TrimSpace(s))
+	s = strings.ToLower(names.Clean(s))
 	s = strings.TrimSuffix(s, ".app")
 	return strings.Join(strings.Fields(s), " ")
 }

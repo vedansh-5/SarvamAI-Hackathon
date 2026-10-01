@@ -994,7 +994,7 @@ function renderFailure(e: unknown) {
       if (data?.app) {
         $("failure-title").textContent = `That's done in ${data.app}`;
         $("failure-message").textContent = data.why
-          ? `${data.why} VANS does not open applications for you \u2014 open it and ask again.`
+          ? `It ${data.why.replace(/^it /i, "")}. Open ${data.app} and ask again.`
           : `Open ${data.app} and ask again. VANS does not open applications for you.`;
       }
       break;

@@ -311,6 +311,7 @@ import "C"
 
 import (
 	"fmt"
+	"github.com/vedansh/vans/internal/names"
 	"sort"
 	"strings"
 	"unsafe"
@@ -336,7 +337,7 @@ func elementAt(pid, x, y int) (role, title string, owned bool, err error) {
 func text(el C.AXUIElementRef, which C.int) string {
 	var buf [256]C.char
 	C.axText(el, which, &buf[0], C.int(len(buf)))
-	return C.GoString(&buf[0])
+	return names.Strip(C.GoString(&buf[0]))
 }
 
 func rect(el C.AXUIElementRef) ([]int, []int) {
@@ -429,29 +430,37 @@ func raiseApp(pid int) error {
 // permission VANS does not already hold. System Events knows it too and costs an
 // Automation grant, which is why this is asked first.
 func pidByWindowList(app string) (int, bool) {
-	name := C.CString(app)
-	defer C.free(unsafe.Pointer(name))
-
-	var pid C.int
-	if C.cgPidForOwner(name, &pid) != 1 {
-		return 0, false
+	for _, owner := range ownersOnScreen() {
+		if owner == "" || !names.Same(owner, app) {
+			continue
+		}
+		name := C.CString(owner)
+		var pid C.int
+		found := C.cgPidForOwner(name, &pid) == 1
+		C.free(unsafe.Pointer(name))
+		if found {
+			return int(pid), true
+		}
 	}
-	return int(pid), true
+	return 0, false
 }
 
 // appsOnScreen is every application showing a window, deduplicated. One
 // application usually owns several windows, and the answer wanted here is which
 // applications a person could switch to.
-func appsOnScreen() []string {
+func ownersOnScreen() []string {
 	var buf [8192]C.char
 	if C.cgAppsOnScreen(&buf[0], C.int(len(buf))) != 1 {
 		return nil
 	}
+	return strings.Split(C.GoString(&buf[0]), "\n")
+}
 
+func appsOnScreen() []string {
 	seen := map[string]bool{}
 	var out []string
-	for _, name := range strings.Split(C.GoString(&buf[0]), "\n") {
-		name = strings.TrimSpace(name)
+	for _, name := range ownersOnScreen() {
+		name = names.Clean(name)
 		if name == "" || seen[strings.ToLower(name)] {
 			continue
 		}
@@ -467,7 +476,7 @@ func frontmostApp() (string, bool) {
 	if C.cgFrontmostApp(&buf[0], C.int(len(buf))) != 1 {
 		return "", false
 	}
-	return C.GoString(&buf[0]), true
+	return names.Clean(C.GoString(&buf[0])), true
 }
 
 func windowOnScreen(pid int) bool {

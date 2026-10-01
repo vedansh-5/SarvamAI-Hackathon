@@ -2,6 +2,7 @@ package uiact
 
 import (
 	"fmt"
+	"github.com/vedansh/vans/internal/names"
 	"sort"
 	"strings"
 )
@@ -58,7 +59,7 @@ func Repair(step Step, t Tree) (Step, string, bool) {
 		}
 	}
 	if len(found) != 1 {
-		return step, "", false
+		return looselyNamed(step, t)
 	}
 
 	was := step.Target.Role
@@ -124,4 +125,54 @@ func (t Tree) nearMiss(sel Selector) string {
 		return out + "; name one of those roles, and an index to say which one"
 	}
 	return out + "; name that role instead"
+}
+
+const shortestLooseName = 3
+
+func looselyNamed(step Step, t Tree) (Step, string, bool) {
+	want := names.Plain(step.Target.Title)
+	if len(want) < shortestLooseName {
+		return step, "", false
+	}
+
+	fits := func(el Element, wholeName bool) bool {
+		have := names.Plain(el.Label())
+		if have == "" {
+			return false
+		}
+		if wholeName {
+			return have == want
+		}
+		return strings.HasPrefix(have, want+" ")
+	}
+	pick := func(sameRole, wholeName bool) []Element {
+		var out []Element
+		for _, el := range t.Elements {
+			if sameRole && role(el.Role) != role(step.Target.Role) {
+				continue
+			}
+			if fits(el, wholeName) {
+				out = append(out, el)
+			}
+		}
+		return out
+	}
+
+	for _, attempt := range []struct{ sameRole, wholeName bool }{
+		{true, true}, {false, true}, {true, false}, {false, false},
+	} {
+		found := pick(attempt.sameRole, attempt.wholeName)
+		if len(found) == 0 {
+			continue
+		}
+		if len(found) > 1 {
+			return step, "", false
+		}
+		asked := step.Target.Title
+		step.Target.Role = found[0].Role
+		step.Target.Title = found[0].Label()
+		step.Target.Index = 0
+		return step, fmt.Sprintf("%q is called %q here", asked, found[0].Label()), true
+	}
+	return step, "", false
 }
