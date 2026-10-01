@@ -55,7 +55,7 @@ func (e *Engine) selectionIn(ctx context.Context, at *screen.Context) string {
 		return ""
 	}
 	app := strings.TrimSpace(at.AppName)
-	if e.PageScreen != nil && strings.EqualFold(app, e.pageBrowser(ctx)) {
+	if e.isPageBrowser(ctx, app) {
 		if reader, ok := e.PageScreen.(uiact.SelectionReader); ok {
 			if picked, ok := reader.Selection(ctx, app); ok {
 				return picked

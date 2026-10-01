@@ -66,3 +66,27 @@ func TestARowIsNamedAfterTheTextInsideIt(t *testing.T) {
 		t.Errorf("a button was named %q after text that is not inside it", els[8].Title)
 	}
 }
+
+func TestAMenuBarDoesNotMakeAnUnreadableWindowLookReadable(t *testing.T) {
+	tree := Tree{App: "Thing"}
+	for i, name := range []string{"Apple", "Thing", "File", "Edit", "View", "Window", "Help"} {
+		tree.Elements = append(tree.Elements, Element{Role: "AXMenuBarItem", Title: name, Enabled: true, Path: []int{-1, i}})
+	}
+	if got := Assess(tree); got.Verdict != Blind || got.Controls != 0 {
+		t.Errorf("verdict %s with %d controls; every application has a menu bar, and it says nothing about its window", got.Verdict, got.Controls)
+	}
+}
+
+func TestAMenuCountsAsOpenOnlyWhenItsRowsAreLaidOut(t *testing.T) {
+	stacked := []Element{{Position: []int{10, 30}}, {Position: []int{10, 52}}, {Position: []int{10, 74}}}
+	if !menuIsOpen(stacked) {
+		t.Error("a menu with rows one under another was not treated as open")
+	}
+	piled := []Element{{Position: []int{0, 0}}, {Position: []int{0, 0}}, {Position: []int{0, 0}}}
+	if menuIsOpen(piled) {
+		t.Error("a closed menu, whose rows all report the same place, was treated as open")
+	}
+	if menuIsOpen(nil) {
+		t.Error("no rows was treated as an open menu")
+	}
+}

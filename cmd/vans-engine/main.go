@@ -73,7 +73,7 @@ func run() error {
 	}
 
 	desktop := uiact.System{Runner: appleevents.Osascript{}}
-	page := &webscreen.Screen{
+	inChrome := &webscreen.Screen{
 		Page:    live,
 		Browser: "Google Chrome",
 		Raise:   desktop.BringToFront,
@@ -83,6 +83,20 @@ func run() error {
 		Log: func(format string, args ...any) {
 			fmt.Fprintf(os.Stderr, "[page] "+format+"\n", args...)
 		},
+	}
+
+	inSafari := &webscreen.Screen{
+		Page:    &appleevents.Safari{Runner: appleevents.Osascript{}},
+		Browser: "Safari",
+		Raise:   desktop.BringToFront,
+
+		RealClick: desktop.ClickAt,
+		RealType:  desktop.TypeText,
+		Log:       inChrome.Log,
+	}
+	page := &webscreen.Multi{
+		Screens: []*webscreen.Screen{inChrome, inSafari},
+		Front:   desktop.Frontmost,
 	}
 
 	notes := appleevents.Notes{Runner: appleevents.Osascript{}}

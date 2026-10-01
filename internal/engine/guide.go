@@ -142,7 +142,7 @@ func (e *Engine) planGuideIn(ctx context.Context, task, shape string, literals m
 	// the person, and the coach picks up inside the application once it appears.
 	var notOpen *AppNotOpenError
 	if errors.As(err, &notOpen) {
-		if e.canDrivePages() && strings.EqualFold(notOpen.App, e.pageBrowser(ctx)) {
+		if e.canDrivePages() && e.isPageBrowser(ctx, notOpen.App) {
 			return e.planWebGuide(ctx, task, shape, literals, notOpen.App, true, notOpen.Why, "")
 		}
 		return &Plan{
@@ -167,7 +167,7 @@ func (e *Engine) planGuideIn(ctx context.Context, task, shape string, literals m
 	// Decided before anything is read. Reaching for the accessibility tier here
 	// costs a window raise and a tree walk to learn what the application's name
 	// already says.
-	if e.canDrivePages() && strings.EqualFold(app, e.pageBrowser(ctx)) {
+	if e.canDrivePages() && e.isPageBrowser(ctx, app) {
 		return e.planWebGuide(ctx, task, shape, literals, app, false, "", "")
 	}
 	if isBrowser(app) {

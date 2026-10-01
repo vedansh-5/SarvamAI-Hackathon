@@ -8,7 +8,7 @@ import (
 var actedOn = map[string]bool{
 	"button": true, "link": true, "textfield": true, "textarea": true, "searchfield": true,
 	"checkbox": true, "radiobutton": true, "popupbutton": true, "combobox": true,
-	"menuitem": true, "menubutton": true, "row": true, "cell": true, "tab": true,
+	"menuitem": true, "menubutton": true, "menubaritem": true, "row": true, "cell": true, "tab": true,
 	"slider": true, "disclosuretriangle": true, "incrementor": true, "securetextfield": true,
 }
 
@@ -31,7 +31,7 @@ type Assessment struct {
 func Assess(t Tree) Assessment {
 	a := Assessment{App: t.App, Elements: len(t.Elements)}
 	for _, el := range t.Elements {
-		if !actedOn[role(el.Role)] {
+		if !actedOn[role(el.Role)] || InMenuBar(el) {
 			continue
 		}
 		a.Controls++
@@ -162,3 +162,18 @@ func (t Tree) ListAround(el Element) string {
 	}
 	return ""
 }
+
+func menuIsOpen(rows []Element) bool {
+	if len(rows) == 0 {
+		return false
+	}
+	distinct := map[int]bool{}
+	for _, r := range rows {
+		if len(r.Position) == 2 {
+			distinct[r.Position[1]] = true
+		}
+	}
+	return len(distinct) >= 2 || len(rows) == 1
+}
+
+func InMenuBar(el Element) bool { return len(el.Path) > 0 && el.Path[0] < 0 }

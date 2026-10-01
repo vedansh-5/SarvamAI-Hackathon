@@ -4048,3 +4048,35 @@ called "report.pdf".
 done and what is next; ⌥Space carries on and Escape stops. A long run is where a
 wrong turn costs most and where nobody is watching every step, and the stop before
 a step that cannot be taken back (D-151) only protects the last one.
+
+## D-179 — The menu bar is part of what an application can be asked to do
+
+Half of what an application does is only in its menus, and a window's tree does not
+include them. The menu bar items are now read with the window: File, Edit, View and
+the rest, each with its place on screen. When a menu is open, its rows are read
+too. A menu counts as open when its rows are laid out one under another; a closed
+menu's rows all report the same place or none, and listing three hundred rows
+nobody can see would bury the window.
+
+They are pressed through accessibility like any control (D-134), addressed from
+the menu bar and not from the window. Opening a menu and choosing from it is two
+steps, each one something the coach can point at.
+
+The menu bar is left out of the verdict on whether a window can be read (D-163).
+Every application has one, so counting it made an application that publishes
+nothing look readable, and it would never have been looked at instead (D-169).
+
+## D-180 — Safari is read the same way Chrome is, and the browser in front is the one used
+
+The page screen (D-147) was written against one interface with three calls, and
+Chrome was the only thing behind it. Safari is now a second: the same page scripts,
+run in Safari's current tab through its own scripting. It needs Safari's Allow
+JavaScript from Apple Events, and says so when it is off.
+
+Which browser a task runs in is whichever is in front, or the one named. Once a run
+has started it stays in the browser it started in, whatever comes forward after,
+including the panel.
+
+Not tried against Safari itself: it was not open, and VANS does not open
+applications to test them. The script was checked to parse and to answer "Safari is
+not running" as data.

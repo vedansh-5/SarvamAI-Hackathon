@@ -63,7 +63,7 @@ func (e *Engine) doInsteadOfShowing(ctx context.Context, in Ask, res route.Resul
 		return nil, err
 	}
 
-	if e.canDrivePages() && strings.EqualFold(app, e.pageBrowser(ctx)) {
+	if e.canDrivePages() && e.isPageBrowser(ctx, app) {
 		site, _, _ := siteIn(task)
 		return e.driveOnPage(ctx, task, shape, literals, site)
 	}

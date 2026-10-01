@@ -223,9 +223,34 @@ static int cgPidForOwner(const char *want, int *pid) {
 
 // Walks down from the application's first window by the index chain a captured
 // element carries.
+static AXUIElementRef axMenuBar(AXUIElementRef app) {
+    CFTypeRef v = NULL;
+    if (AXUIElementCopyAttributeValue(app, kAXMenuBarAttribute, &v) != kAXErrorSuccess || !v) return NULL;
+    return (AXUIElementRef)v;
+}
+
 static AXUIElementRef axAtPath(int pid, const int *path, int n) {
     AXUIElementRef app = AXUIElementCreateApplication((pid_t)pid);
     if (!app) return NULL;
+
+    if (n > 0 && path[0] < 0) {
+        AXUIElementRef el = axMenuBar(app);
+        CFRelease(app);
+        if (!el) return NULL;
+        for (int i = 1; i < n; i++) {
+            CFArrayRef kids = axCopyList(el, 0);
+            if (!kids || path[i] < 0 || path[i] >= CFArrayGetCount(kids)) {
+                if (kids) CFRelease(kids);
+                CFRelease(el);
+                return NULL;
+            }
+            AXUIElementRef next = (AXUIElementRef)CFRetain(axAt(kids, path[i]));
+            CFRelease(kids);
+            CFRelease(el);
+            el = next;
+        }
+        return el;
+    }
 
     CFArrayRef windows = axCopyList(app, 1);
     CFRelease(app);
@@ -611,6 +636,66 @@ func displayBounds() (box, bool) {
 	return box{int(x), int(y), int(x + w), int(y + h)}, true
 }
 
+const (
+	MenuBarRoot  = -1
+	mostMenuRows = 60
+)
+
+func walkMenuBar(app C.AXUIElementRef, out *[]Element) {
+	bar := C.axMenuBar(app)
+	if bar == 0 {
+		return
+	}
+	defer C.axRelease(C.CFTypeRef(bar))
+
+	tops := C.axCopyList(bar, 0)
+	if tops == 0 {
+		return
+	}
+	defer C.axRelease(C.CFTypeRef(tops))
+
+	for i := 0; i < int(C.axCount(tops)); i++ {
+		top := C.axAt(tops, C.int(i))
+		title := text(top, 1)
+		position, size := rect(top)
+		if title == "" || size == nil {
+			continue
+		}
+		*out = append(*out, Element{
+			Role: "AXMenuBarItem", Title: title, Enabled: C.axFlag(top, 0) != 0,
+			Position: position, Size: size, Path: []int{MenuBarRoot, i},
+		})
+
+		menus := C.axCopyList(top, 0)
+		if menus == 0 {
+			continue
+		}
+		if C.axCount(menus) > 0 {
+			rows := C.axCopyList(C.axAt(menus, 0), 0)
+			if rows != 0 {
+				var open []Element
+				for j := 0; j < int(C.axCount(rows)) && j < mostMenuRows; j++ {
+					row := C.axAt(rows, C.int(j))
+					name := text(row, 1)
+					p, s := rect(row)
+					if name == "" || s == nil || s[0] <= 0 || s[1] <= 0 {
+						continue
+					}
+					open = append(open, Element{
+						Role: "AXMenuItem", Title: name, Enabled: C.axFlag(row, 0) != 0,
+						Position: p, Size: s, Path: []int{MenuBarRoot, i, 0, j},
+					})
+				}
+				C.axRelease(C.CFTypeRef(rows))
+				if menuIsOpen(open) {
+					*out = append(*out, open...)
+				}
+			}
+		}
+		C.axRelease(C.CFTypeRef(menus))
+	}
+}
+
 func walkElement(el C.AXUIElementRef, path []int, depth int, out *[]Element) {
 	if len(*out) >= MaxElements || depth > MaxDepth {
 		return
@@ -677,6 +762,7 @@ func walkApp(pid int, app string) (Tree, error) {
 	elements := make([]Element, 0, 64)
 	walkElement(win, nil, 0, &elements)
 	NameByContents(elements)
+	walkMenuBar(appEl, &elements)
 	tree.Elements = elements
 
 	return tree, nil

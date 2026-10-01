@@ -46,6 +46,20 @@ func (e *Engine) onThePage() *Engine {
 	return &c
 }
 
+type browserChooser interface {
+	Handles(app string) bool
+}
+
+func (e *Engine) isPageBrowser(ctx context.Context, app string) bool {
+	if e.PageScreen == nil || strings.TrimSpace(app) == "" {
+		return false
+	}
+	if many, ok := e.PageScreen.(browserChooser); ok {
+		return many.Handles(app)
+	}
+	return strings.EqualFold(app, e.pageBrowser(ctx))
+}
+
 func (e *Engine) pageBrowser(ctx context.Context) string {
 	if e.PageScreen == nil {
 		return ""

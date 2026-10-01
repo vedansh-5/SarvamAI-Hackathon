@@ -1417,8 +1417,8 @@ No local model runtimes (§11 still holds); these come first.
   ignore scripted input.
 - B3. Choosing files, for uploads.
 - B4. Tasks across two applications.
-- B5. Safari and other browsers.
-- B6. The menu bar and system controls.
+- B5. **Safari built (D-180), not tried against Safari itself.** Safari and other browsers.
+- B6. **Menu bar built (D-179); system controls are not.** The menu bar and system controls.
 - B7. Files and Finder tasks.
 - B8. Several displays, tested.
 
