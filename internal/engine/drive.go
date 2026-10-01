@@ -114,7 +114,7 @@ func (e *Engine) driveOn(ctx context.Context, app, task, shape string, literals 
 		return nil, fmt.Errorf("engine: this build cannot work through a task on screen")
 	}
 
-	tree, err := e.UIScreen.Capture(ctx, app)
+	tree, err := e.windowToWorkFrom(ctx, app)
 	if err != nil {
 		return nil, err
 	}

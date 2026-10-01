@@ -102,12 +102,14 @@ func (e *Engine) actInApplication(ctx context.Context, r route.Route, shape stri
 					return plan, calls, nil
 				}
 				e.logf("could not act through %s's window: %v", name, uiErr)
-				var closed *uiact.NotRunningError
-				if errors.As(uiErr, &closed) {
-					if installed, err := e.Apps.FindInstalled(name); err == nil {
+				if installed, err := e.Apps.FindInstalled(name); err == nil {
+					var closed *uiact.NotRunningError
+					if errors.As(uiErr, &closed) {
 						e.logf("%s is installed but not open, and VANS does not open applications", installed.Name)
 						return nil, 0, &uiact.NotRunningError{App: installed.Name}
 					}
+					e.logf("%s is installed, so its website is not used in its place", installed.Name)
+					return nil, 0, uiErr
 				}
 				if e.canDrivePages() {
 					if plan, err := e.driveOnPage(ctx, r.Slot("action"), shape, r.Literals, name); err == nil {

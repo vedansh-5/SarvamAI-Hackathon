@@ -3698,3 +3698,17 @@ request went. So all three:
 The engine decides; the panel's copy of the two patterns only moves the switch.
 The modes it can be sent are a preference (`show`, `do`), an order that wording
 cannot override (`show!`, `do!`, used by the buttons), and `flip`.
+
+## D-161 — An installed application is never swapped for its website
+
+With WhatsApp running but behind another window, "send … on WhatsApp" offered to
+open web.whatsapp.com. macOS lists an application's windows only while it is the
+one in front, so the read found no window, the run in the application was given
+up, and the next rung was its site.
+
+Planning a run in a named application now brings it forward if it has no window to
+read, the way planning a coached run always has (D-080a). And the website rung is
+only reached for an application that is not installed. One that is installed and
+closed is reported as not open, so the person opens it; one that is installed and
+cannot be read fails with the reason, rather than quietly becoming a different
+place to do the task.
