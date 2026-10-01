@@ -1388,6 +1388,73 @@ voice moves behind the three above.
   pickers, some pay buttons); frames from another site cannot be read; only
   Chrome.
 
+### 9.15 The to-do log (written 2026-10-01)
+
+Everything agreed as still to do, in one place. Numbers are for referring to, not
+a strict order; the order being followed is at the end.
+
+**A. Fewer model calls.** More steps must not mean more calls. Calls happen when
+the screen becomes one the model has not seen, so the measure is calls per screen.
+No local model runtimes (§11 still holds); these come first.
+
+- A1. A count of calls on every task, shown, so a drop can be seen.
+- A2. Remember pieces, not only whole runs: "open the chat with a person", "search
+  on this site", kept and reused inside new tasks.
+- A3. Learn each application's map: clicking X here leads to a screen with these
+  controls. Lets the planner plan across screens it has not been shown this run.
+- A4. Small decisions made by code, never by a model: scrolling to a control,
+  closing cookie banners, waiting for a page, picking the field whose label fits.
+- A5. No "is it done" call when the screen proves it (the text asked for is in the
+  field). Keep the call where code cannot tell.
+- A6. A cheaper, faster model for the easy calls; the stronger one for planning.
+
+**B. Reaching every application.**
+
+- B1. The vision tier, chosen automatically when the probe's verdict is blind
+  (D-163). Coach only to begin with.
+- B2. Real mouse and keyboard as the fallback on pages that ignore scripted input.
+- B3. Choosing files, for uploads.
+- B4. Tasks across two applications.
+- B5. Safari and other browsers.
+- B6. The menu bar and system controls.
+- B7. Files and Finder tasks.
+- B8. Several displays, tested.
+
+**C. Voice.** C1. Voice in (hold ⌥Space and talk). C2. Voice out (steps read
+aloud).
+
+**D. Trust.**
+
+- D1. An activity log a person can read, with undo where there is one.
+- D2. Permissions per application ("never act in my bank's").
+- D3. Limits on spending and sending that cannot be crossed.
+- D4. A dry run: what would be done, without doing it.
+- D5. Recovery when a task breaks partway: say where it got to, offer to carry on
+  or back out.
+- D6. Undo for typing (half built on `put-typing-back`).
+- D7. Notes kept locally of what failed, so general faults surface from use.
+
+**E. Smarter.**
+
+- E1. Remembering the person: usual airline, home city, who "mom" is.
+- E2. What is on screen as context: "reply to this", "book the one I am looking
+  at".
+- E3. Long tasks with checkpoints.
+- E4. Saved routines ("do my Monday report").
+- E5. Scheduled tasks.
+- E6. "Yes to all" for value entry in a coached run (the offer itself is off,
+  D-166).
+
+**F. A product.**
+
+- F1. Something installable and signed, with the key in the Keychain.
+- F2. First-run setup without a terminal.
+- F3. A choice of model, and what each task cost.
+- F4. Background runs. Last on purpose: not safe before D1.
+
+**Order being followed:** A1–A3 now; then B1; then C; then F1; with D5 and E2
+pulled forward when there is a gap, because both are small and felt every day.
+
 ---
 
 ## 10. Running it
