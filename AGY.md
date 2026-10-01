@@ -1331,6 +1331,24 @@ System Settings, and whether a pause fires when nobody touched anything.
 
 Voice, the installable app and undo for typing (§9.12 #4–6) come after these.
 
+### 9.14 Multi-step tasks everywhere (proposed 2026-10-01)
+
+Asked for after the first live run of §9.13: booking on a travel site, uploading
+to YouTube, sending a WhatsApp message, coaching inside Lightroom. Spec in
+`docs/specs/2026-10-01-tasks-everywhere-design.md`. The short of it: what decides
+the work is how VANS can see an application, and there are three kinds.
+
+1. **Web pages** — multi-step is missing. Give the step loop a screen that reads
+   and acts on the page. Runs in the Chrome profile already open, which is the
+   default today; "in a new profile" in the request picks the throwaway one.
+   Stops before pay, publish, send. Asks when a choice is the person's.
+2. **Readable Mac apps** — the loop works; coverage is unknown. A probe, a sweep,
+   and WhatsApp end to end.
+3. **Unreadable apps** (Adobe, Electron) — a vision tier, coach only at first.
+
+Then voice, then background runs. This replaces the order in §9.12 from #4 on:
+voice moves behind the three above.
+
 ---
 
 ## 10. Running it
