@@ -126,3 +126,64 @@ func TestNothingIsNotedWithoutAMap(t *testing.T) {
 		t.Fatalf("runDrive: %v", err)
 	}
 }
+
+func manyChats(names ...string) uiact.Tree {
+	t := uiact.Tree{App: "Chat", Window: "Chat", Elements: []uiact.Element{
+		{Role: "AXGroup", Title: "List of chats", Enabled: true, Position: []int{0, 0}, Size: []int{300, 600}, Path: []int{0}},
+	}}
+	for i, n := range names {
+		t.Elements = append(t.Elements, uiact.Element{
+			Role: "AXButton", Title: n, Enabled: true,
+			Position: []int{10, 10 + 40*i}, Size: []int{200, 30}, Path: []int{0, i},
+		})
+	}
+	t.Elements = append(t.Elements, uiact.Element{Role: "AXButton", Title: "New Chat", Enabled: true, Position: []int{400, 10}, Size: []int{30, 30}, Path: []int{1}})
+	return t
+}
+
+func TestOneChatTeachesTheMapAboutEveryChat(t *testing.T) {
+	m := &memoryMap{}
+	e := &Engine{Map: m}
+
+	before := manyChats("Suhani", "Joe", "Mum")
+	after := manyChats("Suhani", "Joe", "Mum")
+	after.Elements = append(after.Elements,
+		uiact.Element{Role: "AXTextArea", Title: "Compose message", Enabled: true, Path: []int{2}},
+		uiact.Element{Role: "AXButton", Title: "Start voice call with Suhani", Enabled: true, Path: []int{3}},
+	)
+	e.learnFrom(context.Background(), before, after, clickSuhani())
+
+	var general *store.MapEdge
+	for i, edge := range m.edges["Chat"] {
+		if strings.HasPrefix(edge.Title, anyInPrefix) {
+			general = &m.edges["Chat"][i]
+		}
+	}
+	if general == nil {
+		t.Fatalf("edges = %+v, want one that speaks for every item in the list", m.edges["Chat"])
+	}
+	leads := strings.Join(general.Leads, " | ")
+	if !strings.Contains(leads, "Compose message") || strings.Contains(leads, "Suhani") {
+		t.Errorf("general leads = %s, want what any chat leads to and nothing naming this one", leads)
+	}
+
+	known := strings.Join(e.knownAbout(context.Background(), manyChats("Joe", "Mum", "Dad")), "\n")
+	if !strings.Contains(known, `any AXButton in "List of chats" leads to`) || !strings.Contains(known, "Compose message") {
+		t.Errorf("known = %q, want the list's rule offered on a screen where Suhani is not even listed", known)
+	}
+}
+
+func TestAControlThatStandsAloneTeachesNothingGeneral(t *testing.T) {
+	m := &memoryMap{}
+	e := &Engine{Map: m}
+	before := manyChats("Suhani", "Joe", "Mum")
+	after := manyChats("Suhani", "Joe", "Mum")
+	after.Elements = append(after.Elements, uiact.Element{Role: "AXTextField", Title: "Search name or number", Enabled: true, Path: []int{5}})
+
+	e.learnFrom(context.Background(), before, after, uiact.Step{Do: "click", Target: uiact.Selector{Role: "AXButton", Title: "New Chat"}})
+	for _, edge := range m.edges["Chat"] {
+		if strings.HasPrefix(edge.Title, anyInPrefix) {
+			t.Errorf("a lone button taught a rule for a list: %+v", edge)
+		}
+	}
+}

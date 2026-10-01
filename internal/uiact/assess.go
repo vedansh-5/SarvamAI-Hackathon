@@ -112,3 +112,53 @@ func NewControls(before, after Tree) []Element {
 	}
 	return out
 }
+
+const fewestInAList = 3
+
+func (t Tree) Lists() []string {
+	type held struct {
+		name  string
+		depth int
+	}
+	holders := make([]held, len(t.Elements))
+	counts := map[string]int{}
+	key := func(i int) string {
+		return role(t.Elements[i].Role) + "\x00" + holders[i].name + "\x00" + fmt.Sprint(holders[i].depth)
+	}
+
+	for i, el := range t.Elements {
+		holders[i] = held{depth: -1}
+		if !actedOn[role(el.Role)] {
+			continue
+		}
+		for _, a := range t.Elements {
+			if !encloses(a.Path, el.Path) || actedOn[role(a.Role)] {
+				continue
+			}
+			if label := strings.TrimSpace(a.Label()); label != "" && len(a.Path) > holders[i].depth {
+				holders[i] = held{name: label, depth: len(a.Path)}
+			}
+		}
+		if holders[i].name != "" {
+			counts[key(i)]++
+		}
+	}
+
+	out := make([]string, len(t.Elements))
+	for i := range t.Elements {
+		if holders[i].name != "" && counts[key(i)] >= fewestInAList {
+			out[i] = holders[i].name
+		}
+	}
+	return out
+}
+
+func (t Tree) ListAround(el Element) string {
+	lists := t.Lists()
+	for i, other := range t.Elements {
+		if samePath(other.Path, el.Path) && role(other.Role) == role(el.Role) {
+			return lists[i]
+		}
+	}
+	return ""
+}

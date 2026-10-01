@@ -3844,3 +3844,19 @@ screen, which is as far as this goes until screens are told apart properly.
 Every task is also written down with what it cost — steps, how many came from
 memory, model calls — so whether this works is a number to read
 (`vans-probe -tasks`) and not an impression.
+
+## D-168 — One item in a list teaches the map about every item in it
+
+D-167 kept what each control led to, per control, so opening one person's chat said
+nothing about opening another's. Most of what is worth knowing in an application is
+of exactly that kind: any row in this list opens the same sort of screen.
+
+When the control used is one of three or more of the same role under the same named
+container ("List of chats"), a second entry is kept for the list as a whole: any
+control of that role in that container leads to these. What goes in it is what
+appeared minus anything carrying the item's own name — "Start voice call with
+Suhani" belongs to her chat, "Compose message" to every chat. The planner is shown
+that rule whenever the list is on screen, including for items never opened.
+
+A control that stands alone teaches nothing general. Three is the fewest that makes
+a list; fewer is a coincidence of two buttons sharing a parent.
