@@ -187,6 +187,19 @@ type GuideStepParams struct {
 	Offer bool   `json:"offer,omitempty"`
 }
 
+type QuestionParams struct {
+	Question string   `json:"question"`
+	Options  []string `json:"options"`
+}
+
+type AnswerQuestionParams struct {
+	Answer string `json:"answer"`
+}
+
+type AnswerQuestionResult struct {
+	Heard bool `json:"heard"`
+}
+
 type AnswerGuideParams struct {
 	Yes bool `json:"yes"`
 }

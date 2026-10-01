@@ -42,6 +42,7 @@ type DrivePlan struct {
 	Web     bool
 	Browser string
 	Open    string
+	Profile string
 
 	// PlanCalls is what writing that plan cost, so the count a run reports is
 	// the whole of what the task cost and not just what happened after it
@@ -93,6 +94,9 @@ func (e *Engine) planOn(ctx context.Context, req synth.PlanRequest) (synth.PlanA
 	}
 	if answer.Done {
 		e.logf("nothing is left to do, answered in %s", took(asked))
+		return answer, 1
+	}
+	if answer.Question != nil {
 		return answer, 1
 	}
 	if len(answer.Steps) == 0 {
@@ -399,6 +403,8 @@ type taskRun struct {
 	// Diverged reports that a replayed step stopped fitting the window and the
 	// model had to take over.
 	Diverged bool
+
+	Asked int
 }
 
 // Steps is how many were carried out.
@@ -411,6 +417,28 @@ func (r taskRun) Steps() int { return len(r.Did) }
 const modelAttempts = 2
 
 const mostReplans = 2
+
+const mostQuestions = 4
+
+func (e *Engine) askThePerson(ctx context.Context, app string, q *synth.Question, asked int) (string, error) {
+	if e.Question == nil {
+		return "", stopped(app, "engine: this needs an answer from you first: %s", q.Ask)
+	}
+	if asked >= mostQuestions {
+		return "", stopped(app, "engine: stopped after %d questions without getting on with it", asked)
+	}
+	e.logf("asking: %s", q.Ask)
+	answer, err := e.Question(ctx, q.Ask, q.Options)
+	if err != nil {
+		return "", err
+	}
+	answer = strings.TrimSpace(answer)
+	if answer == "" {
+		return "", stopped(app, "engine: the question went unanswered, so it stopped: %s", q.Ask)
+	}
+	e.logf("answered: %s", answer)
+	return fmt.Sprintf("Asked the person %q \u2014 they answered %q", q.Ask, answer), nil
+}
 
 // stepThroughTask works through a task one step at a time, taking each step from
 // the trace where there is one and from the model where there is not.
@@ -436,12 +464,13 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 	replaying := len(trace) > 0
 
 	replans, replannedAt := 0, 0
+	questions := 0
 	var next uiact.Tree
 
 	state := func() taskRun {
 		return taskRun{
 			Did: did, Landed: landed,
-			Replayed: replayed, Calls: calls, Diverged: diverged,
+			Replayed: replayed, Calls: calls, Diverged: diverged, Asked: questions,
 		}
 	}
 
@@ -498,12 +527,21 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 				e.logf("the %d planned step(s) are done; asking what is left", len(trace))
 				more, n := e.planOn(ctx, synth.PlanRequest{Task: task, Tree: tree, Most: limit - i + 1, Done: done})
 				calls += n
+				if more.Question != nil {
+					told, err := e.askThePerson(ctx, app, more.Question, questions)
+					if err != nil {
+						return state(), err
+					}
+					questions++
+					done = append(done, told)
+					continue
+				}
 				switch {
 				case more.Done:
 					e.logf("finished after %d step(s): %s", len(done), more.Why)
 					return taskRun{
 						Did: did, Landed: landed, Finished: true, Why: more.Why,
-						Replayed: replayed, Calls: calls, Diverged: diverged,
+						Replayed: replayed, Calls: calls, Diverged: diverged, Asked: questions,
 					}, nil
 				case len(more.Steps) > 0:
 					trace = append(append([]uiact.Step{}, trace[:i-1]...), more.Steps...)
@@ -524,7 +562,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 				e.logf("finished after %d step(s), all of them from the steps kept last time", len(done))
 				return taskRun{
 					Did: did, Landed: landed, Finished: true,
-					Replayed: replayed, Calls: calls, Diverged: diverged,
+					Replayed: replayed, Calls: calls, Diverged: diverged, Asked: questions,
 					Why: "these are the steps that worked last time, and they have all been done",
 				}, nil
 			} else {
@@ -555,11 +593,22 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 					return state(), err
 				}
 
+				if answer.Question != nil {
+					told, err := e.askThePerson(ctx, app, answer.Question, questions)
+					if err != nil {
+						return state(), err
+					}
+					questions++
+					asks--
+					done = append(done, told)
+					continue
+				}
+
 				if answer.Done {
 					e.logf("finished after %d step(s): %s", len(done), answer.Why)
 					return taskRun{
 						Did: did, Landed: landed, Finished: true, Why: answer.Why,
-						Replayed: replayed, Calls: calls, Diverged: diverged,
+						Replayed: replayed, Calls: calls, Diverged: diverged, Asked: questions,
 					}, nil
 				}
 			}

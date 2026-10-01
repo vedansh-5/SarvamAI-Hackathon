@@ -124,6 +124,13 @@ async fn answer_guide(engine: State<'_, Engine>, yes: bool) -> Result<Value, Rpc
 }
 
 #[tauri::command]
+async fn answer_question(engine: State<'_, Engine>, answer: String) -> Result<Value, RpcError> {
+    engine
+        .call("answer_question", Some(json!({ "answer": answer })))
+        .await
+}
+
+#[tauri::command]
 async fn resume_drive(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("resume_drive", None).await
 }
@@ -357,6 +364,7 @@ pub fn run() {
             advance_guide,
             resume_drive,
             answer_guide,
+            answer_question,
             pause_pointer,
             history,
             undo,

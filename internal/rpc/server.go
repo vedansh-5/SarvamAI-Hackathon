@@ -81,6 +81,7 @@ type Server struct {
 	guideCancel  context.CancelFunc
 	guideAdvance chan struct{}
 	guideReply   chan bool
+	answers      chan string
 
 	// actCancel stops a run that is acting on screen. Kept beside guideCancel and
 	// stopped by the same request, because from where the person sits they are
@@ -177,6 +178,8 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.resumeDrive()
 	case "answer_guide":
 		result, err = s.answerGuide(req)
+	case "answer_question":
+		result, err = s.answerQuestion(req)
 	default:
 		err = &Error{Code: CodeBadRequest, Message: fmt.Sprintf("unknown method %q", req.Method)}
 	}
@@ -503,6 +506,8 @@ func (s *Server) commit(ctx context.Context, req Request) (CommitResult, error) 
 		})
 	}
 
+	eng.Question = s.asker(req.ID)
+
 	resume := make(chan struct{}, 1)
 	eng.Resume = resume
 	eng.Paused = func(g engine.GuideStep) {
@@ -795,7 +800,7 @@ func (s *Server) guide(ctx context.Context, req Request) (GuideResult, error) {
 	// no steps says nothing about why.
 	eng := *s.Engine
 	eng.Log = func(format string, args ...any) { s.notify(req.ID, format, args...) }
-	eng.Reply = reply
+	eng.Question = s.asker(req.ID)
 
 	work, err := eng.RunGuideCounted(guideCtx, plan, func(g engine.GuideStep) {
 		s.push(req.ID, "guide", GuideStepParams{
@@ -843,6 +848,55 @@ func (s *Server) advanceGuide() (AdvanceGuideResult, error) {
 		}
 	}
 	return AdvanceGuideResult{Advanced: true}, nil
+}
+
+var questionWait = 5 * time.Minute
+
+func (s *Server) asker(id int) func(context.Context, string, []string) (string, error) {
+	return func(ctx context.Context, question string, options []string) (string, error) {
+		answers := make(chan string, 1)
+		s.mu.Lock()
+		s.answers = answers
+		s.mu.Unlock()
+		defer func() {
+			s.mu.Lock()
+			if s.answers == answers {
+				s.answers = nil
+			}
+			s.mu.Unlock()
+		}()
+
+		s.push(id, "question", QuestionParams{Question: question, Options: options})
+
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case answer := <-answers:
+			return answer, nil
+		case <-time.After(questionWait):
+			return "", nil
+		}
+	}
+}
+
+func (s *Server) answerQuestion(req Request) (AnswerQuestionResult, error) {
+	var p AnswerQuestionParams
+	if err := json.Unmarshal(req.Params, &p); err != nil {
+		return AnswerQuestionResult{}, &Error{Code: CodeBadRequest, Message: err.Error()}
+	}
+
+	s.mu.Lock()
+	answers := s.answers
+	s.mu.Unlock()
+
+	if answers == nil {
+		return AnswerQuestionResult{}, nil
+	}
+	select {
+	case answers <- p.Answer:
+	default:
+	}
+	return AnswerQuestionResult{Heard: true}, nil
 }
 
 func (s *Server) answerGuide(req Request) (AnswerGuideResult, error) {

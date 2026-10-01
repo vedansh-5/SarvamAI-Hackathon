@@ -155,6 +155,11 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 }
 
 func (e *Engine) ask(ctx context.Context, in Ask) (*Plan, error) {
+	profile := ""
+	in.Instruction, profile = withoutTheProfile(in.Instruction)
+	if profile != "" {
+		e.logf("asked for %s", profilesNamed[profile])
+	}
 	if strings.TrimSpace(in.Instruction) == "" {
 		return nil, fmt.Errorf("engine: no instruction")
 	}
@@ -303,14 +308,14 @@ func (e *Engine) ask(ctx context.Context, in Ask) (*Plan, error) {
 	case route.KindPageAction:
 		if e.canDrivePages() {
 			site := strings.TrimSpace(res.Route.Slot("site"))
-			plan, err := e.driveOnPage(ctx, res.Route.Slot("action"), res.Shape, res.Route.Literals, site)
+			plan, err := e.driveOnPageIn(ctx, res.Route.Slot("action"), res.Shape, res.Route.Literals, site, profile)
 			if err == nil {
 				r := res.Route
 				plan.Route = &r
 				plan.DecisionCalls = res.DecisionCalls
 				return plan, nil
 			}
-			if site != "" {
+			if site != "" || profile != "" {
 				return nil, err
 			}
 			e.logf("could not work through the page a step at a time (%v); trying it in one go", err)

@@ -121,6 +121,10 @@ func (e *Engine) rememberTheRun(ctx context.Context, d *DrivePlan, run taskRun) 
 		e.logf("not keeping these steps: not every one of them changed the window")
 		return
 	}
+	if run.Asked > 0 {
+		e.logf("not keeping these steps: they depend on an answer that was asked for, and the next time may want a different one")
+		return
+	}
 
 	templated := uiact.Templatize(uiact.Program{App: d.App, Steps: run.Did}, d.Task, d.Literals)
 	if !templated.Keep() {

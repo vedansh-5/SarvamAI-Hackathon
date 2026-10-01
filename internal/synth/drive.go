@@ -35,7 +35,9 @@ Rules that decide whether your step is usable:
 - Do the task and nothing else. An extra click to "tidy up" is a change nobody asked for.
 - Never give a step that is already listed under what has been done. Being listed there means it happened, whatever the screen looks like now — a search field still holding the word that was typed into it is the result of that step, not a reason to type it again. Give the step that follows it.
 
-Every answer is either a step or a stop. If done is false you must give a step; an answer with neither is not an answer, and it is thrown away.
+` + askingRule + `
+
+Every answer is a step, a question or a stop. If done is false you must give a step; an answer with neither is not an answer, and it is thrown away.
 
 Set done when the task is finished, or when it cannot be carried on from what is on screen, and say why in one line. Stopping and saying why is a good answer. Clicking something plausible to appear productive is not.`
 
@@ -46,6 +48,7 @@ func driveSchema() map[string]any {
 			"done": map[string]any{"type": "boolean"},
 			"why":  map[string]any{"type": "string"},
 			"step": screenStepSchema("do", "target", "describe"),
+			"ask":  askSchema(),
 		},
 		"required":             []string{"done", "why"},
 		"additionalProperties": false,
@@ -63,6 +66,8 @@ type StepAnswer struct {
 	Step uiact.Step
 	Done bool
 	Why  string
+
+	Question *Question
 }
 
 func BuildStepPrompt(req StepRequest) string {
@@ -131,9 +136,14 @@ func (c *OpenAICompatible) WriteStep(ctx context.Context, req StepRequest) (Step
 		Step *uiact.Step `json:"step"`
 		Done bool        `json:"done"`
 		Why  string      `json:"why"`
+		Ask  *askedJSON  `json:"ask"`
 	}
 	if err := json.Unmarshal([]byte(text), &answer); err != nil {
 		return StepAnswer{}, fmt.Errorf("synth: decode step: %w (from %q)", err, truncate(text, 300))
+	}
+
+	if q := answer.Ask.question(); q != nil && answer.Step == nil && !answer.Done {
+		return StepAnswer{Question: q, Why: answer.Why}, nil
 	}
 
 	out := StepAnswer{Done: answer.Done, Why: answer.Why}

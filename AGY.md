@@ -1380,7 +1380,9 @@ voice moves behind the three above.
   Electron applications blind. Rows are now named after the text inside them.
 - Next: run the probe across the rest of the installed applications, fix what is
   "partly", and start the vision tier for what is blind.
-- Still to come in this phase: questions mid-task; "in a new profile".
+- *Questions mid-task (D-164), a separate profile or private window by saying so
+  (D-165), and a coach that gives smaller steps and does nothing itself (D-166) —
+  built, not yet tried live.*
 - Known limits of this first cut: clicks and typing are sent through the page's
   script, which some sites ignore for things that need a real gesture (file
   pickers, some pay buttons); frames from another site cannot be read; only

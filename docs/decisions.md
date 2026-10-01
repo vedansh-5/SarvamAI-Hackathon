@@ -3764,3 +3764,49 @@ First sweep (2026-10-01): WhatsApp and Notes ready; Clock partly; Chrome blind
 through accessibility as expected (pages go through D-147); the Electron
 applications open at the time — Notion, the IDE — blind, which is what the vision
 tier is for.
+
+## D-164 — A choice that is the person's is asked, not guessed
+
+"Book a flight to Goa" reaches a list of flights, and which one is not in the
+sentence. The model used to pick, because picking was the only thing it could do.
+A step may now be a question instead: a short one, with the choices as the screen
+shows them. The panel comes back with the question and the choices as buttons, and
+a field for anything else. The answer goes into what has been done so far, so the
+next step is worked out knowing it, and the question is not asked twice.
+
+Rules that keep it from becoming a way of doing nothing: a question is not a step
+and does not count as one; four questions is the most a run may ask; five minutes
+without an answer stops the run. The prompt says what a question is for — a choice
+or a detail the task does not state — and what it is not for: anything the task
+does state, and permission, which the stop before a step that cannot be taken back
+already covers (D-151).
+
+A run that asked anything is not kept. Its steps depend on the answer, and the same
+request next week may want a different flight.
+
+## D-165 — A site can be opened in a separate profile, or a private window, by saying so
+
+The default is the Chrome the person is using, signed in (D-147). "…in a new
+profile" opens the site in a profile of its own, named VANS, in the same Chrome;
+"…in incognito" or "…in a private window" opens a private window. The words are
+taken out of the request before it is routed, so they change where the task runs
+and not what it is. Either one is opened only after confirming, like any site
+(D-148), and always opened fresh, even when the site is already in front in the
+usual profile — that is the point of asking.
+
+A profile of its own rather than a throwaway one each time: someone who wants to
+keep a second account signed in can sign in to it once. Only for a run VANS does;
+in a coached run the person opens things, so the words are ignored there.
+
+## D-166 — The coach gives smaller steps, more of them, and does nothing itself
+
+Asked for after using it: more steps, and less done on the person's behalf. The
+coach's instructions now say one action a step — one click, one thing to type, one
+key — never two folded together, and not to leave out a step for seeming obvious.
+The most steps a coached run may take in an application goes from 12 to 24, the
+same as on a page.
+
+The offer to enter a value for the person (D-159) is switched off. It put "do it
+for me" on every typing step of a run whose purpose is doing it yourself. The
+mechanism and its tests stay, behind the reply channel that the server no longer
+connects, so turning it back on is one line.

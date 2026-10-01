@@ -16,6 +16,26 @@ type PageOpener interface {
 	Open(ctx context.Context, pageURL string) error
 }
 
+type ProfileOpener interface {
+	OpenIn(ctx context.Context, pageURL, profile string) error
+}
+
+var (
+	inANewProfile = regexp.MustCompile(`(?i)[\s,]*\b(in|using|with|on)\s+(a\s+|an\s+|the\s+)?(new|fresh|clean|separate|different|vans)\s+(chrome\s+)?(profile|browser)\b`)
+	inAPrivateOne = regexp.MustCompile(`(?i)[\s,]*\b(in|using|with)\s+(a\s+|an\s+)?(incognito|private)(\s+(window|mode|tab|browser))?\b`)
+	profilesNamed = map[string]string{"new": "a separate Chrome profile", "private": "a private window"}
+)
+
+func withoutTheProfile(instruction string) (string, string) {
+	if inAPrivateOne.MatchString(instruction) {
+		return strings.Trim(inAPrivateOne.ReplaceAllString(instruction, ""), " ,.;"), "private"
+	}
+	if inANewProfile.MatchString(instruction) {
+		return strings.Trim(inANewProfile.ReplaceAllString(instruction, ""), " ,.;"), "new"
+	}
+	return instruction, ""
+}
+
 func (e *Engine) canDrivePages() bool {
 	return e.Steps != nil && e.PageScreen != nil
 }
@@ -102,6 +122,10 @@ func siteIn(text string) (name, address string, ok bool) {
 }
 
 func (e *Engine) driveOnPage(ctx context.Context, task, shape string, literals map[string]string, site string) (*Plan, error) {
+	return e.driveOnPageIn(ctx, task, shape, literals, site, "")
+}
+
+func (e *Engine) driveOnPageIn(ctx context.Context, task, shape string, literals map[string]string, site, profile string) (*Plan, error) {
 	if !e.canDrivePages() {
 		return nil, fmt.Errorf("engine: this build cannot work through a task on a page")
 	}
@@ -111,6 +135,32 @@ func (e *Engine) driveOnPage(ctx context.Context, task, shape string, literals m
 	tree, err := e.PageScreen.Capture(ctx, browser)
 	if err != nil {
 		return nil, err
+	}
+
+	if profile != "" {
+		if _, ok := e.PageScreen.(ProfileOpener); !ok {
+			return nil, fmt.Errorf("engine: this build cannot open another browser profile")
+		}
+		target, known := siteAddress(site)
+		if !known {
+			if site != "" {
+				return nil, fmt.Errorf("engine: the address of %s is not known; say it as an address, like example.com", site)
+			}
+			target = "https://" + tree.App
+		}
+		return &Plan{
+			Task:        Task{Intent: task, Title: hostOf(target)},
+			Destination: browser,
+			PageURL:     target,
+			Drive: &DrivePlan{
+				App: hostOf(target), Task: task, Shape: shape, Literals: literals,
+				Web: true, Browser: browser, Open: target, Profile: profile,
+				Preview: fmt.Sprintf(
+					"Open %s in %s, then work through this on the page, one step at a time:\n\n  %s\n\n"+
+						"Up to %d steps. Nothing there is signed in unless you have signed in to that profile yourself.",
+					hostOf(target), profilesNamed[profile], task, MaxWebSteps),
+			},
+		}, nil
 	}
 
 	if site != "" && !pageBelongsTo("https://"+tree.App, site) {
@@ -152,7 +202,15 @@ func (e *Engine) openThePage(ctx context.Context, d *DrivePlan) error {
 		return fmt.Errorf("engine: this build cannot open %s", d.App)
 	}
 	e.logf("opening %s", d.Open)
-	if err := opener.Open(ctx, d.Open); err != nil {
+	if d.Profile != "" {
+		in, ok := e.UIScreen.(ProfileOpener)
+		if !ok {
+			return fmt.Errorf("engine: this build cannot open another browser profile")
+		}
+		if err := in.OpenIn(ctx, d.Open, d.Profile); err != nil {
+			return err
+		}
+	} else if err := opener.Open(ctx, d.Open); err != nil {
 		return err
 	}
 

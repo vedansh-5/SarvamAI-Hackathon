@@ -119,7 +119,7 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 // coaching sends you to the control it is pointing at — and a panel that closes
 // on that click takes Next and Stop with it, leaving the coach running with
 // nothing to drive it.
-const PINNED = new Set(["preflight", "guiding"]);
+const PINNED = new Set(["preflight", "guiding", "question"]);
 
 // The application the current coached run is in. Sent with every step so the
 // coach knows whose window it is drawing over.
@@ -579,6 +579,55 @@ listen<{
 listen("coach://acted", () => {
   if ($("guiding").hidden) return;
   invoke("advance_guide").catch(console.error);
+});
+
+let cameFrom = "ask";
+
+async function answerQuestion(answer: string) {
+  const said = answer.trim();
+  if (!said) return;
+  ($("question-other") as HTMLInputElement).value = "";
+  await invoke("answer_question", { answer: said }).catch(console.error);
+  show(cameFrom);
+  if (actingIn !== null || cameFrom === "guiding") {
+    invoke("dismiss").catch(console.error);
+  }
+}
+
+listen<{ params: { question: string; options?: string[] } }>("engine://question", (event) => {
+  const q = event.payload.params;
+  const visible = Array.from(document.querySelectorAll("section")).find(
+    (s) => !(s as HTMLElement).hidden,
+  );
+  cameFrom = visible && visible.id !== "question" ? visible.id : "ask";
+
+  $("question-text").textContent = q.question;
+  const box = $("question-options");
+  box.replaceChildren();
+  for (const option of q.options ?? []) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "suggestion";
+    button.textContent = option;
+    button.addEventListener("click", () => void answerQuestion(option));
+    box.append(button);
+  }
+
+  show("question");
+  invoke("summon").catch(console.error);
+  window.setTimeout(() => ($("question-other") as HTMLInputElement).focus(), 60);
+});
+
+$("question-send").addEventListener("click", () => {
+  void answerQuestion(($("question-other") as HTMLInputElement).value);
+});
+$("question-other").addEventListener("keydown", (e) => {
+  if ((e as KeyboardEvent).key === "Enter") {
+    void answerQuestion(($("question-other") as HTMLInputElement).value);
+  }
+});
+$("question-stop").addEventListener("click", async () => {
+  await invoke("stop_guide").catch(console.error);
 });
 
 listen("coach://yes", () => {
@@ -1627,6 +1676,10 @@ listen<ScreenContext | undefined>("overlay://shown", (event) => {
 
 window.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
+  if (!$("question").hidden) {
+    invoke("stop_guide").catch(console.error);
+    return;
+  }
   if (!$("guiding").hidden) {
     invoke("compact_panel", { compact: false }).catch(console.error);
     invoke("stop_guide").catch(console.error);

@@ -42,6 +42,45 @@ func screenStepSchema(required ...string) map[string]any {
 	}
 }
 
+type Question struct {
+	Ask     string
+	Options []string
+}
+
+const MostOptions = 8
+
+func askSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"question": map[string]any{"type": "string"},
+			"options":  map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+		},
+		"required":             []string{"question", "options"},
+		"additionalProperties": false,
+	}
+}
+
+type askedJSON struct {
+	Question string   `json:"question"`
+	Options  []string `json:"options"`
+}
+
+func (a *askedJSON) question() *Question {
+	if a == nil || strings.TrimSpace(a.Question) == "" {
+		return nil
+	}
+	q := &Question{Ask: strings.TrimSpace(a.Question)}
+	for _, o := range a.Options {
+		if o = strings.TrimSpace(o); o != "" && len(q.Options) < MostOptions {
+			q.Options = append(q.Options, o)
+		}
+	}
+	return q
+}
+
+const askingRule = `If what to do next depends on a choice only the person can make, do not guess. Give no step, and set ask: a short question, and as options the choices exactly as the screen shows them (at most 8). This is for things like which of several flights, which of two contacts with the same name, which file, or a detail the task needs and does not say. Do not ask about anything the task already states, and do not ask for permission; a step that cannot be taken back is already confirmed separately. If an answer is listed under what has been done, use it and do not ask again.`
+
 // What the prompts say a press can be. Written from the vocabulary the runtime
 // actually accepts, so the two cannot drift apart into a step that reads as
 // allowed and is refused.

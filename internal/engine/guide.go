@@ -12,7 +12,7 @@ import (
 	"github.com/vedansh/vans/internal/uiact"
 )
 
-const MaxGuideSteps = 12
+const MaxGuideSteps = 24
 
 // Long enough to find a control and read a line about it, short enough that a
 // person who walked away is not left with a dimmed screen. Polling is how we
@@ -557,7 +557,10 @@ func asTask(question string) string {
 		"The person is looking at this window and asked: %q\n\n"+
 			"Work out which control on screen answers that, or the next step in completing it, and give it as the step to take. "+
 			"Describe it as you would to someone who cannot find it. "+
-			"They are performing the actions themselves. "+
+			"They are performing every action themselves, and are learning as they go. "+
+			"Give one small action per step: one click, one thing to type, or one key to press. Never fold two into one step, "+
+			"and do not leave out a step because it seems obvious, such as clicking a field before typing in it or opening a menu before choosing from it. "+
+			"Say what the step is for in a few words when it is not plain from the control's name. "+
 			"Pointing at a control is the only way you can answer: describing where something is in words reaches nobody. "+
 			"Never mark done on the first turn — the control has not been pointed at yet. "+
 			"If they asked where something is, point at it, and mark done on the next turn, once it appears in what has been done so far. "+

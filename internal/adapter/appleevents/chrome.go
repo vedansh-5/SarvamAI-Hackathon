@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -521,4 +522,32 @@ func (c *Chrome) ReadFront(ctx context.Context, script string, out any) (bool, e
 		return false, fmt.Errorf("appleevents: the page in front cannot be read or driven (it answered %q)", truncate(got.Value, 80))
 	}
 	return true, nil
+}
+
+const VANSProfile = "VANS"
+
+func (c *Chrome) OpenPrivate(ctx context.Context, pageURL string) error {
+	target, err := jsLiteral(normaliseURL(pageURL))
+	if err != nil {
+		return err
+	}
+	return c.run(ctx, fmt.Sprintf(`reply(function () {
+  const app = chrome();
+  app.Window({ mode: 'incognito' }).make();
+  app.windows[0].activeTab.url = %s;
+  return true;
+});`, target), nil)
+}
+
+func (c *Chrome) OpenInOwnProfile(ctx context.Context, pageURL string) error {
+	var running bool
+	if err := c.run(ctx, `reply(function () { chrome(); return true; });`, &running); err != nil {
+		return err
+	}
+	out, err := exec.CommandContext(ctx, "open", "-na", "Google Chrome", "--args",
+		"--profile-directory="+VANSProfile, normaliseURL(pageURL)).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("appleevents: could not open a window in the %s profile: %v (%s)", VANSProfile, err, strings.TrimSpace(string(out)))
+	}
+	return nil
 }

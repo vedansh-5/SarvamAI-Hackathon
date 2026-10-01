@@ -223,3 +223,56 @@ func TestWithoutAPageScreenABrowserStillCannotBeCoached(t *testing.T) {
 		t.Fatal("coached a browser with no way to read its page")
 	}
 }
+
+type profilePage struct {
+	pageFake
+	openedIn []string
+}
+
+func (p *profilePage) OpenIn(_ context.Context, u, profile string) error {
+	p.openedIn = append(p.openedIn, profile+" "+u)
+	p.host = "makemytrip.com"
+	return nil
+}
+
+func TestTheProfileIsTakenOutOfTheSentence(t *testing.T) {
+	for _, c := range []struct{ in, rest, profile string }{
+		{"book a flight on makemytrip in a new profile", "book a flight on makemytrip", "new"},
+		{"search for shoes on amazon using a separate chrome profile", "search for shoes on amazon", "new"},
+		{"In a clean browser, look up flights on makemytrip", "look up flights on makemytrip", "new"},
+		{"look up flights on makemytrip in incognito", "look up flights on makemytrip", "private"},
+		{"open youtube in a private window and search for lofi", "open youtube and search for lofi", "private"},
+		{"book a flight on makemytrip", "book a flight on makemytrip", ""},
+		{"change my profile picture on github", "change my profile picture on github", ""},
+		{"edit my new profile on linkedin", "edit my new profile on linkedin", ""},
+	} {
+		rest, profile := withoutTheProfile(c.in)
+		if profile != c.profile || (c.profile != "" && rest != c.rest) {
+			t.Errorf("%q -> %q, %q; want %q, %q", c.in, rest, profile, c.rest, c.profile)
+		}
+	}
+}
+
+func TestATaskInANewProfileOpensThereAndOnlyAfterConfirming(t *testing.T) {
+	page := &profilePage{pageFake: pageFake{host: "makemytrip.com"}}
+	planner := &fakePlanner{steps: []uiact.Step{typeIntoMessage()}}
+	e := &Engine{UIScreen: untouchable{t}, PageScreen: page, Plans: planner, Steps: &countingSteps{}}
+
+	plan, err := e.driveOnPageIn(context.Background(), "say hello", "say hello", nil, "makemytrip", "new")
+	if err != nil {
+		t.Fatalf("driveOnPageIn: %v", err)
+	}
+	if plan.Drive.Profile != "new" || plan.Drive.Open == "" || !strings.Contains(plan.Drive.Preview, "separate Chrome profile") {
+		t.Fatalf("plan = %+v, want it to say it opens in a separate profile, even with the site already in front", plan.Drive)
+	}
+	if len(page.openedIn) != 0 {
+		t.Errorf("opened %v before anyone confirmed", page.openedIn)
+	}
+
+	if _, err := e.runDrive(context.Background(), plan); err != nil {
+		t.Fatalf("runDrive: %v", err)
+	}
+	if len(page.openedIn) != 1 || page.openedIn[0] != "new https://www.makemytrip.com" || len(page.opened) != 0 {
+		t.Errorf("opened in %v and plainly %v; want one window, in the new profile", page.openedIn, page.opened)
+	}
+}

@@ -172,6 +172,8 @@ type Engine struct {
 
 	Reply <-chan bool
 
+	Question func(ctx context.Context, question string, options []string) (string, error)
+
 	// Recorded reads those back, to put one of them back.
 	Recorded DeedStore
 

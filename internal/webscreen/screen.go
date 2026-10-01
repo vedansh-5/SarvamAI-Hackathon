@@ -24,6 +24,44 @@ type Page interface {
 	OpenInFront(ctx context.Context, pageURL string) error
 }
 
+type ProfilePage interface {
+	OpenPrivate(ctx context.Context, pageURL string) error
+	OpenInOwnProfile(ctx context.Context, pageURL string) error
+}
+
+const (
+	ProfileNew     = "new"
+	ProfilePrivate = "private"
+)
+
+var ProfileWait = 1200 * time.Millisecond
+
+func (s *Screen) OpenIn(ctx context.Context, pageURL, profile string) error {
+	if profile == "" {
+		return s.Open(ctx, pageURL)
+	}
+	p, ok := s.Page.(ProfilePage)
+	if !ok {
+		return fmt.Errorf("webscreen: this browser cannot open another profile")
+	}
+	var err error
+	if profile == ProfilePrivate {
+		err = p.OpenPrivate(ctx, pageURL)
+	} else {
+		err = p.OpenInOwnProfile(ctx, pageURL)
+	}
+	if err != nil {
+		return err
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(ProfileWait):
+	}
+	_, err = s.read(ctx)
+	return err
+}
+
 type Screen struct {
 	Page    Page
 	Browser string
