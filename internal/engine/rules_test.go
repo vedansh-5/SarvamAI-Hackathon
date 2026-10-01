@@ -118,3 +118,49 @@ func TestCarryingOnIsAllowedThroughTheSameGateThatRefusesASecondCommit(t *testin
 		t.Fatal("a finished plan was run a third time")
 	}
 }
+
+func TestInAPlaceMarkedAskFirstEveryStepWaits(t *testing.T) {
+	quickLook(t, 0)
+	var paused []GuideStep
+	resume := make(chan struct{}, 1)
+	e := &Engine{
+		UIScreen: &movingScreen{},
+		Rulebook: rulebook{AskFirst: []string{"editor"}},
+		Steps: &scriptedSteps{answers: []synth.StepAnswer{
+			{Step: clickMessage()}, {Step: clickMessage()}, {Done: true},
+		}},
+	}
+	e.ShowStep = func(GuideStep) {}
+	e.Resume = resume
+	e.Paused = func(g GuideStep) {
+		paused = append(paused, g)
+		go func() { resume <- struct{}{} }()
+	}
+
+	if _, err := e.runDrive(context.Background(), drivePlan()); err != nil {
+		t.Fatalf("runDrive: %v", err)
+	}
+	if len(paused) != 2 || !strings.Contains(paused[0].Ask, "ask before every step") {
+		t.Fatalf("asked %d time(s): %+v; want before each of the two steps", len(paused), paused)
+	}
+}
+
+func TestElsewhereOrdinaryStepsDoNotWait(t *testing.T) {
+	quickLook(t, 0)
+	var paused []GuideStep
+	e := &Engine{
+		UIScreen: &movingScreen{},
+		Rulebook: rulebook{AskFirst: []string{"Mail"}},
+		Steps:    &scriptedSteps{answers: []synth.StepAnswer{{Step: clickMessage()}, {Done: true}}},
+	}
+	e.ShowStep = func(GuideStep) {}
+	e.Resume = make(chan struct{}, 1)
+	e.Paused = func(g GuideStep) { paused = append(paused, g) }
+
+	if _, err := e.runDrive(context.Background(), drivePlan()); err != nil {
+		t.Fatalf("runDrive: %v", err)
+	}
+	if len(paused) != 0 {
+		t.Errorf("asked %d time(s) in an application the rule does not name", len(paused))
+	}
+}

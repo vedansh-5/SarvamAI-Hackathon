@@ -1951,12 +1951,21 @@ $("dark").addEventListener("change", (e) => {
 interface Rules {
   never: string[];
   spend_limit: number;
+  ask_first?: string[];
+}
+
+function namesIn(id: string): string[] {
+  return ($(id) as HTMLInputElement).value
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s !== "");
 }
 
 async function loadRules() {
   try {
     const r = await invoke<Rules>("rules");
     ($("rules-never") as HTMLInputElement).value = (r?.never ?? []).join(", ");
+    ($("rules-ask") as HTMLInputElement).value = (r?.ask_first ?? []).join(", ");
     ($("rules-limit") as HTMLInputElement).value = r?.spend_limit ? String(r.spend_limit) : "";
   } catch (e) {
     console.error(e);
@@ -1964,13 +1973,11 @@ async function loadRules() {
 }
 
 $("rules-save").addEventListener("click", async () => {
-  const never = ($("rules-never") as HTMLInputElement).value
-    .split(",")
-    .map((s) => s.trim())
-    .filter((s) => s !== "");
+  const never = namesIn("rules-never");
+  const askFirst = namesIn("rules-ask");
   const limit = Number(($("rules-limit") as HTMLInputElement).value.replace(/[^0-9.]/g, "")) || 0;
   try {
-    await invoke<Rules>("set_rules", { never, spendLimit: limit });
+    await invoke<Rules>("set_rules", { never, spendLimit: limit, askFirst });
     $("rules-saved").textContent = "Saved";
     window.setTimeout(() => ($("rules-saved").textContent = ""), 1800);
   } catch (e) {

@@ -292,3 +292,21 @@ func TestFromEnvRequiresKey(t *testing.T) {
 		t.Error("want an error when the API key is unset")
 	}
 }
+
+func TestEasyCallsUseTheFastModelAndFallBackToTheMainOne(t *testing.T) {
+	c := &OpenAICompatible{Model: "main", Fast: "quick", Fallback: "spare"}
+	if c.easy() != "quick" {
+		t.Errorf("easy = %q", c.easy())
+	}
+	got := c.ladder(c.easy())
+	if len(got) != 3 || got[0] != "quick" || got[1] != "main" || got[2] != "spare" {
+		t.Errorf("ladder = %v, want the fast one, then the main one, then the spare", got)
+	}
+	if got := c.ladder("main"); len(got) != 2 || got[1] != "spare" {
+		t.Errorf("ladder for a planning call = %v; it must not drop to the fast model", got)
+	}
+	plain := &OpenAICompatible{Model: "main"}
+	if plain.easy() != "main" || len(plain.ladder("main")) != 1 {
+		t.Errorf("with no fast model set, easy = %q and ladder = %v", plain.easy(), plain.ladder("main"))
+	}
+}

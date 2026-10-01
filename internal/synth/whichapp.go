@@ -89,7 +89,7 @@ func (c *OpenAICompatible) WhichApp(ctx context.Context, req AppChoiceRequest) (
 	}
 
 	raw, err := c.post(ctx, chatRequest{
-		Model:     c.Model,
+		Model:     c.easy(),
 		MaxTokens: maxTokens,
 		Messages: []chatMessage{
 			{Role: "system", Content: system},

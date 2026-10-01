@@ -216,6 +216,9 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 			return tree, err
 		}
 		ask := e.askFirst(tree, program.Steps[0])
+		if ask == "" && e.Paused != nil && e.Resume != nil {
+			ask = e.asksFirstIn(ctx, d)
+		}
 		if ask == "" && e.Paused != nil && e.Resume != nil && checkpointEvery > 0 && number > 1 && (number-1)%checkpointEvery == 0 {
 			ask = fmt.Sprintf("%s%d steps done so far", checkpointPrefix, number-1)
 		}

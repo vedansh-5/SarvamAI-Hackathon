@@ -1407,7 +1407,7 @@ No local model runtimes (§11 still holds); these come first.
   closing cookie banners, waiting for a page, picking the field whose label fits.
 - A5. No "is it done" call when the screen proves it (the text asked for is in the
   field). Keep the call where code cannot tell.
-- A6. A cheaper, faster model for the easy calls; the stronger one for planning.
+- A6. **Built (D-181), off until `VANS_LLM_FAST_MODEL` is set.** A cheaper, faster model for the easy calls; the stronger one for planning.
 
 **B. Reaching every application.**
 
@@ -1429,7 +1429,7 @@ aloud).
 
 - D1. **Built.** An activity log a person can read, with undo where there is one. Multi-step runs now record the steps taken (D-175).
 - D2. **Built (D-175).** Permissions per application ("never act in my bank's").
-- D3. **Spending built (D-175); sending is not.** Limits on spending and sending that cannot be crossed.
+- D3. **Spending built (D-175); ask-before-every-step per application built (D-181).** Limits on spending and sending that cannot be crossed.
 - D4. **Built (D-176).** A dry run: what would be done, without doing it.
 - D5. **Built (D-171).** Recovery when a task breaks partway: say where it got to, offer to carry on
   or back out.
@@ -1477,6 +1477,8 @@ export VANS_LLM_MODEL=gemini-flash-lite-latest
 # Optional: a second model for when the first cannot answer, and how long one
 # request gets before VANS stops waiting for it (45s by default)
 export VANS_LLM_FALLBACK_MODEL=models/gemini-3.1-flash-lite
+# Optional: a quicker model for the two easy calls (what kind of request, which app)
+export VANS_LLM_FAST_MODEL=...
 export VANS_LLM_TIMEOUT=45s
 
 # 4. Run it

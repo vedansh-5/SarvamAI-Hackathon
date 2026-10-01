@@ -305,6 +305,7 @@ type NotAllowedData struct {
 type RulesData struct {
 	Never      []string `json:"never"`
 	SpendLimit float64  `json:"spend_limit"`
+	AskFirst   []string `json:"ask_first"`
 }
 
 const CodeBrokeOff = "broke_off"

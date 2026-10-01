@@ -61,6 +61,8 @@ type OpenAICompatible struct {
 	// would be worse than none.
 	Fallback string
 
+	Fast string
+
 	// AnswerWait bounds a single request. Defaults to DefaultAnswerWait.
 	AnswerWait time.Duration
 
@@ -319,11 +321,31 @@ func (c *OpenAICompatible) post(ctx context.Context, body chatRequest) (string, 
 }
 
 func (c *OpenAICompatible) ladder(first string) []string {
-	next := strings.TrimSpace(c.Fallback)
-	if next == "" || next == first {
-		return []string{first}
+	rungs := []string{first}
+	add := func(model string) {
+		model = strings.TrimSpace(model)
+		if model == "" {
+			return
+		}
+		for _, have := range rungs {
+			if have == model {
+				return
+			}
+		}
+		rungs = append(rungs, model)
 	}
-	return []string{first, next}
+	if first != c.Model && first == strings.TrimSpace(c.Fast) {
+		add(c.Model)
+	}
+	add(c.Fallback)
+	return rungs
+}
+
+func (c *OpenAICompatible) easy() string {
+	if fast := strings.TrimSpace(c.Fast); fast != "" {
+		return fast
+	}
+	return c.Model
 }
 
 // Worth a second model when the first could not answer: it went silent, it is

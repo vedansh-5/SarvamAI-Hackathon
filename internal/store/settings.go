@@ -37,6 +37,7 @@ ON CONFLICT (key) DO UPDATE SET value = excluded.value`, key, value)
 type Rules struct {
 	Never      []string `json:"never"`
 	SpendLimit float64  `json:"spend_limit"`
+	AskFirst   []string `json:"ask_first"`
 }
 
 const rulesKey = "rules"
@@ -54,17 +55,8 @@ func (s *Store) Rules(ctx context.Context) (Rules, error) {
 }
 
 func (s *Store) SetRules(ctx context.Context, r Rules) error {
-	var kept []string
-	seen := map[string]bool{}
-	for _, name := range r.Never {
-		name = strings.TrimSpace(name)
-		if name == "" || seen[strings.ToLower(name)] {
-			continue
-		}
-		seen[strings.ToLower(name)] = true
-		kept = append(kept, name)
-	}
-	r.Never = kept
+	r.Never = tidyNames(r.Never)
+	r.AskFirst = tidyNames(r.AskFirst)
 	if r.SpendLimit < 0 {
 		r.SpendLimit = 0
 	}
@@ -73,4 +65,18 @@ func (s *Store) SetRules(ctx context.Context, r Rules) error {
 		return fmt.Errorf("store: encode rules: %w", err)
 	}
 	return s.SetSetting(ctx, rulesKey, string(raw))
+}
+
+func tidyNames(in []string) []string {
+	var kept []string
+	seen := map[string]bool{}
+	for _, name := range in {
+		name = strings.TrimSpace(name)
+		if name == "" || seen[strings.ToLower(name)] {
+			continue
+		}
+		seen[strings.ToLower(name)] = true
+		kept = append(kept, name)
+	}
+	return kept
 }

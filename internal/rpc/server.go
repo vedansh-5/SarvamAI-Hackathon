@@ -884,7 +884,7 @@ type RuleStore interface {
 
 func (s *Server) rules(ctx context.Context) (RulesData, error) {
 	if s.Rules == nil {
-		return RulesData{Never: []string{}}, nil
+		return RulesData{Never: []string{}, AskFirst: []string{}}, nil
 	}
 	r, err := s.Rules.Rules(ctx)
 	if err != nil {
@@ -893,7 +893,10 @@ func (s *Server) rules(ctx context.Context) (RulesData, error) {
 	if r.Never == nil {
 		r.Never = []string{}
 	}
-	return RulesData{Never: r.Never, SpendLimit: r.SpendLimit}, nil
+	if r.AskFirst == nil {
+		r.AskFirst = []string{}
+	}
+	return RulesData{Never: r.Never, SpendLimit: r.SpendLimit, AskFirst: r.AskFirst}, nil
 }
 
 func (s *Server) setRules(ctx context.Context, req Request) (RulesData, error) {
@@ -904,7 +907,7 @@ func (s *Server) setRules(ctx context.Context, req Request) (RulesData, error) {
 	if s.Rules == nil {
 		return RulesData{}, &Error{Code: CodeBadRequest, Message: "this build keeps no rules"}
 	}
-	if err := s.Rules.SetRules(ctx, store.Rules{Never: p.Never, SpendLimit: p.SpendLimit}); err != nil {
+	if err := s.Rules.SetRules(ctx, store.Rules{Never: p.Never, SpendLimit: p.SpendLimit, AskFirst: p.AskFirst}); err != nil {
 		return RulesData{}, err
 	}
 	return s.rules(ctx)

@@ -140,11 +140,12 @@ async fn set_rules(
     engine: State<'_, Engine>,
     never: Vec<String>,
     spend_limit: f64,
+    ask_first: Vec<String>,
 ) -> Result<Value, RpcError> {
     engine
         .call(
             "set_rules",
-            Some(json!({ "never": never, "spend_limit": spend_limit })),
+            Some(json!({ "never": never, "spend_limit": spend_limit, "ask_first": ask_first })),
         )
         .await
 }

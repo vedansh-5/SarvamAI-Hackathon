@@ -543,7 +543,7 @@ function showPaused(why: { ask?: string; label?: string } | null) {
   }
   if (why?.ask) {
     elementById<HTMLElement>("caption").classList.add("asking");
-    setCaption(`About to: ${why.label || "do this"}`, "⌥Space to go ahead · Esc to stop");
+    setCaption(`About to: ${why.label || "do this"}`, "\u2325Space to go ahead \u00B7 Esc to stop");
     return;
   }
   setCaption("Paused", "⌥Space to carry on · Esc to stop");

@@ -4080,3 +4080,18 @@ including the panel.
 Not tried against Safari itself: it was not open, and VANS does not open
 applications to test them. The script was checked to parse and to answer "Safari is
 not running" as data.
+
+## D-181 — Some places ask before every step, and easy calls may use a faster model
+
+**Ask first.** Between "never act here" (D-175) and acting freely there is a third
+thing people want for mail and messages: go ahead, but ask each time. A third list
+under Setup names applications and sites where a run VANS is doing waits for ⌥Space
+before every step, with the step said, using the same pause as a step that cannot
+be taken back (D-151). Matched the way the never list is.
+
+**A faster model for the easy calls.** Deciding what kind of request something is,
+and which application it belongs in, are small questions with short answers.
+`VANS_LLM_FAST_MODEL` names a model for those two. Planning and reading a screen
+stay on the main model, where being right matters more than being quick. If the
+fast model cannot answer, the main one is tried, then the fallback; a planning call
+never drops to the fast one. Unset, nothing changes.

@@ -116,7 +116,7 @@ func (c *OpenAICompatible) Decide(ctx context.Context, req route.Request) (route
 	}
 
 	body := chatRequest{
-		Model:     c.Model,
+		Model:     c.easy(),
 		MaxTokens: maxTokens,
 		Messages: []chatMessage{
 			{Role: "system", Content: system},

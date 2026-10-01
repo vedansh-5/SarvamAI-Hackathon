@@ -19,6 +19,8 @@ const (
 	// answer. Unset means there is nothing to fall back to.
 	EnvFallbackModel = "VANS_LLM_FALLBACK_MODEL"
 
+	EnvFastModel = "VANS_LLM_FAST_MODEL"
+
 	// EnvTimeout is how long one request has to answer, as a Go duration.
 	// Defaults to DefaultAnswerWait.
 	EnvTimeout = "VANS_LLM_TIMEOUT"
@@ -121,6 +123,7 @@ func FromEnv() (Synthesizer, error) {
 			APIKey:     key,
 			Model:      model,
 			Fallback:   strings.TrimSpace(os.Getenv(EnvFallbackModel)),
+			Fast:       strings.TrimSpace(os.Getenv(EnvFastModel)),
 			AnswerWait: wait,
 			SchemaMode: mode,
 		}, nil

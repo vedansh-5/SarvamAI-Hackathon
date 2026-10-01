@@ -69,6 +69,18 @@ func sameSite(place, never string) bool {
 	return false
 }
 
+func (e *Engine) asksFirstIn(ctx context.Context, d *DrivePlan) string {
+	r := e.rules(ctx)
+	if len(r.AskFirst) == 0 {
+		return ""
+	}
+	where, yes := forbidden(store.Rules{Never: r.AskFirst}, d.App, d.Browser)
+	if !yes {
+		return ""
+	}
+	return "your rules say to ask before every step in " + where
+}
+
 func placesOf(plan *Plan) []string {
 	switch {
 	case plan.Drive != nil:
