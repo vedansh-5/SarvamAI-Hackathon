@@ -3569,3 +3569,24 @@ not a guess (the rule Repair has always had).
 Found only because the log line printed the mark. The lesson for the next one: an
 "is not running" about something visibly running is a naming bug until shown
 otherwise.
+
+## D-155 — A task in a window is worked through, not written in one go
+
+"Send this message to Suhani on WhatsApp" opened her chat and stopped, reporting
+one step run. It had taken the older rung: a whole program written from a single
+look at the window. From the chat list the only control that exists is the chat, so
+the program was one click, and a program that ran is a task that is finished.
+
+The step loop was already there and was only reached when the one-go program
+failed to be written. A program that is too short does not fail. It succeeds at
+less than was asked, which is worse.
+
+So the order is reversed for an application with no scripting dictionary: the task
+is worked through a step at a time first, and the one-go program is the fallback
+for a build with no step writer. The loop reads the window after every step, so it
+sees the message box that only exists once the chat is open, and it is the only
+path with the stop before sending (D-151).
+
+A one-step task now costs a plan and a check where it cost a single call. It is
+kept after the first run and costs nothing after that, and the alternative was
+being wrong quickly.

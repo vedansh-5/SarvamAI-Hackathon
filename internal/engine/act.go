@@ -83,19 +83,25 @@ func (e *Engine) actInApplication(ctx context.Context, r route.Route, shape stri
 				e.logf("%s has no scripting dictionary; acting on the page instead", name)
 				return plan, calls, nil
 			}
+			if e.canDrive() {
+				window := name
+				if installed, err := e.Apps.FindInstalled(name); err == nil {
+					window = installed.Name
+				}
+				plan, driveErr := e.driveOn(ctx, window, r.Slot("action"), shape, r.Literals)
+				if driveErr == nil {
+					e.logf("working through it in %s's window, a step at a time", name)
+					return plan, plan.SynthesisCalls, nil
+				}
+				e.logf("could not work through %s's window a step at a time: %v", name, driveErr)
+			}
 			if e.canActOnUI() {
 				plan, calls, uiErr := e.actOnUI(ctx, r, shape, name)
 				if uiErr == nil {
-					e.logf("%s declares nothing and is not a page; acting through its window", name)
+					e.logf("%s declares nothing and is not a page; acting through its window in one go", name)
 					return plan, calls, nil
 				}
 				e.logf("could not act through %s's window: %v", name, uiErr)
-				if e.canDrive() && !errors.Is(uiErr, uiact.ErrNoAssistiveAccess) {
-					if plan, driveErr := e.driveOn(ctx, name, r.Slot("action"), shape, r.Literals); driveErr == nil {
-						e.logf("%s needs more than one step; working through it on screen", name)
-						return plan, plan.SynthesisCalls, nil
-					}
-				}
 				var closed *uiact.NotRunningError
 				if errors.As(uiErr, &closed) {
 					if installed, err := e.Apps.FindInstalled(name); err == nil {
