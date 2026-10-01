@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/vedansh/vans/internal/route"
@@ -29,7 +30,40 @@ type Ask struct {
 const (
 	ModeShow = "show"
 	ModeDo   = "do"
+	ModeFlip = "flip"
 )
+
+var teaching = regexp.MustCompile(`(?i)^\s*(please\s+)?(` +
+	`how\b|where\b|which (button|menu|setting|option)\b|` +
+	`(can|could|would) you (show|teach|tell|guide|walk|help)\b|` +
+	`(show|teach|tell|guide|walk|help|coach) (me|us)\b|` +
+	`(explain|demonstrate)\b|` +
+	`i (want|need|would like|'d like) to (learn|know|see|understand)\b|` +
+	`what('s| is) the (way|best way|steps?)\b)`)
+
+var teachingAnywhere = regexp.MustCompile(`(?i)\b(step by step|show me how|teach me|walk me through|how (do|can|should|would) (i|we)|how to)\b`)
+
+func asksToBeShown(instruction string) bool {
+	return teaching.MatchString(instruction) || teachingAnywhere.MatchString(instruction)
+}
+
+func isTask(k route.Kind) bool {
+	return k == route.KindAppAction || k == route.KindPageAction || k == route.KindAppGuide
+}
+
+func (e *Engine) wantsShowing(in Ask, k route.Kind) bool {
+	byWording := k == route.KindAppGuide || asksToBeShown(in.Instruction)
+	switch in.Mode {
+	case ModeShow:
+		return true
+	case ModeDo:
+		return false
+	case ModeFlip:
+		return !byWording
+	default:
+		return byWording
+	}
+}
 
 // UnroutableError is the router declining, carried across the engine boundary
 // so the caller can tell "I did not understand" from "I understood and it
@@ -84,17 +118,33 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 
 	res.Route = e.aimedAtWhatIsInFront(ctx, res.Route, in.Context)
 
-	if in.Mode == ModeShow && e.canGuide() &&
-		(res.Route.Kind == route.KindAppAction || res.Route.Kind == route.KindPageAction) {
-		plan, err := e.showInsteadOfDoing(ctx, in, res)
-		if err != nil {
-			return nil, err
+	if kind := res.Route.Kind; isTask(kind) {
+		show := e.wantsShowing(in, kind)
+		switch {
+		case show && kind != route.KindAppGuide && e.canGuide():
+			e.logf("asked to be shown, so this is coached rather than done")
+			plan, err := e.showInsteadOfDoing(ctx, in, res)
+			if err != nil {
+				return nil, err
+			}
+			r := res.Route
+			r.Kind = route.KindAppGuide
+			plan.Route = &r
+			plan.DecisionCalls = res.DecisionCalls
+			return plan, nil
+
+		case !show && kind == route.KindAppGuide && e.canDrive():
+			e.logf("asked to have it done, so this is done rather than coached")
+			plan, err := e.doInsteadOfShowing(ctx, in, res)
+			if err != nil {
+				return nil, err
+			}
+			r := res.Route
+			r.Kind = route.KindAppAction
+			plan.Route = &r
+			plan.DecisionCalls = res.DecisionCalls
+			return plan, nil
 		}
-		r := res.Route
-		r.Kind = route.KindAppGuide
-		plan.Route = &r
-		plan.DecisionCalls = res.DecisionCalls
-		return plan, nil
 	}
 
 	switch res.Route.Kind {

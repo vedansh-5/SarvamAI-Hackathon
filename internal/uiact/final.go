@@ -30,6 +30,13 @@ func Commits(step Step, el Element) (bool, string) {
 	return false, ""
 }
 
+func EntersAValue(step Step, el Element) bool {
+	if final, _ := Commits(step, el); final {
+		return false
+	}
+	return verb(step.Do) == "type" || step.Fill
+}
+
 var messageFields = regexp.MustCompile(`(?i)\b(message|reply|comment|chat|compose|say something|write a)\b`)
 
 func looksLikeAMessage(el Element) bool {

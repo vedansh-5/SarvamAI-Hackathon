@@ -95,7 +95,8 @@ type GuideStep struct {
 	Do     string
 	Detail string
 
-	Ask string
+	Ask   string
+	Offer bool
 }
 
 func (e *Engine) canGuide() bool {
@@ -275,16 +276,49 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 		// A step nobody has done yet is still the step. Pointing at it again
 		// costs nothing and asks the model for nothing; starting over from the
 		// first step because someone was slow is the behaviour being avoided.
+		offering := false
+		if e.Reply != nil {
+			if el, why := tree.Resolve(step.Target); why == "" {
+				offering = uiact.EntersAValue(step, el)
+			}
+		}
+		if offering {
+			select {
+			case <-e.Reply:
+			default:
+			}
+		}
+
 		for attempt := 1; ; attempt++ {
 			show(GuideStep{
 				Number: number + opened, Label: describe,
 				X: x, Y: y, W: w, H: h,
 				Do: step.Do, Detail: detailOf(step),
+				Offer: offering,
 			})
+
+			var reply <-chan bool
+			if offering {
+				reply = e.Reply
+			}
 
 			// The hand is theirs. Nothing is clicked here — the next step is only
 			// worked out once the window shows they have done this one.
-			err := e.waitForTheUserToAct(ctx, g.App, tree, step, advance, changed)
+			err := e.waitForTheUserToAct(ctx, g.App, tree, step, advance, changed, reply)
+			if errors.Is(err, errOfferTaken) {
+				e.logf("step %d: doing this one for you", number)
+				if err := e.UIScreen.Act(ctx, program, tree); err != nil {
+					return tree, err
+				}
+				e.waitForTheWindowToAnswer(ctx, g.App, tree, changed)
+				return tree, nil
+			}
+			if errors.Is(err, errOfferDeclined) {
+				e.logf("step %d: yours to do", number)
+				offering = false
+				attempt = 0
+				continue
+			}
 			if !errors.Is(err, errStillWaiting) {
 				return tree, err
 			}
@@ -586,7 +620,12 @@ func (e *Engine) settledView(ctx context.Context, app string, before uiact.Tree,
 	}
 }
 
-func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uiact.Tree, step uiact.Step, advance <-chan struct{}, changed <-chan struct{}) error {
+var (
+	errOfferTaken    = errors.New("engine: asked to do this step for them")
+	errOfferDeclined = errors.New("engine: they will do this step themselves")
+)
+
+func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uiact.Tree, step uiact.Step, advance <-chan struct{}, changed <-chan struct{}, reply <-chan bool) error {
 	// A Next left over from the step before belongs to that step. Cleared before
 	// settling rather than after, so a click the person makes while the window is
 	// still settling is kept rather than thrown away with the stale one.
@@ -611,6 +650,11 @@ func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uia
 		case <-advance:
 			e.waitForTheWindowToAnswer(ctx, app, before, changed)
 			return nil
+		case yes := <-reply:
+			if yes {
+				return errOfferTaken
+			}
+			return errOfferDeclined
 		case <-changed:
 		case <-time.After(guidePoll):
 		}

@@ -341,9 +341,6 @@ header input {
   flex: none;
 }
 
-.mode-row {
-  margin-top: 12px;
-}
 
 .segmented {
   display: inline-flex;

@@ -13,7 +13,7 @@ use tauri::{
     AppHandle, Emitter, Listener, LogicalPosition, LogicalSize, Manager, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder,
 };
-use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Shortcut, ShortcutState};
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 pub const LABEL: &str = "coach";
 
@@ -28,6 +28,41 @@ static POINTED_AT: Mutex<Option<(f64, f64, f64, f64)>> = Mutex::new(None);
 pub const ACTED: &str = "coach://acted";
 
 pub const NEXT: &str = "coach://next";
+
+pub const YES: &str = "coach://yes";
+pub const NO: &str = "coach://no";
+
+static OFFERING: AtomicBool = AtomicBool::new(false);
+static HOLDING_YES: AtomicBool = AtomicBool::new(false);
+
+fn yes_key() -> Shortcut {
+    Shortcut::new(Some(Modifiers::SUPER), Code::Enter)
+}
+
+fn hold_yes(app: &AppHandle) {
+    if HOLDING_YES.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let handle = app.clone();
+    let registered = app
+        .global_shortcut()
+        .on_shortcut(yes_key(), move |_, _, event| {
+            if event.state() == ShortcutState::Pressed && OFFERING.swap(false, Ordering::SeqCst) {
+                eprintln!("[vans] command-return: doing this step for them");
+                let _ = handle.emit(YES, ());
+            }
+        });
+    if let Err(e) = registered {
+        HOLDING_YES.store(false, Ordering::SeqCst);
+        eprintln!("[vans] could not take Command-Return for the coach: {e}");
+    }
+}
+
+fn release_yes(app: &AppHandle) {
+    if HOLDING_YES.swap(false, Ordering::SeqCst) {
+        let _ = app.global_shortcut().unregister(yes_key());
+    }
+}
 
 static PAUSED: AtomicBool = AtomicBool::new(false);
 
@@ -69,6 +104,11 @@ fn hold_escape(app: &AppHandle) {
         .global_shortcut()
         .on_shortcut(escape(), move |_, _, event| {
             if event.state() == ShortcutState::Pressed {
+                if OFFERING.swap(false, Ordering::SeqCst) {
+                    eprintln!("[vans] escape: they will do this step themselves");
+                    let _ = handle.emit(NO, ());
+                    return;
+                }
                 eprintln!("[vans] escape: stopping the coached run");
                 let _ = handle.emit(STOP, ());
             }
@@ -258,6 +298,8 @@ pub struct Pointer {
     pub mode: String,
     pub ox: f64,
     pub oy: f64,
+
+    pub offer: bool,
 }
 
 fn build(app: &AppHandle) -> Option<WebviewWindow> {
@@ -410,6 +452,12 @@ fn draw(app: &AppHandle, mut p: Pointer) {
     show_without_taking_the_keyboard(&win);
     SHOWING.store(true, Ordering::Relaxed);
     hold_escape(app);
+    OFFERING.store(p.offer, Ordering::SeqCst);
+    if p.offer {
+        hold_yes(app);
+    } else {
+        release_yes(app);
+    }
     eprintln!(
         "[vans] coach: drawing {}x{} at ({}, {}) in window coordinates, visible = {:?}",
         p.w,
@@ -495,6 +543,8 @@ pub fn clear(app: &AppHandle) {
     *COACHING.lock().unwrap() = None;
     SHOWING.store(false, Ordering::Relaxed);
     PAUSED.store(false, Ordering::Relaxed);
+    OFFERING.store(false, Ordering::SeqCst);
+    release_yes(app);
     release_escape(app);
 
     let handle = app.clone();

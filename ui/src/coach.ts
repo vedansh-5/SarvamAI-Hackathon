@@ -45,6 +45,7 @@ interface Pointer {
   mode?: string;
   ox?: number;
   oy?: number;
+  offer?: boolean;
 }
 
 interface Bounds {
@@ -573,6 +574,9 @@ function renderCoachStep(pointer: Pointer) {
   }
 
   tip.classList.toggle("quiet", runMode === "drive");
+  elementById<HTMLElement>("hint").textContent = pointer.offer
+    ? "\u2318\u21A9 VANS does this step \u00B7 Esc you do it"
+    : "\u2325Space for Next \u00B7 Esc to stop";
 
   if (!hasSomethingToPointAt(pointer)) {
     rememberStep(stepNumber(pointer), null);
@@ -591,7 +595,7 @@ function renderCoachStep(pointer: Pointer) {
   drawTrail(landing);
   setCaption(
     captionFor(pointer, currentVerb),
-    runMode === "drive" ? "Esc to stop" : "",
+    runMode === "drive" ? "Esc to stop" : pointer.offer ? "\u2318\u21A9 do it for me" : "",
   );
 
   // Once per step, from here and not from the drawing code: the spotlight is

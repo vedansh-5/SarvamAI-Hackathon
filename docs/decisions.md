@@ -3634,3 +3634,44 @@ matters, which is acting when someone wanted to be shown.
 
 The mode is a field on the request. With none given the engine does what the route
 says, so the command line and the tests are unchanged.
+
+## D-158 — The wording says whether to show or to do
+
+D-157 put a switch in the panel. Used for an afternoon, it was the wrong place for
+the decision: the person had already said which they wanted. "Show me how to send
+a message" and "send this to Suhani" are different requests, and making someone
+set a switch to say what their sentence already said is the opposite of
+understanding them.
+
+So the switch is gone and the sentence decides. A request is shown when the router
+called it a question (`app.guide`) or when its wording asks to be taught: it opens
+with how, where, show me, teach me, walk me through, help me, explain, or it says
+"how do I", "how to" or "step by step" anywhere. Everything else that is a task is
+done. This is a pattern over the words, not a model's opinion, so the same
+sentence always goes the same way and the reason can be read off it.
+
+⌘↩ in the ask field takes the other one for a single request, for the sentence
+that reads one way and was meant the other. A question asked that way is done in
+the application the chooser picks; an instruction asked that way is coached.
+
+## D-159 — The coach offers to enter a value, and waits to be told
+
+Being shown how to book a flight should not mean typing "Indira Gandhi
+International" by hand. The steps worth learning are where to click; the ones that
+only put a value in — typing text, choosing a city, picking a date — are chores.
+
+On such a step the coach shows the step as it always does and adds an offer. ⌘↩
+has VANS do that one step; Escape says no, and the step stays up for the person
+to do; doing it by hand, without answering, is also an answer and is noticed the
+way any coached step is. Whichever happens, the run carries on to the next step.
+
+A step is one of these when it types, or when the model marks it `fill` — a click
+that picks the person's date or option. A step that sends or pays is never
+offered, whatever it is marked (D-151): in a coached run that click is the
+person's.
+
+Escape therefore means two things, in order: no to an offer when one is showing,
+stop the coach when none is. Backspace was asked for as a second "no" and left
+out: a key held system-wide is taken from the application in front, and Backspace
+is the key the person needs most at the moment they have chosen to type it
+themselves. ⌘↩ is held only while an offer is on screen.

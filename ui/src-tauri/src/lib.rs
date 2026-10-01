@@ -96,6 +96,7 @@ fn point_at(
     detail: Option<String>,
     app_name: Option<String>,
     mode: Option<String>,
+    offer: Option<bool>,
 ) {
     coach::point_at(
         &app,
@@ -112,8 +113,14 @@ fn point_at(
             mode: mode.unwrap_or_default(),
             ox: 0.0,
             oy: 0.0,
+            offer: offer.unwrap_or(false),
         },
     );
+}
+
+#[tauri::command]
+async fn answer_guide(engine: State<'_, Engine>, yes: bool) -> Result<Value, RpcError> {
+    engine.call("answer_guide", Some(json!({ "yes": yes }))).await
 }
 
 #[tauri::command]
@@ -349,6 +356,7 @@ pub fn run() {
             stop_guide,
             advance_guide,
             resume_drive,
+            answer_guide,
             pause_pointer,
             history,
             undo,

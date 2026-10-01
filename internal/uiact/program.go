@@ -18,6 +18,7 @@ type Step struct {
 	Modifiers []string `json:"modifiers,omitempty"`
 	Describe  string   `json:"describe,omitempty"`
 	Final     bool     `json:"final,omitempty"`
+	Fill      bool     `json:"fill,omitempty"`
 }
 
 type Selector struct {

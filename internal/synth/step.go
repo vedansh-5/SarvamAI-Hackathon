@@ -35,6 +35,7 @@ func screenStepSchema(required ...string) map[string]any {
 			},
 			"describe": map[string]any{"type": "string"},
 			"final":    map[string]any{"type": "boolean"},
+			"fill":     map[string]any{"type": "boolean"},
 		},
 		"required":             required,
 		"additionalProperties": false,

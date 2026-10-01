@@ -170,6 +170,8 @@ type Engine struct {
 	Paused func(GuideStep)
 	Resume <-chan struct{}
 
+	Reply <-chan bool
+
 	// Recorded reads those back, to put one of them back.
 	Recorded DeedStore
 

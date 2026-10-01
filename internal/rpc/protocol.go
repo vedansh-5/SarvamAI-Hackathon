@@ -183,7 +183,16 @@ type GuideStepParams struct {
 	Do     string `json:"do,omitempty"`
 	Detail string `json:"detail,omitempty"`
 
-	Ask string `json:"ask,omitempty"`
+	Ask   string `json:"ask,omitempty"`
+	Offer bool   `json:"offer,omitempty"`
+}
+
+type AnswerGuideParams struct {
+	Yes bool `json:"yes"`
+}
+
+type AnswerGuideResult struct {
+	Heard bool `json:"heard"`
 }
 
 // ClearStyleResult reports that the page was put back.

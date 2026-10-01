@@ -49,3 +49,23 @@ func (e *Engine) showOnThePage(ctx context.Context, task, shape string, literals
 	}
 	return plan, err
 }
+
+func (e *Engine) doInsteadOfShowing(ctx context.Context, in Ask, res route.Result) (*Plan, error) {
+	task := in.Instruction
+	shape, literals := res.Shape, res.Route.Literals
+
+	app, err := e.appForTask(ctx, task, in.Context)
+	var notOpen *AppNotOpenError
+	if errors.As(err, &notOpen) {
+		return nil, &uiact.NotRunningError{App: notOpen.App}
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if e.canDrivePages() && strings.EqualFold(app, e.pageBrowser(ctx)) {
+		site, _, _ := siteIn(task)
+		return e.driveOnPage(ctx, task, shape, literals, site)
+	}
+	return e.driveOn(ctx, app, task, shape, literals)
+}

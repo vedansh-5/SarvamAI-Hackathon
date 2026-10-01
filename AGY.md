@@ -1368,8 +1368,11 @@ voice moves behind the three above.
   name starts with an invisible mark, so it was "not running" (D-154); the one-go
   program ran before the step loop and stopped after opening the chat (D-155); and
   the last check before acting tripped on the same mark (D-156).
-- *Shown before done (D-157).* A task is coached by default; "Do it for me" is a
-  switch in the panel. Moving the mouse no longer pauses anything (D-156).
+- *The wording decides (D-158, replacing D-157's switch).* "Show me", "how do I",
+  "teach me" are coached; "send", "book", "put" are done. ⌘↩ flips one request.
+  Moving the mouse no longer pauses anything (D-156).
+- *The coach offers to enter values (D-159).* On a typing or value-picking step,
+  ⌘↩ has VANS do that step and Escape leaves it to the person.
 - Still to come in this phase: questions mid-task; "in a new profile".
 - Known limits of this first cut: clicks and typing are sent through the page's
   script, which some sites ignore for things that need a real gesture (file

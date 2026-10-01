@@ -80,6 +80,7 @@ type Server struct {
 	running      map[int]context.CancelFunc
 	guideCancel  context.CancelFunc
 	guideAdvance chan struct{}
+	guideReply   chan bool
 
 	// actCancel stops a run that is acting on screen. Kept beside guideCancel and
 	// stopped by the same request, because from where the person sits they are
@@ -174,6 +175,8 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.advanceGuide()
 	case "resume_drive":
 		result, err = s.resumeDrive()
+	case "answer_guide":
+		result, err = s.answerGuide(req)
 	default:
 		err = &Error{Code: CodeBadRequest, Message: fmt.Sprintf("unknown method %q", req.Method)}
 	}
@@ -763,10 +766,12 @@ func (s *Server) guide(ctx context.Context, req Request) (GuideResult, error) {
 
 	guideCtx, cancel := context.WithCancel(ctx)
 	advance := make(chan struct{}, 1)
+	reply := make(chan bool, 1)
 
 	s.mu.Lock()
 	s.guideCancel = cancel
 	s.guideAdvance = advance
+	s.guideReply = reply
 	s.mu.Unlock()
 
 	defer func() {
@@ -778,6 +783,7 @@ func (s *Server) guide(ctx context.Context, req Request) (GuideResult, error) {
 		if s.guideAdvance == advance {
 			s.guideCancel = nil
 			s.guideAdvance = nil
+			s.guideReply = nil
 		}
 		s.mu.Unlock()
 	}()
@@ -787,12 +793,13 @@ func (s *Server) guide(ctx context.Context, req Request) (GuideResult, error) {
 	// no steps says nothing about why.
 	eng := *s.Engine
 	eng.Log = func(format string, args ...any) { s.notify(req.ID, format, args...) }
+	eng.Reply = reply
 
 	work, err := eng.RunGuideCounted(guideCtx, plan, func(g engine.GuideStep) {
 		s.push(req.ID, "guide", GuideStepParams{
 			Number: g.Number, Label: g.Label,
 			X: g.X, Y: g.Y, W: g.W, H: g.H,
-			Do: g.Do, Detail: g.Detail,
+			Do: g.Do, Detail: g.Detail, Offer: g.Offer,
 		})
 	}, advance)
 	if err != nil {
@@ -834,6 +841,26 @@ func (s *Server) advanceGuide() (AdvanceGuideResult, error) {
 		}
 	}
 	return AdvanceGuideResult{Advanced: true}, nil
+}
+
+func (s *Server) answerGuide(req Request) (AnswerGuideResult, error) {
+	var p AnswerGuideParams
+	if err := json.Unmarshal(req.Params, &p); err != nil {
+		return AnswerGuideResult{}, &Error{Code: CodeBadRequest, Message: err.Error()}
+	}
+
+	s.mu.Lock()
+	reply := s.guideReply
+	s.mu.Unlock()
+
+	if reply == nil {
+		return AnswerGuideResult{}, nil
+	}
+	select {
+	case reply <- p.Yes:
+	default:
+	}
+	return AnswerGuideResult{Heard: true}, nil
 }
 
 func (s *Server) resumeDrive() (ResumeDriveResult, error) {
