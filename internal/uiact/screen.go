@@ -274,6 +274,9 @@ func VerifyTargets(pid int, p Program, t Tree) error {
 }
 
 func sameControl(want Element, role, title string) bool {
+	if strings.TrimSpace(want.Title) != "" && names.Same(title, want.Title) {
+		return true
+	}
 	if !strings.EqualFold(strings.TrimSpace(role), strings.TrimSpace(want.Role)) {
 		return false
 	}

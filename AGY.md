@@ -1375,6 +1375,11 @@ voice moves behind the three above.
   Moving the mouse no longer pauses anything (D-156).
 - *The coach offers to enter values (D-159).* On a typing or value-picking step,
   ⌘↩ has VANS do that step and Escape leaves it to the person.
+- *A probe, and the first sweep (D-163).* `go run ./cmd/vans-probe [app …]` says
+  how usable an application is. WhatsApp and Notes are ready, Clock partly,
+  Electron applications blind. Rows are now named after the text inside them.
+- Next: run the probe across the rest of the installed applications, fix what is
+  "partly", and start the vision tier for what is blind.
 - Still to come in this phase: questions mid-task; "in a new profile".
 - Known limits of this first cut: clicks and typing are sent through the page's
   script, which some sites ignore for things that need a real gesture (file

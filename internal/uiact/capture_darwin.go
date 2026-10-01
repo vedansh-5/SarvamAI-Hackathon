@@ -606,6 +606,7 @@ func walkApp(pid int, app string) (Tree, error) {
 
 	elements := make([]Element, 0, 64)
 	walkElement(win, nil, 0, &elements)
+	NameByContents(elements)
 	tree.Elements = elements
 
 	return tree, nil

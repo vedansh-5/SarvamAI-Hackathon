@@ -3738,3 +3738,29 @@ window is unchanged now stops a run VANS is doing, saying the text never appeare
 It used to be recorded as an unverified step and followed by the next one — which
 is how Enter came to be pressed on nothing and a model came to be asked whether
 the message had gone. A coached run is unaffected; there the person types.
+
+## D-163 — A probe says how usable an application is, and a row takes the name of its contents
+
+Getting WhatsApp to work took five fixes, each found by trying a task and reading
+why it failed. That does not scale to "most applications". `vans-probe` reads an
+application's front window and reports how many of its controls there are, how
+many have a name and how many can be typed into, with a verdict: ready, partly, or
+blind (too few controls, or too few with names to tell apart). It brings each
+application forward for a moment, because macOS only lists the windows of the one
+in front, and it changes nothing.
+
+Its first run found the next fix. Notes published 51 controls and 15 names: the
+rows of its list have no title of their own, and the words a person reads on them
+belong to a text element inside. A control with no name is now given the first
+short piece of text inside it, which is how a person would name it too. Notes went
+to 47 of 51. A control that already has a name keeps it, and text that belongs to
+another control inside is never borrowed.
+
+The check made before acting accepts the control under the point when its name
+matches the one asked for, even if its role differs. With a borrowed name, the
+thing under the pointer is often the text itself.
+
+First sweep (2026-10-01): WhatsApp and Notes ready; Clock partly; Chrome blind
+through accessibility as expected (pages go through D-147); the Electron
+applications open at the time — Notion, the IDE — blind, which is what the vision
+tier is for.
