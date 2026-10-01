@@ -3675,3 +3675,26 @@ stop the coach when none is. Backspace was asked for as a second "no" and left
 out: a key held system-wide is taken from the application in front, and Backspace
 is the key the person needs most at the moment they have chosen to type it
 themselves. ⌘↩ is held only while an offer is on screen.
+
+## D-160 — The switch stays, the wording works, and the choice is said out loud
+
+D-158 took the switch away and let the sentence decide. That was half right. The
+sentence should work, and a person should still be able to say "I am here to
+learn" once and have it hold, and should never be left guessing which way a
+request went. So all three:
+
+- **Left alone, the switch follows the words.** It moves as the sentence is typed —
+  "how do I…" lights Show me how, "send…" lights Do it for me — so the pick is
+  visible before Return is pressed, and clicking the other one changes it.
+- **Clicked, the switch is a preference.** It decides every request whose wording
+  does not say. Wording that does say still wins: "how do I…" is shown with the
+  switch on Do, and "…for me" is done with the switch on Show. Clicking the lit
+  position again hands the decision back to the words.
+- **Every task says what it chose and why.** "Showing you how, because you said
+  'how do I'" on the coach's card, "Doing it for you, because it reads as something
+  to do" on the confirmation, each with a button to take the other one for that
+  request. ⌘↩ in the ask field does the same before sending.
+
+The engine decides; the panel's copy of the two patterns only moves the switch.
+The modes it can be sent are a preference (`show`, `do`), an order that wording
+cannot override (`show!`, `do!`, used by the buttons), and `flip`.

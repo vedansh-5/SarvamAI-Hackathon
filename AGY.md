@@ -1368,8 +1368,10 @@ voice moves behind the three above.
   name starts with an invisible mark, so it was "not running" (D-154); the one-go
   program ran before the step loop and stopped after opening the chat (D-155); and
   the last check before acting tripped on the same mark (D-156).
-- *The wording decides (D-158, replacing D-157's switch).* "Show me", "how do I",
-  "teach me" are coached; "send", "book", "put" are done. ⌘↩ flips one request.
+- *The wording decides, and the switch is back (D-158, D-160).* "Show me", "how
+  do I", "teach me" are coached; "send", "book", "put" are done. The switch
+  follows the words until it is clicked, then it is a preference that clear
+  wording still overrides. Every task says which it chose and offers the other.
   Moving the mouse no longer pauses anything (D-156).
 - *The coach offers to enter values (D-159).* On a typing or value-picking step,
   ⌘↩ has VANS do that step and Escape leaves it to the person.

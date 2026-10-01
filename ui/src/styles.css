@@ -341,6 +341,37 @@ header input {
   flex: none;
 }
 
+.mode-row {
+  margin-top: 12px;
+}
+
+.headsup {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0 2px;
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+.headsup[hidden] {
+  display: none;
+}
+
+.btn.link {
+  padding: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.btn.link:hover:not(:disabled) {
+  filter: none;
+  text-decoration: underline;
+}
+
 
 .segmented {
   display: inline-flex;

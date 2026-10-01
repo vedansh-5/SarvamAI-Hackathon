@@ -466,6 +466,8 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 		Destination:    plan.Destination,
 		NeedsCommit:    plan.NeedsCommit(),
 		Kind:           kind,
+		Mode:           plan.Mode,
+		ModeWhy:        plan.ModeWhy,
 		App:            app,
 		DecisionCalls:  plan.DecisionCalls,
 	}, nil

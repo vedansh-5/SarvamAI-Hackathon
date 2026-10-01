@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -46,24 +47,47 @@ func TestTheWordingSaysWhetherToShowOrToDo(t *testing.T) {
 	}
 }
 
-func TestTheModeOverridesTheWordingWhenOneIsGiven(t *testing.T) {
+func TestTheSwitchIsAPreferenceThatClearWordingOverrides(t *testing.T) {
 	e := &Engine{}
 	for _, c := range []struct {
 		in   Ask
 		kind route.Kind
-		want bool
+		show bool
+		why  string
 	}{
-		{Ask{Instruction: "send hi to Joe"}, route.KindAppAction, false},
-		{Ask{Instruction: "show me how to send hi to Joe"}, route.KindAppAction, true},
-		{Ask{Instruction: "the wallpaper setting"}, route.KindAppGuide, true},
-		{Ask{Instruction: "send hi to Joe", Mode: ModeFlip}, route.KindAppAction, true},
-		{Ask{Instruction: "how do I send hi to Joe", Mode: ModeFlip}, route.KindAppGuide, false},
-		{Ask{Instruction: "how do I send hi", Mode: ModeDo}, route.KindAppGuide, false},
-		{Ask{Instruction: "send hi", Mode: ModeShow}, route.KindPageAction, true},
+		{Ask{Instruction: "send hi to Joe"}, route.KindAppAction, false, "something to do"},
+		{Ask{Instruction: "show me how to send hi to Joe"}, route.KindAppAction, true, "show me how"},
+		{Ask{Instruction: "the wallpaper setting"}, route.KindAppGuide, true, "question"},
+
+		{Ask{Instruction: "send hi to Joe", Mode: ModeShow}, route.KindAppAction, true, "switch"},
+		{Ask{Instruction: "send hi to Joe for me", Mode: ModeShow}, route.KindAppAction, false, "for me"},
+		{Ask{Instruction: "how do I send hi", Mode: ModeShow}, route.KindAppGuide, true, "how do i"},
+
+		{Ask{Instruction: "send hi to Joe", Mode: ModeDo}, route.KindAppAction, false, "switch"},
+		{Ask{Instruction: "how do I send hi to Joe", Mode: ModeDo}, route.KindAppGuide, true, "how do i"},
+		{Ask{Instruction: "the wallpaper setting", Mode: ModeDo}, route.KindAppGuide, false, "switch"},
+
+		{Ask{Instruction: "how do I send hi", Mode: ModeMustDo}, route.KindAppGuide, false, "chose"},
+		{Ask{Instruction: "send hi for me", Mode: ModeMustShow}, route.KindAppAction, true, "chose"},
+		{Ask{Instruction: "send hi to Joe", Mode: ModeFlip}, route.KindAppAction, true, "chose"},
+		{Ask{Instruction: "how do I send hi", Mode: ModeFlip}, route.KindAppGuide, false, "chose"},
 	} {
-		if got := e.wantsShowing(c.in, c.kind); got != c.want {
-			t.Errorf("%q as %s with mode %q: show=%v, want %v", c.in.Instruction, c.kind, c.in.Mode, got, c.want)
+		show, why := e.wantsShowing(c.in, c.kind)
+		if show != c.show {
+			t.Errorf("%q as %s with mode %q: show=%v, want %v", c.in.Instruction, c.kind, c.in.Mode, show, c.show)
 		}
+		if !strings.Contains(why, c.why) {
+			t.Errorf("%q with mode %q: reason %q, want it to mention %q", c.in.Instruction, c.in.Mode, why, c.why)
+		}
+	}
+}
+
+func TestBeingTaughtIsNotMistakenForBeingDoneForYou(t *testing.T) {
+	if got := askedToHaveItDone("show me how to do this for me"); got != "" {
+		t.Errorf("read %q as asking to have it done, though it asks to be shown", got)
+	}
+	if got := askedToHaveItDone("book the cab for me"); got != "for me" {
+		t.Errorf("askedToHaveItDone = %q, want the words that said so", got)
 	}
 }
 

@@ -227,6 +227,8 @@ type PrepareResult struct {
 	// Kind is how the instruction was understood, and DecisionCalls what that
 	// understanding cost. Zero on a shape seen before.
 	Kind          string `json:"kind"`
+	Mode          string `json:"mode,omitempty"`
+	ModeWhy       string `json:"mode_why,omitempty"`
 	DecisionCalls int    `json:"decision_calls"`
 
 	// Answer is a reply to the question, and Cites the one-based results it

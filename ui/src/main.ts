@@ -30,6 +30,8 @@ interface Plan {
   destination: string;
   needs_commit: boolean;
   kind: string;
+  mode?: string;
+  mode_why?: string;
   decision_calls: number;
   action: string;
   app: string;
@@ -344,8 +346,91 @@ async function clearStyle() {
   }
 }
 
-async function extract(flip = false) {
-  const instruction = ($("intent") as HTMLInputElement).value.trim();
+type Mode = "show" | "do";
+
+const MODE_KEY = "vans.mode";
+
+// Kept in step with asksToBeShown and askedToHaveItDone in the engine, which is
+// what decides. This only moves the switch while someone types, so they can see
+// which way their sentence will go before they send it.
+const SHOW_START =
+  /^\s*(please\s+)?(how\b|where\b|which (button|menu|setting|option)\b|(can|could|would) you (show|teach|tell|guide|walk|help)\b|(show|teach|tell|guide|walk|help|coach) (me|us)\b|(explain|demonstrate)\b|i (want|need|would like|'d like) to (learn|know|see|understand)\b|what('s| is) the (way|best way|steps?)\b)/i;
+const SHOW_ANYWHERE =
+  /\b(step by step|show me how|teach me|walk me through|how (do|can|should|would) (i|we)|how to)\b/i;
+const DO_ANYWHERE = /\b(do (it|this|that)( for me)?|for me|on my behalf|go ahead and|yourself)\b/i;
+
+function pinnedMode(): Mode | null {
+  try {
+    const saved = localStorage.getItem(MODE_KEY);
+    return saved === "show" || saved === "do" ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+let pinned: Mode | null = pinnedMode();
+
+function modeFor(text: string): { mode: Mode | null; note: string } {
+  const typed = text.trim();
+  const shown = SHOW_START.test(typed) || SHOW_ANYWHERE.test(typed);
+  const done = !shown && DO_ANYWHERE.test(typed);
+
+  if (pinned) {
+    if (pinned === "do" && shown) {
+      return { mode: "show", note: "Your words ask to be shown, so this one is coached." };
+    }
+    if (pinned === "show" && done) {
+      return { mode: "do", note: "Your words ask to have it done, so this one is done for you." };
+    }
+    return { mode: pinned, note: "Your choice. Click it again to let VANS pick from your words." };
+  }
+  if (typed === "") {
+    return { mode: null, note: "VANS picks from your words. Click one to set it yourself." };
+  }
+  return {
+    mode: shown ? "show" : "do",
+    note: "Picked from your words. Click the other to change it.",
+  };
+}
+
+function renderMode() {
+  const { mode, note } = modeFor(($("intent") as HTMLInputElement).value);
+  for (const button of Array.from($("mode").querySelectorAll("button"))) {
+    const on = button.getAttribute("data-mode") === mode;
+    button.classList.toggle("on", on);
+    button.setAttribute("aria-checked", on ? "true" : "false");
+  }
+  $("mode-note").textContent = note;
+}
+
+function pin(next: Mode | null) {
+  pinned = next;
+  try {
+    if (next) localStorage.setItem(MODE_KEY, next);
+    else localStorage.removeItem(MODE_KEY);
+  } catch {
+    // Applies for this session either way.
+  }
+  renderMode();
+}
+
+let lastInstruction = "";
+let switchTo: string | null = null;
+
+function showHeadsup(where: "guiding" | "confirm", plan: Plan) {
+  const box = $(`${where}-headsup`);
+  const coached = plan.mode === "show";
+  const right = (where === "guiding") === coached;
+  box.hidden = !plan.mode || !right;
+  if (box.hidden) return;
+  const why = plan.mode_why ? `, because ${plan.mode_why}` : "";
+  $(`${where}-headsup-text`).textContent = coached
+    ? `Showing you how${why}.`
+    : `Doing it for you${why}.`;
+}
+
+async function extract(sendAs?: string, text?: string) {
+  const instruction = (text ?? ($("intent") as HTMLInputElement).value).trim();
   const destination = chosen;
 
   if (!instruction) {
@@ -363,8 +448,9 @@ async function extract(flip = false) {
       instruction,
       destination,
       context: activeContext,
-      mode: flip ? "flip" : "",
+      mode: sendAs ?? pinned ?? "",
     });
+    lastInstruction = instruction;
     setProgress(100);
     currentPlan = plan;
     if (plan.kind === "app.guide") {
@@ -394,6 +480,9 @@ interface GuideResult {
 /// working out the next, so this returns only once they are done or it gives up.
 async function showTheWay(plan: Plan) {
   let finished = false;
+  let rerunAs: string | null = null;
+  switchTo = null;
+  showHeadsup("guiding", plan);
   coachedApp = plan.app ?? "";
   $("guiding-where").textContent = plan.app ? `Showing you — ${plan.app}` : "Showing you";
   $("guiding-step").textContent = "Looking at the window…";
@@ -408,16 +497,17 @@ async function showTheWay(plan: Plan) {
   try {
     const res = await invoke<GuideResult>("guide", { planId: plan.plan_id });
     if (res?.stopped) {
+      rerunAs = switchTo;
       show("ask");
-      return;
+    } else {
+      // A tick on the last control, which takes itself away. Finished and stopped
+      // should not look the same.
+      finished = true;
+      invoke("finish_pointer").catch(console.error);
+      const how = howItWent(res?.work);
+      toast(how ? `That is all of it · ${how}` : "That is all of it");
+      show("ask");
     }
-    // A tick on the last control, which takes itself away. Finished and stopped
-    // should not look the same.
-    finished = true;
-    invoke("finish_pointer").catch(console.error);
-    const how = howItWent(res?.work);
-    toast(how ? `That is all of it · ${how}` : "That is all of it");
-    show("ask");
   } catch (e) {
     renderFailure(e);
     show("failure");
@@ -429,6 +519,9 @@ async function showTheWay(plan: Plan) {
     // Back only now, with something to say.
     invoke("summon").catch(console.error);
   }
+
+  switchTo = null;
+  if (rerunAs) await extract(rerunAs, lastInstruction);
 }
 
 
@@ -780,6 +873,7 @@ function firstLink(row: Record<string, string>, fields: string[]): string {
 }
 
 function renderConfirm(plan: Plan) {
+  showHeadsup("confirm", plan);
   $("confirm-tag").textContent = plan.action ? "ACTION" : "WRITE";
   if (plan.action) {
     $("confirm-title").textContent = plan.app ? `Do this in ${plan.app}?` : "Do this?";
@@ -1580,6 +1674,26 @@ function backToAsk() {
   intent.select();
 }
 
+for (const button of Array.from($("mode").querySelectorAll("button"))) {
+  button.addEventListener("click", () => {
+    const clicked: Mode = button.getAttribute("data-mode") === "do" ? "do" : "show";
+    pin(pinned === clicked ? null : clicked);
+    ($("intent") as HTMLInputElement).focus();
+  });
+}
+$("intent").addEventListener("input", renderMode);
+renderMode();
+
+$("confirm-instead").addEventListener("click", () => {
+  currentPlan = null;
+  void extract("show!", lastInstruction);
+});
+
+$("guiding-instead").addEventListener("click", async () => {
+  switchTo = "do!";
+  await invoke("stop_guide").catch(console.error);
+});
+
 $("view-cards").addEventListener("click", () => applyView(false, true));
 $("view-table").addEventListener("click", () => applyView(true, true));
 
@@ -1604,7 +1718,7 @@ $("intent").addEventListener("keydown", (e) => {
   const key = (e as KeyboardEvent).key;
 
   if (key === "Enter") {
-    extract((e as KeyboardEvent).metaKey);
+    extract((e as KeyboardEvent).metaKey ? "flip" : undefined);
     return;
   }
   if (key === "ArrowDown") {

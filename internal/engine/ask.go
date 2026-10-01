@@ -28,9 +28,11 @@ type Ask struct {
 }
 
 const (
-	ModeShow = "show"
-	ModeDo   = "do"
-	ModeFlip = "flip"
+	ModeShow     = "show"
+	ModeDo       = "do"
+	ModeFlip     = "flip"
+	ModeMustShow = "show!"
+	ModeMustDo   = "do!"
 )
 
 var teaching = regexp.MustCompile(`(?i)^\s*(please\s+)?(` +
@@ -43,25 +45,75 @@ var teaching = regexp.MustCompile(`(?i)^\s*(please\s+)?(` +
 
 var teachingAnywhere = regexp.MustCompile(`(?i)\b(step by step|show me how|teach me|walk me through|how (do|can|should|would) (i|we)|how to)\b`)
 
+var doingAnywhere = regexp.MustCompile(`(?i)\b(do (it|this|that)( for me)?|for me|on my behalf|go ahead and|yourself)\b`)
+
+func askedToBeShown(instruction string) string {
+	if said := strings.TrimSpace(teachingAnywhere.FindString(instruction)); said != "" {
+		return said
+	}
+	return strings.TrimSpace(teaching.FindString(instruction))
+}
+
 func asksToBeShown(instruction string) bool {
-	return teaching.MatchString(instruction) || teachingAnywhere.MatchString(instruction)
+	return askedToBeShown(instruction) != ""
+}
+
+func askedToHaveItDone(instruction string) string {
+	if asksToBeShown(instruction) {
+		return ""
+	}
+	return strings.TrimSpace(doingAnywhere.FindString(instruction))
 }
 
 func isTask(k route.Kind) bool {
 	return k == route.KindAppAction || k == route.KindPageAction || k == route.KindAppGuide
 }
 
-func (e *Engine) wantsShowing(in Ask, k route.Kind) bool {
-	byWording := k == route.KindAppGuide || asksToBeShown(in.Instruction)
+func said(words string) string {
+	return fmt.Sprintf("you said \u201C%s\u201D", strings.ToLower(words))
+}
+
+func (e *Engine) wantsShowing(in Ask, k route.Kind) (bool, string) {
+	shown := askedToBeShown(in.Instruction)
+	done := askedToHaveItDone(in.Instruction)
+
+	auto := func() (bool, string) {
+		switch {
+		case shown != "":
+			return true, said(shown)
+		case k == route.KindAppGuide:
+			return true, "it reads as a question"
+		default:
+			return false, "it reads as something to do"
+		}
+	}
+
 	switch in.Mode {
-	case ModeShow:
-		return true
-	case ModeDo:
-		return false
+	case ModeMustShow:
+		return true, "you chose it"
+	case ModeMustDo:
+		return false, "you chose it"
 	case ModeFlip:
-		return !byWording
+		show, _ := auto()
+		return !show, "you chose it"
+	case ModeShow:
+		if done != "" {
+			return false, said(done)
+		}
+		if shown != "" {
+			return true, said(shown)
+		}
+		return true, "the switch is on Show me how"
+	case ModeDo:
+		if shown != "" {
+			return true, said(shown)
+		}
+		if done != "" {
+			return false, said(done)
+		}
+		return false, "the switch is on Do it for me"
 	default:
-		return byWording
+		return auto()
 	}
 }
 
@@ -90,6 +142,19 @@ func (e *UnroutableError) Error() string {
 // Nothing here touches the world. Routing reads no state and extraction reads
 // a page; the side effect, if the destination has one, waits for Commit.
 func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
+	plan, err := e.ask(ctx, in)
+	if err != nil || plan == nil || plan.Route == nil || !isTask(plan.Route.Kind) || plan.Mode != "" {
+		return plan, err
+	}
+	_, plan.ModeWhy = e.wantsShowing(in, plan.Route.Kind)
+	plan.Mode = ModeDo
+	if plan.Guide != nil {
+		plan.Mode = ModeShow
+	}
+	return plan, nil
+}
+
+func (e *Engine) ask(ctx context.Context, in Ask) (*Plan, error) {
 	if strings.TrimSpace(in.Instruction) == "" {
 		return nil, fmt.Errorf("engine: no instruction")
 	}
@@ -119,7 +184,14 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 	res.Route = e.aimedAtWhatIsInFront(ctx, res.Route, in.Context)
 
 	if kind := res.Route.Kind; isTask(kind) {
-		show := e.wantsShowing(in, kind)
+		show, why := e.wantsShowing(in, kind)
+		decided := func(plan *Plan) *Plan {
+			plan.Mode, plan.ModeWhy = ModeDo, why
+			if show {
+				plan.Mode = ModeShow
+			}
+			return plan
+		}
 		switch {
 		case show && kind != route.KindAppGuide && e.canGuide():
 			e.logf("asked to be shown, so this is coached rather than done")
@@ -131,7 +203,7 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 			r.Kind = route.KindAppGuide
 			plan.Route = &r
 			plan.DecisionCalls = res.DecisionCalls
-			return plan, nil
+			return decided(plan), nil
 
 		case !show && kind == route.KindAppGuide && e.canDrive():
 			e.logf("asked to have it done, so this is done rather than coached")
@@ -143,7 +215,7 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 			r.Kind = route.KindAppAction
 			plan.Route = &r
 			plan.DecisionCalls = res.DecisionCalls
-			return plan, nil
+			return decided(plan), nil
 		}
 	}
 

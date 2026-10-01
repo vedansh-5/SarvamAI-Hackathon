@@ -257,6 +257,9 @@ type Plan struct {
 	PageURL   string
 	Signature string
 
+	Mode    string
+	ModeWhy string
+
 	Fields []string
 	Rows   []runner.Row
 

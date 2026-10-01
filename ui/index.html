@@ -44,9 +44,14 @@
             </div>
             <p class="field-note" id="destination-note"></p>
 
-            <p class="field-note" id="mode-note">
-              “Show me…” or “how do I…” and VANS coaches you. “Send…”, “book…” and VANS does it. ⌘↩ flips that once.
-            </p>
+            <div class="dest-row mode-row">
+              <span class="kicker">for a task</span>
+              <div id="mode" class="segmented" role="radiogroup">
+                <button type="button" role="radio" data-mode="show">Show me how</button>
+                <button type="button" role="radio" data-mode="do">Do it for me</button>
+              </div>
+            </div>
+            <p class="field-note" id="mode-note"></p>
 
             <div class="divider"></div>
 
@@ -63,6 +68,10 @@
           <div class="body-pad">
             <div class="kicker" id="guiding-where"></div>
             <p id="guiding-step" class="card-text"></p>
+            <div class="headsup" id="guiding-headsup" hidden>
+              <span id="guiding-headsup-text"></span>
+              <button id="guiding-instead" class="btn link" type="button">Do it for me instead</button>
+            </div>
             <div class="actions">
               <button id="guiding-next" class="btn secondary">Next</button>
               <button id="guiding-stop" class="btn quiet">Stop</button>
@@ -110,6 +119,10 @@
             <h2 id="confirm-title" class="confirm-title"></h2>
             <div id="confirm-preview" class="preview-box"></div>
             <p class="helper">This can't be undone automatically.</p>
+            <div class="headsup" id="confirm-headsup" hidden>
+              <span id="confirm-headsup-text"></span>
+              <button id="confirm-instead" class="btn link" type="button">Show me how instead</button>
+            </div>
             <div class="actions">
               <button id="cancel" class="btn secondary">Cancel</button>
               <button id="commit" class="btn danger">Confirm &amp; write</button>
