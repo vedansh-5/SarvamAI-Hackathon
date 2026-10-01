@@ -185,6 +185,8 @@ type Engine struct {
 
 	Memory Memory
 
+	Routines RoutineBook
+
 	// Recorded reads those back, to put one of them back.
 	Recorded DeedStore
 

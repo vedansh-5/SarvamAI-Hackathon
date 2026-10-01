@@ -4032,3 +4032,19 @@ mom". Everything remembered is never sent wholesale (the reasoning of D-174).
 first and asked to go on if it answers. It costs no question and nobody is
 interrupted. If the model asks again, it means it, and the person is asked. Each
 remembered sentence is offered once in a run, so this cannot loop.
+
+## D-178 — A task can be given a name, and a long run checks in
+
+**Routines.** "Save that as routine morning hello" keeps the last thing asked under
+that name, and "save routine weekly: …" keeps one said in full. Saying the name, or
+"run" and the name, asks for the task as if it had been typed. A routine is the
+request, not its steps: the steps are already kept by shape (D-117), so a routine
+run a second time costs nothing, and a routine whose window has changed is worked
+out again like any other request. The commands carry the word "routine" on
+purpose. Without it "save this as report.pdf" in an application is a routine
+called "report.pdf".
+
+**Checkpoints.** A run VANS is doing stops every eight steps and says how many are
+done and what is next; ⌥Space carries on and Escape stops. A long run is where a
+wrong turn costs most and where nobody is watching every step, and the stop before
+a step that cannot be taken back (D-151) only protects the last one.

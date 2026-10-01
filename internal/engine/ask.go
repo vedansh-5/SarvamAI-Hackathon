@@ -142,8 +142,15 @@ func (e *UnroutableError) Error() string {
 // Nothing here touches the world. Routing reads no state and extraction reads
 // a page; the side effect, if the destination has one, waits for Commit.
 func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
+	if plan, handled, err := e.aboutRoutines(ctx, in.Instruction); handled {
+		return plan, err
+	}
 	if plan, handled, err := e.aboutMemory(ctx, in.Instruction); handled {
 		return plan, err
+	}
+	if saved, ok := e.routineFor(ctx, in.Instruction); ok {
+		e.logf("that is the routine %q", strings.TrimSpace(in.Instruction))
+		in.Instruction = saved
 	}
 
 	rest, rehearsing := withoutTheRehearsal(in.Instruction)

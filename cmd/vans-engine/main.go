@@ -186,6 +186,7 @@ func run() error {
 			Tasks:      st,
 			Rulebook:   st,
 			Memory:     st,
+			Routines:   st,
 			UIScreen:   desktop,
 			PageScreen: page,
 			Eyes:       looking(synthesizer, desktop),

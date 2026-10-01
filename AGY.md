@@ -1441,8 +1441,8 @@ aloud).
 - E1. **Built (D-177): told, not inferred.** Remembering the person: usual airline, home city, who "mom" is.
 - E2. **Built (D-173, D-174): application, window and selected text, sent only when the request points at them.** What is on screen as context: "reply to this", "book the one I am looking
   at".
-- E3. Long tasks with checkpoints.
-- E4. Saved routines ("do my Monday report").
+- E3. **Built (D-178).** Long tasks with checkpoints.
+- E4. **Built (D-178).** Saved routines ("do my Monday report").
 - E5. Scheduled tasks.
 - E6. "Yes to all" for value entry in a coached run (the offer itself is off,
   D-166).

@@ -533,6 +533,14 @@ function renderInstruction(pointer: Pointer) {
 
 function showPaused(why: { ask?: string; label?: string } | null) {
   elementById<SVGGElement>("ghost").classList.add("waiting");
+  if (why?.ask?.startsWith("checkpoint: ")) {
+    elementById<HTMLElement>("caption").classList.add("asking");
+    setCaption(
+      `${why.ask.slice("checkpoint: ".length)} \u00B7 next: ${why.label || "the next step"}`,
+      "⌥Space to carry on · Esc to stop",
+    );
+    return;
+  }
   if (why?.ask) {
     elementById<HTMLElement>("caption").classList.add("asking");
     setCaption(`About to: ${why.label || "do this"}`, "⌥Space to go ahead · Esc to stop");
