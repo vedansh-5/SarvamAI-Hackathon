@@ -205,14 +205,22 @@ func (e *Engine) waitForTheSite(ctx context.Context, g *GuidePlan, number int, s
 	return false, stopped(g.Browser, "engine: %s was never opened, so the steps stopped", hostOf(g.Site))
 }
 
-func (e *Engine) planWebGuide(ctx context.Context, task, shape string, literals map[string]string, browser string, mustOpen bool, why string) (*Plan, error) {
+func siteFor(task, hint string) (string, bool) {
+	if address, ok := siteAddress(hint); ok {
+		return address, true
+	}
+	_, address, ok := siteIn(task)
+	return address, ok
+}
+
+func (e *Engine) planWebGuide(ctx context.Context, task, shape string, literals map[string]string, browser string, mustOpen bool, why, site string) (*Plan, error) {
 	g := &GuidePlan{
 		App: browser, Browser: browser, Task: task, Web: true,
 		Shape: shape, Literals: literals, MustOpen: mustOpen, Why: why,
 	}
 	where := browser
 
-	_, address, named := siteIn(task)
+	address, named := siteFor(task, site)
 	if !mustOpen {
 		tree, err := e.PageScreen.Capture(ctx, browser)
 		if err != nil {

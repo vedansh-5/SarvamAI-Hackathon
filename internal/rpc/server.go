@@ -377,6 +377,7 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 			Instruction: p.Instruction,
 			Destination: p.Destination,
 			Context:     p.Context,
+			Mode:        p.Mode,
 		})
 	} else {
 		plan, err = eng.Prepare(ctx, engine.Task{

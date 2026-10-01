@@ -3612,3 +3612,25 @@ Two more things the same run showed:
 - The model marked typing a message as the step that cannot be taken back. Typing
   commits nothing, so a `final` mark on a typing step is ignored, and the prompt
   says to mark the click or the Enter that sends.
+
+## D-157 — A task is shown before it is done
+
+Asked to do something in an application or on a site, VANS did it. The owner's
+order is the other way round: showing how comes first, and doing it for someone is
+the thing they ask for. The coach is the product being finished; acting on its own
+is what follows (and, later, in the background).
+
+So a request the router calls `app.act` or `page.act` is, by default, answered by
+the coach. The same application or site is found the same way — the named
+application if it is installed, the site if it is one, the chooser otherwise — and
+a guide is planned there with the person's own words as the task. An application
+that is not open becomes "Open WhatsApp" as step one, which is what the coach has
+always done and what VANS acting could never do (D-032).
+
+The choice is in the panel, not in the wording: "Show me how" or "Do it for me",
+remembered between sessions, with ⌘↩ taking the other one for a single request. A
+mode guessed from phrasing would be wrong some of the time in the direction that
+matters, which is acting when someone wanted to be shown.
+
+The mode is a field on the request. With none given the engine does what the route
+says, so the command line and the tests are unchanged.

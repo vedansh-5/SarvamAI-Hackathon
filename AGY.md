@@ -1363,6 +1363,13 @@ voice moves behind the three above.
   out) and D-150 (waits end when the page answers).
 - *Stop points — built.* A step that pays, orders, publishes, sends or deletes
   waits for ⌥Space (D-151). Secret fields are never typed into (D-152).
+- *Readable Mac apps, first one end to end (2026-10-01):* WhatsApp. Four bugs on
+  the way, each fixed: the router declined one wording (D-153); the application's
+  name starts with an invisible mark, so it was "not running" (D-154); the one-go
+  program ran before the step loop and stopped after opening the chat (D-155); and
+  the last check before acting tripped on the same mark (D-156).
+- *Shown before done (D-157).* A task is coached by default; "Do it for me" is a
+  switch in the panel. Moving the mouse no longer pauses anything (D-156).
 - Still to come in this phase: questions mid-task; "in a new profile".
 - Known limits of this first cut: clicks and typing are sent through the page's
   script, which some sites ignore for things that need a real gesture (file

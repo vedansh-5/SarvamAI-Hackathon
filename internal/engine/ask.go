@@ -22,7 +22,14 @@ type Ask struct {
 	// deliberately not required: the runtime must work when the screen cannot
 	// be read, which is the ordinary case before Screen Recording is granted.
 	Context *screen.Context
+
+	Mode string
 }
+
+const (
+	ModeShow = "show"
+	ModeDo   = "do"
+)
 
 // UnroutableError is the router declining, carried across the engine boundary
 // so the caller can tell "I did not understand" from "I understood and it
@@ -76,6 +83,19 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 	}
 
 	res.Route = e.aimedAtWhatIsInFront(ctx, res.Route, in.Context)
+
+	if in.Mode == ModeShow && e.canGuide() &&
+		(res.Route.Kind == route.KindAppAction || res.Route.Kind == route.KindPageAction) {
+		plan, err := e.showInsteadOfDoing(ctx, in, res)
+		if err != nil {
+			return nil, err
+		}
+		r := res.Route
+		r.Kind = route.KindAppGuide
+		plan.Route = &r
+		plan.DecisionCalls = res.DecisionCalls
+		return plan, nil
+	}
 
 	switch res.Route.Kind {
 	case route.KindWebExtract:

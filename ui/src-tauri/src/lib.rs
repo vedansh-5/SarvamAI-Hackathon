@@ -53,10 +53,14 @@ async fn prepare(
     instruction: String,
     destination: String,
     context: Option<Value>,
+    mode: Option<String>,
 ) -> Result<Value, RpcError> {
     let mut params = json!({ "instruction": instruction, "destination": destination });
     if let Some(ctx) = context {
         params["context"] = ctx;
+    }
+    if let Some(mode) = mode {
+        params["mode"] = json!(mode);
     }
     engine.call("prepare", Some(params)).await
 }

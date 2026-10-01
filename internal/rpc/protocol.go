@@ -143,6 +143,8 @@ type PrepareParams struct {
 	// Optional: the runtime falls back to asking the window list who is in
 	// front, which is the right answer whenever the shell has not said.
 	Context *screen.Context `json:"context,omitempty"`
+
+	Mode string `json:"mode,omitempty"`
 }
 
 // GuideParams names the guide to run; GuideStepParams is one thing to point at.

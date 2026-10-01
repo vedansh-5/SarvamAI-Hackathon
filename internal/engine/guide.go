@@ -129,13 +129,16 @@ func (e *Engine) planGuideFor(ctx context.Context, task, shape string, literals 
 
 	// Where the task is done, which is usually not the window behind the panel.
 	app, err := e.appForTask(ctx, task, lookingAt)
+	return e.planGuideIn(ctx, task, shape, literals, app, err)
+}
 
+func (e *Engine) planGuideIn(ctx context.Context, task, shape string, literals map[string]string, app string, err error) (*Plan, error) {
 	// Not running is not a refusal. It becomes the first step, carried out by
 	// the person, and the coach picks up inside the application once it appears.
 	var notOpen *AppNotOpenError
 	if errors.As(err, &notOpen) {
 		if e.canDrivePages() && strings.EqualFold(notOpen.App, e.pageBrowser(ctx)) {
-			return e.planWebGuide(ctx, task, shape, literals, notOpen.App, true, notOpen.Why)
+			return e.planWebGuide(ctx, task, shape, literals, notOpen.App, true, notOpen.Why, "")
 		}
 		return &Plan{
 			Task:        Task{Intent: task, Title: notOpen.App},
@@ -160,7 +163,7 @@ func (e *Engine) planGuideFor(ctx context.Context, task, shape string, literals 
 	// costs a window raise and a tree walk to learn what the application's name
 	// already says.
 	if e.canDrivePages() && strings.EqualFold(app, e.pageBrowser(ctx)) {
-		return e.planWebGuide(ctx, task, shape, literals, app, false, "")
+		return e.planWebGuide(ctx, task, shape, literals, app, false, "", "")
 	}
 	if isBrowser(app) {
 		return nil, fmt.Errorf("%w, so the steps cannot be drawn inside %s", ErrNoControlsToPointAt, app)

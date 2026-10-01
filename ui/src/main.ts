@@ -344,7 +344,42 @@ async function clearStyle() {
   }
 }
 
-async function extract() {
+type Mode = "show" | "do";
+
+const MODE_KEY = "vans.mode";
+const MODE_NOTES: Record<Mode, string> = {
+  show: "VANS points at each step and you do it. \u2318\u21A9 to have it done for you this once.",
+  do: "VANS does the steps and stops before anything that cannot be undone. \u2318\u21A9 to be shown how this once.",
+};
+
+function savedMode(): Mode {
+  try {
+    return localStorage.getItem(MODE_KEY) === "do" ? "do" : "show";
+  } catch {
+    return "show";
+  }
+}
+
+let mode: Mode = savedMode();
+
+function applyMode(next: Mode, persist: boolean) {
+  mode = next;
+  for (const button of Array.from($("mode").querySelectorAll("button"))) {
+    const on = button.getAttribute("data-mode") === next;
+    button.classList.toggle("on", on);
+    button.setAttribute("aria-checked", on ? "true" : "false");
+  }
+  $("mode-note").textContent = MODE_NOTES[next];
+  if (persist) {
+    try {
+      localStorage.setItem(MODE_KEY, next);
+    } catch {
+      // Applies for this session either way.
+    }
+  }
+}
+
+async function extract(thisOnce?: Mode) {
   const instruction = ($("intent") as HTMLInputElement).value.trim();
   const destination = chosen;
 
@@ -363,6 +398,7 @@ async function extract() {
       instruction,
       destination,
       context: activeContext,
+      mode: thisOnce ?? mode,
     });
     setProgress(100);
     currentPlan = plan;
@@ -1567,6 +1603,14 @@ function backToAsk() {
   intent.select();
 }
 
+for (const button of Array.from($("mode").querySelectorAll("button"))) {
+  button.addEventListener("click", () => {
+    applyMode(button.getAttribute("data-mode") === "do" ? "do" : "show", true);
+    ($("intent") as HTMLInputElement).focus();
+  });
+}
+applyMode(mode, false);
+
 $("view-cards").addEventListener("click", () => applyView(false, true));
 $("view-table").addEventListener("click", () => applyView(true, true));
 
@@ -1591,7 +1635,8 @@ $("intent").addEventListener("keydown", (e) => {
   const key = (e as KeyboardEvent).key;
 
   if (key === "Enter") {
-    extract();
+    const other: Mode = mode === "show" ? "do" : "show";
+    extract((e as KeyboardEvent).metaKey ? other : undefined);
     return;
   }
   if (key === "ArrowDown") {
