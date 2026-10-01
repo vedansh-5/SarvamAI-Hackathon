@@ -15,12 +15,20 @@ type fakePlanner struct {
 	why   string
 	err   error
 	calls int
+
+	silentAfterwards bool
 }
 
-func (f *fakePlanner) WritePlan(context.Context, synth.PlanRequest) (synth.PlanAnswer, error) {
+func (f *fakePlanner) WritePlan(_ context.Context, req synth.PlanRequest) (synth.PlanAnswer, error) {
 	f.calls++
 	if f.err != nil {
 		return synth.PlanAnswer{}, f.err
+	}
+	if len(req.Done) > 0 {
+		if f.silentAfterwards {
+			return synth.PlanAnswer{Why: "cannot tell"}, nil
+		}
+		return synth.PlanAnswer{Done: true, Why: "the window shows it"}, nil
 	}
 	return synth.PlanAnswer{Steps: f.steps, Why: f.why}, nil
 }
@@ -42,11 +50,11 @@ func TestAPlannedRunCostsTheSameWhateverItsLength(t *testing.T) {
 		t.Fatalf("runDrive: %v", err)
 	}
 
-	if planner.calls != 1 {
-		t.Errorf("planned %d time(s), want 1", planner.calls)
+	if planner.calls != 2 {
+		t.Errorf("planned %d time(s), want 2: the plan, and whether that was all of it", planner.calls)
 	}
-	if steps.calls != 1 {
-		t.Errorf("asked about steps %d time(s), want 1 — only whether the plan was all of it", steps.calls)
+	if steps.calls != 0 {
+		t.Errorf("asked for single steps %d time(s), want none", steps.calls)
 	}
 	if receipt.Work == nil || receipt.Work.Calls != 2 {
 		t.Errorf("work = %+v, want 2 calls in all: the plan and the check", receipt.Work)
@@ -60,7 +68,26 @@ func TestAPlannedRunCostsTheSameWhateverItsLength(t *testing.T) {
 // when it wrote the plan and a different one now, so it is asked — and if it has
 // more to do, the run carries on.
 func TestRunningOutOfAPlanAsksWhetherThereIsMore(t *testing.T) {
-	planner := &fakePlanner{steps: []uiact.Step{typeIntoMessage()}}
+	planner := &sequencedPlanner{plans: [][]uiact.Step{{typeIntoMessage()}, {pressEnter()}}}
+	steps := &countingSteps{}
+	e := &Engine{UIScreen: &movingScreen{}, Steps: steps, Plans: planner}
+
+	plan, _ := e.driveOn(context.Background(), "Editor", "say hello", "say hello", nil)
+	receipt, err := e.runDrive(context.Background(), plan)
+	if err != nil {
+		t.Fatalf("runDrive: %v", err)
+	}
+	if receipt.Work == nil || receipt.Work.Steps != 2 {
+		t.Errorf("work = %+v, want the planned step and the one planned after it", receipt.Work)
+	}
+	if steps.calls != 0 || len(planner.requests) != 3 {
+		t.Errorf("asked for single steps %d time(s) and planned %d time(s); want the planner to carry the whole run in 3",
+			steps.calls, len(planner.requests))
+	}
+}
+
+func TestAPlannerWithNothingToSayHandsOverToStepByStep(t *testing.T) {
+	planner := &fakePlanner{steps: []uiact.Step{typeIntoMessage()}, silentAfterwards: true}
 	steps := &countingSteps{answers: []synth.StepAnswer{
 		{Step: pressEnter()},
 		{Done: true, Why: "sent"},
@@ -72,8 +99,8 @@ func TestRunningOutOfAPlanAsksWhetherThereIsMore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runDrive: %v", err)
 	}
-	if receipt.Work == nil || receipt.Work.Steps != 2 {
-		t.Errorf("work = %+v, want the planned step and the one the model added", receipt.Work)
+	if receipt.Work == nil || receipt.Work.Steps != 2 || steps.calls != 2 {
+		t.Errorf("work = %+v after %d single-step ask(s); want the run finished a step at a time", receipt.Work, steps.calls)
 	}
 }
 
@@ -155,13 +182,13 @@ func TestACoachedRunDoesNotAskForAStepItPlanned(t *testing.T) {
 		t.Fatalf("RunGuide: %v", err)
 	}
 
-	if planner.calls != 1 {
-		t.Errorf("planned %d time(s), want 1", planner.calls)
+	if planner.calls != 2 {
+		t.Errorf("planned %d time(s), want 2: the plan, and whether that was all of it", planner.calls)
 	}
 	if len(shown) == 0 || !strings.Contains(shown[0].Label, "Message") {
 		t.Fatalf("shown = %+v, want the planned step pointed at", shown)
 	}
-	if steps.calls != 1 {
-		t.Errorf("asked for steps %d time(s), want only the one check that the plan was all of it", steps.calls)
+	if steps.calls != 0 {
+		t.Errorf("asked for single steps %d time(s), want none", steps.calls)
 	}
 }

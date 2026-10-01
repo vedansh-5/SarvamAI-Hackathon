@@ -1356,6 +1356,11 @@ voice moves behind the three above.
   cache, scroll-to, the ghost and the pause all work on it unchanged (D-147). A
   named site that is not in front is opened as the first thing a confirmed run
   does, and its address is never guessed (D-148). Not yet tried on a real site.
+- *First live run (2026-10-01):* "search for flights from delhi to goa on
+  makemytrip" opened the site, clicked Flights, picked the route and was kept. Two
+  steps, three model calls, and it felt slow. A page read measures 0.1 s; the time
+  was calls and fixed waits. Fixed in D-149 (the planner carries on when a plan runs
+  out) and D-150 (waits end when the page answers).
 - Still to come in this phase: stop points before pay, publish and send;
   questions mid-task; "in a new profile".
 - Known limits of this first cut: clicks and typing are sent through the page's

@@ -289,7 +289,7 @@ function flyGhostTo(to: { x: number; y: number }, press: boolean) {
   const bend = Math.min(90, distance * 0.2);
   const cx = (from.x + to.x) / 2 - (dy / distance) * bend;
   const cy = (from.y + to.y) / 2 + (dx / distance) * bend;
-  const duration = Math.min(900, Math.max(380, distance * 0.9));
+  const duration = Math.min(560, Math.max(240, distance * 0.6));
   const start = performance.now();
 
   const frame = (now: number) => {

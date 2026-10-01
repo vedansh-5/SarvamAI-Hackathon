@@ -35,7 +35,9 @@ Rules that decide whether a step is usable:
 
 Give the shortest sequence that does the task. Stop the plan where you stop being able to predict the screen — a short honest plan costs one look at the screen to continue, where a long invented one gets thrown away.
 
-If the task cannot be started from what is on screen, give no steps and say why in one line. That is a useful answer.`
+If steps are listed as already done and the screen shows the task is now complete, give no steps, set done to true, and say in one line what shows it. Only set done when the screen in front of you shows it; steps you have just listed do not count.
+
+If the task cannot be started or carried on from what is on screen, give no steps, leave done false, and say why in one line. That is a useful answer.`
 
 func planSchema() map[string]any {
 	return map[string]any{
@@ -43,8 +45,9 @@ func planSchema() map[string]any {
 		"properties": map[string]any{
 			"steps": map[string]any{"type": "array", "items": screenStepSchema("do", "target", "describe")},
 			"why":   map[string]any{"type": "string"},
+			"done":  map[string]any{"type": "boolean"},
 		},
-		"required":             []string{"steps", "why"},
+		"required":             []string{"steps", "why", "done"},
 		"additionalProperties": false,
 	}
 }
@@ -67,6 +70,7 @@ type PlanRequest struct {
 type PlanAnswer struct {
 	Steps []uiact.Step
 	Why   string
+	Done  bool
 }
 
 func BuildPlanPrompt(req PlanRequest) string {
@@ -135,6 +139,7 @@ func (c *OpenAICompatible) WritePlan(ctx context.Context, req PlanRequest) (Plan
 	var answer struct {
 		Steps []uiact.Step `json:"steps"`
 		Why   string       `json:"why"`
+		Done  bool         `json:"done"`
 	}
 	if err := json.Unmarshal([]byte(text), &answer); err != nil {
 		return PlanAnswer{}, fmt.Errorf("synth: decode plan: %w (from %q)", err, truncate(text, 300))
@@ -143,5 +148,5 @@ func (c *OpenAICompatible) WritePlan(ctx context.Context, req PlanRequest) (Plan
 	if req.Most > 0 && len(answer.Steps) > req.Most {
 		answer.Steps = answer.Steps[:req.Most]
 	}
-	return PlanAnswer{Steps: answer.Steps, Why: answer.Why}, nil
+	return PlanAnswer{Steps: answer.Steps, Why: answer.Why, Done: answer.Done && len(answer.Steps) == 0}, nil
 }

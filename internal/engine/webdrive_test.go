@@ -131,8 +131,8 @@ func TestASiteThatIsNotInFrontIsOpenedOnlyAfterConfirming(t *testing.T) {
 	if _, err := e.runDrive(context.Background(), plan); err != nil {
 		t.Fatalf("runDrive: %v", err)
 	}
-	if len(page.opened) != 1 || planner.calls != 1 || page.acts != 1 {
-		t.Errorf("opened %v, planned %d, acted %d; want one of each", page.opened, planner.calls, page.acts)
+	if len(page.opened) != 1 || planner.calls != 2 || page.acts != 1 {
+		t.Errorf("opened %v, planned %d, acted %d; want one tab, the plan and its check, and one step", page.opened, planner.calls, page.acts)
 	}
 }
 

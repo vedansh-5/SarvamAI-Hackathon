@@ -18,6 +18,9 @@ type fakePage struct {
 	refuse  string
 	opened  []string
 	askErr  error
+
+	reads        int
+	changeOnRead int
 }
 
 func (p *fakePage) AskFront(_ context.Context, script string, out any) error {
@@ -36,12 +39,16 @@ func (p *fakePage) AskFront(_ context.Context, script string, out any) error {
 	return json.Unmarshal(raw, out)
 }
 
-func (p *fakePage) FrontLoading(context.Context) (bool, error) {
+func (p *fakePage) ReadFront(ctx context.Context, script string, out any) (bool, error) {
 	if p.loading > 0 {
 		p.loading--
-		return true, nil
+		return false, nil
 	}
-	return false, nil
+	p.reads++
+	if p.changeOnRead > 0 && p.reads >= p.changeOnRead {
+		p.snap.Title = "Results"
+	}
+	return true, p.AskFront(ctx, script, out)
 }
 
 func (p *fakePage) OpenInFront(_ context.Context, u string) error {
@@ -51,9 +58,9 @@ func (p *fakePage) OpenInFront(_ context.Context, u string) error {
 
 func quick(t *testing.T) {
 	t.Helper()
-	wait, poll, after := LoadWait, LoadPoll, AfterActing
-	LoadWait, LoadPoll, AfterActing = 200*time.Millisecond, time.Millisecond, 0
-	t.Cleanup(func() { LoadWait, LoadPoll, AfterActing = wait, poll, after })
+	wait, poll, answer, answerPoll := LoadWait, LoadPoll, AnswerWait, AnswerPoll
+	LoadWait, LoadPoll, AnswerWait, AnswerPoll = 200*time.Millisecond, time.Millisecond, 30*time.Millisecond, time.Millisecond
+	t.Cleanup(func() { LoadWait, LoadPoll, AnswerWait, AnswerPoll = wait, poll, answer, answerPoll })
 }
 
 func flights() snapshot {
@@ -189,5 +196,25 @@ func TestOpeningWaitsForThePage(t *testing.T) {
 	}
 	if len(page.opened) != 1 || page.loading != 0 {
 		t.Errorf("opened %v with %d load check(s) left, want one tab and the load waited out", page.opened, page.loading)
+	}
+}
+
+func TestActingCarriesOnAsSoonAsThePageAnswers(t *testing.T) {
+	quick(t)
+	AnswerWait = 5 * time.Second
+	page := &fakePage{snap: flights()}
+	s := &Screen{Page: page}
+	tree, _ := s.Capture(context.Background(), "")
+	page.changeOnRead = page.reads + 2
+
+	start := time.Now()
+	err := s.Act(context.Background(), uiact.Program{App: tree.App, Steps: []uiact.Step{
+		{Do: "click", Target: uiact.Selector{Role: "AXButton", Title: "Search flights"}},
+	}}, tree)
+	if err != nil {
+		t.Fatalf("Act: %v", err)
+	}
+	if took := time.Since(start); took > time.Second {
+		t.Errorf("waited %v after the page had already changed", took)
 	}
 }

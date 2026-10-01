@@ -67,8 +67,17 @@ type PlanWriter interface {
 // Never a reason to stop. No planner, a failed call or an empty plan all mean
 // the run works itself out one step at a time, as it did before this existed.
 func (e *Engine) planAhead(ctx context.Context, req synth.PlanRequest) ([]uiact.Step, int) {
+	answer, calls := e.planOn(ctx, req)
+	return answer.Steps, calls
+}
+
+func took(since time.Time) string {
+	return time.Since(since).Round(10 * time.Millisecond).String()
+}
+
+func (e *Engine) planOn(ctx context.Context, req synth.PlanRequest) (synth.PlanAnswer, int) {
 	if e.Plans == nil {
-		return nil, 0
+		return synth.PlanAnswer{}, 0
 	}
 
 	if len(req.Done) > 0 {
@@ -76,19 +85,24 @@ func (e *Engine) planAhead(ctx context.Context, req synth.PlanRequest) ([]uiact.
 	} else {
 		e.logf("planning the whole of it in one go")
 	}
+	asked := time.Now()
 	answer, err := e.Plans.WritePlan(ctx, req)
 	if err != nil {
 		e.logf("could not plan ahead, so working it out step by step: %v", err)
-		return nil, 1
+		return synth.PlanAnswer{}, 1
+	}
+	if answer.Done {
+		e.logf("nothing is left to do, answered in %s", took(asked))
+		return answer, 1
 	}
 	if len(answer.Steps) == 0 {
-		e.logf("no plan came back (%s), so working it out step by step",
-			reasonOr(answer.Why, "no reason given"))
-		return nil, 1
+		e.logf("no plan came back in %s (%s), so working it out step by step",
+			took(asked), reasonOr(answer.Why, "no reason given"))
+		return synth.PlanAnswer{}, 1
 	}
 
-	e.logf("planned %d step(s)", len(answer.Steps))
-	return answer.Steps, 1
+	e.logf("planned %d step(s) in %s", len(answer.Steps), took(asked))
+	return answer, 1
 }
 
 func (e *Engine) canDrive() bool {
@@ -241,7 +255,7 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 // glide to the control and land, and a beat after that. It is also the window in
 // which Escape stops the run with the step not done, so it is the dial between
 // too quick to veto and slow (ghost cursor spec).
-var lookBeforeActing = 850 * time.Millisecond
+var lookBeforeActing = 600 * time.Millisecond
 
 // showBeforeActing draws where a step is about to happen, then waits before it
 // does. Showing the click before making it is what makes a run watchable rather
@@ -516,8 +530,21 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 			// that finished the task is the model's to say, with the window it
 			// left in view.
 			if replaying && i > len(trace) && !confirmed {
-				replaying = false
-				e.logf("the %d planned step(s) are done; asking whether that is all of it", len(trace))
+				e.logf("the %d planned step(s) are done; asking what is left", len(trace))
+				more, n := e.planOn(ctx, synth.PlanRequest{Task: task, Tree: tree, Most: limit - i + 1, Done: done})
+				calls += n
+				switch {
+				case more.Done:
+					e.logf("finished after %d step(s): %s", len(done), more.Why)
+					return taskRun{
+						Did: did, Landed: landed, Finished: true, Why: more.Why,
+						Replayed: replayed, Calls: calls, Diverged: diverged,
+					}, nil
+				case len(more.Steps) > 0:
+					trace = append(append([]uiact.Step{}, trace[:i-1]...), more.Steps...)
+				default:
+					replaying = false
+				}
 			}
 			fromTrace := replaying && i <= len(trace)
 
@@ -541,12 +568,14 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 					e.logf("working out step %d", i)
 				}
 				calls++
+				asked := time.Now()
 				answer, err = e.Steps.WriteStep(ctx, synth.StepRequest{
 					Task:     task,
 					Tree:     tree,
 					Done:     done,
 					Failures: failures,
 				})
+				e.logf("the model answered in %s", took(asked))
 				if err != nil {
 					// An answer with neither a step nor a reason is the model
 					// dropping the contract for one turn, and it used to end the

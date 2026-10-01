@@ -20,7 +20,7 @@ var actOnPage string
 
 type Page interface {
 	AskFront(ctx context.Context, script string, out any) error
-	FrontLoading(ctx context.Context) (bool, error)
+	ReadFront(ctx context.Context, script string, out any) (loaded bool, err error)
 	OpenInFront(ctx context.Context, pageURL string) error
 }
 
@@ -33,9 +33,10 @@ type Screen struct {
 }
 
 var (
-	LoadWait    = 12 * time.Second
-	LoadPoll    = 150 * time.Millisecond
-	AfterActing = 350 * time.Millisecond
+	LoadWait   = 12 * time.Second
+	LoadPoll   = 120 * time.Millisecond
+	AnswerWait = 1 * time.Second
+	AnswerPoll = 90 * time.Millisecond
 )
 
 const WebArea = "AXWebArea"
@@ -73,34 +74,56 @@ func (s *Screen) browser() string {
 	return "Google Chrome"
 }
 
-func (s *Screen) waitForTheLoad(ctx context.Context) error {
+func (s *Screen) read(ctx context.Context) (snapshot, error) {
 	deadline := time.Now().Add(LoadWait)
 	for {
-		loading, err := s.Page.FrontLoading(ctx)
+		var snap snapshot
+		loaded, err := s.Page.ReadFront(ctx, readPage, &snap)
 		if err != nil {
-			return err
+			return snapshot{}, err
 		}
-		if !loading || time.Now().After(deadline) {
-			return nil
+		if loaded {
+			return snap, nil
+		}
+		if time.Now().After(deadline) {
+			if err := s.Page.AskFront(ctx, readPage, &snap); err != nil {
+				return snapshot{}, err
+			}
+			return snap, nil
 		}
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return snapshot{}, ctx.Err()
 		case <-time.After(LoadPoll):
 		}
 	}
 }
 
 func (s *Screen) Capture(ctx context.Context, _ string) (uiact.Tree, error) {
-	if err := s.waitForTheLoad(ctx); err != nil {
-		return uiact.Tree{}, err
-	}
-
-	var snap snapshot
-	if err := s.Page.AskFront(ctx, readPage, &snap); err != nil {
+	snap, err := s.read(ctx)
+	if err != nil {
 		return uiact.Tree{}, err
 	}
 	return treeOf(snap), nil
+}
+
+func (s *Screen) waitForAnAnswer(ctx context.Context, before uiact.Tree) {
+	deadline := time.Now().Add(AnswerWait)
+	for time.Now().Before(deadline) {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(AnswerPoll):
+		}
+		var snap snapshot
+		loaded, err := s.Page.ReadFront(ctx, readPage, &snap)
+		if err != nil || !loaded {
+			return
+		}
+		if len(uiact.Changes(before, treeOf(snap))) > 0 {
+			return
+		}
+	}
 }
 
 func treeOf(snap snapshot) uiact.Tree {
@@ -218,11 +241,10 @@ func (s *Screen) Act(ctx context.Context, p uiact.Program, t uiact.Tree) error {
 			return err
 		}
 
-		select {
-		case <-ctx.Done():
+		if ctx.Err() != nil {
 			return ctx.Err()
-		case <-time.After(AfterActing):
 		}
+		s.waitForAnAnswer(ctx, t)
 	}
 	return nil
 }
@@ -239,12 +261,8 @@ func (s *Screen) ScrollIntoView(ctx context.Context, t uiact.Tree, sel uiact.Sel
 	if err := s.send(ctx, act{Verb: "scroll", ID: id}); err != nil {
 		return err
 	}
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(AfterActing):
-		return nil
-	}
+	s.waitForAnAnswer(ctx, t)
+	return ctx.Err()
 }
 
 func (s *Screen) Open(ctx context.Context, pageURL string) error {
@@ -254,9 +272,10 @@ func (s *Screen) Open(ctx context.Context, pageURL string) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-time.After(AfterActing):
+	case <-time.After(2 * LoadPoll):
 	}
-	return s.waitForTheLoad(ctx)
+	_, err := s.read(ctx)
+	return err
 }
 
 func (s *Screen) Frontmost(context.Context) (string, error) { return s.browser(), nil }

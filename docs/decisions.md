@@ -3433,3 +3433,39 @@ The address comes from a short list of known sites, or from an address the perso
 typed. A name that is on neither is refused with "open it in Chrome, then ask
 again". Turning a name into a domain by guessing is how a task ends up signed in to
 somebody else's copy of the site.
+
+## D-149 — When a plan runs out, the planner is asked what is left
+
+D-139 planned once and, when the plan ran out, asked the step writer whether that
+was all. If it was not, the answer was one step, and every step after it was its
+own call. The first live run on a real site showed the cost: the model planned one
+step, because it could not see past the first click, and the rest of the run was a
+call per step.
+
+Running out of a plan now asks the planner again, with what has been done and the
+window as it stands. It answers one of three ways: more steps, which are run as a
+plan; `done`, which finishes the run; or nothing, which hands over to the step
+writer as before. A task that crosses four pages costs about one call a page
+instead of one a step.
+
+`done` is only accepted with no steps beside it, and the prompt says to set it only
+when the screen in front of the model shows the task complete. That keeps what
+D-139 insisted on: a run is called finished by a model looking at the final window,
+never by a plan predicting it would get there.
+
+## D-150 — Waits are for something, not for a length of time
+
+Measured after that run: reading a page takes about 0.1 s, so the page was never
+the slow part. The time was model calls and waits written as fixed lengths.
+
+- After acting on a page, the fixed 350 ms is gone. The page is re-read every 90 ms
+  and the run carries on the moment it differs, or has started loading, with one
+  second as the most it waits. Quicker when a page answers at once, and more
+  patient than before with one that takes half a second, which used to be read too
+  early and recorded as a click that did nothing.
+- Reading a page was two script calls, one to ask whether it was loading and one to
+  read it. It is one.
+- The pause that shows a step before making it is 600 ms, from 850, and the ghost's
+  glide is capped at 560 ms so it still lands before the step happens.
+- Every model call logs how long it took, so the next "it is slow" starts from
+  numbers.

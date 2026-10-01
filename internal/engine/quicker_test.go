@@ -17,7 +17,7 @@ type sequencedPlanner struct {
 func (p *sequencedPlanner) WritePlan(_ context.Context, req synth.PlanRequest) (synth.PlanAnswer, error) {
 	p.requests = append(p.requests, req)
 	if len(p.requests) > len(p.plans) {
-		return synth.PlanAnswer{Why: "no more plans"}, nil
+		return synth.PlanAnswer{Done: len(req.Done) > 0, Why: "no more plans"}, nil
 	}
 	return synth.PlanAnswer{Steps: p.plans[len(p.requests)-1]}, nil
 }
@@ -118,15 +118,15 @@ func TestAPlanThatGoesWrongIsPlannedAgainNotWalkedStepByStep(t *testing.T) {
 		t.Fatalf("runDrive: %v", err)
 	}
 
-	if len(planner.requests) != 2 {
-		t.Fatalf("planned %d time(s), want 2: once up front, once when step 2 did not fit", len(planner.requests))
+	if len(planner.requests) != 3 {
+		t.Fatalf("planned %d time(s), want 3: up front, when step 2 did not fit, and whether that was all", len(planner.requests))
 	}
 	again := planner.requests[1]
 	if len(again.Done) != 1 || len(again.Failures) == 0 {
 		t.Errorf("second plan was told done=%v failures=%v, want the first step and why step 2 failed", again.Done, again.Failures)
 	}
-	if steps.calls != 1 {
-		t.Errorf("asked for single steps %d time(s), want only the check that the new plan was all of it", steps.calls)
+	if steps.calls != 0 {
+		t.Errorf("asked for single steps %d time(s), want none", steps.calls)
 	}
 	if receipt.Work == nil || receipt.Work.Steps != 2 || receipt.Work.Calls != 3 {
 		t.Errorf("work = %+v, want 2 steps for 3 calls: two plans and the check", receipt.Work)

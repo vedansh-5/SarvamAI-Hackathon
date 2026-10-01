@@ -495,3 +495,30 @@ func truncate(s string, n int) string {
 	}
 	return s[:n] + "…"
 }
+
+func (c *Chrome) ReadFront(ctx context.Context, script string, out any) (bool, error) {
+	source, err := jsLiteral(script)
+	if err != nil {
+		return false, err
+	}
+
+	var got struct {
+		Loading bool   `json:"loading"`
+		Value   string `json:"value"`
+	}
+	if err := c.run(ctx, fmt.Sprintf(`reply(function () {
+  const app = chrome();
+  const tab = app.windows[0].activeTab;
+  if (tab.loading()) return { loading: true, value: '' };
+  return { loading: false, value: String(app.execute(tab, { javascript: %s })) };
+});`, source), &got); err != nil {
+		return false, err
+	}
+	if got.Loading {
+		return false, nil
+	}
+	if err := json.Unmarshal([]byte(got.Value), out); err != nil {
+		return false, fmt.Errorf("appleevents: the page in front cannot be read or driven (it answered %q)", truncate(got.Value, 80))
+	}
+	return true, nil
+}
