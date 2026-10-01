@@ -218,3 +218,23 @@ func TestActingCarriesOnAsSoonAsThePageAnswers(t *testing.T) {
 		t.Errorf("waited %v after the page had already changed", took)
 	}
 }
+
+func TestASecretFieldIsNeverTypedInto(t *testing.T) {
+	quick(t)
+	snap := flights()
+	snap.Controls = append(snap.Controls, control{Role: "AXSecureTextField", Title: "Card number", Enabled: true, X: 100, Y: 400, W: 200, H: 30})
+	page := &fakePage{snap: snap}
+	s := &Screen{Page: page}
+	tree, _ := s.Capture(context.Background(), "")
+	before := len(page.asked)
+
+	err := s.Act(context.Background(), uiact.Program{App: tree.App, Steps: []uiact.Step{
+		{Do: "type", Target: uiact.Selector{Role: "AXSecureTextField", Title: "Card number"}, Text: "4111111111111111"},
+	}}, tree)
+	if err == nil {
+		t.Fatal("typed into a card number field")
+	}
+	if len(page.asked) != before {
+		t.Error("something was sent to the page for a secret field")
+	}
+}

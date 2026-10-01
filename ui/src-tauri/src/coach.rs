@@ -31,6 +31,14 @@ pub const NEXT: &str = "coach://next";
 
 static PAUSED: AtomicBool = AtomicBool::new(false);
 
+static PAUSED_WHY: Mutex<Option<Pause>> = Mutex::new(None);
+
+#[derive(Clone, Serialize)]
+pub struct Pause {
+    pub ask: String,
+    pub label: String,
+}
+
 /// Emitted to the panel when the person presses Escape during a coached run.
 pub const STOP: &str = "coach://stop";
 
@@ -414,7 +422,8 @@ fn draw(app: &AppHandle, mut p: Pointer) {
         eprintln!("[vans] could not draw the tip: {e}");
     }
     if PAUSED.load(Ordering::Relaxed) {
-        let _ = win.emit_to(LABEL, "coach:paused", ());
+        let why = PAUSED_WHY.lock().unwrap().clone();
+        let _ = win.emit_to(LABEL, "coach:paused", why);
     }
 }
 
@@ -467,12 +476,14 @@ pub fn finish(app: &AppHandle) {
     });
 }
 
-pub fn paused(app: &AppHandle) {
+pub fn paused(app: &AppHandle, ask: String, label: String) {
+    let why = Pause { ask, label };
+    *PAUSED_WHY.lock().unwrap() = Some(why.clone());
     PAUSED.store(true, Ordering::Relaxed);
     let handle = app.clone();
     let _ = app.run_on_main_thread(move || {
         if let Some(win) = handle.get_webview_window(LABEL) {
-            let _ = win.emit_to(LABEL, "coach:paused", ());
+            let _ = win.emit_to(LABEL, "coach:paused", Some(why));
         }
     });
 }

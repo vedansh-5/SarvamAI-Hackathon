@@ -180,6 +180,8 @@ type GuideStepParams struct {
 	// hold. The overlay draws a different thing for each.
 	Do     string `json:"do,omitempty"`
 	Detail string `json:"detail,omitempty"`
+
+	Ask string `json:"ask,omitempty"`
 }
 
 // ClearStyleResult reports that the page was put back.

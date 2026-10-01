@@ -530,14 +530,20 @@ function renderInstruction(pointer: Pointer) {
   });
 }
 
-function showPaused() {
+function showPaused(why: { ask?: string; label?: string } | null) {
   elementById<SVGGElement>("ghost").classList.add("waiting");
+  if (why?.ask) {
+    elementById<HTMLElement>("caption").classList.add("asking");
+    setCaption(`About to: ${why.label || "do this"}`, "⌥Space to go ahead · Esc to stop");
+    return;
+  }
   setCaption("Paused", "⌥Space to carry on · Esc to stop");
 }
 
 function renderCoachStep(pointer: Pointer) {
   followTheme();
   elementById<SVGGElement>("ghost").classList.remove("waiting");
+  elementById<HTMLElement>("caption").classList.remove("asking");
   runMode = pointer.mode === "drive" ? "drive" : "coach";
   origin = { x: pointer.ox ?? 0, y: pointer.oy ?? 0 };
   const targetBounds = calculateTargetBounds(pointer);
@@ -671,7 +677,7 @@ void Promise.all([
   listen<Pointer>("coach:point", (event) => renderCoachStep(event.payload)),
   listen("coach:clear", () => dismissCoach()),
   listen("coach:done", () => markItDone()),
-  listen("coach:paused", () => showPaused()),
+  listen<{ ask?: string; label?: string } | null>("coach:paused", (event) => showPaused(event.payload)),
 ]).then(() => {
   note("listening");
   return emit("coach://ready");

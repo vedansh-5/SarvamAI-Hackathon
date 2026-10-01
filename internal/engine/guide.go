@@ -94,6 +94,8 @@ type GuideStep struct {
 	// highlight and an instruction.
 	Do     string
 	Detail string
+
+	Ask string
 }
 
 func (e *Engine) canGuide() bool {

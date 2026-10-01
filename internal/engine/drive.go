@@ -196,8 +196,8 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 		if err := e.showBeforeActing(ctx, tree, program.Steps[0], number, describe); err != nil {
 			return tree, err
 		}
-		if hand.moved() {
-			fresh, err := e.waitOutThePause(ctx, d.App, tree, program, number, describe)
+		if ask := e.askFirst(tree, program.Steps[0]); ask != "" || hand.moved() {
+			fresh, err := e.waitOutThePause(ctx, d.App, tree, program, number, describe, ask)
 			hand.rest()
 			if err != nil {
 				return fresh, err
@@ -338,9 +338,25 @@ func abs(n int) int {
 	return n
 }
 
-func (e *Engine) waitOutThePause(ctx context.Context, app string, tree uiact.Tree, program uiact.Program, number int, describe string) (uiact.Tree, error) {
+func (e *Engine) askFirst(tree uiact.Tree, step uiact.Step) string {
+	if e.Paused == nil || e.Resume == nil {
+		return ""
+	}
+	el, _ := tree.Resolve(step.Target)
+	final, why := uiact.Commits(step, el)
+	if !final {
+		return ""
+	}
+	return why
+}
+
+func (e *Engine) waitOutThePause(ctx context.Context, app string, tree uiact.Tree, program uiact.Program, number int, describe, ask string) (uiact.Tree, error) {
 	step := program.Steps[0]
-	e.logf("the pointer moved, so step %d waits until you carry on", number)
+	if ask != "" {
+		e.logf("step %d cannot be taken back (%s), so it waits for you to say go ahead", number, ask)
+	} else {
+		e.logf("the pointer moved, so step %d waits until you carry on", number)
+	}
 
 drain:
 	for {
@@ -356,6 +372,7 @@ drain:
 		Number: number, Label: describe,
 		X: x, Y: y, W: w, H: h,
 		Do: strings.ToLower(strings.TrimSpace(step.Do)), Detail: detailOf(step),
+		Ask: ask,
 	})
 
 	select {

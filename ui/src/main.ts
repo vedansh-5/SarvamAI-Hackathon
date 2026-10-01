@@ -496,9 +496,10 @@ listen("coach://next", () => {
   invoke("advance_guide").catch(console.error);
 });
 
-listen("engine://drive_paused", () => {
+listen<{ params: { label?: string; ask?: string } }>("engine://drive_paused", (event) => {
   if (actingIn === null) return;
-  invoke("pause_pointer").catch(console.error);
+  const p = event.payload?.params ?? {};
+  invoke("pause_pointer", { ask: p.ask ?? "", label: p.label ?? "" }).catch(console.error);
 });
 
 listen<{

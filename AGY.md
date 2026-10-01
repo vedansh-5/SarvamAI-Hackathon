@@ -1361,8 +1361,9 @@ voice moves behind the three above.
   steps, three model calls, and it felt slow. A page read measures 0.1 s; the time
   was calls and fixed waits. Fixed in D-149 (the planner carries on when a plan runs
   out) and D-150 (waits end when the page answers).
-- Still to come in this phase: stop points before pay, publish and send;
-  questions mid-task; "in a new profile".
+- *Stop points — built.* A step that pays, orders, publishes, sends or deletes
+  waits for ⌥Space (D-151). Secret fields are never typed into (D-152).
+- Still to come in this phase: questions mid-task; "in a new profile".
 - Known limits of this first cut: clicks and typing are sent through the page's
   script, which some sites ignore for things that need a real gesture (file
   pickers, some pay buttons); frames from another site cannot be read; only

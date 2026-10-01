@@ -503,7 +503,7 @@ func (s *Server) commit(ctx context.Context, req Request) (CommitResult, error) 
 		s.push(req.ID, "drive_paused", GuideStepParams{
 			Number: g.Number, Label: g.Label,
 			X: g.X, Y: g.Y, W: g.W, H: g.H,
-			Do: g.Do, Detail: g.Detail,
+			Do: g.Do, Detail: g.Detail, Ask: g.Ask,
 		})
 	}
 

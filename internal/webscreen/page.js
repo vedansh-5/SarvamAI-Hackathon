@@ -18,10 +18,22 @@
     return s.length > n ? s.slice(0, n) : s;
   }
 
+  function secret(el) {
+    var tag = el.tagName.toLowerCase();
+    if (tag !== 'input' && tag !== 'textarea') return false;
+    var type = (el.getAttribute('type') || '').toLowerCase();
+    if (type === 'password') return true;
+    var auto = (el.getAttribute('autocomplete') || '').toLowerCase();
+    if (/^cc-|one-time-code|current-password|new-password/.test(auto)) return true;
+    var hint = [el.name, el.id, el.getAttribute('placeholder'), el.getAttribute('aria-label')].join(' ').toLowerCase();
+    return /\b(cvv|cvc|card ?number|cardnumber|otp|one[- ]time|passcode|upi pin|\bpin\b|captcha|security code)\b/.test(hint);
+  }
+
   function roleOf(el) {
     var tag = el.tagName.toLowerCase();
     var role = (el.getAttribute('role') || '').toLowerCase();
     var type = (el.getAttribute('type') || '').toLowerCase();
+    if (secret(el)) return 'AXSecureTextField';
     if (role === 'textbox' || role === 'searchbox') return 'AXTextField';
     if (role === 'combobox') return 'AXComboBox';
     if (role === 'checkbox' || role === 'switch') return 'AXCheckBox';

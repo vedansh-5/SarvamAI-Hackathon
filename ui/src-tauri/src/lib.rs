@@ -118,8 +118,8 @@ async fn resume_drive(engine: State<'_, Engine>) -> Result<Value, RpcError> {
 }
 
 #[tauri::command]
-fn pause_pointer(app: tauri::AppHandle) {
-    coach::paused(&app);
+fn pause_pointer(app: tauri::AppHandle, ask: Option<String>, label: Option<String>) {
+    coach::paused(&app, ask.unwrap_or_default(), label.unwrap_or_default());
 }
 
 #[tauri::command]

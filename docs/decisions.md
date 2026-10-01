@@ -3469,3 +3469,40 @@ the slow part. The time was model calls and waits written as fixed lengths.
   glide is capped at 560 ms so it still lands before the step happens.
 - Every model call logs how long it took, so the next "it is slow" starts from
   numbers.
+
+## D-151 — A step that cannot be taken back waits to be told to go ahead
+
+The confirmation at the start of a run agrees to a task. It cannot agree to the
+last screen, because nobody has seen it yet: the fare changed, the wrong chat is
+open, the form picked up a default. So a step that pays, orders, books, publishes,
+posts, sends or deletes stops before it runs. The overlay turns amber and says what
+is about to happen; ⌥Space goes ahead, Escape stops, and two minutes of nothing
+stops too.
+
+Two ways a step is known to be one of these, and either is enough:
+
+- The model marks it `final`. It can see context a word list cannot — a "Continue"
+  that is in fact the charge.
+- The control's own name says so (Pay, Buy, Place order, Confirm booking, Publish,
+  Post, Send, Submit, Delete and the like), or the step presses Enter in a message
+  box. This is the floor the model cannot lower: a step it forgot to mark is still
+  caught.
+
+It reuses the pause from D-146, so going ahead reads the window again and checks
+the step still fits. A kept trace stops at the same step every time it is replayed;
+remembering how to do something is not remembering permission to do it.
+
+Without a shell to ask through there is nobody to ask, and the step runs under the
+confirmation given at the start, as it did before.
+
+## D-152 — Secrets are the person's to type
+
+A password, a card number, a CVV, a PIN, a one-time code and a captcha are never
+entered by VANS. On a page such a field is published as `AXSecureTextField` — the
+role macOS itself gives a password field — which is not a role that can be typed
+into, so a step that tries is refused by the same check that refuses typing into a
+button. The prompts say to stop there and say what the person needs to enter.
+
+Found by type, by the browser's own autocomplete hints (`cc-*`, `one-time-code`),
+and by name. Erring towards calling a field secret costs a step the person does by
+hand; erring the other way puts a card number through a model.

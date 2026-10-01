@@ -34,6 +34,7 @@ func screenStepSchema(required ...string) map[string]any {
 				"items": map[string]any{"type": "string", "enum": uiact.ModifierNames()},
 			},
 			"describe": map[string]any{"type": "string"},
+			"final":    map[string]any{"type": "boolean"},
 		},
 		"required":             required,
 		"additionalProperties": false,
