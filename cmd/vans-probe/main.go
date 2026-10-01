@@ -5,12 +5,14 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/vedansh/vans/internal/adapter/appleevents"
 	"github.com/vedansh/vans/internal/names"
+	"github.com/vedansh/vans/internal/store"
 	"github.com/vedansh/vans/internal/uiact"
 )
 
@@ -21,9 +23,17 @@ func main() {
 		fmt.Fprintln(os.Stderr, "With no names, every application with a window on screen is read.")
 		fmt.Fprintln(os.Stderr, "Each one is brought forward for a moment, because macOS only lists the windows of the application in front.")
 	}
+	tasks := flag.Bool("tasks", false, "list the most recent tasks and how many model calls each took, instead of reading applications")
 	flag.Parse()
 
 	ctx := context.Background()
+	if *tasks {
+		if err := listTasks(ctx); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
 	screen := uiact.System{Runner: appleevents.Osascript{}}
 
 	apps := flag.Args()
@@ -101,4 +111,31 @@ func clip(s string, n int) string {
 		return s
 	}
 	return s[:n-1] + "…"
+}
+
+func listTasks(ctx context.Context) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	st, err := store.Open(filepath.Join(home, ".vans", "programs.db"))
+	if err != nil {
+		return err
+	}
+	defer st.Close()
+
+	runs, err := st.RecentTasks(ctx, 30)
+	if err != nil {
+		return err
+	}
+	if len(runs) == 0 {
+		fmt.Println("no tasks recorded yet")
+		return nil
+	}
+	fmt.Printf("%-12s %-5s %-22s %5s %8s %5s  %s\n", "WHEN", "MODE", "WHERE", "STEPS", "FROM MEM", "CALLS", "TASK")
+	for _, r := range runs {
+		fmt.Printf("%-12s %-5s %-22s %5d %8d %5d  %s\n",
+			r.At.Format("Jan 2 15:04"), r.Mode, clip(r.App, 22), r.Steps, r.Replayed, r.Calls, clip(r.Shape, 60))
+	}
+	return nil
 }

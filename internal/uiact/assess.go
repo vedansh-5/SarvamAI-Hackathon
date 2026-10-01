@@ -88,3 +88,27 @@ func NameByContents(elements []Element) {
 		}
 	}
 }
+
+func IsControl(el Element) bool { return actedOn[role(el.Role)] }
+
+func NewControls(before, after Tree) []Element {
+	had := map[string]bool{}
+	for _, el := range before.Elements {
+		had[role(el.Role)+"\x00"+strings.ToLower(el.Label())] = true
+	}
+	seen := map[string]bool{}
+	var out []Element
+	for _, el := range after.Elements {
+		label := el.Label()
+		if !actedOn[role(el.Role)] || label == "" {
+			continue
+		}
+		key := role(el.Role) + "\x00" + strings.ToLower(label)
+		if had[key] || seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, el)
+	}
+	return out
+}

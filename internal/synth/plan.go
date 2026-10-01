@@ -36,6 +36,8 @@ Rules that decide whether a step is usable:
 - Describe each step in the words a person would use. That line is shown while it happens, and it is how someone watching knows what is being done.
 - Do the task and nothing else. An extra click to "tidy up" is a change nobody asked for.
 
+You may also be shown what is known from earlier runs: which controls a click led to. Use it to plan confidently through screens you cannot see yet, spelling the controls exactly as it lists them. A control of the same kind as a listed one (another chat, another row in the same list) usually leads to the same sort of screen. It can be out of date, which is fine, because every step is checked.
+
 Give the shortest sequence that does the task. Stop the plan where you stop being able to predict the screen — a short honest plan costs one look at the screen to continue, where a long invented one gets thrown away.
 
 ` + askingRule + `
@@ -69,6 +71,8 @@ type PlanRequest struct {
 
 	Done     []string
 	Failures []string
+
+	Known []string
 }
 
 // PlanAnswer is the sequence the model expects to do the task, and its own
@@ -96,6 +100,13 @@ func BuildPlanPrompt(req PlanRequest) string {
 
 	b.WriteString("\n\nWHAT IS ON SCREEN NOW\n")
 	b.WriteString(req.Tree.TextWithin(uiact.MaxTreeBytes))
+
+	if len(req.Known) > 0 {
+		b.WriteString("\nKNOWN FROM EARLIER RUNS IN THIS APPLICATION\n")
+		for _, k := range req.Known {
+			fmt.Fprintf(&b, "  - %s\n", k)
+		}
+	}
 
 	if len(req.Failures) > 0 {
 		b.WriteString("\nTHE PLANNED NEXT STEP DID NOT FIT THIS SCREEN\n")

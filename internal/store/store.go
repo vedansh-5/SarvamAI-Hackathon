@@ -99,7 +99,7 @@ func Open(path string) (*Store, error) {
 // Close releases the database.
 func (s *Store) Close() error { return s.db.Close() }
 
-const schemaVersion = 9
+const schemaVersion = 10
 
 func (s *Store) migrate(ctx context.Context) error {
 	var v int
@@ -223,6 +223,29 @@ CREATE TABLE IF NOT EXISTS settings (
 	key   TEXT PRIMARY KEY,
 	value TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS app_map (
+	app        TEXT    NOT NULL,
+	role       TEXT    NOT NULL,
+	title      TEXT    NOT NULL,
+	leads      TEXT    NOT NULL,
+	seen       INTEGER NOT NULL DEFAULT 1,
+	updated_at INTEGER NOT NULL,
+	PRIMARY KEY (app, role, title)
+);
+
+CREATE TABLE IF NOT EXISTS runs (
+	id       INTEGER PRIMARY KEY AUTOINCREMENT,
+	at       INTEGER NOT NULL,
+	app      TEXT    NOT NULL DEFAULT '',
+	shape    TEXT    NOT NULL DEFAULT '',
+	mode     TEXT    NOT NULL DEFAULT '',
+	steps    INTEGER NOT NULL DEFAULT 0,
+	replayed INTEGER NOT NULL DEFAULT 0,
+	calls    INTEGER NOT NULL DEFAULT 0,
+	finished INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS runs_at ON runs (at DESC);
 `
 	if _, err := s.db.ExecContext(ctx, ddl); err != nil {
 		return fmt.Errorf("store: create schema: %w", err)

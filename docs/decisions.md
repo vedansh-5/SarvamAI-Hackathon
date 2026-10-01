@@ -3810,3 +3810,37 @@ The offer to enter a value for the person (D-159) is switched off. It put "do it
 for me" on every typing step of a run whose purpose is doing it yourself. The
 mechanism and its tests stay, behind the reply channel that the server no longer
 connects, so turning it back on is one line.
+
+## D-167 — VANS keeps a map of each application, made from what its own runs see
+
+A model call is spent whenever a run reaches a screen the model has not been
+shown. The plan stops where the model stops being able to predict (D-139), and it
+cannot predict what is behind a click it has never seen the result of. Yet every
+step already reads the window before and after. That was thrown away.
+
+It is kept now, as a map: in this application, this control led to these controls
+appearing. One row per control, counted each time it is seen, replaced by the most
+recent sighting. Only controls with short names go in, in either direction — what
+an application's buttons and fields are is its shape; what somebody wrote in it is
+not, and stays out.
+
+The planner is shown the part of the map that touches the screen in front: what
+each control now on screen has led to, and one step beyond that. With it a plan
+can run through a screen the model has not seen this run, which is the call the map
+exists to save. It is told the map can be out of date, and it does not matter if
+it is: every step is still checked against the window when its turn comes
+(D-121), and a wrong entry costs one re-plan and is then overwritten by what
+actually appeared.
+
+It builds itself. A coached run teaches it as well as one VANS does, because the
+loop is the same and the person's click is read the same way. Nothing is set up
+per application and nothing is trained.
+
+Known limit, kept deliberately small for a first version: entries are per control,
+so what the chat with one person led to is not known for another person's chat.
+The prompt says a control of the same kind usually leads to the same sort of
+screen, which is as far as this goes until screens are told apart properly.
+
+Every task is also written down with what it cost — steps, how many came from
+memory, model calls — so whether this works is a number to read
+(`vans-probe -tasks`) and not an impression.

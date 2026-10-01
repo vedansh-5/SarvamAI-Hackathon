@@ -175,6 +175,8 @@ func run() error {
 			Deeds:      st,
 			Recorded:   st,
 			Traces:     st,
+			Map:        st,
+			Tasks:      st,
 			UIScreen:   desktop,
 			PageScreen: page,
 		},

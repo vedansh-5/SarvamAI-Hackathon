@@ -86,6 +86,12 @@ func (e *Engine) planOn(ctx context.Context, req synth.PlanRequest) (synth.PlanA
 	} else {
 		e.logf("planning the whole of it in one go")
 	}
+	if len(req.Known) == 0 {
+		req.Known = e.knownAbout(ctx, req.Tree)
+		if len(req.Known) > 0 {
+			e.logf("%d thing(s) known about %s from before go with the plan", len(req.Known), req.Tree.App)
+		}
+	}
 	asked := time.Now()
 	answer, err := e.Plans.WritePlan(ctx, req)
 	if err != nil {
@@ -222,6 +228,7 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	// step is held to exactly the same standard, so where the steps came from
 	// never enters into whether the run is verified.
 	run, err := e.stepThroughTask(ctx, d.App, d.Task, limit, act, d.Replay, d.Kept, true)
+	e.noteTheTask(ctx, d.App, d.Shape, ModeDo, run, d.PlanCalls)
 	if err != nil {
 		e.settleTheTrace(ctx, d, run)
 		return Receipt{}, err
@@ -738,6 +745,9 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 			done = append(done, describe+" — "+effect)
 			did = append(did, answer.Step)
 			next = after
+			if changed {
+				e.learnFrom(ctx, tree, after, answer.Step)
+			}
 			if fromTrace {
 				replayed++
 			}

@@ -1397,10 +1397,11 @@ a strict order; the order being followed is at the end.
 the screen becomes one the model has not seen, so the measure is calls per screen.
 No local model runtimes (§11 still holds); these come first.
 
-- A1. A count of calls on every task, shown, so a drop can be seen.
+- A1. A count of calls on every task, shown, so a drop can be seen. **Built**
+  (D-167): `go run ./cmd/vans-probe -tasks`.
 - A2. Remember pieces, not only whole runs: "open the chat with a person", "search
   on this site", kept and reused inside new tasks.
-- A3. Learn each application's map: clicking X here leads to a screen with these
+- A3. **Foundation built (D-167), not yet measured live.** Learn each application's map: clicking X here leads to a screen with these
   controls. Lets the planner plan across screens it has not been shown this run.
 - A4. Small decisions made by code, never by a model: scrolling to a control,
   closing cookie banners, waiting for a page, picking the field whose label fits.

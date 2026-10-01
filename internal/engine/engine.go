@@ -174,6 +174,9 @@ type Engine struct {
 
 	Question func(ctx context.Context, question string, options []string) (string, error)
 
+	Map   AppMap
+	Tasks TaskLog
+
 	// Recorded reads those back, to put one of them back.
 	Recorded DeedStore
 
