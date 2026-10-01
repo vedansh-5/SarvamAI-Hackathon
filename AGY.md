@@ -1411,8 +1411,11 @@ No local model runtimes (§11 still holds); these come first.
 
 **B. Reaching every application.**
 
-- B1. **Built (D-169), coach only, not yet tried on a real application.** The
-  vision tier, chosen automatically when the probe's verdict is blind.
+- B1. **Built (D-169), and demoted to a last resort by D-183.** Tried live it was
+  slow (7 s) and wrong about an icon. Electron applications are now asked to
+  publish their controls and are read exactly; a picture is only used when that
+  produces nothing. The vision tier, chosen automatically when the probe's verdict
+  is blind.
 - B2. **Built (D-170).** Real mouse and keyboard as the fallback on pages that
   ignore scripted input.
 - B3. Choosing files, for uploads.

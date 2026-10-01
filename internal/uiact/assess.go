@@ -177,3 +177,53 @@ func menuIsOpen(rows []Element) bool {
 }
 
 func InMenuBar(el Element) bool { return len(el.Path) > 0 && el.Path[0] < 0 }
+
+func Slim(elements []Element, most int) []Element {
+	if len(elements) <= MaxElements {
+		return elements
+	}
+	seen := func(el Element) bool {
+		return len(el.Size) == 2 && el.Size[0] > 1 && el.Size[1] > 1
+	}
+	var kept []Element
+	for _, el := range elements {
+		r := role(el.Role)
+		switch {
+		case InMenuBar(el):
+		case actedOn[r]:
+			if !seen(el) {
+				continue
+			}
+		case r == "webarea" || r == "window" || r == "scrollarea":
+		case (r == "group" || r == "list" || r == "table" || r == "outline" || r == "toolbar" || r == "tabgroup" || r == "heading") && strings.TrimSpace(el.Label()) != "":
+			if !seen(el) {
+				continue
+			}
+		default:
+			continue
+		}
+		kept = append(kept, el)
+	}
+
+	screen, known := displays()
+	onScreen := func(el Element) bool {
+		if !known || InMenuBar(el) {
+			return true
+		}
+		b, ok := el.box()
+		return ok && b.clip(screen).valid()
+	}
+	var here, away []Element
+	for _, el := range kept {
+		if onScreen(el) {
+			here = append(here, el)
+		} else {
+			away = append(away, el)
+		}
+	}
+	kept = append(here, away...)
+	if len(kept) > most {
+		kept = kept[:most]
+	}
+	return kept
+}

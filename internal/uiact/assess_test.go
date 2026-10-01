@@ -90,3 +90,51 @@ func TestAMenuCountsAsOpenOnlyWhenItsRowsAreLaidOut(t *testing.T) {
 		t.Error("no rows was treated as an open menu")
 	}
 }
+
+func TestAVeryLargeWindowKeepsItsControlsAndDropsItsFiller(t *testing.T) {
+	var els []Element
+	for i := 0; i < 600; i++ {
+		els = append(els, Element{Role: "AXGroup", Path: []int{i}, Size: []int{100, 20}})
+		els = append(els, Element{Role: "AXStaticText", Value: "some words", Path: []int{i, 0}, Size: []int{100, 20}})
+	}
+	els = append(els,
+		Element{Role: "AXRadioButton", Title: "Explorer", Enabled: true, Path: []int{700}, Position: []int{0, 73}, Size: []int{42, 42}},
+		Element{Role: "AXButton", Title: "Collapsed away", Enabled: true, Path: []int{701}, Position: []int{0, 504}, Size: []int{1, 29}},
+		Element{Role: "AXGroup", Title: "Sidebar", Path: []int{702}, Size: []int{200, 600}},
+		Element{Role: "AXMenuBarItem", Title: "File", Enabled: true, Path: []int{-1, 2}, Size: []int{40, 22}},
+	)
+	kept := Slim(els, 700)
+
+	names := map[string]bool{}
+	for _, el := range kept {
+		names[el.Label()] = true
+	}
+	if len(kept) != 3 || !names["Explorer"] || !names["Sidebar"] || !names["File"] {
+		t.Errorf("kept %d: %v; want the control, the named container and the menu, and none of the filler", len(kept), names)
+	}
+	if names["Collapsed away"] {
+		t.Error("kept a control one point wide, which nobody can see or click")
+	}
+
+	small := []Element{{Role: "AXGroup"}, {Role: "AXStaticText", Value: "words"}}
+	if got := Slim(small, 700); len(got) != 2 {
+		t.Errorf("a small window was thinned to %d element(s); only a very large one needs it", len(got))
+	}
+}
+
+func TestWhatIsOnScreenIsKeptAheadOfWhatHasScrolledAway(t *testing.T) {
+	was := displays
+	displays = func() (box, bool) { return box{0, 0, 1700, 1100}, true }
+	t.Cleanup(func() { displays = was })
+
+	var els []Element
+	for i := 0; i < 400; i++ {
+		els = append(els, Element{Role: "AXCell", Title: "old row", Enabled: true, Path: []int{i}, Position: []int{100, -40000 + i}, Size: []int{500, 25}})
+	}
+	els = append(els, Element{Role: "AXButton", Title: "Settings", Enabled: true, Path: []int{900}, Position: []int{1545, 1070}, Size: []int{130, 22}})
+
+	kept := Slim(els, 50)
+	if len(kept) != 50 || kept[0].Title != "Settings" {
+		t.Fatalf("kept %d, first is %q; the one control on screen must come before four hundred that are not", len(kept), kept[0].Title)
+	}
+}

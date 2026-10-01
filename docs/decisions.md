@@ -4110,3 +4110,50 @@ addresses are unambiguous without them and are left alone.
 
 The same run showed the record of a stopped run failing to save: it was written
 with the context that Escape had just cancelled. It is written regardless now.
+
+## D-183 — An application that publishes nothing is asked to, before it is looked at
+
+D-169 looked at a picture of an application that could not be read. Tried on an
+editor built on Electron, it took seven seconds and pointed at the wrong icon: a
+small model naming icons that carry no words is guessing. Slow and imprecise is
+the wrong trade, and precision is the first constraint.
+
+It was also unnecessary for most of them. An Electron application builds its
+accessibility tree only when something asks for it, which is what a screen reader
+does by setting `AXManualAccessibility` on the application. VANS now sets it when a
+window reads as blind, waits up to three seconds for the tree to appear, and reads
+again. The same editor went from no controls to 555, 545 of them named, every one
+with its exact place: the sidebar's icons are "Explorer", "Source Control",
+"Extensions" — names no picture gives — and its settings are a button called
+"Antigravity - Settings" in the status bar, not the icon that was guessed.
+
+Three things this needed:
+
+- **Depth.** Such a window is nested thirty levels deep and holds thousands of
+  elements, most of them unnamed groups and runs of text. It is walked to 45 levels
+  and then thinned: controls a person could see, the containers that name them, and
+  nothing else, with what is on screen kept ahead of what has scrolled away. A
+  window that reads normally is not thinned.
+- **Remembering.** An application that needed the deep read gets it straight away
+  next time. One that stayed silent is not asked again; the coach reads its window
+  twice a second and must not wait three seconds each time.
+- **Finding it.** The editor's process is called "Electron", so looking it up by
+  its own name failed whenever its window was not on screen. A running application
+  is now also found by the bundle it runs from.
+
+Looking at a picture (D-169) stays, as what is done when asking produced nothing.
+It is the last resort it should have been, not the first.
+
+## D-184 — A request that could be about the application in front is about it
+
+"How do I open settings", asked from inside an editor, was sent to System Settings.
+The chooser's instructions said the application in front "is usually not the
+answer", written when the failure being fixed was the opposite one: wallpaper
+controls looked for in a mail client.
+
+Both are right about different requests. The instructions now start from the
+application in front: a request that could be about it is, since every application
+has its own settings, search and menus. Another is named only when the request is
+about something that lives elsewhere and says so — the wallpaper, Wi-Fi, a named
+application. Eighteen live checks of nine requests: all placed as a person would
+expect, including "dark mode for my mac" going to System Settings from the editor.

@@ -9,11 +9,20 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
-const (
+var (
 	MaxElements = 250
 	MaxDepth    = 10
+
+	DeepElements = 6000
+	DeepDepth    = 45
+	MaxDeepKept  = 700
+
+	WakeWait = 3 * time.Second
+	WakePoll = 400 * time.Millisecond
 )
 
 type Runner interface {
@@ -58,7 +67,52 @@ func Fix(err error) string {
 	return ""
 }
 
-var walker = walkApp
+var (
+	walker     = walkApp
+	deepWalker = walkAppDeep
+	waker      = wakeApp
+
+	wokenMu sync.Mutex
+	woken   = map[int]bool{}
+	asleep  = map[int]bool{}
+)
+
+func readsDeep(pid int) bool {
+	wokenMu.Lock()
+	defer wokenMu.Unlock()
+	return woken[pid]
+}
+
+func wakeAndRead(ctx context.Context, pid int, app string, shallow Tree) Tree {
+	wokenMu.Lock()
+	gaveUp := asleep[pid]
+	wokenMu.Unlock()
+	if gaveUp || !waker(pid) {
+		return shallow
+	}
+
+	deadline := time.Now().Add(WakeWait)
+	for {
+		if deep, err := deepWalker(pid, app); err == nil && Assess(deep).Verdict != Blind {
+			wokenMu.Lock()
+			woken[pid] = true
+			wokenMu.Unlock()
+			return deep
+		}
+		if time.Now().After(deadline) {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return shallow
+		case <-time.After(WakePoll):
+		}
+	}
+	wokenMu.Lock()
+	asleep[pid] = true
+	wokenMu.Unlock()
+	return shallow
+}
 
 // Capture reads a window and changes nothing.
 //
@@ -75,7 +129,14 @@ func Capture(ctx context.Context, r Runner, app string) (Tree, error) {
 		return Tree{}, err
 	}
 
-	return walker(pid, app)
+	if readsDeep(pid) {
+		return deepWalker(pid, app)
+	}
+	tree, err := walker(pid, app)
+	if err != nil || Assess(tree).Verdict != Blind {
+		return tree, err
+	}
+	return wakeAndRead(ctx, pid, app, tree), nil
 }
 
 // Two ways that cost nothing, then the one that costs a permission. System Events
@@ -89,6 +150,9 @@ func pidFor(ctx context.Context, r Runner, app string) (int, error) {
 	if pid, ok := askTheWindowListForPid(app); ok {
 		return pid, nil
 	}
+	if pid, ok := askTheBundles(ctx, app); ok {
+		return pid, nil
+	}
 
 	pid, err := pidViaEvents(ctx, r, app)
 	switch {
@@ -100,6 +164,42 @@ func pidFor(ctx context.Context, r Runner, app string) (int, error) {
 		// nothing. The likeliest reason by far is that it is not open.
 		return 0, &NotRunningError{App: app}
 	}
+}
+
+var askTheBundles = pidByBundle
+
+func pidByBundle(ctx context.Context, app string) (int, bool) {
+	out, err := exec.CommandContext(ctx, "ps", "-axo", "pid=,comm=").Output()
+	if err != nil {
+		return 0, false
+	}
+	return bundlePid(string(out), app)
+}
+
+func bundlePid(listing, app string) (int, bool) {
+	const marker = ".app/Contents/MacOS/"
+	for _, line := range strings.Split(listing, "\n") {
+		line = strings.TrimSpace(line)
+		gap := strings.IndexByte(line, ' ')
+		at := strings.Index(line, marker)
+		if gap < 0 || at < 0 {
+			continue
+		}
+		bundle := line[gap+1 : at]
+		if strings.Contains(line[at+len(marker):], "/") {
+			continue
+		}
+		if slash := strings.LastIndexByte(bundle, '/'); slash >= 0 {
+			bundle = bundle[slash+1:]
+		}
+		if !names.Same(bundle, app) {
+			continue
+		}
+		if pid, err := strconv.Atoi(line[:gap]); err == nil && pid > 0 {
+			return pid, true
+		}
+	}
+	return 0, false
 }
 
 func pidByProcessName(ctx context.Context, app string) (int, bool) {

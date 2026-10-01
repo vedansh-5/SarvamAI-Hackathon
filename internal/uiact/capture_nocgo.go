@@ -50,3 +50,7 @@ func elementValue(int, []int) (string, bool) { return "", false }
 func windowOf(int) (int, int, int, int, int, bool) { return 0, 0, 0, 0, 0, false }
 
 func selectedText(int) (string, bool) { return "", false }
+
+func wakeApp(int) bool { return false }
+
+func walkAppDeep(int, string) (Tree, error) { return Tree{}, errNoAccessibilityAPI }

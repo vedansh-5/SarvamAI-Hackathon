@@ -392,6 +392,14 @@ static int axSelectedText(int pid, char *buf, int len) {
     return ok;
 }
 
+static int axWake(int pid) {
+    AXUIElementRef app = AXUIElementCreateApplication((pid_t)pid);
+    if (!app) return -1;
+    AXError e = AXUIElementSetAttributeValue(app, CFSTR("AXManualAccessibility"), kCFBooleanTrue);
+    CFRelease(app);
+    return (int)e;
+}
+
 static int axRaise(int pid) {
     AXUIElementRef app = AXUIElementCreateApplication((pid_t)pid);
     if (!app) return -1;
@@ -504,6 +512,10 @@ func selectedText(pid int) (string, bool) {
 		return "", false
 	}
 	return names.Strip(C.GoString(&buf[0])), true
+}
+
+func wakeApp(pid int) bool {
+	return trusted() && int(C.axWake(C.int(pid))) == 0
 }
 
 func windowOf(pid int) (id, x, y, w, h int, ok bool) {
@@ -696,8 +708,10 @@ func walkMenuBar(app C.AXUIElementRef, out *[]Element) {
 	}
 }
 
-func walkElement(el C.AXUIElementRef, path []int, depth int, out *[]Element) {
-	if len(*out) >= MaxElements || depth > MaxDepth {
+type limits struct{ depth, most int }
+
+func walkElement(el C.AXUIElementRef, path []int, depth int, out *[]Element, lim limits) {
+	if len(*out) >= lim.most || depth > lim.depth {
 		return
 	}
 
@@ -708,7 +722,7 @@ func walkElement(el C.AXUIElementRef, path []int, depth int, out *[]Element) {
 	defer C.axRelease(C.CFTypeRef(kids))
 
 	n := int(C.axCount(kids))
-	for i := 0; i < n && len(*out) < MaxElements; i++ {
+	for i := 0; i < n && len(*out) < lim.most; i++ {
 		child := C.axAt(kids, C.int(i))
 
 		title := text(child, 1)
@@ -732,11 +746,24 @@ func walkElement(el C.AXUIElementRef, path []int, depth int, out *[]Element) {
 			Path:     here,
 		})
 
-		walkElement(child, here, depth+1, out)
+		walkElement(child, here, depth+1, out, lim)
 	}
 }
 
 func walkApp(pid int, app string) (Tree, error) {
+	return walkAppWithin(pid, app, limits{depth: MaxDepth, most: MaxElements})
+}
+
+func walkAppDeep(pid int, app string) (Tree, error) {
+	tree, err := walkAppWithin(pid, app, limits{depth: DeepDepth, most: DeepElements})
+	if err != nil {
+		return tree, err
+	}
+	tree.Elements = Slim(tree.Elements, MaxDeepKept)
+	return tree, nil
+}
+
+func walkAppWithin(pid int, app string, lim limits) (Tree, error) {
 	if !trusted() {
 		return Tree{}, ErrNoAssistiveAccess
 	}
@@ -760,7 +787,7 @@ func walkApp(pid int, app string) (Tree, error) {
 	tree := Tree{App: app, Window: text(win, 1)}
 
 	elements := make([]Element, 0, 64)
-	walkElement(win, nil, 0, &elements)
+	walkElement(win, nil, 0, &elements, lim)
 	NameByContents(elements)
 	walkMenuBar(appEl, &elements)
 	tree.Elements = elements
