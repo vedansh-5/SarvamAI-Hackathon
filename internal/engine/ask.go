@@ -349,7 +349,7 @@ func (e *Engine) ask(ctx context.Context, in Ask) (*Plan, error) {
 	case route.KindPageAction:
 		if e.canDrivePages() {
 			site := strings.TrimSpace(res.Route.Slot("site"))
-			plan, err := e.driveOnPageIn(ctx, res.Route.Slot("action"), res.Shape, res.Route.Literals, site, profile)
+			plan, err := e.driveOnPageIn(ctx, theTask(res.Route), res.Shape, res.Route.Literals, site, profile)
 			if err == nil {
 				r := res.Route
 				plan.Route = &r

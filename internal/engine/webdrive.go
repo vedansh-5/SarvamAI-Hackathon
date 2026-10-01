@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vedansh/vans/internal/route"
 	"github.com/vedansh/vans/internal/synth"
 )
 
@@ -315,4 +316,21 @@ func (e *Engine) planWebGuide(ctx context.Context, task, shape string, literals 
 		Destination: browser,
 		Guide:       g,
 	}, nil
+}
+
+var quotedText = regexp.MustCompile(`\{(s\d+)\}`)
+
+func theTask(r route.Route) string {
+	template := r.Template("action")
+	if template == "" || !quotedText.MatchString(template) {
+		return r.Slot("action")
+	}
+	said := quotedText.ReplaceAllStringFunc(template, func(m string) string {
+		value, ok := r.Literals[quotedText.FindStringSubmatch(m)[1]]
+		if !ok {
+			return m
+		}
+		return `"` + value + `"`
+	})
+	return route.Fill(said, r.Literals)
 }

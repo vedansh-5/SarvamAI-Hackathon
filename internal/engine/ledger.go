@@ -55,7 +55,7 @@ func (e *Engine) writeItDown(ctx context.Context, plan *Plan, receipt Receipt, f
 		deed.Changed = "did not finish: " + failure.Error()
 	}
 
-	if _, err := e.Deeds.RecordDeed(ctx, deed); err != nil {
+	if _, err := e.Deeds.RecordDeed(context.WithoutCancel(ctx), deed); err != nil {
 		e.logf("could not write down what was just done: %v", err)
 	}
 }

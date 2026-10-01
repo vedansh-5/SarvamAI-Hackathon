@@ -4095,3 +4095,18 @@ and which application it belongs in, are small questions with short answers.
 stay on the main model, where being right matters more than being quick. If the
 fast model cannot answer, the main one is tried, then the fallback; a planning call
 never drops to the fast one. Unset, nothing changes.
+
+## D-182 — Quoted text stays quoted on its way to the model
+
+`send "sent from VANS" to suhani on whatsapp` typed "sent". The quoted text is
+lifted out as a value when the request is given its shape (so the shape can be
+cached), and put back when the task is handed to the step planner — without its
+quotes. The planner received `send sent from VANS to suhani`, and read the first
+word as the message and the rest as the sentence, which is a fair reading of what
+it was given.
+
+The task handed to a run now puts quoted values back in quotes. Numbers and
+addresses are unambiguous without them and are left alone.
+
+The same run showed the record of a stopped run failing to save: it was written
+with the context that Escape had just cancelled. It is written regardless now.

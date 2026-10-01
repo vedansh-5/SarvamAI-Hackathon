@@ -71,7 +71,7 @@ func (e *Engine) actInApplication(ctx context.Context, r route.Route, shape stri
 			// open in a browser tab — most of what people want to drive is.
 			if e.canDrivePages() {
 				if tree, err := e.PageScreen.Capture(ctx, e.pageBrowser(ctx)); err == nil && pageBelongsTo("https://"+tree.App, name) {
-					plan, err := e.driveOnPage(ctx, r.Slot("action"), shape, r.Literals, name)
+					plan, err := e.driveOnPage(ctx, theTask(r), shape, r.Literals, name)
 					if err == nil {
 						e.logf("%s is the page in front; working through it there", name)
 						return plan, plan.SynthesisCalls, nil
@@ -88,7 +88,7 @@ func (e *Engine) actInApplication(ctx context.Context, r route.Route, shape stri
 				if installed, err := e.Apps.FindInstalled(name); err == nil {
 					window = installed.Name
 				}
-				plan, driveErr := e.driveOn(ctx, window, r.Slot("action"), shape, r.Literals)
+				plan, driveErr := e.driveOn(ctx, window, theTask(r), shape, r.Literals)
 				if driveErr == nil {
 					e.logf("working through it in %s's window, a step at a time", name)
 					return plan, plan.SynthesisCalls, nil
@@ -112,7 +112,7 @@ func (e *Engine) actInApplication(ctx context.Context, r route.Route, shape stri
 					return nil, 0, uiErr
 				}
 				if e.canDrivePages() {
-					if plan, err := e.driveOnPage(ctx, r.Slot("action"), shape, r.Literals, name); err == nil {
+					if plan, err := e.driveOnPage(ctx, theTask(r), shape, r.Literals, name); err == nil {
 						e.logf("%s has no window here; working through its site instead", name)
 						return plan, plan.SynthesisCalls, nil
 					}
