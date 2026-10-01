@@ -425,11 +425,17 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 	case plan.Drive != nil:
 		action = plan.Drive.Preview
 		app = plan.Drive.App
+		if plan.Drive.Browser != "" {
+			app = plan.Drive.Browser
+		}
 	case plan.Style != nil:
 		action = plan.Style.Preview
 	case plan.Guide != nil:
 		action = plan.Guide.Preview
 		app = plan.Guide.App
+		if plan.Guide.Browser != "" {
+			app = plan.Guide.Browser
+		}
 	}
 
 	answerText := ""

@@ -137,12 +137,14 @@ type Engine struct {
 	Actions   ActionCache
 	Runner    appact.Runner
 
-	Styler    StyleWriter
-	UIWriter  UIActionWriter
-	UIScreen  uiact.Screen
-	UIActions UIActionCache
-	Steps     StepWriter
-	History   History
+	Styler   StyleWriter
+	UIWriter UIActionWriter
+	UIScreen uiact.Screen
+
+	PageScreen uiact.Screen
+	UIActions  UIActionCache
+	Steps      StepWriter
+	History    History
 
 	// Chooser decides which application a task is carried out in. Without one
 	// the application in front is used, which is what happened before it existed.

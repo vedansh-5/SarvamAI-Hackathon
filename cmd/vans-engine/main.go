@@ -30,6 +30,7 @@ import (
 	"github.com/vedansh/vans/internal/store"
 	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
+	"github.com/vedansh/vans/internal/webscreen"
 )
 
 func main() {
@@ -64,9 +65,18 @@ func run() error {
 	// The browser the user is already in comes first. The debugging port
 	// reaches only a second Chrome on a throwaway profile, which is signed in
 	// to nothing — the wrong browser for most of what anyone asks.
+	live := &appleevents.Chrome{Runner: appleevents.Osascript{}, Remember: st}
 	browser := &engine.LiveFirst{
-		Live:     &appleevents.Chrome{Runner: appleevents.Osascript{}, Remember: st},
+		Live:     live,
 		Debugged: debugged,
+	}
+
+	desktop := uiact.System{Runner: appleevents.Osascript{}}
+	page := &webscreen.Screen{
+		Page:    live,
+		Browser: "Google Chrome",
+		Raise:   desktop.BringToFront,
+		Pointer: desktop.PointerAt,
 	}
 
 	notes := appleevents.Notes{Runner: appleevents.Osascript{}}
@@ -147,23 +157,24 @@ func run() error {
 			Sinks:   engine.DefaultSinks(engine.NotesSink{Notes: notes}),
 			Model:   modelLabel(),
 
-			Answers:   answers,
-			Apps:      capability.New(),
-			Writer:    writer,
-			WebWriter: webWriter,
-			Actions:   st,
-			Runner:    appleevents.Osascript{},
-			UIWriter:  uiWriter,
-			UIActions: st,
-			Steps:     steps,
-			Plans:     plans,
-			Styler:    styler,
-			History:   st,
-			Chooser:   chooser,
-			Deeds:     st,
-			Recorded:  st,
-			Traces:    st,
-			UIScreen:  uiact.System{Runner: appleevents.Osascript{}},
+			Answers:    answers,
+			Apps:       capability.New(),
+			Writer:     writer,
+			WebWriter:  webWriter,
+			Actions:    st,
+			Runner:     appleevents.Osascript{},
+			UIWriter:   uiWriter,
+			UIActions:  st,
+			Steps:      steps,
+			Plans:      plans,
+			Styler:     styler,
+			History:    st,
+			Chooser:    chooser,
+			Deeds:      st,
+			Recorded:   st,
+			Traces:     st,
+			UIScreen:   desktop,
+			PageScreen: page,
 		},
 		Deeds: st,
 		Probe: probe{

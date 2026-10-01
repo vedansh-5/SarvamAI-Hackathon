@@ -51,6 +51,8 @@ func (t Tree) resolve(sel Selector) (Element, string) {
 	}
 }
 
+func (t Tree) Resolve(sel Selector) (Element, string) { return t.resolve(sel) }
+
 func Validate(p Program, t Tree) error {
 	var reasons []string
 	add := func(format string, args ...any) {

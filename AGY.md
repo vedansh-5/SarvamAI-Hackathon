@@ -1349,6 +1349,20 @@ the work is how VANS can see an application, and there are three kinds.
 Then voice, then background runs. This replaces the order in §9.12 from #4 on:
 voice moves behind the three above.
 
+**Progress.**
+
+- *Web pages, multi-step — built.* A page is read as a window
+  (`internal/webscreen`), so the step loop, the coach, re-planning, the trace
+  cache, scroll-to, the ghost and the pause all work on it unchanged (D-147). A
+  named site that is not in front is opened as the first thing a confirmed run
+  does, and its address is never guessed (D-148). Not yet tried on a real site.
+- Still to come in this phase: stop points before pay, publish and send;
+  questions mid-task; "in a new profile".
+- Known limits of this first cut: clicks and typing are sent through the page's
+  script, which some sites ignore for things that need a real gesture (file
+  pickers, some pay buttons); frames from another site cannot be read; only
+  Chrome.
+
 ---
 
 ## 10. Running it

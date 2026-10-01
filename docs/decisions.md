@@ -3377,3 +3377,59 @@ on.
 
 Only the pointer is watched. Typing is not, because VANS's own typing is
 indistinguishable from the person's at the level this reads.
+
+## D-147 — A web page is read as a window, so the step loop needs nothing new
+
+Multi-step work existed only for Mac applications, because a browser publishes no
+controls to the accessibility API (§8). Everything that makes those runs good — a
+plan checked a step at a time, re-planning, kept traces, the coach, the ghost, the
+pause — sat behind one interface, `uiact.Screen`, and none of it knows what is
+behind that interface.
+
+So a page gets its own `Screen` (`internal/webscreen`) rather than its own loop.
+One script in the page lists what a person could act on — links, buttons, fields,
+lists, anything with a role, inside open shadow roots too — with its name, what it
+holds and where it is on screen. That becomes a `uiact.Tree`, with roles spelled
+the way the accessibility API spells them so the same prompts and the same
+validation apply. Acting sends click, type or a key to the element by its place in
+that list; an element that has left the page since is a refusal, which the loop
+already knows how to recover from.
+
+Three details that matter:
+
+- The tree is named for the **site**, not the browser. Kept steps are keyed by
+  application, and steps learned on one site must never be replayed on another.
+  The browser's name is carried beside it, for raising the window and for the
+  overlay, which watches which application is in front.
+- The page area is the first element, and every control sits inside it. That is
+  what makes a control below the fold "out of view" by the existing rule (D-144),
+  with no web-specific code.
+- A read waits for the tab to stop loading. A click that navigates is a step that
+  landed, and reading halfway through the load would compare against half a page.
+
+A page task may take 24 steps where a window task takes 12; booking anything is
+longer than changing a setting.
+
+The single-shot page program stays as the fallback when no page screen is
+configured or the page cannot be read.
+
+Limits, stated rather than discovered: input goes through the page's script, so a
+site that insists on a real gesture (a file picker, some payment buttons) will not
+respond; frames from another origin cannot be read; Chrome only.
+
+## D-148 — A site is opened after confirming, and its address is never guessed
+
+"Book a flight on MakeMyTrip" is usually asked with something else in front. The
+plan for that says, as its first line, that it will open the site in a new tab —
+and does so only once confirmed. Nothing is opened to prepare a plan (the rule Ask
+has always had: nothing touches the world before Commit). The steps are planned
+after the page is up, because there is nothing to plan against before.
+
+In the coach the person goes there themselves: "Go to youtube.com in Google
+Chrome" is step one, and the coach waits for the tab to be on that site. The coach
+shows; it does not act.
+
+The address comes from a short list of known sites, or from an address the person
+typed. A name that is on neither is refused with "open it in Chrome, then ask
+again". Turning a name into a domain by guessing is how a task ends up signed in to
+somebody else's copy of the site.

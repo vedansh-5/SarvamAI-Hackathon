@@ -69,6 +69,16 @@ func (e *Engine) actInApplication(ctx context.Context, r route.Route, shape stri
 		if errors.As(err, &unknown) {
 			// Not a scriptable application. It may still be one the user has
 			// open in a browser tab — most of what people want to drive is.
+			if e.canDrivePages() {
+				if tree, err := e.PageScreen.Capture(ctx, e.pageBrowser(ctx)); err == nil && pageBelongsTo("https://"+tree.App, name) {
+					plan, err := e.driveOnPage(ctx, r.Slot("action"), shape, r.Literals, name)
+					if err == nil {
+						e.logf("%s is the page in front; working through it there", name)
+						return plan, plan.SynthesisCalls, nil
+					}
+					e.logf("could not work through the page: %v", err)
+				}
+			}
 			if plan, calls, pageErr := e.actOnPage(ctx, r, shape, name); pageErr == nil {
 				e.logf("%s has no scripting dictionary; acting on the page instead", name)
 				return plan, calls, nil
@@ -80,15 +90,21 @@ func (e *Engine) actInApplication(ctx context.Context, r route.Route, shape stri
 					return plan, calls, nil
 				}
 				e.logf("could not act through %s's window: %v", name, uiErr)
-				if plan, calls, webErr := e.actOnWebVersion(ctx, r, shape, name); webErr == nil {
-					e.logf("%s publishes no window; driving its web version instead", name)
-					return plan, calls, nil
-				}
 				if e.canDrive() && !errors.Is(uiErr, uiact.ErrNoAssistiveAccess) {
 					if plan, driveErr := e.driveOn(ctx, name, r.Slot("action"), shape, r.Literals); driveErr == nil {
 						e.logf("%s needs more than one step; working through it on screen", name)
-						return plan, 0, nil
+						return plan, plan.SynthesisCalls, nil
 					}
+				}
+				if e.canDrivePages() {
+					if plan, err := e.driveOnPage(ctx, r.Slot("action"), shape, r.Literals, name); err == nil {
+						e.logf("%s has no window here; working through its site instead", name)
+						return plan, plan.SynthesisCalls, nil
+					}
+				}
+				if plan, calls, webErr := e.actOnWebVersion(ctx, r, shape, name); webErr == nil {
+					e.logf("%s publishes no window; driving its web version instead", name)
+					return plan, calls, nil
 				}
 				if errors.Is(uiErr, uiact.ErrNoAssistiveAccess) {
 					return nil, 0, uiErr

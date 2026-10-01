@@ -159,6 +159,20 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 		return plan, nil
 
 	case route.KindPageAction:
+		if e.canDrivePages() {
+			site := strings.TrimSpace(res.Route.Slot("site"))
+			plan, err := e.driveOnPage(ctx, res.Route.Slot("action"), res.Shape, res.Route.Literals, site)
+			if err == nil {
+				r := res.Route
+				plan.Route = &r
+				plan.DecisionCalls = res.DecisionCalls
+				return plan, nil
+			}
+			if site != "" {
+				return nil, err
+			}
+			e.logf("could not work through the page a step at a time (%v); trying it in one go", err)
+		}
 		plan, calls, err := e.actOnPage(ctx, res.Route, res.Shape, "")
 		if err != nil {
 			return nil, err
@@ -237,7 +251,7 @@ func (e *Engine) canRun(k route.Kind) bool {
 		return true
 	case route.KindPageAction:
 		_, ok := e.pageDriver()
-		return ok && e.WebWriter != nil
+		return (ok && e.WebWriter != nil) || e.canDrivePages()
 	case route.KindPageStyle:
 		return e.canStyle()
 	case route.KindAppGuide:
@@ -269,6 +283,9 @@ func (e *Engine) canAct() bool {
 // which is the right answer the next time a browser is what is in front.
 func (e *Engine) aimedAtWhatIsInFront(ctx context.Context, r route.Route, lookingAt *screen.Context) route.Route {
 	if r.Kind != route.KindPageAction || e.UIScreen == nil {
+		return r
+	}
+	if strings.TrimSpace(r.Slot("site")) != "" {
 		return r
 	}
 

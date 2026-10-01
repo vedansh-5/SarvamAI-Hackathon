@@ -110,9 +110,10 @@ var Specs = []Spec{
 	},
 	{
 		Kind:     KindPageAction,
-		Describe: "Do something on the page the user has open — type into it, click something in it.",
+		Describe: "Do something on a website, the way a person would: on the page the user has open, or on a site they name. Covers single actions (type into it, click something) and tasks of many steps (search and choose, fill in a form, book something, upload something). Use this whenever the thing being acted on is a website rather than a Mac application.",
 		Slots: []Slot{
-			{"action", "what to do on that page, in plain words", true},
+			{"action", "what to do there, in plain words", true},
+			{"site", "the website named in the instruction, as a name or an address (makemytrip, youtube.com); empty when it is the page already open", false},
 		},
 	},
 	{
@@ -124,14 +125,14 @@ var Specs = []Spec{
 	},
 	{
 		Kind:     KindAppGuide,
-		Describe: "Answer a question about using the Mac by pointing at the control on screen: where something is, how to do something, which button to press. The user is shown what to do and does it themselves. Use this for \"where is\", \"how do I\", \"show me how\" and \"show me where\". The question does not have to be about the window in front — working out which application it belongs to happens afterwards, so do not decline because the task lives somewhere else.",
+		Describe: "Answer a question about using the Mac or a website by pointing at the control on screen: where something is, how to do something, which button to press. The user is shown what to do and does it themselves. Use this for \"where is\", \"how do I\", \"show me how\" and \"show me where\". The question does not have to be about the window in front — working out which application or site it belongs to happens afterwards, so do not decline because the task lives somewhere else.",
 		Slots: []Slot{
 			{"intent", "what they want to do or find, in plain words", true},
 		},
 	},
 	{
 		Kind:     KindAppAction,
-		Describe: "Do something inside a running macOS application, the way a person would.",
+		Describe: "Do something inside a running macOS application, the way a person would. Not for websites: something done on a site is page.act, even when the site is named like an application.",
 		Slots: []Slot{
 			{"app", "the application to act in, if named; otherwise the application in front", false},
 			{"action", "what to do there, in plain words", true},

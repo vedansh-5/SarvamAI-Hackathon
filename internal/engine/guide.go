@@ -76,6 +76,10 @@ type GuidePlan struct {
 
 	Shape    string
 	Literals map[string]string
+
+	Web     bool
+	Browser string
+	Site    string
 }
 
 type GuideStep struct {
@@ -128,6 +132,9 @@ func (e *Engine) planGuideFor(ctx context.Context, task, shape string, literals 
 	// the person, and the coach picks up inside the application once it appears.
 	var notOpen *AppNotOpenError
 	if errors.As(err, &notOpen) {
+		if e.canDrivePages() && strings.EqualFold(notOpen.App, e.pageBrowser(ctx)) {
+			return e.planWebGuide(ctx, task, shape, literals, notOpen.App, true, notOpen.Why)
+		}
 		return &Plan{
 			Task:        Task{Intent: task, Title: notOpen.App},
 			Destination: notOpen.App,
@@ -150,6 +157,9 @@ func (e *Engine) planGuideFor(ctx context.Context, task, shape string, literals 
 	// Decided before anything is read. Reaching for the accessibility tier here
 	// costs a window raise and a tree walk to learn what the application's name
 	// already says.
+	if e.canDrivePages() && strings.EqualFold(app, e.pageBrowser(ctx)) {
+		return e.planWebGuide(ctx, task, shape, literals, app, false, "")
+	}
 	if isBrowser(app) {
 		return nil, fmt.Errorf("%w, so the steps cannot be drawn inside %s", ErrNoControlsToPointAt, app)
 	}
@@ -191,11 +201,18 @@ func coachKey(shape string) string {
 }
 
 func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(GuideStep), advance <-chan struct{}) (StepWork, error) {
+	g := plan.Guide
+	limit := MaxGuideSteps
+	if g.Web {
+		if !e.canDrivePages() {
+			return StepWork{}, fmt.Errorf("engine: this build cannot show you what to do on a page")
+		}
+		e = e.onThePage()
+		limit = MaxWebSteps
+	}
 	if !e.canGuide() {
 		return StepWork{}, fmt.Errorf("engine: this build cannot show you what to do on screen")
 	}
-
-	g := plan.Guide
 
 	// Opening it is step one, and it is theirs to carry out. Nothing can be read
 	// or pointed at until that is done, so this comes before everything.
@@ -213,6 +230,25 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 	// application that is not the active one (D-075).
 	if err := e.UIScreen.BringToFront(ctx, g.App); err != nil {
 		return StepWork{}, err
+	}
+
+	if g.Web {
+		if g.Site != "" {
+			went, err := e.waitForTheSite(ctx, g, opened+1, show, advance)
+			if err != nil {
+				return StepWork{}, err
+			}
+			if went {
+				opened++
+			}
+		}
+		tree, err := e.UIScreen.Capture(ctx, g.Browser)
+		if err != nil {
+			return StepWork{}, err
+		}
+		onPage := *g
+		onPage.App = tree.App
+		g = &onPage
 	}
 
 	changed := e.watchTheWindow(ctx, g.App)
@@ -267,11 +303,11 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 		e.logf("%d step(s) kept from showing this last time; the model is only asked if one stops fitting", len(planned))
 	case e.Plans != nil:
 		if tree, err := e.windowToWorkFrom(ctx, g.App); err == nil && len(tree.Elements) > 0 {
-			planned, planCalls = e.planAhead(ctx, synth.PlanRequest{Task: asTask(g.Task), Tree: tree, Most: MaxGuideSteps})
+			planned, planCalls = e.planAhead(ctx, synth.PlanRequest{Task: asTask(g.Task), Tree: tree, Most: limit})
 		}
 	}
 
-	run, err := e.stepThroughTask(ctx, g.App, asTask(g.Task), MaxGuideSteps, point, planned, memo.Kept)
+	run, err := e.stepThroughTask(ctx, g.App, asTask(g.Task), limit, point, planned, memo.Kept)
 	e.settleTheTrace(context.WithoutCancel(ctx), memo, run)
 	work := StepWork{Steps: run.Steps(), Replayed: run.Replayed, Calls: run.Calls + planCalls}
 	if err != nil {

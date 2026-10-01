@@ -444,3 +444,54 @@ func Fix(err error) string {
 		return ""
 	}
 }
+
+func (c *Chrome) AskFront(ctx context.Context, script string, out any) error {
+	source, err := jsLiteral(script)
+	if err != nil {
+		return err
+	}
+
+	var raw string
+	if err := c.run(ctx, fmt.Sprintf(`reply(function () {
+  const app = chrome();
+  const tab = app.windows[0].activeTab;
+  return String(app.execute(tab, { javascript: %s }));
+});`, source), &raw); err != nil {
+		return err
+	}
+	if out == nil {
+		return nil
+	}
+	if err := json.Unmarshal([]byte(raw), out); err != nil {
+		return fmt.Errorf("appleevents: the page in front cannot be read or driven (it answered %q)", truncate(raw, 80))
+	}
+	return nil
+}
+
+func (c *Chrome) FrontLoading(ctx context.Context) (bool, error) {
+	var loading bool
+	err := c.run(ctx, `reply(function () {
+  return Boolean(chrome().windows[0].activeTab.loading());
+});`, &loading)
+	return loading, err
+}
+
+func (c *Chrome) OpenInFront(ctx context.Context, pageURL string) error {
+	target, err := jsLiteral(normaliseURL(pageURL))
+	if err != nil {
+		return err
+	}
+	return c.run(ctx, fmt.Sprintf(`reply(function () {
+  const app = chrome();
+  const win = app.windows[0];
+  win.tabs.push(app.Tab({ url: %s }));
+  return true;
+});`, target), nil)
+}
+
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "…"
+}

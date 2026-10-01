@@ -65,6 +65,14 @@ func (e *Engine) Suggestions(ctx context.Context, front string) []Suggestion {
 		})
 	}
 
+	if e.canDrivePages() {
+		out = append(out, Suggestion{
+			Icon: "page",
+			Text: "search for flights from Delhi to Goa on makemytrip",
+			Kind: route.KindPageAction,
+		})
+	}
+
 	if e.canStyle() {
 		out = append(out,
 			Suggestion{Icon: "pencil", Text: "highlight the headings on this page", Kind: route.KindPageStyle},

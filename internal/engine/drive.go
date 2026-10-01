@@ -39,6 +39,10 @@ type DrivePlan struct {
 	// written for this run, which is a good guess and nothing more.
 	Kept bool
 
+	Web     bool
+	Browser string
+	Open    string
+
 	// PlanCalls is what writing that plan cost, so the count a run reports is
 	// the whole of what the task cost and not just what happened after it
 	// started.
@@ -152,11 +156,26 @@ func (e *Engine) driveOn(ctx context.Context, app, task, shape string, literals 
 }
 
 func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
+	d := plan.Drive
+	limit := MaxDriveSteps
+	if d.Web {
+		if !e.canDrivePages() {
+			return Receipt{}, fmt.Errorf("engine: this build cannot work through a task on a page")
+		}
+		e = e.onThePage()
+		limit = MaxWebSteps
+		if err := e.UIScreen.BringToFront(ctx, d.Browser); err != nil {
+			return Receipt{}, err
+		}
+		if d.Open != "" {
+			if err := e.openThePage(ctx, d); err != nil {
+				return Receipt{}, err
+			}
+		}
+	}
 	if !e.canDrive() {
 		return Receipt{}, fmt.Errorf("engine: this build cannot work through a task on screen")
 	}
-
-	d := plan.Drive
 	hand := e.watchTheHand()
 	act := func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) (uiact.Tree, error) {
 		tree = e.bringIntoView(ctx, tree, program.Steps[0])
@@ -188,7 +207,7 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	// counts is that the window moved for every step VANS performed. A replayed
 	// step is held to exactly the same standard, so where the steps came from
 	// never enters into whether the run is verified.
-	run, err := e.stepThroughTask(ctx, d.App, d.Task, MaxDriveSteps, act, d.Replay, d.Kept)
+	run, err := e.stepThroughTask(ctx, d.App, d.Task, limit, act, d.Replay, d.Kept)
 	if err != nil {
 		e.settleTheTrace(ctx, d, run)
 		return Receipt{}, err
