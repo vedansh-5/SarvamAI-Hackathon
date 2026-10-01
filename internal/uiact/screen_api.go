@@ -29,13 +29,7 @@ type Scroller interface {
 	ScrollIntoView(ctx context.Context, t Tree, sel Selector) error
 }
 
-type PointerReader interface {
-	PointerAt() (x, y int, ok bool)
-}
-
 type System struct{ Runner Runner }
-
-func (System) PointerAt() (int, int, bool) { return pointerAt() }
 
 func (s System) ScrollIntoView(ctx context.Context, t Tree, sel Selector) error {
 	el, why := t.resolve(sel)

@@ -208,7 +208,7 @@ func sameControl(want Element, role, title string) bool {
 	if strings.TrimSpace(want.Title) == "" {
 		return true
 	}
-	return strings.EqualFold(strings.TrimSpace(title), strings.TrimSpace(want.Title))
+	return names.Same(title, want.Title)
 }
 
 // ErrCannotBringForward is an application that would not come to the front.

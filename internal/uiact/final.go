@@ -10,7 +10,7 @@ var commits = regexp.MustCompile(`(?i)\b(pay|pay now|buy|buy now|purchase|place 
 	`publish|post|tweet|send|submit|delete|remove|erase|discard|unsubscribe|subscribe|transfer|withdraw|donate)\b`)
 
 func Commits(step Step, el Element) (bool, string) {
-	if step.Final {
+	if step.Final && verb(step.Do) != "type" {
 		return true, "the step is marked as one that cannot be taken back"
 	}
 	switch verb(step.Do) {

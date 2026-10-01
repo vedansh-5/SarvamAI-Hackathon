@@ -3590,3 +3590,25 @@ path with the stop before sending (D-151).
 A one-step task now costs a plan and a check where it cost a single call. It is
 kept after the first run and costs nothing after that, and the alternative was
 being wrong quickly.
+
+## D-156 — Only Escape stops a run; moving the mouse does not
+
+D-146 paused a run when the pointer moved, on the reasoning that a hand on the
+mouse means the person wants to do something themselves. Tried live, it was wrong:
+people move the mouse while watching, to see what the ghost is pointing at or
+simply because their hand is on it, and the run stopped for a reason they had not
+given. Withdrawn. Escape is the way to stop a run, and it is the only one.
+
+What stays from that work is the part that was asked for: a step that cannot be
+taken back waits for ⌥Space (D-151), and ⌥Space has its own signal so a click on
+the ring does not count as going ahead.
+
+Two more things the same run showed:
+
+- The check made just before acting — is the control under this point the one the
+  step named — compared names exactly, and WhatsApp's carry the invisible mark
+  D-154 was about. It read the window with the mark stripped and the point with it
+  kept, and refused its own control. Both sides are now compared the same way.
+- The model marked typing a message as the step that cannot be taken back. Typing
+  commits nothing, so a `final` mark on a typing step is ignored, and the prompt
+  says to mark the click or the Enter that sends.

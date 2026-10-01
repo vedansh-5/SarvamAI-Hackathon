@@ -18,11 +18,18 @@ func withSend(tree uiact.Tree) uiact.Tree {
 	return tree
 }
 
-type sendScreen struct{ handScreen }
+type sendScreen struct{ movingScreen }
 
 func (s *sendScreen) Capture(ctx context.Context, app string) (uiact.Tree, error) {
-	tree, err := s.handScreen.Capture(ctx, app)
+	tree, err := s.movingScreen.Capture(ctx, app)
 	return withSend(tree), err
+}
+
+func quickPause(t *testing.T, d time.Duration) {
+	t.Helper()
+	was := pausedFor
+	pausedFor = d
+	t.Cleanup(func() { pausedFor = was })
 }
 
 func clickSend() uiact.Step {
@@ -86,9 +93,8 @@ func TestAStepTheModelMarkedFinalWaitsWhateverTheControlSays(t *testing.T) {
 	quickLook(t, 0)
 	quickPause(t, 30*time.Millisecond)
 	var paused []GuideStep
-	screen := &handScreen{}
-	marked := typeIntoMessage()
-	marked.Final = true
+	screen := &sendScreen{}
+	marked := uiact.Step{Do: "click", Target: uiact.Selector{Role: "AXTextArea", Title: "Message"}, Describe: "Click Continue", Final: true}
 	e := sendingEngine(screen, make(chan struct{}, 1), &paused, synth.StepAnswer{Step: marked})
 
 	if _, err := e.runDrive(context.Background(), drivePlan()); err == nil {
@@ -96,5 +102,65 @@ func TestAStepTheModelMarkedFinalWaitsWhateverTheControlSays(t *testing.T) {
 	}
 	if len(paused) != 1 || screen.acts != 0 {
 		t.Errorf("asked %d time(s) and acted %d; want asked once and nothing done", len(paused), screen.acts)
+	}
+}
+
+func TestTypingIsNeverTheStepThatWaits(t *testing.T) {
+	quickLook(t, 0)
+	var paused []GuideStep
+	screen := &sendScreen{}
+	marked := typeIntoMessage()
+	marked.Final = true
+	e := sendingEngine(screen, make(chan struct{}, 1), &paused, synth.StepAnswer{Step: marked})
+
+	if _, err := e.runDrive(context.Background(), drivePlan()); err != nil {
+		t.Fatalf("runDrive: %v", err)
+	}
+	if len(paused) != 0 || screen.acts != 1 {
+		t.Errorf("asked %d time(s) and acted %d; typing sends nothing, so it should just be typed", len(paused), screen.acts)
+	}
+}
+
+func TestAGoAheadPressedEarlierDoesNotCount(t *testing.T) {
+	quickLook(t, 0)
+	quickPause(t, 40*time.Millisecond)
+	var paused []GuideStep
+	screen := &sendScreen{}
+	resume := make(chan struct{}, 1)
+	resume <- struct{}{}
+	e := sendingEngine(screen, resume, &paused, synth.StepAnswer{Step: clickSend()})
+
+	if _, err := e.runDrive(context.Background(), drivePlan()); err == nil {
+		t.Fatal("an ⌥Space pressed before the question was asked sent the message")
+	}
+	if screen.acts != 0 {
+		t.Errorf("acted %d time(s)", screen.acts)
+	}
+}
+
+func TestMovingTheMouseDoesNotStopARun(t *testing.T) {
+	quickLook(t, 0)
+	var paused []GuideStep
+	screen := &sendScreen{}
+	e := sendingEngine(screen, make(chan struct{}, 1), &paused, synth.StepAnswer{Step: typeIntoMessage()})
+
+	if _, err := e.runDrive(context.Background(), drivePlan()); err != nil {
+		t.Fatalf("runDrive: %v", err)
+	}
+	if len(paused) != 0 {
+		t.Errorf("paused %d time(s) on a run with nothing to ask about", len(paused))
+	}
+}
+
+func TestWithNobodyToAskAFinalStepRunsUnderTheFirstConfirmation(t *testing.T) {
+	quickLook(t, 0)
+	screen := &sendScreen{}
+	e := &Engine{UIScreen: screen, Steps: &scriptedSteps{answers: []synth.StepAnswer{{Step: clickSend()}, {Done: true}}}}
+
+	if _, err := e.runDrive(context.Background(), drivePlan()); err != nil {
+		t.Fatalf("runDrive: %v", err)
+	}
+	if screen.acts != 1 {
+		t.Errorf("acted %d time(s), want the step run", screen.acts)
 	}
 }

@@ -28,8 +28,7 @@ type Screen struct {
 	Page    Page
 	Browser string
 
-	Raise   func(ctx context.Context, app string) error
-	Pointer func() (int, int, bool)
+	Raise func(ctx context.Context, app string) error
 }
 
 var (
@@ -289,11 +288,4 @@ func (s *Screen) BringToFront(ctx context.Context, _ string) error {
 
 func (s *Screen) Type(context.Context, string) error {
 	return fmt.Errorf("webscreen: typing at the cursor is not done through the page")
-}
-
-func (s *Screen) PointerAt() (int, int, bool) {
-	if s.Pointer == nil {
-		return 0, 0, false
-	}
-	return s.Pointer()
 }

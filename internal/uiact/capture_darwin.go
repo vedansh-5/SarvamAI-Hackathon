@@ -331,7 +331,7 @@ func elementAt(pid, x, y int) (role, title string, owned bool, err error) {
 	case -2:
 		return "", "", false, fmt.Errorf("uiact: nothing is on screen at (%d,%d)", x, y)
 	}
-	return C.GoString(&r[0]), C.GoString(&t[0]), rc == 0, nil
+	return C.GoString(&r[0]), names.Strip(C.GoString(&t[0])), rc == 0, nil
 }
 
 func text(el C.AXUIElementRef, which C.int) string {

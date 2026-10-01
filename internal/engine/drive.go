@@ -190,23 +190,19 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	if !e.canDrive() {
 		return Receipt{}, fmt.Errorf("engine: this build cannot work through a task on screen")
 	}
-	hand := e.watchTheHand()
 	act := func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) (uiact.Tree, error) {
 		tree = e.bringIntoView(ctx, tree, program.Steps[0])
 		if err := e.showBeforeActing(ctx, tree, program.Steps[0], number, describe); err != nil {
 			return tree, err
 		}
-		if ask := e.askFirst(tree, program.Steps[0]); ask != "" || hand.moved() {
+		if ask := e.askFirst(tree, program.Steps[0]); ask != "" {
 			fresh, err := e.waitOutThePause(ctx, d.App, tree, program, number, describe, ask)
-			hand.rest()
 			if err != nil {
 				return fresh, err
 			}
 			tree = fresh
 		}
-		err := e.UIScreen.Act(ctx, program, tree)
-		hand.rest()
-		return tree, err
+		return tree, e.UIScreen.Act(ctx, program, tree)
 	}
 
 	switch {
@@ -292,51 +288,7 @@ func (e *Engine) showBeforeActing(ctx context.Context, tree uiact.Tree, step uia
 	}
 }
 
-var (
-	pointerSlack = 4
-	pausedFor    = 2 * time.Minute
-)
-
-type hand struct {
-	read func() (int, int, bool)
-	x, y int
-	ok   bool
-}
-
-func (e *Engine) watchTheHand() *hand {
-	p, ok := e.UIScreen.(uiact.PointerReader)
-	if !ok || e.Paused == nil || e.Resume == nil {
-		return &hand{}
-	}
-	h := &hand{read: p.PointerAt}
-	h.rest()
-	return h
-}
-
-func (h *hand) rest() {
-	if h.read == nil {
-		return
-	}
-	h.x, h.y, h.ok = h.read()
-}
-
-func (h *hand) moved() bool {
-	if h.read == nil || !h.ok {
-		return false
-	}
-	x, y, ok := h.read()
-	if !ok {
-		return false
-	}
-	return abs(x-h.x) > pointerSlack || abs(y-h.y) > pointerSlack
-}
-
-func abs(n int) int {
-	if n < 0 {
-		return -n
-	}
-	return n
-}
+var pausedFor = 2 * time.Minute
 
 func (e *Engine) askFirst(tree uiact.Tree, step uiact.Step) string {
 	if e.Paused == nil || e.Resume == nil {
@@ -352,11 +304,7 @@ func (e *Engine) askFirst(tree uiact.Tree, step uiact.Step) string {
 
 func (e *Engine) waitOutThePause(ctx context.Context, app string, tree uiact.Tree, program uiact.Program, number int, describe, ask string) (uiact.Tree, error) {
 	step := program.Steps[0]
-	if ask != "" {
-		e.logf("step %d cannot be taken back (%s), so it waits for you to say go ahead", number, ask)
-	} else {
-		e.logf("the pointer moved, so step %d waits until you carry on", number)
-	}
+	e.logf("step %d cannot be taken back (%s), so it waits for you to say go ahead", number, ask)
 
 drain:
 	for {

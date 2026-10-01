@@ -44,5 +44,3 @@ func focusElement(int, []int) error { return errNoAccessibilityAPI }
 func watchWindow(context.Context, int) (<-chan struct{}, error) { return nil, errNoAccessibilityAPI }
 
 func scrollElement(int, []int) error { return errNoAccessibilityAPI }
-
-func pointerAt() (int, int, bool) { return 0, 0, false }

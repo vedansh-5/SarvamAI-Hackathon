@@ -76,7 +76,6 @@ func run() error {
 		Page:    live,
 		Browser: "Google Chrome",
 		Raise:   desktop.BringToFront,
-		Pointer: desktop.PointerAt,
 	}
 
 	notes := appleevents.Notes{Runner: appleevents.Osascript{}}

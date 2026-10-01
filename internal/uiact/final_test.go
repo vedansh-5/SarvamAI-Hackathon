@@ -37,4 +37,17 @@ func TestWhichStepsCannotBeTakenBack(t *testing.T) {
 	if final, _ := Commits(Step{Do: "type", Text: "send the report"}, message); final {
 		t.Error("typing was treated as final because of the words typed")
 	}
+	if final, _ := Commits(Step{Do: "type", Text: "hello", Final: true}, message); final {
+		t.Error("typing was treated as final because the model marked it; typing sends nothing")
+	}
+}
+
+func TestAHiddenMarkInAControlsNameDoesNotMakeItADifferentControl(t *testing.T) {
+	want := Element{Role: "AXTextArea", Title: "Compose message"}
+	if !sameControl(want, "AXTextArea", "\u200eCompose message") {
+		t.Error("the control under the pointer was rejected for a character nobody can see")
+	}
+	if sameControl(want, "AXTextArea", "Search") {
+		t.Error("a different control was accepted")
+	}
 }

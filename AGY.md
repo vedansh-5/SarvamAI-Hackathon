@@ -1320,9 +1320,9 @@ spot. In order:
    caption replaces the tip card (D-145). **Built.**
 5. **A step trail** showing the steps already done: numbered dots joined by a
    dotted line (D-145). **Built.**
-6. **Pause when the person touches the mouse** during a run VANS is doing.
-   ⌥Space carries on after the window is checked again, Escape stops (D-146).
-   **Built.**
+6. ~~Pause when the person touches the mouse.~~ Built in #104 and **withdrawn
+   after the first live use** (D-156): it stopped runs nobody wanted stopped. Only
+   Escape stops a run.
 
 All six are built (#101–#104) and none has been tried live yet. What to watch
 for in the first live run: whether the application accepts the change observer
