@@ -170,6 +170,25 @@ func (c *OpenAICompatible) answerWait() time.Duration {
 type chatMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
+
+	Image string `json:"-"`
+}
+
+func (m chatMessage) MarshalJSON() ([]byte, error) {
+	if m.Image == "" {
+		return json.Marshal(struct {
+			Role    string `json:"role"`
+			Content string `json:"content"`
+		}{m.Role, m.Content})
+	}
+	type part map[string]any
+	return json.Marshal(struct {
+		Role    string `json:"role"`
+		Content []part `json:"content"`
+	}{m.Role, []part{
+		{"type": "text", "text": m.Content},
+		{"type": "image_url", "image_url": map[string]string{"url": m.Image}},
+	}})
 }
 
 type chatRequest struct {

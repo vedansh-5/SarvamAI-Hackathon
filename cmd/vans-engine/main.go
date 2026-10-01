@@ -25,6 +25,7 @@ import (
 	"github.com/vedansh/vans/internal/capability"
 	"github.com/vedansh/vans/internal/engine"
 	"github.com/vedansh/vans/internal/extract"
+	"github.com/vedansh/vans/internal/eyes"
 	"github.com/vedansh/vans/internal/route"
 	"github.com/vedansh/vans/internal/rpc"
 	"github.com/vedansh/vans/internal/store"
@@ -179,6 +180,7 @@ func run() error {
 			Tasks:      st,
 			UIScreen:   desktop,
 			PageScreen: page,
+			Eyes:       looking(synthesizer, desktop),
 		},
 		Deeds: st,
 		Probe: probe{
@@ -297,5 +299,20 @@ func loadEnvFile() {
 			}
 		}
 		break
+	}
+}
+
+func looking(model any, desktop uiact.System) uiact.Screen {
+	reader, ok := model.(eyes.Reader)
+	if !ok {
+		return nil
+	}
+	return &eyes.Screen{
+		Camera: desktop,
+		Reader: reader,
+		Raise:  desktop.BringToFront,
+		Log: func(format string, args ...any) {
+			fmt.Fprintf(os.Stderr, "[eyes] "+format+"\n", args...)
+		},
 	}
 }

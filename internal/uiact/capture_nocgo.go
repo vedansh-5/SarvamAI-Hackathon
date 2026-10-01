@@ -46,3 +46,5 @@ func watchWindow(context.Context, int) (<-chan struct{}, error) { return nil, er
 func scrollElement(int, []int) error { return errNoAccessibilityAPI }
 
 func elementValue(int, []int) (string, bool) { return "", false }
+
+func windowOf(int) (int, int, int, int, int, bool) { return 0, 0, 0, 0, 0, false }

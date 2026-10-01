@@ -80,6 +80,8 @@ type GuidePlan struct {
 	Web     bool
 	Browser string
 	Site    string
+
+	Vision bool
 }
 
 type GuideStep struct {
@@ -176,6 +178,21 @@ func (e *Engine) planGuideIn(ctx context.Context, task, shape string, literals m
 	if err != nil {
 		return nil, err
 	}
+	if e.Eyes != nil {
+		if seen := uiact.Assess(tree); seen.Verdict == uiact.Blind {
+			e.logf("%s cannot be read (%s), so its window will be looked at instead", app, seen.Why)
+			return &Plan{
+				Task:        Task{Intent: task, Title: app},
+				Destination: app,
+				Guide: &GuidePlan{
+					App: app, Task: task, Shape: shape, Literals: literals, Vision: true,
+					Preview: fmt.Sprintf("Show you how to do this in %s, a step at a time, by looking at its window:\n\n  %s\n\n"+
+						"%s does not publish its controls, so each step takes a moment longer and the pointer is a best estimate.",
+						app, task, app),
+				},
+			}, nil
+		}
+	}
 	if len(tree.Elements) == 0 {
 		return nil, stopped(app, "engine: %s has nothing on screen to point at", app)
 	}
@@ -215,6 +232,14 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 		}
 		e = e.onThePage()
 		limit = MaxWebSteps
+	}
+	if g.Vision {
+		if e.Eyes == nil {
+			return StepWork{}, fmt.Errorf("engine: this build cannot look at a window")
+		}
+		byEye := *e
+		byEye.UIScreen = e.Eyes
+		e = &byEye
 	}
 	if !e.canGuide() {
 		return StepWork{}, fmt.Errorf("engine: this build cannot show you what to do on screen")

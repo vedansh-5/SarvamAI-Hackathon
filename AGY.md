@@ -1401,7 +1401,7 @@ No local model runtimes (§11 still holds); these come first.
   (D-167): `go run ./cmd/vans-probe -tasks`.
 - A2. Remember pieces, not only whole runs: "open the chat with a person", "search
   on this site", kept and reused inside new tasks.
-- A3. **Foundation built (D-167), not yet measured live.** Learn each application's map: clicking X here leads to a screen with these
+- A3. **Built (D-167, and lists generalise, D-168), not yet measured live.** Learn each application's map: clicking X here leads to a screen with these
   controls. Lets the planner plan across screens it has not been shown this run.
 - A4. Small decisions made by code, never by a model: scrolling to a control,
   closing cookie banners, waiting for a page, picking the field whose label fits.
@@ -1411,8 +1411,8 @@ No local model runtimes (§11 still holds); these come first.
 
 **B. Reaching every application.**
 
-- B1. The vision tier, chosen automatically when the probe's verdict is blind
-  (D-163). Coach only to begin with.
+- B1. **Built (D-169), coach only, not yet tried on a real application.** The
+  vision tier, chosen automatically when the probe's verdict is blind.
 - B2. Real mouse and keyboard as the fallback on pages that ignore scripted input.
 - B3. Choosing files, for uploads.
 - B4. Tasks across two applications.

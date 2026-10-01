@@ -3860,3 +3860,35 @@ that rule whenever the list is on screen, including for items never opened.
 
 A control that stands alone teaches nothing general. Three is the fewest that makes
 a list; fewer is a coincidence of two buttons sharing a parent.
+
+## D-169 — An application that cannot be read is looked at, and only pointed at
+
+Electron applications and Adobe's publish almost nothing to the accessibility API
+(§8), so there was nothing to point at and the coach refused them. They are most
+of what people use.
+
+They are now looked at. A picture of the front window goes to the model, which
+lists what a person could act on — kind, name, what a field holds, and a box. That
+becomes the same tree a read window does (`internal/eyes`), so the coach, the
+planner, the map and the trail all work on it without knowing the difference.
+
+**Chosen automatically.** When the coach reads a window and the probe's verdict is
+blind (D-163), it looks instead. Nobody picks a mode, and an application that reads
+properly is never looked at: looking is slower and less exact.
+
+**The picture is only read again when the window has changed.** The coach reads
+its window twice a second while it waits. Each read takes the picture, which is
+cheap, and compares it with the last one on a 96 by 96 grid; the model is asked
+again only when at least four cells have moved, and not more than once in 1.2
+seconds. A blinking text cursor is one cell. A measured look takes about four
+seconds, so this is the difference between usable and not.
+
+**Pointing only.** A box read off a picture is an estimate. Pointing at the wrong
+place costs a moment; clicking the wrong place in somebody's edit costs their
+work. The screen refuses to act, and VANS doing a task in such an application
+waits until pointing is measured to be right.
+
+What it costs is said where it is used: the window's picture goes to the model,
+which needs Screen Recording permission, and each new screen is a model call that
+reading a tree never needed. The kept steps and the map are what keep a second
+visit cheap.

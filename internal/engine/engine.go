@@ -142,9 +142,11 @@ type Engine struct {
 	UIScreen uiact.Screen
 
 	PageScreen uiact.Screen
-	UIActions  UIActionCache
-	Steps      StepWriter
-	History    History
+
+	Eyes      uiact.Screen
+	UIActions UIActionCache
+	Steps     StepWriter
+	History   History
 
 	// Chooser decides which application a task is carried out in. Without one
 	// the application in front is used, which is what happened before it existed.

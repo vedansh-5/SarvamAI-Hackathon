@@ -317,6 +317,35 @@ static int axValueAt(int pid, const int *path, int n, char *buf, int len) {
     return ok;
 }
 
+static int cgWindowOf(int pid, int *wid, double *x, double *y, double *w, double *h) {
+    CFArrayRef list = CGWindowListCopyWindowInfo(
+        kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements, kCGNullWindowID);
+    if (!list) return 0;
+    int found = 0;
+    CFIndex n = CFArrayGetCount(list);
+    for (CFIndex i = 0; i < n && !found; i++) {
+        CFDictionaryRef d = (CFDictionaryRef)CFArrayGetValueAtIndex(list, i);
+        int owner = 0, layer = -1, number = 0;
+        CFNumberRef v = (CFNumberRef)CFDictionaryGetValue(d, kCGWindowOwnerPID);
+        if (v) CFNumberGetValue(v, kCFNumberIntType, &owner);
+        if (owner != pid) continue;
+        v = (CFNumberRef)CFDictionaryGetValue(d, kCGWindowLayer);
+        if (v) CFNumberGetValue(v, kCFNumberIntType, &layer);
+        if (layer != 0) continue;
+        CGRect r;
+        CFDictionaryRef b = (CFDictionaryRef)CFDictionaryGetValue(d, kCGWindowBounds);
+        if (!b || !CGRectMakeWithDictionaryRepresentation(b, &r)) continue;
+        if (r.size.width < 120 || r.size.height < 80) continue;
+        v = (CFNumberRef)CFDictionaryGetValue(d, kCGWindowNumber);
+        if (v) CFNumberGetValue(v, kCFNumberIntType, &number);
+        if (number <= 0) continue;
+        *wid = number; *x = r.origin.x; *y = r.origin.y; *w = r.size.width; *h = r.size.height;
+        found = 1;
+    }
+    CFRelease(list);
+    return found;
+}
+
 static int axRaise(int pid) {
     AXUIElementRef app = AXUIElementCreateApplication((pid_t)pid);
     if (!app) return -1;
@@ -418,6 +447,15 @@ func elementValue(pid int, path []int) (string, bool) {
 		return "", false
 	}
 	return names.Strip(C.GoString(&buf[0])), true
+}
+
+func windowOf(pid int) (id, x, y, w, h int, ok bool) {
+	var wid C.int
+	var cx, cy, cw, ch C.double
+	if C.cgWindowOf(C.int(pid), &wid, &cx, &cy, &cw, &ch) != 1 {
+		return 0, 0, 0, 0, 0, false
+	}
+	return int(wid), int(cx), int(cy), int(cw), int(ch), true
 }
 
 func scrollElement(pid int, path []int) error {
