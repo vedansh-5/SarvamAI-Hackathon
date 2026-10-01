@@ -3,6 +3,7 @@ package route
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -159,6 +160,39 @@ func TestDecliningIsReportedWithItsReason(t *testing.T) {
 	}
 	if undecided.Why != "nothing here reads PDFs" {
 		t.Errorf("reason lost: %q", undecided.Why)
+	}
+}
+
+func TestAnUnknownIsLookedAtOnceMoreBeforeItIsBelieved(t *testing.T) {
+	d := &countingDecider{answers: []Decision{
+		{Kind: KindUnknown, Why: "messaging is not covered"},
+		{Kind: KindAppAction, Slots: map[string]string{"app": "whatsapp", "action": "send good morning to joe"}},
+	}}
+	r := &Router{Decider: d, Cache: newMemCache()}
+
+	res, err := r.Route(context.Background(), "Send Good Morning to Joe on Whatsapp")
+	if err != nil {
+		t.Fatalf("Route: %v", err)
+	}
+	if res.Route.Kind != KindAppAction || d.calls != 2 {
+		t.Errorf("kind = %q after %d call(s), want app.act on the second look", res.Route.Kind, d.calls)
+	}
+	if len(d.failures) < 2 || len(d.failures[1]) == 0 || !strings.Contains(d.failures[1][0], "messaging is not covered") {
+		t.Errorf("the second ask was not told why the first declined: %v", d.failures)
+	}
+}
+
+func TestAnUnknownGivenTwiceIsBelieved(t *testing.T) {
+	d := &countingDecider{answer: Decision{Kind: KindUnknown, Why: "nothing here reads PDFs"}}
+	r := &Router{Decider: d, Cache: newMemCache()}
+
+	_, err := r.Route(context.Background(), "summarise the PDF on my desktop")
+	var undecided *UndecidedError
+	if !errors.As(err, &undecided) {
+		t.Fatalf("want UndecidedError, got %v", err)
+	}
+	if d.calls != 2 {
+		t.Errorf("asked %d time(s), want 2 and no more", d.calls)
 	}
 }
 

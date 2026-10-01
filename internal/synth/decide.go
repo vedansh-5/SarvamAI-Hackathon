@@ -24,7 +24,9 @@ Only use placeholders listed as available. Inventing one that is not there makes
 
 Never write a value into a slot when a placeholder stands for it. If the instruction mentions Hacker News and the shape has {u0}, the slot says "{u0}" — not "Hacker News", and not "the Hacker News homepage". Naming anything you can only see in this one instruction bakes it into every future use of the shape.
 
-Pick the kind that genuinely fits. If none does, answer with kind "unknown" and say why in one line: that is a useful answer, and guessing at the nearest kind is not.`
+Pick the kind that genuinely fits. Two of the kinds are general: app.act is anything a person could do by clicking and typing in a Mac application, and page.act is anything they could do on a website. Sending a message, posting, booking, uploading, filling in a form and changing a setting are all one of those two.
+
+Answer with kind "unknown" only when the instruction is not asking for something to be done, found or shown on this computer, and say why in one line. Unknown is a useful answer when it is true; guessing at the nearest kind is not.`
 
 // routeSchema constrains the decision. Slots is an open map because each kind
 // has its own, and enumerating them all here would be a second copy of

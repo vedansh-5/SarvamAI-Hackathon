@@ -96,6 +96,13 @@ func (e *Engine) actInApplication(ctx context.Context, r route.Route, shape stri
 						return plan, plan.SynthesisCalls, nil
 					}
 				}
+				var closed *uiact.NotRunningError
+				if errors.As(uiErr, &closed) {
+					if installed, err := e.Apps.FindInstalled(name); err == nil {
+						e.logf("%s is installed but not open, and VANS does not open applications", installed.Name)
+						return nil, 0, &uiact.NotRunningError{App: installed.Name}
+					}
+				}
 				if e.canDrivePages() {
 					if plan, err := e.driveOnPage(ctx, r.Slot("action"), shape, r.Literals, name); err == nil {
 						e.logf("%s has no window here; working through its site instead", name)

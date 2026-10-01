@@ -100,6 +100,9 @@ func run() error {
 	var router *route.Router
 	if decider, ok := synthesizer.(route.Decider); ok {
 		router = &route.Router{Decider: decider, Cache: st, Model: modelLabel()}
+		router.Log = func(format string, args ...any) {
+			fmt.Fprintf(os.Stderr, "[route] "+format+"\n", args...)
+		}
 	}
 
 	// Acting inside applications needs four things and takes them together:

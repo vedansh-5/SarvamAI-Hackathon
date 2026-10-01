@@ -3506,3 +3506,35 @@ button. The prompts say to stop there and say what the person needs to enter.
 Found by type, by the browser's own autocomplete hints (`cc-*`, `one-time-code`),
 and by name. Erring towards calling a field secret costs a step the person does by
 hand; erring the other way puts a card number through a model.
+
+## D-153 — "Unknown" is looked at once more before it is believed
+
+"Send Good Morning to Joe on Whatsapp" was declined as something VANS has no kind
+for. The same sentence in lower case was routed correctly, and so were five other
+ways of saying it. Measured against the live model, that exact wording came back
+"unknown" two times in three: a small model wobbling on a decision the descriptions
+left room to wobble on.
+
+Two changes, and the second is the floor.
+
+- The descriptions say what the two general kinds cover. `app.act` is anything a
+  person does by clicking and typing in a Mac application and `page.act` anything
+  they do on a website, with sending a message, posting, booking and uploading
+  named as examples. "Unknown" is for an instruction that asks for nothing to be
+  done, found or shown.
+- An "unknown" is asked about once more, with the model's own reason and those two
+  kinds put in front of it. Only a second "unknown" is believed. It costs one call,
+  and only when the first answer was a refusal.
+
+Thirty-six live routings of twelve phrasings afterwards: none declined, three
+needed the second look. The cost is that the router is now a little readier to
+call something `app.act` — "summarise the PDF on my desktop" went there — which
+fails later and more specifically, in the application, rather than at the door.
+
+Routing decisions are also written to the log now. This one took a reproduction to
+find because the router had never been given anywhere to write.
+
+A related hole closed in the same change: an application that is installed but not
+open is reported as not open, so the person opens it. It used to fall through to
+opening the application's website instead, which is not what "on WhatsApp" means
+to someone who has WhatsApp installed.

@@ -173,10 +173,21 @@ func (r *Router) Route(ctx context.Context, instruction string) (Result, error) 
 	}
 
 	var attempts []string
+	lookedAgain := false
 	for call := 1; call <= r.maxDecisions(); call++ {
 		d, err := r.Decider.Decide(ctx, req)
 		if err != nil {
 			return Result{}, fmt.Errorf("route: decide: %w", err)
+		}
+
+		if d.Kind == KindUnknown && !lookedAgain && call < r.maxDecisions() {
+			lookedAgain = true
+			r.logf("the model could not place it (%s); asking once more", d.Why)
+			req.Failures = append(req.Failures, fmt.Sprintf(
+				"you answered unknown (%s). Look again before declining: %s covers anything a person does by clicking and typing in a Mac application, "+
+					"and %s anything they do on a website. Answer unknown again only if the instruction asks for neither and no other kind fits.",
+				d.Why, KindAppAction, KindPageAction))
+			continue
 		}
 
 		if d.Kind == KindUnknown {
