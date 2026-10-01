@@ -73,3 +73,7 @@ func (s System) Frontmost(ctx context.Context) (string, error) {
 func (s System) Type(ctx context.Context, text string) error {
 	return TypeHere(ctx, text)
 }
+
+func (System) ClickAt(x, y int) { clickPoster(x, y) }
+
+func (System) TypeText(text string) { textPoster(text) }

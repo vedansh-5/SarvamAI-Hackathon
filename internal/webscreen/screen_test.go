@@ -238,3 +238,48 @@ func TestASecretFieldIsNeverTypedInto(t *testing.T) {
 		t.Error("something was sent to the page for a secret field")
 	}
 }
+
+func TestAPageThatIgnoresAScriptedClickIsClickedForReal(t *testing.T) {
+	quick(t)
+	page := &fakePage{snap: flights()}
+	var clicked [][2]int
+	raised := 0
+	s := &Screen{
+		Page:      page,
+		RealClick: func(x, y int) { clicked = append(clicked, [2]int{x, y}); page.snap.Title = "Results" },
+		Raise:     func(context.Context, string) error { raised++; return nil },
+	}
+	tree, _ := s.Capture(context.Background(), "")
+
+	err := s.Act(context.Background(), uiact.Program{App: tree.App, Steps: []uiact.Step{
+		{Do: "click", Target: uiact.Selector{Role: "AXButton", Title: "Search flights"}},
+	}}, tree)
+	if err != nil {
+		t.Fatalf("Act: %v", err)
+	}
+	if len(clicked) != 1 || clicked[0] != [2]int{160, 315} {
+		t.Fatalf("clicked %v, want once in the middle of the button", clicked)
+	}
+	if raised != 1 {
+		t.Errorf("raised the browser %d time(s) before a real click, want 1", raised)
+	}
+}
+
+func TestAPageThatAnswersIsNotClickedTwice(t *testing.T) {
+	quick(t)
+	AnswerWait = 5 * time.Second
+	page := &fakePage{snap: flights()}
+	clicks := 0
+	s := &Screen{Page: page, RealClick: func(int, int) { clicks++ }}
+	tree, _ := s.Capture(context.Background(), "")
+	page.changeOnRead = page.reads + 1
+
+	if err := s.Act(context.Background(), uiact.Program{App: tree.App, Steps: []uiact.Step{
+		{Do: "click", Target: uiact.Selector{Role: "AXButton", Title: "Search flights"}},
+	}}, tree); err != nil {
+		t.Fatalf("Act: %v", err)
+	}
+	if clicks != 0 {
+		t.Errorf("clicked for real %d time(s) on a page that had already answered", clicks)
+	}
+}

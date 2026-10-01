@@ -67,6 +67,10 @@ type Screen struct {
 	Browser string
 
 	Raise func(ctx context.Context, app string) error
+
+	RealClick func(x, y int)
+	RealType  func(text string)
+	Log       func(format string, args ...any)
 }
 
 var (
@@ -74,6 +78,7 @@ var (
 	LoadPoll   = 120 * time.Millisecond
 	AnswerWait = 1 * time.Second
 	AnswerPoll = 90 * time.Millisecond
+	HandPause  = 180 * time.Millisecond
 )
 
 const WebArea = "AXWebArea"
@@ -144,23 +149,66 @@ func (s *Screen) Capture(ctx context.Context, _ string) (uiact.Tree, error) {
 	return treeOf(snap), nil
 }
 
-func (s *Screen) waitForAnAnswer(ctx context.Context, before uiact.Tree) {
+func (s *Screen) waitForAnAnswer(ctx context.Context, before uiact.Tree) bool {
 	deadline := time.Now().Add(AnswerWait)
 	for time.Now().Before(deadline) {
 		select {
 		case <-ctx.Done():
-			return
+			return true
 		case <-time.After(AnswerPoll):
 		}
 		var snap snapshot
 		loaded, err := s.Page.ReadFront(ctx, readPage, &snap)
 		if err != nil || !loaded {
-			return
+			return true
 		}
 		if len(uiact.Changes(before, treeOf(snap))) > 0 {
-			return
+			return true
 		}
 	}
+	return false
+}
+
+func (s *Screen) logf(format string, args ...any) {
+	if s.Log != nil {
+		s.Log(format, args...)
+	}
+}
+
+func (s *Screen) byHand(ctx context.Context, step uiact.Step, before uiact.Tree) bool {
+	verb := strings.ToLower(strings.TrimSpace(step.Do))
+	if s.RealClick == nil || (verb != "click" && verb != "type") {
+		return false
+	}
+	if verb == "type" && s.RealType == nil {
+		return false
+	}
+
+	now, err := s.Capture(ctx, "")
+	if err != nil {
+		return false
+	}
+	x, y, w, h, why := now.RectFor(step.Target)
+	if why != "" {
+		return false
+	}
+	if s.Raise != nil {
+		if err := s.Raise(ctx, s.browser()); err != nil {
+			return false
+		}
+	}
+
+	s.logf("the page did not answer a scripted %s, so it is done with the real pointer", verb)
+	s.RealClick(x+w/2, y+h/2)
+	if verb == "type" {
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(HandPause):
+		}
+		s.RealType(step.Text)
+	}
+	return s.waitForAnAnswer(ctx, before)
 }
 
 func treeOf(snap snapshot) uiact.Tree {
@@ -281,7 +329,9 @@ func (s *Screen) Act(ctx context.Context, p uiact.Program, t uiact.Tree) error {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		s.waitForAnAnswer(ctx, t)
+		if !s.waitForAnAnswer(ctx, t) {
+			s.byHand(ctx, step, t)
+		}
 	}
 	return nil
 }

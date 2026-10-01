@@ -77,6 +77,12 @@ func run() error {
 		Page:    live,
 		Browser: "Google Chrome",
 		Raise:   desktop.BringToFront,
+
+		RealClick: desktop.ClickAt,
+		RealType:  desktop.TypeText,
+		Log: func(format string, args ...any) {
+			fmt.Fprintf(os.Stderr, "[page] "+format+"\n", args...)
+		},
 	}
 
 	notes := appleevents.Notes{Runner: appleevents.Osascript{}}

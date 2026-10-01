@@ -3892,3 +3892,17 @@ What it costs is said where it is used: the window's picture goes to the model,
 which needs Screen Recording permission, and each new screen is a model call that
 reading a tree never needed. The kept steps and the map are what keep a second
 visit cheap.
+
+## D-170 — A page that ignores a scripted click is clicked for real
+
+Input on a page goes through the page's script (D-147), which never moves the
+pointer and works on most sites. Some controls insist on a real gesture: a file
+picker will not open from script, and some pay and sign-in buttons check that the
+event is trusted. There the step used to do nothing and be recorded as such.
+
+When a scripted click or typing leaves the page unchanged for the whole of the
+wait, it is done again by hand: the browser is brought forward, the pointer clicks
+the middle of the control where it is on screen now, and text is typed as
+keystrokes. This is the one case where a page run moves the person's pointer, and
+only after the quiet way has been tried and seen to do nothing. A page that
+answered is never clicked twice.

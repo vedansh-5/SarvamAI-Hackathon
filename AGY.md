@@ -1413,7 +1413,8 @@ No local model runtimes (§11 still holds); these come first.
 
 - B1. **Built (D-169), coach only, not yet tried on a real application.** The
   vision tier, chosen automatically when the probe's verdict is blind.
-- B2. Real mouse and keyboard as the fallback on pages that ignore scripted input.
+- B2. **Built (D-170).** Real mouse and keyboard as the fallback on pages that
+  ignore scripted input.
 - B3. Choosing files, for uploads.
 - B4. Tasks across two applications.
 - B5. Safari and other browsers.
