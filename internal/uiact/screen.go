@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/vedansh/vans/internal/names"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -55,7 +56,7 @@ func Plan(p Program, t Tree) ([]Act, error) {
 			}
 			out = append(out, Act{Step: i, Do: reach, X: x, Y: y, Path: el.Path})
 			if verb(step.Do) == "type" {
-				out = append(out, Act{Step: i, Do: "type", X: x, Y: y, Text: step.Text})
+				out = append(out, Act{Step: i, Do: "type", X: x, Y: y, Text: step.Text, Path: el.Path})
 			}
 
 		case "press":
@@ -82,14 +83,24 @@ func RunScreen(ctx context.Context, r Runner, p Program, t Tree) error {
 		return err
 	}
 
+	keyboardIsTheirs := false
 	for _, a := range acts {
+		if a.Do != "click" && !keyboardIsTheirs {
+			keyboardIsTheirs = true
+			_ = raise(pid)
+			if !pause(ctx, keyboardSettle) {
+				return ctx.Err()
+			}
+		}
 		switch a.Do {
 		case "click":
 			reachFor(pid, a)
 		case "focus":
 			takeTheKeyboard(pid, a)
 		case "type":
-			textPoster(a.Text)
+			if err := typeInto(ctx, pid, a); err != nil {
+				return err
+			}
 		case "press":
 			keyPoster(a.Code, a.Flags)
 		}
@@ -127,6 +138,67 @@ func takeTheKeyboard(pid int, a Act) {
 		return
 	}
 	clickPoster(a.X, a.Y)
+}
+
+var keyboardSettle = 150 * time.Millisecond
+
+var ErrTextDidNotLand = errors.New("uiact: the text was typed but did not appear in the field")
+
+var (
+	valueReader  = elementValue
+	paster       = pasteText
+	typingSettle = 220 * time.Millisecond
+)
+
+func typeInto(ctx context.Context, pid int, a Act) error {
+	before := ""
+	if len(a.Path) > 0 {
+		before, _ = valueReader(pid, a.Path)
+	}
+	want := strings.TrimSpace(a.Text)
+
+	landed := func() (bool, bool) {
+		if len(a.Path) == 0 || !pause(ctx, typingSettle) {
+			return false, false
+		}
+		now, ok := valueReader(pid, a.Path)
+		if !ok {
+			return false, false
+		}
+		return now != before && strings.Contains(now, want), true
+	}
+
+	textPoster(a.Text)
+	ok, known := landed()
+	if ok || !known {
+		return ctx.Err()
+	}
+
+	if paster(ctx, a.Text) {
+		if ok, _ := landed(); ok {
+			return nil
+		}
+	}
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return ErrTextDidNotLand
+}
+
+func pasteText(ctx context.Context, text string) bool {
+	was, _ := exec.CommandContext(ctx, "pbpaste").Output()
+	put := exec.CommandContext(ctx, "pbcopy")
+	put.Stdin = strings.NewReader(text)
+	if put.Run() != nil {
+		return false
+	}
+	keyPoster(9, Modifiers["Command"])
+	pause(ctx, 250*time.Millisecond)
+
+	back := exec.CommandContext(context.WithoutCancel(ctx), "pbcopy")
+	back.Stdin = strings.NewReader(string(was))
+	_ = back.Run()
+	return true
 }
 
 func TypeHere(ctx context.Context, text string) error {

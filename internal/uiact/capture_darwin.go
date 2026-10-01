@@ -300,6 +300,23 @@ static int axScrollToVisible(int pid, const int *path, int n) {
     return e == kAXErrorSuccess ? 1 : -2;
 }
 
+static int axValueAt(int pid, const int *path, int n, char *buf, int len) {
+    buf[0] = 0;
+    AXUIElementRef el = axAtPath(pid, path, n);
+    if (!el) return -1;
+    CFTypeRef v = NULL;
+    int ok = 0;
+    if (AXUIElementCopyAttributeValue(el, kAXValueAttribute, &v) == kAXErrorSuccess && v) {
+        if (CFGetTypeID(v) == CFStringGetTypeID()) {
+            CFStringGetCString((CFStringRef)v, buf, len, kCFStringEncodingUTF8);
+            ok = 1;
+        }
+        CFRelease(v);
+    }
+    CFRelease(el);
+    return ok;
+}
+
 static int axRaise(int pid) {
     AXUIElementRef app = AXUIElementCreateApplication((pid_t)pid);
     if (!app) return -1;
@@ -389,6 +406,18 @@ func focusElement(pid int, path []int) error {
 	default:
 		return fmt.Errorf("uiact: the control would not take the keyboard (accessibility error %d)", rc)
 	}
+}
+
+func elementValue(pid int, path []int) (string, bool) {
+	if !trusted() {
+		return "", false
+	}
+	indices := cPath(path)
+	buf := make([]C.char, 16384)
+	if C.axValueAt(C.int(pid), &indices[0], C.int(len(path)), &buf[0], C.int(len(buf))) != 1 {
+		return "", false
+	}
+	return names.Strip(C.GoString(&buf[0])), true
 }
 
 func scrollElement(pid int, path []int) error {

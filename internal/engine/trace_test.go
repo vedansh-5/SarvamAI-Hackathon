@@ -153,7 +153,7 @@ func TestARunWithAStepThatChangedNothingIsNotKept(t *testing.T) {
 		UIScreen: &fakeScreen{tree: editorTree()},
 		Traces:   traces,
 		Steps: &scriptedSteps{answers: []synth.StepAnswer{
-			{Step: typeIntoMessage()},
+			{Step: clickMessage()},
 			{Done: true, Why: "done"},
 		}},
 	}

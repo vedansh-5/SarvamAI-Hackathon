@@ -346,7 +346,7 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 		}
 	}
 
-	run, err := e.stepThroughTask(ctx, g.App, asTask(g.Task), limit, point, planned, memo.Kept)
+	run, err := e.stepThroughTask(ctx, g.App, asTask(g.Task), limit, point, planned, memo.Kept, false)
 	e.settleTheTrace(context.WithoutCancel(ctx), memo, run)
 	work := StepWork{Steps: run.Steps(), Replayed: run.Replayed, Calls: run.Calls + planCalls}
 	if err != nil {

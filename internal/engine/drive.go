@@ -217,7 +217,7 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	// counts is that the window moved for every step VANS performed. A replayed
 	// step is held to exactly the same standard, so where the steps came from
 	// never enters into whether the run is verified.
-	run, err := e.stepThroughTask(ctx, d.App, d.Task, limit, act, d.Replay, d.Kept)
+	run, err := e.stepThroughTask(ctx, d.App, d.Task, limit, act, d.Replay, d.Kept, true)
 	if err != nil {
 		e.settleTheTrace(ctx, d, run)
 		return Receipt{}, err
@@ -424,7 +424,7 @@ const mostReplans = 2
 // one is that answer. A plan written up front for this run promised nothing of
 // the kind, so running out of it is not evidence of anything and the model is
 // asked once whether there is more.
-func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit int, handle stepHandler, trace []uiact.Step, confirmed bool) (taskRun, error) {
+func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit int, handle stepHandler, trace []uiact.Step, confirmed, acting bool) (taskRun, error) {
 	var done []string
 	var did []uiact.Step
 	landed := true
@@ -677,6 +677,10 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 				replaying, diverged = false, true
 				e.logf("so the rest is worked out a step at a time")
 				continue
+			}
+			if !changed && acting && strings.EqualFold(strings.TrimSpace(answer.Step.Do), "type") {
+				return state(), stopped(app,
+					"engine: the text was typed and nothing appeared in %s, so it stopped rather than carry on as if it had", app)
 			}
 			if !changed {
 				landed = false

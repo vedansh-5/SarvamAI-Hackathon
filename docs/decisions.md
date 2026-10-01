@@ -3712,3 +3712,29 @@ only reached for an application that is not installed. One that is installed and
 closed is reported as not open, so the person opens it; one that is installed and
 cannot be read fails with the reason, rather than quietly becoming a different
 place to do the task.
+
+## D-162 — Typing is checked, and a run does not carry on past text that never appeared
+
+A message was "typed" into WhatsApp, Enter was pressed on an empty box, and the
+model reported it sent. Three things were wrong and each is closed separately.
+
+**The keystrokes went nowhere.** Tried directly against the same box, plain
+keystrokes land and so does a paste; setting the selected text through
+accessibility does not. So the typing was sound and its destination was not: the
+overlay is drawn just before a step, and the likeliest reading is that drawing it
+left VANS the active application, where the keys then went. A step that uses the
+keyboard now makes its application the active one immediately before it does, on
+every run, rather than trusting the window list's opinion of who is in front.
+
+**Nothing noticed.** Where a field's contents can be read back, they are: if the
+text is not in it after the keystrokes, a paste is tried (the clipboard is put
+back), and if it is still not there the step fails with that as the reason. A
+field that cannot be read is typed into once and never twice, because a second
+attempt on a field that did take the first one would double the text.
+
+**The run carried on.** WhatsApp's empty box is one of the unreadable ones, so the
+check above cannot see that case. The step loop can: a typing step after which the
+window is unchanged now stops a run VANS is doing, saying the text never appeared.
+It used to be recorded as an unverified step and followed by the next one — which
+is how Enter came to be pressed on nothing and a model came to be asked whether
+the message had gone. A coached run is unaffected; there the person types.

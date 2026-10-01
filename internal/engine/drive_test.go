@@ -44,6 +44,14 @@ func typeIntoMessage() uiact.Step {
 	}
 }
 
+func clickMessage() uiact.Step {
+	return uiact.Step{
+		Do:       "click",
+		Target:   uiact.Selector{Role: "AXTextArea", Title: "Message"},
+		Describe: "Click Message",
+	}
+}
+
 func drivePlan() *Plan {
 	return &Plan{Drive: &DrivePlan{App: "Editor", Task: "say hello"}}
 }
@@ -65,7 +73,7 @@ func TestDriveStopsWhenTheTaskIsDone(t *testing.T) {
 func TestDriveRunsAStepThenStops(t *testing.T) {
 	f := &fakeScreen{tree: editorTree()}
 	e := &Engine{UIScreen: f, Steps: &scriptedSteps{
-		answers: []synth.StepAnswer{{Step: typeIntoMessage()}},
+		answers: []synth.StepAnswer{{Step: clickMessage()}},
 	}}
 
 	if _, err := e.runDrive(context.Background(), drivePlan()); err != nil {
@@ -81,7 +89,7 @@ func TestDriveRunsAStepThenStops(t *testing.T) {
 
 func TestDriveStopsAtTheBudget(t *testing.T) {
 	f := &fakeScreen{tree: editorTree()}
-	w := &alwaysStep{step: typeIntoMessage()}
+	w := &alwaysStep{step: clickMessage()}
 	e := &Engine{UIScreen: f, Steps: w}
 
 	_, err := e.runDrive(context.Background(), drivePlan())
@@ -104,7 +112,7 @@ func TestDriveAsksAgainWhenAStepDoesNotFitTheScreen(t *testing.T) {
 		Describe: "Click Publish",
 	}
 	e := &Engine{UIScreen: f, Steps: &scriptedSteps{
-		answers: []synth.StepAnswer{{Step: missing}, {Step: typeIntoMessage()}},
+		answers: []synth.StepAnswer{{Step: missing}, {Step: clickMessage()}},
 	}}
 
 	if _, err := e.runDrive(context.Background(), drivePlan()); err != nil {
@@ -165,7 +173,7 @@ func TestDriveVerifiesTheReceiptAgainstTheWindow(t *testing.T) {
 func TestDriveWillNotCallATaskVerifiedWhenTheWindowNeverMoved(t *testing.T) {
 	f := &fakeScreen{tree: editorTree()}
 	e := &Engine{UIScreen: f, Steps: &scriptedSteps{
-		answers: []synth.StepAnswer{{Step: typeIntoMessage()}},
+		answers: []synth.StepAnswer{{Step: clickMessage()}},
 	}}
 
 	receipt, err := e.runDrive(context.Background(), drivePlan())
@@ -391,5 +399,20 @@ func TestACoveredWindowIsRaisedRatherThanReAsked(t *testing.T) {
 	// The model is not asked to solve a problem it cannot see or fix.
 	if len(writer.requests) > 2 {
 		t.Errorf("asked the model %d times; being covered is not a question for it", len(writer.requests))
+	}
+}
+
+func TestTextThatNeverAppearsStopsTheRunInsteadOfBeingCalledDone(t *testing.T) {
+	f := &fakeScreen{tree: editorTree()}
+	e := &Engine{UIScreen: f, Steps: &scriptedSteps{
+		answers: []synth.StepAnswer{{Step: typeIntoMessage()}, {Step: pressEnter()}, {Done: true, Why: "sent"}},
+	}}
+
+	_, err := e.runDrive(context.Background(), drivePlan())
+	if err == nil || !strings.Contains(err.Error(), "nothing appeared") {
+		t.Fatalf("err = %v, want the run stopped because the text never showed up", err)
+	}
+	if f.acts != 1 {
+		t.Errorf("acted %d time(s); nothing should follow typing that did not land", f.acts)
 	}
 }
