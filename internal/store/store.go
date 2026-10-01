@@ -99,7 +99,7 @@ func Open(path string) (*Store, error) {
 // Close releases the database.
 func (s *Store) Close() error { return s.db.Close() }
 
-const schemaVersion = 11
+const schemaVersion = 12
 
 func (s *Store) migrate(ctx context.Context) error {
 	var v int
@@ -222,6 +222,12 @@ CREATE INDEX IF NOT EXISTS deeds_at ON deeds (at DESC);
 CREATE TABLE IF NOT EXISTS settings (
 	key   TEXT PRIMARY KEY,
 	value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS facts (
+	id   INTEGER PRIMARY KEY AUTOINCREMENT,
+	text TEXT    NOT NULL UNIQUE,
+	at   INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS app_map (

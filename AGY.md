@@ -1430,7 +1430,7 @@ aloud).
 - D1. **Built.** An activity log a person can read, with undo where there is one. Multi-step runs now record the steps taken (D-175).
 - D2. **Built (D-175).** Permissions per application ("never act in my bank's").
 - D3. **Spending built (D-175); sending is not.** Limits on spending and sending that cannot be crossed.
-- D4. A dry run: what would be done, without doing it.
+- D4. **Built (D-176).** A dry run: what would be done, without doing it.
 - D5. **Built (D-171).** Recovery when a task breaks partway: say where it got to, offer to carry on
   or back out.
 - D6. Undo for typing (half built on `put-typing-back`).
@@ -1438,7 +1438,7 @@ aloud).
 
 **E. Smarter.**
 
-- E1. Remembering the person: usual airline, home city, who "mom" is.
+- E1. **Built (D-177): told, not inferred.** Remembering the person: usual airline, home city, who "mom" is.
 - E2. **Built (D-173, D-174): application, window and selected text, sent only when the request points at them.** What is on screen as context: "reply to this", "book the one I am looking
   at".
 - E3. Long tasks with checkpoints.

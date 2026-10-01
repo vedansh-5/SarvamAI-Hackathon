@@ -73,6 +73,8 @@ type PlanRequest struct {
 	Failures []string
 
 	Known []string
+
+	Rehearse bool
 }
 
 // PlanAnswer is the sequence the model expects to do the task, and its own
@@ -113,6 +115,10 @@ func BuildPlanPrompt(req PlanRequest) string {
 		for _, f := range req.Failures {
 			fmt.Fprintf(&b, "  - %s\n", f)
 		}
+	}
+
+	if req.Rehearse {
+		b.WriteString("\nTHIS IS A REHEARSAL\nNothing will be carried out. Give every step you expect from here to the end of the task, including on screens you cannot see yet. Do not stop where you stop being sure, and do not ask a question: say the step as you would expect to take it.\n")
 	}
 
 	if req.Most > 0 {

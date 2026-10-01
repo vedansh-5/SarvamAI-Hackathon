@@ -3990,3 +3990,45 @@ confirmation. And carrying on after a break (D-171) could never have worked from
 the panel: a plan may only be committed once, and the test for carrying on had
 gone round that gate. A plan that broke off may be committed again; one that
 finished may not.
+
+## D-176 — A dry run says what would be done and does none of it
+
+The confirmation shows a plan before it runs, but only as far as the planner will
+commit to, which is where it stops being able to predict the screen (D-139). On a
+task that crosses screens that is one step, and one step is not what somebody
+asking "what would you do" wants to see.
+
+Said as "dry run", "without doing it", "don't actually do it", "what would you do
+to…" or "just show me the steps", a request is planned as a rehearsal. The words
+are taken out, the task is routed and planned exactly as it would be, and then the
+planner is asked once more with one thing changed: this is a rehearsal, so give
+every step you expect to the end, including on screens you cannot see, and do not
+stop where you stop being sure. What comes back is listed with the steps that
+would stop and ask first marked (D-151), the spending limit stated if one is set,
+and a refusal said as a refusal if the rules forbid the place (D-175).
+
+It returns words and nothing that can be confirmed. There is no plan behind it to
+run, so nothing can be done by accident from a dry run, and it is honest about its
+own limits: only the first step has been checked against a screen.
+
+## D-177 — VANS remembers what it is told to, and uses it only when a task needs it
+
+"Send good morning to mom" needs to know who mom is, and "book a flight home" where
+home is. Asked each time, that is a question a person answers once and resents
+answering twice.
+
+**Told, not inferred.** "Remember that my home city is Delhi" stores a sentence.
+"What do you remember" lists them and "forget …" removes those that mention
+something. Nothing is learned by watching; a thing somebody did once is not a
+preference, and a memory nobody chose to give is one they cannot find to correct.
+The pattern is narrow on purpose: "remember to call mom" is a task, not a fact.
+
+**Used only where it bears.** A sentence goes to the model when one of its words
+that carries meaning is in the task, the way "mom" is in "send good morning to
+mom". Everything remembered is never sent wholesale (the reasoning of D-174).
+
+**Asked of memory before the person.** When the model wants to ask a question
+(D-164) and something remembered shares a word with it, the model is given that
+first and asked to go on if it answers. It costs no question and nobody is
+interrupted. If the model asks again, it means it, and the person is asked. Each
+remembered sentence is offered once in a run, so this cannot loop.

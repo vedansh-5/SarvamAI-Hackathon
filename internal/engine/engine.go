@@ -183,6 +183,8 @@ type Engine struct {
 
 	Rulebook Rulebook
 
+	Memory Memory
+
 	// Recorded reads those back, to put one of them back.
 	Recorded DeedStore
 
@@ -270,6 +272,9 @@ type Plan struct {
 
 	Mode    string
 	ModeWhy string
+
+	Say      string
+	SayTitle string
 
 	Fields []string
 	Rows   []runner.Row

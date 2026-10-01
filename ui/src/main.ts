@@ -32,6 +32,8 @@ interface Plan {
   kind: string;
   mode?: string;
   mode_why?: string;
+  say?: string;
+  say_title?: string;
   decision_calls: number;
   action: string;
   app: string;
@@ -453,7 +455,10 @@ async function extract(sendAs?: string, text?: string) {
     lastInstruction = instruction;
     setProgress(100);
     currentPlan = plan;
-    if (plan.kind === "app.guide") {
+    if (plan.say) {
+      renderSay(plan);
+      show("results");
+    } else if (plan.kind === "app.guide") {
       await showTheWay(plan);
     } else if (plan.needs_commit) {
       renderConfirm(plan);
@@ -840,6 +845,20 @@ function renderCards(into: HTMLElement, fields: string[], rows: Record<string, s
     card.appendChild(body);
     into.appendChild(card);
   }
+}
+
+function renderSay(plan: Plan) {
+  $("answer").hidden = true;
+  clear($("answer-cites"));
+  $("results-kicker").textContent = plan.say_title ?? "";
+  $("results-kicker").title = "";
+  clear($("cards"));
+  const text = el("p", "card-text", plan.say ?? "");
+  text.style.whiteSpace = "pre-wrap";
+  $("cards").appendChild(text);
+  clear($("rows"));
+  $("cards").hidden = false;
+  $("table-wrap").hidden = true;
 }
 
 function renderResults(plan: Plan) {

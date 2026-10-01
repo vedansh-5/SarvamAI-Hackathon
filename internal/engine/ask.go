@@ -142,9 +142,26 @@ func (e *UnroutableError) Error() string {
 // Nothing here touches the world. Routing reads no state and extraction reads
 // a page; the side effect, if the destination has one, waits for Commit.
 func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
+	if plan, handled, err := e.aboutMemory(ctx, in.Instruction); handled {
+		return plan, err
+	}
+
+	rest, rehearsing := withoutTheRehearsal(in.Instruction)
+	if rehearsing {
+		in.Instruction, in.Mode = rest, ModeMustDo
+	}
+
 	looking := e.lookingFor(ctx, in)
 	if looking != "" {
 		e.logf("the request points at what was in front, so that goes with it")
+	}
+	if known := rememberedNote(e.recall(ctx, in.Instruction)); known != "" {
+		e.logf("something remembered bears on this, so it goes with the task")
+		looking = strings.TrimSpace(looking + "\n\n" + known)
+	}
+
+	if rehearsing {
+		return e.rehearse(withLooking(ctx, looking), in)
 	}
 	plan, err := e.ask(withLooking(ctx, looking), in)
 	if plan != nil {

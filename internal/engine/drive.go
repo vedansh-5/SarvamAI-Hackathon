@@ -458,7 +458,26 @@ const mostReplans = 2
 
 const mostQuestions = 4
 
-func (e *Engine) askThePerson(ctx context.Context, app string, q *synth.Question, asked int) (string, error) {
+func (e *Engine) askThePerson(ctx context.Context, app string, q *synth.Question, asked *int, recalled map[string]bool) (string, error) {
+	var fresh []string
+	for _, fact := range e.recall(ctx, q.Ask) {
+		if !recalled[fact] {
+			recalled[fact] = true
+			fresh = append(fresh, fact)
+		}
+	}
+	if len(fresh) > 0 {
+		e.logf("not asking %q yet: something remembered may answer it", q.Ask)
+		return fmt.Sprintf("Wanted to ask %q. %s Ask only if that does not answer it.", q.Ask, rememberedNote(fresh)), nil
+	}
+	told, err := e.reallyAsk(ctx, app, q, *asked)
+	if err == nil {
+		*asked++
+	}
+	return told, err
+}
+
+func (e *Engine) reallyAsk(ctx context.Context, app string, q *synth.Question, asked int) (string, error) {
 	if e.Question == nil {
 		return "", stopped(app, "engine: this needs an answer from you first: %s", q.Ask)
 	}
@@ -503,6 +522,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 
 	replans, replannedAt := 0, 0
 	questions := 0
+	recalled := map[string]bool{}
 	var next uiact.Tree
 
 	state := func() taskRun {
@@ -566,11 +586,10 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 				more, n := e.planOn(ctx, synth.PlanRequest{Task: task, Tree: tree, Most: limit - i + 1, Done: done})
 				calls += n
 				if more.Question != nil {
-					told, err := e.askThePerson(ctx, app, more.Question, questions)
+					told, err := e.askThePerson(ctx, app, more.Question, &questions, recalled)
 					if err != nil {
 						return state(), err
 					}
-					questions++
 					done = append(done, told)
 					continue
 				}
@@ -632,11 +651,10 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 				}
 
 				if answer.Question != nil {
-					told, err := e.askThePerson(ctx, app, answer.Question, questions)
+					told, err := e.askThePerson(ctx, app, answer.Question, &questions, recalled)
 					if err != nil {
 						return state(), err
 					}
-					questions++
 					asks--
 					done = append(done, told)
 					continue
