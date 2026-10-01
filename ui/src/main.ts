@@ -956,6 +956,29 @@ function timing(plan: Plan): string {
   return `${cost}, ${plan.elapsed_ms} ms — page signature ${plan.signature}`;
 }
 
+async function carryOn(planId: string, app: string) {
+  actingIn = app;
+  await invoke("dismiss").catch(console.error);
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  try {
+    const receipt = await invoke<Receipt>("commit", { planId });
+    actingIn = null;
+    invoke("finish_pointer").catch(console.error);
+    await invoke("summon").catch(console.error);
+    const how = howItWent(receipt.work);
+    const done = receipt.verified ? `Done in ${app}` : `Done in ${app}, unverified`;
+    toast(how ? `${done} \u00B7 ${how}` : done);
+    ($("intent") as HTMLInputElement).value = "";
+    show("ask");
+  } catch (e) {
+    actingIn = null;
+    invoke("clear_pointer").catch(console.error);
+    await invoke("summon").catch(console.error);
+    renderFailure(e);
+    show("failure");
+  }
+}
+
 async function confirmWrite() {
   if (!currentPlan) return;
 
@@ -1069,6 +1092,10 @@ const PLAIN: Record<string, { title: string; message: string }> = {
     title: "The steps stopped",
     message: "",
   },
+  broke_off: {
+    title: "Stopped partway",
+    message: "",
+  },
   app_not_open: {
     title: "That's done somewhere else",
     message:
@@ -1143,6 +1170,26 @@ function renderFailure(e: unknown) {
       const where = (e.data as { app?: string })?.app;
       $("failure-title").textContent = where ? `Stopped in ${where}` : "The steps stopped";
       $("failure-message").textContent = withoutThePrefix(e.message);
+      return;
+    }
+    case "broke_off": {
+      const data = e.data as { app?: string; plan_id?: string; did?: string[]; why?: string };
+      const did = data?.did ?? [];
+      $("failure-title").textContent = data?.app ? `Stopped partway in ${data.app}` : "Stopped partway";
+      $("failure-message").textContent =
+        `${did.length} step${did.length === 1 ? " was" : "s were"} done, then: ${withoutThePrefix(data?.why ?? e.message)}`;
+      const list = el("ol", "done-steps", "");
+      for (const line of did) {
+        list.appendChild(el("li", "", line.split(" \u2014 ")[0]));
+      }
+      detail.appendChild(list);
+      if (data?.plan_id) {
+        const again = el("button", "btn secondary", "Carry on from here") as HTMLButtonElement;
+        const planId = data.plan_id;
+        const app = data.app ?? "";
+        again.addEventListener("click", () => void carryOn(planId, app));
+        detail.appendChild(again);
+      }
       return;
     }
     case "app_not_open": {

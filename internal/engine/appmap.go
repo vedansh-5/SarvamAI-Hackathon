@@ -158,13 +158,22 @@ func (e *Engine) knownAbout(ctx context.Context, tree uiact.Tree) []string {
 	return out
 }
 
-func (e *Engine) noteTheTask(ctx context.Context, app, shape, mode string, run taskRun, planCalls int) {
+func (e *Engine) noteTheTask(ctx context.Context, app, shape, mode string, run taskRun, planCalls int, failed error) {
 	if e.Tasks == nil {
 		return
+	}
+	why := ""
+	switch {
+	case failed == nil:
+	case ctx.Err() != nil:
+		why = "stopped by the person"
+	default:
+		why = failed.Error()
 	}
 	err := e.Tasks.RecordTask(context.WithoutCancel(ctx), store.Run{
 		App: app, Shape: shape, Mode: mode,
 		Steps: run.Steps(), Replayed: run.Replayed, Calls: run.Calls + planCalls, Finished: run.Finished,
+		Failed: why,
 	})
 	if err != nil {
 		e.logf("could not note what this task cost: %v", err)

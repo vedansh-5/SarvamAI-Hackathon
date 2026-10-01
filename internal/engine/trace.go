@@ -49,7 +49,7 @@ func (e *Engine) stepsFromLastTime(ctx context.Context, app, shape string, liter
 // to notice, and only counting the runs that finished would mean never noticing a
 // trace that reliably breaks.
 func (e *Engine) settleTheTrace(ctx context.Context, d *DrivePlan, run taskRun) {
-	if e.Traces == nil || d.Shape == "" {
+	if e.Traces == nil || d.Shape == "" || d.Resumed {
 		return
 	}
 

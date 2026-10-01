@@ -99,7 +99,7 @@ func Open(path string) (*Store, error) {
 // Close releases the database.
 func (s *Store) Close() error { return s.db.Close() }
 
-const schemaVersion = 10
+const schemaVersion = 11
 
 func (s *Store) migrate(ctx context.Context) error {
 	var v int
@@ -255,6 +255,12 @@ CREATE INDEX IF NOT EXISTS runs_at ON runs (at DESC);
 		`ALTER TABLE routes ADD COLUMN specs TEXT NOT NULL DEFAULT ''`); err != nil &&
 		!strings.Contains(err.Error(), "duplicate column name") {
 		return fmt.Errorf("store: add routes.specs: %w", err)
+	}
+
+	if _, err := s.db.ExecContext(ctx,
+		`ALTER TABLE runs ADD COLUMN failed TEXT NOT NULL DEFAULT ''`); err != nil &&
+		!strings.Contains(err.Error(), "duplicate column name") {
+		return fmt.Errorf("store: add runs.failed: %w", err)
 	}
 
 	if _, err := s.db.ExecContext(ctx, fmt.Sprintf("PRAGMA user_version = %d", schemaVersion)); err != nil {

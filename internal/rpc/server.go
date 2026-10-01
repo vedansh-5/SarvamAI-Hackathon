@@ -542,6 +542,16 @@ func (s *Server) commit(ctx context.Context, req Request) (CommitResult, error) 
 				Data:    mustData(CoachStoppedData{App: plan.Destination}),
 			}
 		}
+		var broke *engine.BrokeOffError
+		if errors.As(err, &broke) {
+			return CommitResult{}, &Error{
+				Code:    CodeBrokeOff,
+				Message: broke.Err.Error(),
+				Data: mustData(BrokeOffData{
+					App: plan.Destination, PlanID: p.PlanID, Did: broke.Did, Why: broke.Err.Error(),
+				}),
+			}
+		}
 		return CommitResult{}, err
 	}
 	out := CommitResult{ID: receipt.ID, Title: receipt.Title, Verified: receipt.Verified}

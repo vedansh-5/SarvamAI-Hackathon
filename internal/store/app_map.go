@@ -74,6 +74,7 @@ type Run struct {
 	Replayed int
 	Calls    int
 	Finished bool
+	Failed   string
 }
 
 func (s *Store) RecordTask(ctx context.Context, r Run) error {
@@ -82,8 +83,8 @@ func (s *Store) RecordTask(ctx context.Context, r Run) error {
 		finished = 1
 	}
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO runs (at, app, shape, mode, steps, replayed, calls, finished) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		time.Now().Unix(), r.App, r.Shape, r.Mode, r.Steps, r.Replayed, r.Calls, finished)
+		`INSERT INTO runs (at, app, shape, mode, steps, replayed, calls, finished, failed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		time.Now().Unix(), r.App, r.Shape, r.Mode, r.Steps, r.Replayed, r.Calls, finished, r.Failed)
 	if err != nil {
 		return fmt.Errorf("store: record run: %w", err)
 	}
@@ -92,7 +93,7 @@ func (s *Store) RecordTask(ctx context.Context, r Run) error {
 
 func (s *Store) RecentTasks(ctx context.Context, most int) ([]Run, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT at, app, shape, mode, steps, replayed, calls, finished FROM runs ORDER BY id DESC LIMIT ?`, most)
+		`SELECT at, app, shape, mode, steps, replayed, calls, finished, failed FROM runs ORDER BY id DESC LIMIT ?`, most)
 	if err != nil {
 		return nil, fmt.Errorf("store: read runs: %w", err)
 	}
@@ -103,7 +104,7 @@ func (s *Store) RecentTasks(ctx context.Context, most int) ([]Run, error) {
 		var r Run
 		var at int64
 		var finished int
-		if err := rows.Scan(&at, &r.App, &r.Shape, &r.Mode, &r.Steps, &r.Replayed, &r.Calls, &finished); err != nil {
+		if err := rows.Scan(&at, &r.App, &r.Shape, &r.Mode, &r.Steps, &r.Replayed, &r.Calls, &finished, &r.Failed); err != nil {
 			return nil, fmt.Errorf("store: read run: %w", err)
 		}
 		r.At, r.Finished = time.Unix(at, 0), finished == 1

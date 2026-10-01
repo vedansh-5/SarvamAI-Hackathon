@@ -136,6 +136,9 @@ func listTasks(ctx context.Context) error {
 	for _, r := range runs {
 		fmt.Printf("%-12s %-5s %-22s %5d %8d %5d  %s\n",
 			r.At.Format("Jan 2 15:04"), r.Mode, clip(r.App, 22), r.Steps, r.Replayed, r.Calls, clip(r.Shape, 60))
+		if r.Failed != "" {
+			fmt.Printf("%-12s       failed: %s\n", "", clip(r.Failed, 140))
+		}
 	}
 	return nil
 }

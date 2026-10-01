@@ -44,6 +44,11 @@ type DrivePlan struct {
 	Open    string
 	Profile string
 
+	Done    []string
+	Resumed bool
+
+	Looking string
+
 	// PlanCalls is what writing that plan cost, so the count a run reports is
 	// the whole of what the task cost and not just what happened after it
 	// started.
@@ -86,6 +91,7 @@ func (e *Engine) planOn(ctx context.Context, req synth.PlanRequest) (synth.PlanA
 	} else {
 		e.logf("planning the whole of it in one go")
 	}
+	req.Task = taskWithLooking(ctx, req.Task)
 	if len(req.Known) == 0 {
 		req.Known = e.knownAbout(ctx, req.Tree)
 		if len(req.Known) > 0 {
@@ -181,6 +187,7 @@ func (e *Engine) driveOn(ctx context.Context, app, task, shape string, literals 
 
 func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	d := plan.Drive
+	ctx = withLooking(ctx, d.Looking)
 	limit := MaxDriveSteps
 	if d.Web {
 		if !e.canDrivePages() {
@@ -227,10 +234,18 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	// counts is that the window moved for every step VANS performed. A replayed
 	// step is held to exactly the same standard, so where the steps came from
 	// never enters into whether the run is verified.
-	run, err := e.stepThroughTask(ctx, d.App, d.Task, limit, act, d.Replay, d.Kept, true)
-	e.noteTheTask(ctx, d.App, d.Shape, ModeDo, run, d.PlanCalls)
+	if d.Resumed {
+		e.logf("carrying on after %d step(s) already done", len(d.Done))
+	}
+	run, err := e.stepThroughTask(ctx, d.App, d.Task, limit, act, d.Replay, d.Kept, true, d.Done)
+	e.noteTheTask(ctx, d.App, d.Shape, ModeDo, run, d.PlanCalls, err)
 	if err != nil {
 		e.settleTheTrace(ctx, d, run)
+		if ctx.Err() == nil && len(run.Told) > 0 {
+			d.Done, d.Resumed = run.Told, true
+			d.Replay, d.Kept, d.Open, d.PlanCalls = nil, false, "", 0
+			return Receipt{}, &BrokeOffError{App: d.App, Did: run.Told, Err: err}
+		}
 		return Receipt{}, err
 	}
 
@@ -360,6 +375,18 @@ drain:
 	return fresh, nil
 }
 
+type BrokeOffError struct {
+	App string
+	Did []string
+	Err error
+}
+
+func (e *BrokeOffError) Error() string {
+	return fmt.Sprintf("engine: stopped in %s after %d step(s): %v", e.App, len(e.Did), e.Err)
+}
+
+func (e *BrokeOffError) Unwrap() error { return e.Err }
+
 type stepHandler func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) (uiact.Tree, error)
 
 func (e *Engine) bringIntoView(ctx context.Context, tree uiact.Tree, step uiact.Step) uiact.Tree {
@@ -412,6 +439,7 @@ type taskRun struct {
 	Diverged bool
 
 	Asked int
+	Told  []string
 }
 
 // Steps is how many were carried out.
@@ -459,8 +487,8 @@ func (e *Engine) askThePerson(ctx context.Context, app string, q *synth.Question
 // one is that answer. A plan written up front for this run promised nothing of
 // the kind, so running out of it is not evidence of anything and the model is
 // asked once whether there is more.
-func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit int, handle stepHandler, trace []uiact.Step, confirmed, acting bool) (taskRun, error) {
-	var done []string
+func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit int, handle stepHandler, trace []uiact.Step, confirmed, acting bool, already []string) (taskRun, error) {
+	done := append([]string{}, already...)
 	var did []uiact.Step
 	landed := true
 	replayed, calls := 0, 0
@@ -468,7 +496,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 
 	// A trace is a suggestion. It is dropped the moment one of its steps stops
 	// fitting the window, and the model takes over from that step onwards (§9.8).
-	replaying := len(trace) > 0
+	replaying := len(trace) > 0 || (len(already) > 0 && e.Plans != nil)
 
 	replans, replannedAt := 0, 0
 	questions := 0
@@ -477,7 +505,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 	state := func() taskRun {
 		return taskRun{
 			Did: did, Landed: landed,
-			Replayed: replayed, Calls: calls, Diverged: diverged, Asked: questions,
+			Replayed: replayed, Calls: calls, Diverged: diverged, Asked: questions, Told: done,
 		}
 	}
 
@@ -548,7 +576,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 					e.logf("finished after %d step(s): %s", len(done), more.Why)
 					return taskRun{
 						Did: did, Landed: landed, Finished: true, Why: more.Why,
-						Replayed: replayed, Calls: calls, Diverged: diverged, Asked: questions,
+						Replayed: replayed, Calls: calls, Diverged: diverged, Asked: questions, Told: done,
 					}, nil
 				case len(more.Steps) > 0:
 					trace = append(append([]uiact.Step{}, trace[:i-1]...), more.Steps...)
@@ -569,7 +597,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 				e.logf("finished after %d step(s), all of them from the steps kept last time", len(done))
 				return taskRun{
 					Did: did, Landed: landed, Finished: true,
-					Replayed: replayed, Calls: calls, Diverged: diverged, Asked: questions,
+					Replayed: replayed, Calls: calls, Diverged: diverged, Asked: questions, Told: done,
 					Why: "these are the steps that worked last time, and they have all been done",
 				}, nil
 			} else {
@@ -580,7 +608,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 				calls++
 				asked := time.Now()
 				answer, err = e.Steps.WriteStep(ctx, synth.StepRequest{
-					Task:     task,
+					Task:     taskWithLooking(ctx, task),
 					Tree:     tree,
 					Done:     done,
 					Failures: failures,
@@ -615,7 +643,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 					e.logf("finished after %d step(s): %s", len(done), answer.Why)
 					return taskRun{
 						Did: did, Landed: landed, Finished: true, Why: answer.Why,
-						Replayed: replayed, Calls: calls, Diverged: diverged, Asked: questions,
+						Replayed: replayed, Calls: calls, Diverged: diverged, Asked: questions, Told: done,
 					}, nil
 				}
 			}

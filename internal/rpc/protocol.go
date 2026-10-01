@@ -293,6 +293,15 @@ type CoachStoppedData struct {
 	App string `json:"app"`
 }
 
+const CodeBrokeOff = "broke_off"
+
+type BrokeOffData struct {
+	App    string   `json:"app"`
+	PlanID string   `json:"plan_id"`
+	Did    []string `json:"did"`
+	Why    string   `json:"why"`
+}
+
 // AppNotOpenData names where the task is done, so the panel can say it rather
 // than only that something went wrong.
 type AppNotOpenData struct {

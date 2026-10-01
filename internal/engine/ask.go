@@ -142,7 +142,16 @@ func (e *UnroutableError) Error() string {
 // Nothing here touches the world. Routing reads no state and extraction reads
 // a page; the side effect, if the destination has one, waits for Commit.
 func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
-	plan, err := e.ask(ctx, in)
+	looking := whatTheyWereLookingAt(in.Context)
+	plan, err := e.ask(withLooking(ctx, looking), in)
+	if plan != nil {
+		if plan.Drive != nil {
+			plan.Drive.Looking = looking
+		}
+		if plan.Guide != nil {
+			plan.Guide.Looking = looking
+		}
+	}
 	if err != nil || plan == nil || plan.Route == nil || !isTask(plan.Route.Kind) || plan.Mode != "" {
 		return plan, err
 	}

@@ -3906,3 +3906,39 @@ the middle of the control where it is on screen now, and text is typed as
 keystrokes. This is the one case where a page run moves the person's pointer, and
 only after the quiet way has been tried and seen to do nothing. A page that
 answered is never clicked twice.
+
+## D-171 — A run that breaks partway says how far it got, and can carry on
+
+A run of eight steps that failed on the sixth used to come back as an error and
+nothing else. Five things had been done to somebody's screen and VANS said "that
+didn't work". Asking again started from the top, with the first five steps now
+wrong for a window they had already changed.
+
+A run that fails after doing something comes back as *stopped partway*: the steps
+that were done, in order, then why it stopped, and a button to carry on. Carrying
+on does not replay anything. The plan keeps what was done, the planner is asked
+what is left with the window as it stands, and the run goes on from there.
+
+Three edges: a run stopped by the person is not a break, and is not offered; a run
+that failed before doing anything is a plain failure, since there is nothing to
+carry on from; and a run that was carried on is never kept for replay, because its
+steps are the second half of a task.
+
+## D-172 — Why a task failed is written down
+
+Each task was already recorded with what it cost (D-167). It now records why it
+failed, when it did: the reason, or that the person stopped it. The faults worth
+fixing are the ones that happen in use across applications nobody tried by hand,
+and they were vanishing with the panel that showed them. `vans-probe -tasks` lists
+them. It stays on the machine.
+
+## D-173 — What was in front when the request was made goes with the task
+
+"Reply to this" and "rename this one" mean something only with the thing in front
+of the person. The shell has always known which application and window that was
+(D-080); it was used to pick an application and then dropped. It now goes to the
+model beside the task, as one sentence: what they were looking at, and that "this",
+"here" and "it" mean what was there.
+
+Beside the task, not in it. The task as asked is what kept steps are keyed and
+checked against, and a window title must not become part of that.

@@ -82,6 +82,8 @@ type GuidePlan struct {
 	Site    string
 
 	Vision bool
+
+	Looking string
 }
 
 type GuideStep struct {
@@ -225,6 +227,7 @@ func coachKey(shape string) string {
 
 func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(GuideStep), advance <-chan struct{}) (StepWork, error) {
 	g := plan.Guide
+	ctx = withLooking(ctx, g.Looking)
 	limit := MaxGuideSteps
 	if g.Web {
 		if !e.canDrivePages() {
@@ -371,9 +374,9 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 		}
 	}
 
-	run, err := e.stepThroughTask(ctx, g.App, asTask(g.Task), limit, point, planned, memo.Kept, false)
+	run, err := e.stepThroughTask(ctx, g.App, asTask(g.Task), limit, point, planned, memo.Kept, false, nil)
 	e.settleTheTrace(context.WithoutCancel(ctx), memo, run)
-	e.noteTheTask(ctx, g.App, g.Shape, ModeShow, run, planCalls)
+	e.noteTheTask(ctx, g.App, g.Shape, ModeShow, run, planCalls, err)
 	work := StepWork{Steps: run.Steps(), Replayed: run.Replayed, Calls: run.Calls + planCalls}
 	if err != nil {
 		return work, err

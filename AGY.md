@@ -1431,15 +1431,15 @@ aloud).
 - D2. Permissions per application ("never act in my bank's").
 - D3. Limits on spending and sending that cannot be crossed.
 - D4. A dry run: what would be done, without doing it.
-- D5. Recovery when a task breaks partway: say where it got to, offer to carry on
+- D5. **Built (D-171).** Recovery when a task breaks partway: say where it got to, offer to carry on
   or back out.
 - D6. Undo for typing (half built on `put-typing-back`).
-- D7. Notes kept locally of what failed, so general faults surface from use.
+- D7. **Built (D-172).** Notes kept locally of what failed, so general faults surface from use.
 
 **E. Smarter.**
 
 - E1. Remembering the person: usual airline, home city, who "mom" is.
-- E2. What is on screen as context: "reply to this", "book the one I am looking
+- E2. **First part built (D-173): the application and window. Not yet the selection.** What is on screen as context: "reply to this", "book the one I am looking
   at".
 - E3. Long tasks with checkpoints.
 - E4. Saved routines ("do my Monday report").
