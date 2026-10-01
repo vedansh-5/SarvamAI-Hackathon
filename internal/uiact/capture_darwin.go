@@ -346,6 +346,27 @@ static int cgWindowOf(int pid, int *wid, double *x, double *y, double *w, double
     return found;
 }
 
+static int axSelectedText(int pid, char *buf, int len) {
+    buf[0] = 0;
+    AXUIElementRef app = AXUIElementCreateApplication((pid_t)pid);
+    if (!app) return 0;
+    CFTypeRef focused = NULL;
+    int ok = 0;
+    if (AXUIElementCopyAttributeValue(app, kAXFocusedUIElementAttribute, &focused) == kAXErrorSuccess && focused) {
+        CFTypeRef v = NULL;
+        if (AXUIElementCopyAttributeValue((AXUIElementRef)focused, kAXSelectedTextAttribute, &v) == kAXErrorSuccess && v) {
+            if (CFGetTypeID(v) == CFStringGetTypeID()) {
+                CFStringGetCString((CFStringRef)v, buf, len, kCFStringEncodingUTF8);
+                ok = buf[0] != 0;
+            }
+            CFRelease(v);
+        }
+        CFRelease(focused);
+    }
+    CFRelease(app);
+    return ok;
+}
+
 static int axRaise(int pid) {
     AXUIElementRef app = AXUIElementCreateApplication((pid_t)pid);
     if (!app) return -1;
@@ -444,6 +465,17 @@ func elementValue(pid int, path []int) (string, bool) {
 	indices := cPath(path)
 	buf := make([]C.char, 16384)
 	if C.axValueAt(C.int(pid), &indices[0], C.int(len(path)), &buf[0], C.int(len(buf))) != 1 {
+		return "", false
+	}
+	return names.Strip(C.GoString(&buf[0])), true
+}
+
+func selectedText(pid int) (string, bool) {
+	if !trusted() {
+		return "", false
+	}
+	buf := make([]C.char, 8192)
+	if C.axSelectedText(C.int(pid), &buf[0], C.int(len(buf))) != 1 {
 		return "", false
 	}
 	return names.Strip(C.GoString(&buf[0])), true

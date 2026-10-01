@@ -1439,7 +1439,7 @@ aloud).
 **E. Smarter.**
 
 - E1. Remembering the person: usual airline, home city, who "mom" is.
-- E2. **First part built (D-173): the application and window. Not yet the selection.** What is on screen as context: "reply to this", "book the one I am looking
+- E2. **Built (D-173, D-174): application, window and selected text, sent only when the request points at them.** What is on screen as context: "reply to this", "book the one I am looking
   at".
 - E3. Long tasks with checkpoints.
 - E4. Saved routines ("do my Monday report").

@@ -77,3 +77,15 @@ func (s System) Type(ctx context.Context, text string) error {
 func (System) ClickAt(x, y int) { clickPoster(x, y) }
 
 func (System) TypeText(text string) { textPoster(text) }
+
+type SelectionReader interface {
+	Selection(ctx context.Context, app string) (string, bool)
+}
+
+func (s System) Selection(ctx context.Context, app string) (string, bool) {
+	pid, err := pidFor(ctx, s.Runner, app)
+	if err != nil {
+		return "", false
+	}
+	return selectedText(pid)
+}

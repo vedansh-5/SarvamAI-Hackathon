@@ -3942,3 +3942,19 @@ model beside the task, as one sentence: what they were looking at, and that "thi
 
 Beside the task, not in it. The task as asked is what kept steps are keyed and
 checked against, and a window title must not become part of that.
+
+## D-174 — What was in front is sent only when the request points at it, and then with the selection
+
+D-173 sent the application and window with every task. Most tasks do not need it:
+"book a flight to Goa" is not about the window that happened to be in front, and
+sending it anyway is a title out of somebody's mail going to a model for nothing.
+
+It is now sent only when the request points: this, that, these, here, it, selected,
+current, "the one I'm looking at", "on screen". A pattern over the words, so the
+same sentence always behaves the same way and the reason can be read off it.
+
+When it is sent, it carries what "this" most often means: the text that was
+selected. Read from the focused element of the application that was in front, or
+from the page's own selection in the browser, cut at 600 characters. With a
+selection, the note says "this" means that text; without one, it means what was in
+front. Nothing is read at all for a request that does not point.

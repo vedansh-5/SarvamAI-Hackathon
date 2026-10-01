@@ -377,3 +377,12 @@ func (s *Screen) BringToFront(ctx context.Context, _ string) error {
 func (s *Screen) Type(context.Context, string) error {
 	return fmt.Errorf("webscreen: typing at the cursor is not done through the page")
 }
+
+func (s *Screen) Selection(ctx context.Context, _ string) (string, bool) {
+	var picked string
+	if err := s.Page.AskFront(ctx, "JSON.stringify(String(window.getSelection()))", &picked); err != nil {
+		return "", false
+	}
+	picked = strings.TrimSpace(picked)
+	return picked, picked != ""
+}
