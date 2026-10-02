@@ -229,6 +229,11 @@ func (e *Engine) ask(ctx context.Context, in Ask) (*Plan, error) {
 
 	res.Route = e.aimedAtWhatIsInFront(ctx, res.Route, in.Context)
 
+	if e.selectedTextIsMeant(ctx, in, res.Route.Kind) {
+		e.logf("text is selected and the request points at it, so this works on that text")
+		res.Route.Kind = route.KindText
+	}
+
 	if kind := res.Route.Kind; isTask(kind) {
 		show, why := e.wantsShowing(in, kind)
 		decided := func(plan *Plan) *Plan {
@@ -266,6 +271,19 @@ func (e *Engine) ask(ctx context.Context, in Ask) (*Plan, error) {
 	}
 
 	switch res.Route.Kind {
+	case route.KindText:
+		if !e.canWorkOnText() {
+			break
+		}
+		plan, err := e.workOnText(ctx, in)
+		if err != nil {
+			return nil, err
+		}
+		r := res.Route
+		plan.Route = &r
+		plan.DecisionCalls = res.DecisionCalls
+		return plan, nil
+
 	case route.KindWebExtract:
 		plan, err := e.Prepare(ctx, Task{
 			URL:         res.Route.Slot("url"),
@@ -437,6 +455,8 @@ func (e *Engine) canRun(k route.Kind) bool {
 	switch k {
 	case route.KindWebExtract, route.KindWebSearch, route.KindPageHere:
 		return true
+	case route.KindText:
+		return e.canWorkOnText()
 	case route.KindPageAction:
 		_, ok := e.pageDriver()
 		return (ok && e.WebWriter != nil) || e.canDrivePages()

@@ -171,6 +171,11 @@ func run() error {
 		chooser = c
 	}
 
+	var texts engine.TextWorker
+	if t, ok := synthesizer.(engine.TextWorker); ok {
+		texts = t
+	}
+
 	srv := &rpc.Server{
 		Engine: &engine.Engine{
 			Browser: browser,
@@ -193,6 +198,7 @@ func run() error {
 			Styler:     styler,
 			History:    st,
 			Chooser:    chooser,
+			Texts:      texts,
 			Deeds:      st,
 			Recorded:   st,
 			Traces:     st,

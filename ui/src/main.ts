@@ -34,6 +34,7 @@ interface Plan {
   mode_why?: string;
   say?: string;
   say_title?: string;
+  copy?: string;
   decision_calls: number;
   action: string;
   app: string;
@@ -219,7 +220,13 @@ function toast(message: string) {
   }, 2200);
 }
 
+const FINISHED = new Set(["results", "failure", "notunderstood", "history"]);
+let showing = "ask";
+let openFresh = false;
+
 function show(id: string) {
+  showing = id;
+  openFresh = false;
   for (const s of document.querySelectorAll("section")) {
     (s as HTMLElement).hidden = s.id !== id;
   }
@@ -869,9 +876,29 @@ function renderSay(plan: Plan) {
   clear($("rows"));
   $("cards").hidden = false;
   $("table-wrap").hidden = true;
+  $("copy-result").hidden = !plan.copy;
+  $("copy-result").textContent = "Copy";
+}
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    const copied = document.execCommand("copy");
+    area.remove();
+    return copied;
+  }
 }
 
 function renderResults(plan: Plan) {
+  $("copy-result").hidden = true;
   if (plan.action) {
     $("results-kicker").textContent = plan.app
       ? `${plan.app} — nothing to change`
@@ -1753,6 +1780,17 @@ listen<ScreenContext | undefined>("overlay://shown", (event) => {
 
   panel.scrollTop = 0;
 
+  if (openFresh) {
+    const intent = $("intent") as HTMLInputElement;
+    if (showing === "results" || showing === "history") {
+      intent.value = "";
+    }
+    currentPlan = null;
+    show("ask");
+    renderMode();
+    fitWindow();
+  }
+
   const ask = $("ask");
   if (!ask.hidden) {
     const intent = $("intent") as HTMLInputElement;
@@ -1838,6 +1876,16 @@ $("view-cards").addEventListener("click", () => applyView(false, true));
 $("view-table").addEventListener("click", () => applyView(true, true));
 
 $("ask-again").addEventListener("click", backToAsk);
+$("copy-result").addEventListener("click", async () => {
+  const text = currentPlan?.copy;
+  if (!text) return;
+  $("copy-result").textContent = (await copyText(text)) ? "Copied" : "Could not copy";
+});
+
+listen("overlay://hidden", () => {
+  const offersAWayOn = showing === "failure" && $("failure-detail").querySelector("button") !== null;
+  openFresh = FINISHED.has(showing) && !offersAWayOn;
+});
 $("clear-style").addEventListener("click", clearStyle);
 $("guiding-next").addEventListener("click", () => {
   $("guiding-step").textContent = "Working out the next step…";

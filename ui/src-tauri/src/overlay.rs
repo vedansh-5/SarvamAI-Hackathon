@@ -103,6 +103,7 @@ pub fn hide_because(app: &AppHandle, reason: &str) {
     eprintln!("[vans] hiding: {reason}");
     let Some(win) = window(app) else { return };
     let _ = win.hide();
+    let _ = win.emit("overlay://hidden", ());
 }
 
 pub fn set_pinned(pinned: bool) {

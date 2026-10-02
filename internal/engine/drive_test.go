@@ -87,10 +87,21 @@ func TestDriveRunsAStepThenStops(t *testing.T) {
 	}
 }
 
+type everDifferent struct {
+	calls int
+}
+
+func (d *everDifferent) WriteStep(context.Context, synth.StepRequest) (synth.StepAnswer, error) {
+	d.calls++
+	step := typeIntoMessage()
+	step.Text = fmt.Sprintf("line %d", d.calls)
+	step.Describe = "Type " + step.Text
+	return synth.StepAnswer{Step: step}, nil
+}
+
 func TestDriveStopsAtTheBudget(t *testing.T) {
-	f := &fakeScreen{tree: editorTree()}
-	w := &alwaysStep{step: clickMessage()}
-	e := &Engine{UIScreen: f, Steps: w}
+	f := &movingScreen{}
+	e := &Engine{UIScreen: f, Steps: &everDifferent{}}
 
 	_, err := e.runDrive(context.Background(), drivePlan())
 	if err == nil {

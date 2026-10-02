@@ -1449,6 +1449,8 @@ aloud).
 - E5. Scheduled tasks.
 - E6. "Yes to all" for value entry in a coached run (the offer itself is off,
   D-166).
+- E7. **Built (D-192).** Working on text: translate, rewrite, summarise or reply to
+  the selection, given back as words with a Copy button.
 
 **F. A product.**
 

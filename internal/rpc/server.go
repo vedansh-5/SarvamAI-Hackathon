@@ -479,6 +479,7 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 		ModeWhy:        plan.ModeWhy,
 		Say:            plan.Say,
 		SayTitle:       plan.SayTitle,
+		Copy:           plan.Copy,
 		App:            app,
 		DecisionCalls:  plan.DecisionCalls,
 	}, nil

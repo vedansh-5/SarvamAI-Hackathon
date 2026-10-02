@@ -15,6 +15,8 @@ type Element struct {
 	Size     []int    `json:"size,omitempty"`
 	Actions  []string `json:"actions,omitempty"`
 	Path     []int    `json:"path"`
+
+	Filled bool `json:"-"`
 }
 
 type Tree struct {
@@ -153,9 +155,13 @@ func (t Tree) TextWithin(budget int) string {
 		// Only when the value is not already the name above, or every sidebar
 		// item would read as holding text it does not hold.
 		if el.Value != "" && label != strings.TrimSpace(el.Value) {
-			if el.Focused {
+			state, toggles := toggled(el)
+			switch {
+			case toggles:
+				line += " [" + state + "]"
+			case el.Focused || el.Filled:
 				line += fmt.Sprintf(" value=%q", truncate(el.Value, 60))
-			} else {
+			default:
 				line += " (holds text)"
 			}
 		}
@@ -401,4 +407,39 @@ func (t Tree) RectFor(sel Selector) (x, y, w, h int, why string) {
 		return 0, 0, 0, 0, fmt.Sprintf("no part of the %s %q is visible on screen", el.Role, el.Title)
 	}
 	return b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0, ""
+}
+
+func toggled(el Element) (string, bool) {
+	if el.Role != "AXCheckBox" && el.Role != "AXRadioButton" {
+		return "", false
+	}
+	switch strings.ToLower(strings.TrimSpace(el.Value)) {
+	case "checked", "1", "true", "on":
+		return "checked", true
+	case "unchecked", "0", "false", "off":
+		return "unchecked", true
+	}
+	return "", false
+}
+
+func FieldKey(role, title string) string {
+	return role + "\x1f" + strings.ToLower(strings.TrimSpace(title))
+}
+
+func (t Tree) WithFilled(filled map[string]bool) Tree {
+	if len(filled) == 0 {
+		return t
+	}
+	out := t
+	out.Elements = make([]Element, len(t.Elements))
+	copy(out.Elements, t.Elements)
+	for i, el := range out.Elements {
+		if el.Role == "AXSecureTextField" {
+			continue
+		}
+		if filled[FieldKey(el.Role, el.Title)] {
+			out.Elements[i].Filled = true
+		}
+	}
+	return out
 }

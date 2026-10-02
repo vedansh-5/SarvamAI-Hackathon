@@ -42,7 +42,7 @@ Every answer is a step, a question or a stop. If done is false you must give a s
 
 Set done only when every part of the task has been done. A task with several parts, such as "open the panel and search for python", is done when the last part is, not the first. Say in one line what shows it.
 
-If part of the task remains and nothing on screen can do it, set stuck, not done, and say what is missing in one line. Stopping and saying why is a good answer. Calling a half-finished task done is not, and neither is clicking something plausible to appear productive.`
+If part of the task remains and nothing on screen can do it, set stuck, not done, and say what is missing in one line. Stopping and saying why is a good answer. Calling a half-finished task done is not, and neither is clicking something plausible to appear productive. Stuck is for a screen that cannot do it. When what is missing is a detail only the person knows, that is a question: set ask, not stuck.`
 
 func driveSchema() map[string]any {
 	return map[string]any{
@@ -81,6 +81,7 @@ func BuildStepPrompt(req StepRequest) string {
 
 	b.WriteString("THE TASK\n")
 	b.WriteString(req.Task)
+	fmt.Fprintf(&b, "\n\nTODAY IS %s", today())
 
 	if len(req.Done) > 0 {
 		b.WriteString("\n\nWHAT YOU HAVE DONE SO FAR\n")
@@ -162,7 +163,17 @@ func (c *OpenAICompatible) WriteStep(ctx context.Context, req StepRequest) (Step
 		out.Step = *answer.Step
 	}
 	if !out.Done && answer.Step == nil {
-		return StepAnswer{}, fmt.Errorf("synth: neither a step nor a reason to stop")
+		return StepAnswer{}, &NoStepError{Why: strings.TrimSpace(answer.Why)}
 	}
 	return out, nil
 }
+
+type NoStepError struct {
+	Why string
+}
+
+func (e *NoStepError) Error() string {
+	return "synth: neither a step nor a reason to stop"
+}
+
+const NoStepNote = "Your last answer gave no step, no question and no stop, so it was thrown away. If you need a detail from the person, put the question in ask. If nothing on screen can do what is left, set stuck. Otherwise give the step."

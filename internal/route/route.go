@@ -55,6 +55,8 @@ const (
 	// to use is pointed at on screen, a step at a time.
 	KindAppGuide Kind = "app.guide"
 
+	KindText Kind = "text.work"
+
 	// KindUnknown is the honest answer. The router is allowed to say it does
 	// not know, and saying so is better than routing to the nearest kind and
 	// failing somewhere the user cannot interpret.
@@ -106,6 +108,13 @@ var Specs = []Spec{
 		Describe: "Read the page the user already has open, without going anywhere.",
 		Slots: []Slot{
 			{"intent", "what to get from the page they are looking at, in plain words", true},
+		},
+	},
+	{
+		Kind:     KindText,
+		Describe: "Work on a piece of text and give the result back as words, touching nothing on screen: translate it, rewrite or shorten it, fix its spelling and grammar, summarise or explain it, or draft a reply to it. The text is what the user has selected, or what they wrote in the instruction itself (\"translate this to Hindi\", \"make this sound more formal\", \"what does this mean\"). Use this whenever what is wanted back is words rather than an action. Never app.act or page.act for these: no application is being asked to do anything.",
+		Slots: []Slot{
+			{"intent", "what to do with the text, in plain words", true},
 		},
 	},
 	{

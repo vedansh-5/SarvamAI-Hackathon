@@ -3,6 +3,7 @@ package synth
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/vedansh/vans/internal/uiact"
 )
@@ -79,7 +80,21 @@ func (a *askedJSON) question() *Question {
 	return q
 }
 
-const askingRule = `If what to do next depends on a choice only the person can make, do not guess. Give no step, and set ask: a short question, and as options the choices exactly as the screen shows them (at most 8). This is for things like which of several flights, which of two contacts with the same name, which file, or a detail the task needs and does not say. Do not ask about anything the task already states, and do not ask for permission; a step that cannot be taken back is already confirmed separately. If an answer is listed under what has been done, use it and do not ask again.`
+const askingRule = `If what to do next depends on a choice only the person can make, do not guess. Give no step, and set ask: a short question, and as options the choices exactly as the screen shows them (at most 8). This is for things like which of several flights, which of two contacts with the same name, which file, or a detail the task needs and does not say. Do not ask about anything the task already states, and do not ask for permission; a step that cannot be taken back is already confirmed separately. If an answer is listed under what has been done, use it and do not ask again.
+
+The question goes in ask, never in why: an answer that only explains in why what it needs to know is thrown away. Ask before the first step that needs the detail, not after it; opening a field you cannot fill is not progress.
+
+A value you type or pick must come from the task, from an answer the person gave, or from the screen. Never make one up to keep going: a city, a date, a name or an amount the task does not give is a question, not a guess.
+
+Ask once. When several details are missing, put all of them in one question ("Where from, where to, and on what date?") and leave options empty. Never ask about something the screen already has a value for: a form that opens on one way, economy or one traveller is left on those unless the task says otherwise.
+
+You are told today's date. Work out "tomorrow", "next Friday" and the like from it yourself, and never ask for a date the person has already given in words.`
+
+func today() string {
+	return Now().Format("Monday 2 January 2006")
+}
+
+var Now = time.Now
 
 // What the prompts say a press can be. Written from the vocabulary the runtime
 // actually accepts, so the two cannot drift apart into a step that reads as

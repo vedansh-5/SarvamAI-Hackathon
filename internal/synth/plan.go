@@ -45,7 +45,7 @@ Give the shortest sequence that does the task. Stop the plan where you stop bein
 
 If steps are listed as already done and the screen shows every part of the task is now complete, give no steps, set done to true, and say in one line what shows it. A task with several parts, such as "open the panel and search for python", is done when the last part is, not the first. Only set done when the screen in front of you shows it; steps you have just listed do not count.
 
-If part of the task remains and nothing on screen can do it, give no steps, set stuck to true, leave done false, and say what is missing in one line. That is a useful answer, and calling a half-finished task done is not.`
+If part of the task remains and nothing on screen can do it, give no steps, set stuck to true, leave done false, and say what is missing in one line. That is a useful answer, and calling a half-finished task done is not. Stuck is for a screen that cannot do it. When what is missing is a detail only the person knows, that is a question: set ask, not stuck.`
 
 func planSchema() map[string]any {
 	return map[string]any{
@@ -96,6 +96,7 @@ func BuildPlanPrompt(req PlanRequest) string {
 
 	b.WriteString("THE TASK\n")
 	b.WriteString(req.Task)
+	fmt.Fprintf(&b, "\n\nTODAY IS %s", today())
 
 	if len(req.Done) > 0 {
 		b.WriteString("\n\nALREADY DONE, SO PLAN ONLY WHAT IS LEFT\n")

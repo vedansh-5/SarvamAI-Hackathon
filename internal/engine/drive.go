@@ -543,6 +543,8 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 	questions := 0
 	recalled := map[string]bool{}
 	var next uiact.Tree
+	var soFar stepsSoFar
+	filled := map[string]bool{}
 
 	state := func() taskRun {
 		return taskRun{
@@ -568,7 +570,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 			replans++
 			replannedAt = i
 			steps, n := e.planAhead(ctx, synth.PlanRequest{
-				Task: task, Tree: against, Most: limit - i + 1,
+				Task: task, Tree: against.WithFilled(filled), Most: limit - i + 1,
 				Done: done, Failures: why,
 			})
 			calls += n
@@ -595,6 +597,8 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 		// role is fixed here rather than asked about, and if the fixed step is
 		// refused too then the window was never the problem.
 		mended := false
+		looked := false
+		circling := ""
 
 		for asks <= modelAttempts {
 			// A plan written this run has been carried out to the end. Whether
@@ -602,7 +606,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 			// left in view.
 			if replaying && i > len(trace) && !confirmed {
 				e.logf("the %d planned step(s) are done; asking what is left", len(trace))
-				more, n := e.planOn(ctx, synth.PlanRequest{Task: task, Tree: tree, Most: limit - i + 1, Done: done})
+				more, n := e.planOn(ctx, synth.PlanRequest{Task: task, Tree: tree.WithFilled(filled), Most: limit - i + 1, Done: done})
 				calls += n
 				if more.Question != nil {
 					told, err := e.askThePerson(ctx, app, more.Question, &questions, recalled)
@@ -654,7 +658,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 				asked := time.Now()
 				answer, err = e.Steps.WriteStep(ctx, synth.StepRequest{
 					Task:     taskWithLooking(ctx, task),
-					Tree:     tree,
+					Tree:     tree.WithFilled(filled),
 					Done:     done,
 					Failures: failures,
 				})
@@ -666,9 +670,18 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 					// the attempt budget is already for. A model that never
 					// answered is not worth one: the re-ask waits out the whole
 					// timeout again and has nothing new to offer.
+					var empty *synth.NoStepError
 					if asks < modelAttempts && !errors.Is(err, synth.ErrNoAnswer) {
 						e.logf("step %d: nothing usable came back, asking again", i)
+						if errors.As(err, &empty) {
+							failures = []string{synth.NoStepNote}
+						}
 						continue
+					}
+					if errors.As(err, &empty) && len(done) > 0 {
+						e.logf("step %d: %v", i, err)
+						return state(), stopped(app, "engine: could not go any further in %s: %s", app,
+							reasonOr(empty.Why, "it could not work out what to do next"))
 					}
 					return state(), err
 				}
@@ -727,6 +740,35 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 							diverged = true
 						}
 					}
+				}
+			}
+
+			if refused != nil && !looked {
+				looked = true
+				fresh, arrived := e.waitForItToArrive(ctx, app, answer.Step)
+				if len(fresh.Elements) > 0 {
+					tree = fresh
+					program.App = fresh.App
+				}
+				if arrived {
+					e.logf("step %d: what it needs had not appeared yet, and now has", i)
+					refused = nil
+				}
+			}
+
+			if refused == nil {
+				about := strings.TrimSpace(answer.Step.Describe)
+				if about == "" {
+					about = uiact.Preview(program)
+				}
+				if why := soFar.goingInCircles(answer.Step, about); why != "" {
+					circling = why
+					soFar.warned++
+					e.logf("step %d: %s", i, why)
+					if soFar.warned >= mostWarnings {
+						break
+					}
+					refused = &uiact.InvalidError{App: tree.App, Reasons: []string{why}}
 				}
 			}
 
@@ -805,6 +847,9 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 			// — the same rule D-076 applies to a live one. Nothing moved, so
 			// nothing has been spoiled by trying: the model is asked about this
 			// same step instead.
+			if !changed {
+				soFar.changedNothing(answer.Step)
+			}
 			if !changed && fromTrace {
 				e.logf("step %d changed nothing in %s", i, app)
 				if replan(after, []string{describe + " changed nothing on screen"}) {
@@ -824,6 +869,10 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 
 			done = append(done, describe+" — "+effect)
 			did = append(did, answer.Step)
+			soFar.did(answer.Step, describe)
+			if strings.EqualFold(strings.TrimSpace(answer.Step.Do), "type") {
+				filled[uiact.FieldKey(answer.Step.Target.Role, answer.Step.Target.Title)] = true
+			}
 			next = after
 			if changed {
 				e.learnFrom(ctx, tree, after, answer.Step)
@@ -835,6 +884,11 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 			break
 		}
 
+		if !acted && circling != "" {
+			return state(), stopped(app,
+				"engine: kept coming back to the same steps in %s without getting anywhere, so it stopped: %s",
+				app, circling)
+		}
 		if !acted {
 			return state(), stopped(app,
 				"engine: nothing that fits %s's window survived being checked against it, after %d step(s)",

@@ -1,8 +1,9 @@
 (function () {
   var PICK = 'a[href],button,input,textarea,select,summary,[role=button],[role=link],[role=tab],' +
     '[role=menuitem],[role=option],[role=checkbox],[role=radio],[role=switch],[role=combobox],' +
-    '[role=textbox],[role=searchbox],[contenteditable=""],[contenteditable=true],[onclick]';
+    '[role=textbox],[role=searchbox],[role=gridcell],[contenteditable=""],[contenteditable=true],[onclick]';
   var MOST = 400;
+  var MOST_CELLS = 120;
 
   function gather(root, into) {
     var found = root.querySelectorAll(PICK);
@@ -117,12 +118,19 @@
   var found = [];
   gather(document, found);
 
+  var cells = 0;
+  for (var c = 0; c < found.length; c++) {
+    if ((found[c].getAttribute('role') || '').toLowerCase() === 'gridcell') cells++;
+  }
+  var aGridOfData = cells > MOST_CELLS;
+
   var seen = new Set();
   var inView = [], away = [];
   for (var i = 0; i < found.length; i++) {
     var el = found[i];
     if (seen.has(el)) continue;
     seen.add(el);
+    if (aGridOfData && (el.getAttribute('role') || '').toLowerCase() === 'gridcell') continue;
     var r = el.getBoundingClientRect();
     if (!shown(el, r)) continue;
     var name = nameOf(el);

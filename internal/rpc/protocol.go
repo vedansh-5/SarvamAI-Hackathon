@@ -249,6 +249,7 @@ type PrepareResult struct {
 	ModeWhy       string `json:"mode_why,omitempty"`
 	Say           string `json:"say,omitempty"`
 	SayTitle      string `json:"say_title,omitempty"`
+	Copy          string `json:"copy,omitempty"`
 	DecisionCalls int    `json:"decision_calls"`
 
 	// Answer is a reply to the question, and Cites the one-based results it

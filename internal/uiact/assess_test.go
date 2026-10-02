@@ -291,3 +291,33 @@ func TestATextFieldThatReportsNoWidthIsKeptWithTheBoxAroundIt(t *testing.T) {
 		t.Errorf("a field with a proper size and name was changed: %+v", message)
 	}
 }
+
+func TestTheModelSeesToggleStatesAndOnlyTheFieldsFilledThisRun(t *testing.T) {
+	tree := Tree{App: "Site", Elements: []Element{
+		{Role: "AXRadioButton", Title: "One Way", Value: "checked", Enabled: true, Path: []int{0}},
+		{Role: "AXCheckBox", Title: "Non stop", Value: "0", Enabled: true, Path: []int{1}},
+		{Role: "AXTextField", Title: "From", Value: "New Delhi", Enabled: true, Path: []int{2}},
+		{Role: "AXTextField", Title: "To", Value: "Mumbai", Enabled: true, Path: []int{3}},
+		{Role: "AXTextArea", Title: "Notes", Value: "something private", Enabled: true, Path: []int{4}},
+		{Role: "AXSecureTextField", Title: "Password", Value: "hunter2", Enabled: true, Path: []int{5}},
+	}}
+
+	text := tree.WithFilled(map[string]bool{
+		FieldKey("AXTextField", "to"):             true,
+		FieldKey("AXSecureTextField", "Password"): true,
+	}).TextWithin(4000)
+
+	for _, want := range []string{`"One Way" [checked]`, `"Non stop" [unchecked]`, `"To" value="Mumbai"`, `"From" (holds text)`, `"Notes" (holds text)`} {
+		if !strings.Contains(text, want) {
+			t.Errorf("want %s in:\n%s", want, text)
+		}
+	}
+	for _, never := range []string{"New Delhi", "something private", "hunter2"} {
+		if strings.Contains(text, never) {
+			t.Errorf("%q was shown to the model:\n%s", never, text)
+		}
+	}
+	if tree.Elements[3].Filled {
+		t.Error("marking what was filled changed the tree it was given")
+	}
+}

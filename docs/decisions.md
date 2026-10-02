@@ -4273,3 +4273,88 @@ WhatsApp" is not pulled towards whichever chat application happens to be open.
 
 Checked against the model with this Mac's lists: twenty answers over ten requests,
 all right, where the two that failed had failed three times in three before.
+
+## D-190 — A run that goes in circles is told once, then stopped; a control that is late is waited for
+
+"Book a flight on makemytrip" ran 44 steps over four carry-ons: Next Month,
+Previous Month, Next Month; the same city typed into the same field three times;
+the same field clicked with nothing changing. Nothing in the loop could tell
+progress from motion.
+
+Three things now count as going in circles, judged from the steps of the run and
+not by the model: a step that has twice changed nothing; two different steps
+alternating (A, B, A, and B again), or the same pair for a third time; the same
+text typed into the same field a third time, or the same click a ninth. The
+first time, the step is refused with the reason, which the model sees and can
+answer by doing something else or saying it is stuck. The second time the run
+stops and says what it kept coming back to. The same click repeated is allowed
+while it keeps changing the screen, because that is what stepping a calendar
+forward is.
+
+Separately, a step refused because its control is not on screen is no longer
+taken at its word straight away. Suggestions under a field arrive after the
+typing that asks for them, and the screen had been read before they did; the
+model was then asked three times about one stale reading. The screen is now read
+again for up to 1.2 s, and if the control turns up the step runs with no second
+ask.
+
+An answer with no step, no question and no stop used to end the run with the
+decoder's own words. It gets one more ask that says what was wrong with it, and
+if that fails the run stops with the model's reason.
+
+## D-191 — The model is told the date, asks once, never invents a value, and sees what it filled in
+
+Four faults in the same run, each small.
+
+**No date.** "Tomorrow" could not be turned into a day because nothing said what
+today was. The step and plan prompts now carry it.
+
+**Four questions for one booking.** Route, trip type, cabin class and date were
+asked one at a time, two of them about things the form already had a value for.
+The rule is now: one question holding everything missing, nothing about what the
+screen already defaults, and a question goes in ask, never in why. A missing
+detail is a question and not a reason to be stuck.
+
+**A made-up city.** Asked again with no route given, the planner typed "Delhi".
+A value typed or picked must come from the task, an answer, or the screen.
+
+**It could not see its own typing.** Values are withheld from the model (D-058),
+so a field it had just filled read "holds text", and it filled it again. The
+narrow exception is now two things: a checkbox or radio button says whether it
+is on, which is state and not content; and a field typed into during this run
+shows its value. Everything else is withheld as before, and a secure field is
+never shown.
+
+**The days of a calendar were not listed.** The page reader took buttons, links
+and inputs; a date picker's days are grid cells. They are read now, named by
+their label, unless the page has more than 120 of them, which is a spreadsheet
+and not a picker.
+
+## D-192 — Working on text is its own kind of request
+
+"Translate this to Hindi" was declined by the router as not an action, then on
+the second look sent to app.act, which tried to script a translation out of the
+browser. There was no kind for a request whose answer is words.
+
+`text.work` is that kind: translate, rewrite, shorten, correct, summarise,
+explain, draft a reply. The text is the selection, read whole (to 12,000
+characters) because a job on text needs all of it, or whatever the instruction
+itself quotes. A request that points at "this" with nothing selected says so
+before any model is asked. When a selection exists and the request points at it,
+it is worked on even if the router chose the page, because the selection is what
+"this" means (D-174).
+
+The model is told the text is material, not instructions, and to add nothing that
+is not in it. Nothing on screen is touched, so there is nothing to undo; the
+result has a Copy button.
+
+## D-193 — A panel that has finished answering opens fresh
+
+After an answer had been read and the panel dismissed, the hotkey brought the
+old answer back and a click was needed to ask anything. The panel is now told
+when it is hidden. If what it was showing was finished — results, a failure,
+"not understood", history — the next summon opens on the ask box: empty after
+results, with the last request selected after a failure, since that is usually
+retried with a word changed. A failure that offers a way on (carry on from here,
+show me how) is kept, and so is anything rendered while the panel was hidden,
+which nobody has seen yet.

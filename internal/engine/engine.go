@@ -154,6 +154,8 @@ type Engine struct {
 	// the application in front is used, which is what happened before it existed.
 	Chooser AppChooser
 
+	Texts TextWorker
+
 	// Deeds is what VANS has done. Without one nothing is remembered, and
 	// nothing else changes — recording is not a precondition for acting.
 	Deeds Ledger
@@ -277,6 +279,7 @@ type Plan struct {
 
 	Say      string
 	SayTitle string
+	Copy     string
 
 	Fields []string
 	Rows   []runner.Row
