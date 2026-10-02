@@ -40,16 +40,19 @@ Rules that decide whether your step is usable:
 
 Every answer is a step, a question or a stop. If done is false you must give a step; an answer with neither is not an answer, and it is thrown away.
 
-Set done when the task is finished, or when it cannot be carried on from what is on screen, and say why in one line. Stopping and saying why is a good answer. Clicking something plausible to appear productive is not.`
+Set done only when every part of the task has been done. A task with several parts, such as "open the panel and search for python", is done when the last part is, not the first. Say in one line what shows it.
+
+If part of the task remains and nothing on screen can do it, set stuck, not done, and say what is missing in one line. Stopping and saying why is a good answer. Calling a half-finished task done is not, and neither is clicking something plausible to appear productive.`
 
 func driveSchema() map[string]any {
 	return map[string]any{
 		"type": "object",
 		"properties": map[string]any{
-			"done": map[string]any{"type": "boolean"},
-			"why":  map[string]any{"type": "string"},
-			"step": screenStepSchema("do", "target", "describe"),
-			"ask":  askSchema(),
+			"done":  map[string]any{"type": "boolean"},
+			"why":   map[string]any{"type": "string"},
+			"step":  screenStepSchema("do", "target", "describe"),
+			"ask":   askSchema(),
+			"stuck": map[string]any{"type": "boolean"},
 		},
 		"required":             []string{"done", "why"},
 		"additionalProperties": false,
@@ -69,6 +72,8 @@ type StepAnswer struct {
 	Why  string
 
 	Question *Question
+
+	Stuck bool
 }
 
 func BuildStepPrompt(req StepRequest) string {
@@ -134,10 +139,11 @@ func (c *OpenAICompatible) WriteStep(ctx context.Context, req StepRequest) (Step
 	}
 
 	var answer struct {
-		Step *uiact.Step `json:"step"`
-		Done bool        `json:"done"`
-		Why  string      `json:"why"`
-		Ask  *askedJSON  `json:"ask"`
+		Step  *uiact.Step `json:"step"`
+		Done  bool        `json:"done"`
+		Why   string      `json:"why"`
+		Ask   *askedJSON  `json:"ask"`
+		Stuck bool        `json:"stuck"`
 	}
 	if err := json.Unmarshal([]byte(text), &answer); err != nil {
 		return StepAnswer{}, fmt.Errorf("synth: decode step: %w (from %q)", err, truncate(text, 300))
@@ -145,6 +151,10 @@ func (c *OpenAICompatible) WriteStep(ctx context.Context, req StepRequest) (Step
 
 	if q := answer.Ask.question(); q != nil && answer.Step == nil && !answer.Done {
 		return StepAnswer{Question: q, Why: answer.Why}, nil
+	}
+
+	if answer.Stuck && answer.Step == nil {
+		return StepAnswer{Stuck: true, Why: answer.Why}, nil
 	}
 
 	out := StepAnswer{Done: answer.Done, Why: answer.Why}

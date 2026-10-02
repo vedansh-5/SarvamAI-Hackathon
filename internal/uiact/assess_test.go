@@ -254,3 +254,40 @@ func TestASmallWindowIsListedInFullAsBefore(t *testing.T) {
 		t.Errorf("a three-control window was trimmed:\n%s", text)
 	}
 }
+
+func TestATextFieldThatReportsNoWidthIsKeptWithTheBoxAroundIt(t *testing.T) {
+	var els []Element
+	for i := 0; i < 300; i++ {
+		els = append(els, Element{Role: "AXGroup", Path: []int{9, i}, Size: []int{100, 20}})
+	}
+	els = append(els,
+		Element{Role: "AXGroup", Path: []int{0}, Position: []int{284, 184}, Size: []int{209, 20}},
+		Element{Role: "AXTextArea", Enabled: true, Path: []int{0, 0},
+			Title:    "The editor is not accessible at this time. To enable screen reader optimized mode, use Shift+Option+F1",
+			Position: []int{284, 184}, Size: []int{1, 20}},
+		Element{Role: "AXStaticText", Value: "Search Extensions in Marketplace", Path: []int{0, 1}, Size: []int{200, 18}},
+		Element{Role: "AXTextArea", Title: "Message input", Enabled: true, Path: []int{1}, Position: []int{1289, 478}, Size: []int{344, 41}},
+	)
+
+	FieldsYouCanSee(els)
+	kept := Slim(els, 700)
+
+	var search, message *Element
+	for i, el := range kept {
+		switch el.Title {
+		case "Search Extensions in Marketplace":
+			search = &kept[i]
+		case "Message input":
+			message = &kept[i]
+		}
+	}
+	if search == nil {
+		t.Fatalf("the search box was thrown away; kept: %+v", kept)
+	}
+	if search.Size[0] != 209 || search.Position[0] != 284 {
+		t.Errorf("search box is %v at %v, want the box a person sees around it", search.Size, search.Position)
+	}
+	if message == nil || message.Size[0] != 344 {
+		t.Errorf("a field with a proper size and name was changed: %+v", message)
+	}
+}

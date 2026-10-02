@@ -267,3 +267,72 @@ func (t Tree) OpenMenuBox() (x, y, w, h int, ok bool) {
 	}
 	return all.x0, all.y0, all.x1 - all.x0, all.y1 - all.y0, true
 }
+
+const unhelpfulFieldName = "the editor is not accessible at this time"
+
+func sized(el Element) bool {
+	return len(el.Size) == 2 && el.Size[0] > 1 && el.Size[1] > 1
+}
+
+func FieldsYouCanSee(elements []Element) {
+	for i := range elements {
+		el := &elements[i]
+		if !typeable[role(el.Role)] {
+			continue
+		}
+		unnamed := strings.TrimSpace(el.Title) == "" ||
+			strings.HasPrefix(strings.ToLower(strings.TrimSpace(el.Title)), unhelpfulFieldName)
+		if sized(*el) && !unnamed {
+			continue
+		}
+
+		holder := -1
+		for j := i - 1; j >= 0; j-- {
+			a := elements[j]
+			if !encloses(a.Path, el.Path) {
+				continue
+			}
+			if len(el.Path)-len(a.Path) > fieldHolderReach {
+				break
+			}
+			if len(a.Size) == 2 && a.Size[0] > 20 && a.Size[1] > 8 {
+				holder = j
+				break
+			}
+		}
+		if holder < 0 {
+			continue
+		}
+		if !sized(*el) {
+			el.Position = append([]int{}, elements[holder].Position...)
+			el.Size = append([]int{}, elements[holder].Size...)
+		}
+		if !unnamed {
+			continue
+		}
+
+		name := strings.TrimSpace(elements[holder].Label())
+		for j := holder + 1; j < len(elements) && name == ""; j++ {
+			inside := elements[j]
+			if !encloses(elements[holder].Path, inside.Path) {
+				break
+			}
+			if role(inside.Role) != "statictext" {
+				continue
+			}
+			text := strings.TrimSpace(inside.Title)
+			if text == "" {
+				text = strings.TrimSpace(inside.Value)
+			}
+			if text != "" && !strings.Contains(text, "\n") && len([]rune(text)) <= longestBorrowedName {
+				name = text
+			}
+		}
+		if name == "" {
+			name = "text field"
+		}
+		el.Title = name
+	}
+}
+
+const fieldHolderReach = 4

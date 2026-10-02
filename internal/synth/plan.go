@@ -43,9 +43,9 @@ Give the shortest sequence that does the task. Stop the plan where you stop bein
 
 ` + askingRule + `
 
-If steps are listed as already done and the screen shows the task is now complete, give no steps, set done to true, and say in one line what shows it. Only set done when the screen in front of you shows it; steps you have just listed do not count.
+If steps are listed as already done and the screen shows every part of the task is now complete, give no steps, set done to true, and say in one line what shows it. A task with several parts, such as "open the panel and search for python", is done when the last part is, not the first. Only set done when the screen in front of you shows it; steps you have just listed do not count.
 
-If the task cannot be started or carried on from what is on screen, give no steps, leave done false, and say why in one line. That is a useful answer.`
+If part of the task remains and nothing on screen can do it, give no steps, set stuck to true, leave done false, and say what is missing in one line. That is a useful answer, and calling a half-finished task done is not.`
 
 func planSchema() map[string]any {
 	return map[string]any{
@@ -55,6 +55,7 @@ func planSchema() map[string]any {
 			"why":   map[string]any{"type": "string"},
 			"done":  map[string]any{"type": "boolean"},
 			"ask":   askSchema(),
+			"stuck": map[string]any{"type": "boolean"},
 		},
 		"required":             []string{"steps", "why", "done"},
 		"additionalProperties": false,
@@ -86,6 +87,8 @@ type PlanAnswer struct {
 	Done  bool
 
 	Question *Question
+
+	Stuck bool
 }
 
 func BuildPlanPrompt(req PlanRequest) string {
@@ -167,6 +170,7 @@ func (c *OpenAICompatible) WritePlan(ctx context.Context, req PlanRequest) (Plan
 		Why   string       `json:"why"`
 		Done  bool         `json:"done"`
 		Ask   *askedJSON   `json:"ask"`
+		Stuck bool         `json:"stuck"`
 	}
 	if err := json.Unmarshal([]byte(text), &answer); err != nil {
 		return PlanAnswer{}, fmt.Errorf("synth: decode plan: %w (from %q)", err, truncate(text, 300))
@@ -177,6 +181,9 @@ func (c *OpenAICompatible) WritePlan(ctx context.Context, req PlanRequest) (Plan
 	}
 	if q := answer.Ask.question(); q != nil && len(answer.Steps) == 0 && !answer.Done {
 		return PlanAnswer{Question: q, Why: answer.Why}, nil
+	}
+	if answer.Stuck && len(answer.Steps) == 0 && !answer.Done {
+		return PlanAnswer{Stuck: true, Why: answer.Why}, nil
 	}
 	return PlanAnswer{Steps: answer.Steps, Why: answer.Why, Done: answer.Done && len(answer.Steps) == 0}, nil
 }

@@ -111,6 +111,10 @@ func (e *Engine) planOn(ctx context.Context, req synth.PlanRequest) (synth.PlanA
 	if answer.Question != nil {
 		return answer, 1
 	}
+	if answer.Stuck {
+		e.logf("the planner cannot go further: %s", reasonOr(answer.Why, "no reason given"))
+		return answer, 1
+	}
 	if len(answer.Steps) == 0 {
 		e.logf("no plan came back in %s (%s), so working it out step by step",
 			took(asked), reasonOr(answer.Why, "no reason given"))
@@ -608,6 +612,10 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 					done = append(done, told)
 					continue
 				}
+				if more.Stuck && len(done) > 0 {
+					return state(), stopped(app, "engine: could not go any further in %s: %s", app,
+						reasonOr(more.Why, "something the task needs is not on screen"))
+				}
 				switch {
 				case more.Done:
 					e.logf("finished after %d step(s): %s", len(done), more.Why)
@@ -673,6 +681,14 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 					asks--
 					done = append(done, told)
 					continue
+				}
+
+				if answer.Stuck && len(done) > 0 {
+					return state(), stopped(app, "engine: could not go any further in %s: %s", app,
+						reasonOr(answer.Why, "something the task needs is not on screen"))
+				}
+				if answer.Stuck {
+					answer.Done = true
 				}
 
 				if answer.Done {

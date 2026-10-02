@@ -4224,3 +4224,27 @@ Most of it could not be used at the moment it was sent.
 A small window is listed in full, as before. What is checked is unchanged: a step
 is still validated against the whole window, so trimming what the model reads
 cannot make a step pass that would not have.
+
+## D-188 — A text field that reports no width is kept, and a task with a part left is stuck, not done
+
+"How do I open the extensions panel and search for python" opened the panel and
+said that was all of it. Two faults, one behind the other.
+
+**The search box had been thrown away.** The editor's search box is an editing
+surface whose accessible element is a text area one point wide, titled "The editor
+is not accessible at this time…". Thinning a large window (D-183) drops controls
+nobody can see, and one point wide read as that. A text field is now never dropped
+for its size: it takes the box of the nearest element around it that has one, which
+is what a person sees as the field, and where its name is missing or is that
+message it takes the nearest short piece of text beside it — here the placeholder,
+"Search Extensions in Marketplace".
+
+**With nothing to point at, the model said done.** Its reason was that the panel
+was open, which was true and was half the task. The answer it should have given
+did not exist: there was "done" and there was a step. There is now "stuck": part
+of the task remains and nothing on screen can do it. A run that is stuck stops and
+says what is missing; it is not finished, and it is not kept. Both prompts say that
+a task joined by "and" is done when its last part is. Stuck before anything was
+done is still "nothing to do here", as before.
+
+The run that opened the panel and stopped had been kept, and was removed.

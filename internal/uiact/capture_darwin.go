@@ -774,6 +774,7 @@ func walkAppDeep(pid int, app string) (Tree, error) {
 	if err != nil {
 		return tree, err
 	}
+	FieldsYouCanSee(tree.Elements)
 	tree.Elements = Slim(tree.Elements, MaxDeepKept)
 	return tree, nil
 }
