@@ -241,7 +241,9 @@ func (e *Engine) openThePage(ctx context.Context, d *DrivePlan) error {
 	d.Replay = e.stepsFromLastTime(ctx, tree.App, d.Shape, d.Literals)
 	d.Kept = len(d.Replay) > 0
 	if !d.Kept {
-		d.Replay, d.PlanCalls = e.planAhead(ctx, synth.PlanRequest{Task: d.Task, Tree: tree, Most: MaxWebSteps})
+		var planned synth.PlanAnswer
+		planned, d.PlanCalls = e.planOn(ctx, synth.PlanRequest{Task: d.Task, Tree: tree, Most: MaxWebSteps})
+		d.Replay, d.Whole = planned.Steps, planned.Whole
 	}
 	return nil
 }

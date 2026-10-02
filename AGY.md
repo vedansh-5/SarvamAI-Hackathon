@@ -1399,13 +1399,13 @@ No local model runtimes (§11 still holds); these come first.
 
 - A1. A count of calls on every task, shown, so a drop can be seen. **Built**
   (D-167): `go run ./cmd/vans-probe -tasks`.
-- A2. Remember pieces, not only whole runs: "open the chat with a person", "search
+- A2. **Built (D-194) as hints, not as stored pieces.** Remember pieces, not only whole runs: "open the chat with a person", "search
   on this site", kept and reused inside new tasks.
 - A3. **Built (D-167, and lists generalise, D-168), not yet measured live.** Learn each application's map: clicking X here leads to a screen with these
   controls. Lets the planner plan across screens it has not been shown this run.
-- A4. Small decisions made by code, never by a model: scrolling to a control,
+- A4. **Built: scrolling, waiting, mending a name, and cookie notices (D-196).** Small decisions made by code, never by a model: scrolling to a control,
   closing cookie banners, waiting for a page, picking the field whose label fits.
-- A5. No "is it done" call when the screen proves it (the text asked for is in the
+- A5. **Built for two cases (D-195).** No "is it done" call when the screen proves it (the text asked for is in the
   field). Keep the call where code cannot tell.
 - A6. **Built (D-181), off until `VANS_LLM_FAST_MODEL` is set.** A cheaper, faster model for the easy calls; the stronger one for planning.
 

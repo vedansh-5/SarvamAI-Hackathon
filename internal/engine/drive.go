@@ -39,6 +39,8 @@ type DrivePlan struct {
 	// written for this run, which is a good guess and nothing more.
 	Kept bool
 
+	Whole bool
+
 	Web     bool
 	Browser string
 	Open    string
@@ -77,6 +79,19 @@ func (e *Engine) planAhead(ctx context.Context, req synth.PlanRequest) ([]uiact.
 	return answer.Steps, calls
 }
 
+type walk struct {
+	app, task string
+	limit     int
+	handle    stepHandler
+	trace     []uiact.Step
+	confirmed bool
+	whole     bool
+	acting    bool
+	pointing  bool
+	already   []string
+	noted     string
+}
+
 func took(since time.Time) string {
 	return time.Since(since).Round(10 * time.Millisecond).String()
 }
@@ -90,6 +105,12 @@ func (e *Engine) planOn(ctx context.Context, req synth.PlanRequest) (synth.PlanA
 		e.logf("planning the rest of it in one go")
 	} else {
 		e.logf("planning the whole of it in one go")
+	}
+	if len(req.Similar) == 0 && !req.Rehearse {
+		req.Similar = e.similarRuns(ctx, req.Tree.App, askedIn(ctx, req.Task))
+		if len(req.Similar) > 0 {
+			e.logf("%d similar task(s) done in %s before go with the plan", len(req.Similar), req.Tree.App)
+		}
 	}
 	req.Task = taskWithLooking(ctx, req.Task)
 	if len(req.Known) == 0 {
@@ -145,8 +166,11 @@ func (e *Engine) driveOn(ctx context.Context, app, task, shape string, literals 
 	replay := e.stepsFromLastTime(ctx, tree.App, shape, literals)
 	kept := len(replay) > 0
 	planCalls := 0
+	whole := false
 	if !kept {
-		replay, planCalls = e.planAhead(ctx, synth.PlanRequest{Task: task, Tree: tree, Most: MaxDriveSteps})
+		var planned synth.PlanAnswer
+		planned, planCalls = e.planOn(ctx, synth.PlanRequest{Task: task, Tree: tree, Most: MaxDriveSteps})
+		replay, whole = planned.Steps, planned.Whole
 	}
 
 	// A known sequence gets a confirmation that names the steps, because it can.
@@ -183,6 +207,7 @@ func (e *Engine) driveOn(ctx context.Context, app, task, shape string, literals 
 			Literals:  literals,
 			Replay:    replay,
 			Kept:      kept,
+			Whole:     whole,
 			PlanCalls: planCalls,
 		},
 		SynthesisCalls: planCalls,
@@ -251,13 +276,20 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	if d.Resumed {
 		e.logf("carrying on after %d step(s) already done", len(d.Done))
 	}
-	run, err := e.stepThroughTask(ctx, d.App, d.Task, limit, act, d.Replay, d.Kept, true, d.Done)
+	noticed := ""
+	if d.Web && !d.Resumed {
+		noticed, _ = e.closeTheNotice(ctx, d.App)
+	}
+	run, err := e.stepThroughTask(ctx, walk{
+		app: d.App, task: d.Task, limit: limit, handle: act,
+		trace: d.Replay, confirmed: d.Kept, whole: d.Whole, acting: true, already: d.Done, noted: noticed,
+	})
 	e.noteTheTask(ctx, d.App, d.Shape, ModeDo, run, d.PlanCalls, err)
 	if err != nil {
 		e.settleTheTrace(ctx, d, run)
 		if ctx.Err() == nil && len(run.Told) > 0 {
 			d.Done, d.Resumed = run.Told, true
-			d.Replay, d.Kept, d.Open, d.PlanCalls = nil, false, "", 0
+			d.Replay, d.Kept, d.Whole, d.Open, d.PlanCalls = nil, false, false, "", 0
 			return Receipt{}, &BrokeOffError{App: d.App, Did: run.Told, Err: err}
 		}
 		return Receipt{}, err
@@ -528,8 +560,14 @@ func (e *Engine) reallyAsk(ctx context.Context, app string, q *synth.Question, a
 // one is that answer. A plan written up front for this run promised nothing of
 // the kind, so running out of it is not evidence of anything and the model is
 // asked once whether there is more.
-func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit int, handle stepHandler, trace []uiact.Step, confirmed, acting bool, already []string) (taskRun, error) {
+func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
+	app, task, limit, handle := w.app, w.task, w.limit, w.handle
+	trace, confirmed, whole, acting, already := w.trace, w.confirmed, w.whole, w.acting, w.already
+	lastCommitted := false
 	done := append([]string{}, already...)
+	if w.noted != "" {
+		done = append(done, w.noted)
+	}
 	var did []uiact.Step
 	landed := true
 	replayed, calls := 0, 0
@@ -569,16 +607,16 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 			}
 			replans++
 			replannedAt = i
-			steps, n := e.planAhead(ctx, synth.PlanRequest{
+			again, n := e.planOn(ctx, synth.PlanRequest{
 				Task: task, Tree: against.WithFilled(filled), Most: limit - i + 1,
 				Done: done, Failures: why,
 			})
 			calls += n
-			if len(steps) == 0 {
+			if len(again.Steps) == 0 {
 				return false
 			}
-			trace = append(append([]uiact.Step{}, trace[:i-1]...), steps...)
-			replaying, confirmed, diverged = true, false, true
+			trace = append(append([]uiact.Step{}, trace[:i-1]...), again.Steps...)
+			replaying, confirmed, diverged, whole = true, false, true, again.Whole
 			return true
 		}
 
@@ -604,6 +642,18 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 			// A plan written this run has been carried out to the end. Whether
 			// that finished the task is the model's to say, with the window it
 			// left in view.
+			if replaying && i > len(trace) && !confirmed && whole && len(did) > 0 && !diverged &&
+				((acting && lastCommitted) || w.pointing) {
+				why := "the plan was the whole task, and its last step went through"
+				if w.pointing {
+					why = "what was asked about has been pointed at"
+				}
+				e.logf("finished after %d step(s) without asking: %s", len(done), why)
+				return taskRun{
+					Did: did, Landed: landed, Finished: true, Why: why,
+					Replayed: replayed, Calls: calls, Diverged: diverged, Asked: questions, Told: done,
+				}, nil
+			}
 			if replaying && i > len(trace) && !confirmed {
 				e.logf("the %d planned step(s) are done; asking what is left", len(trace))
 				more, n := e.planOn(ctx, synth.PlanRequest{Task: task, Tree: tree.WithFilled(filled), Most: limit - i + 1, Done: done})
@@ -629,6 +679,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 					}, nil
 				case len(more.Steps) > 0:
 					trace = append(append([]uiact.Step{}, trace[:i-1]...), more.Steps...)
+					whole = more.Whole
 				default:
 					replaying = false
 				}
@@ -867,6 +918,12 @@ func (e *Engine) stepThroughTask(ctx context.Context, app, task string, limit in
 				landed = false
 			}
 
+			lastCommitted = false
+			if changed {
+				if el, why := tree.Resolve(answer.Step.Target); why == "" {
+					lastCommitted, _ = uiact.Commits(answer.Step, el)
+				}
+			}
 			done = append(done, describe+" — "+effect)
 			did = append(did, answer.Step)
 			soFar.did(answer.Step, describe)

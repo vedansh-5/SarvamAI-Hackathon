@@ -89,6 +89,7 @@ type control struct {
 	Value   string `json:"value"`
 	Enabled bool   `json:"enabled"`
 	Focused bool   `json:"focused"`
+	Notice  bool   `json:"notice"`
 	X       int    `json:"x"`
 	Y       int    `json:"y"`
 	W       int    `json:"w"`
@@ -226,7 +227,7 @@ func treeOf(snap snapshot) uiact.Tree {
 	for i, c := range snap.Controls {
 		tree.Elements = append(tree.Elements, uiact.Element{
 			Role: c.Role, Title: c.Title, Value: c.Value,
-			Enabled: c.Enabled, Focused: c.Focused,
+			Enabled: c.Enabled, Focused: c.Focused, Notice: c.Notice,
 			Position: []int{c.X, c.Y}, Size: []int{c.W, c.H},
 			Path: []int{i},
 		})

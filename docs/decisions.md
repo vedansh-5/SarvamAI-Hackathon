@@ -4358,3 +4358,55 @@ results, with the last request selected after a failure, since that is usually
 retried with a word changed. A failure that offers a way on (carry on from here,
 show me how) is kept, and so is anything rendered while the panel was hidden,
 which nobody has seen yet.
+
+## D-194 — The planner is shown how similar tasks were done here
+
+A2 asked for pieces of a run to be kept and reused: "open the chat with a
+person", "search on this site". Cutting a run into named pieces needs something
+to name them, which is a model call per run kept, and a way to stitch them, which
+is a second place a plan can be wrong.
+
+What is done instead costs nothing: when a plan is asked for, the runs already
+kept for that application are compared with the request by the words they share
+(the application's own name and the placeholders left out), and the nearest two
+are put in the prompt as the exact controls that worked, in order. "Send good
+night to Joe" is planned with "send … to suhani" in view, so the search field,
+the message box and the key that sends are spelled as that window spells them,
+and the plan covers screens the planner has not seen. Values that request gave
+are shown as an ellipsis, never as a placeholder the model might copy.
+
+Runs kept by the coach and by drive are both used, for either. A run is only
+shown when at least half of the shorter side's words are shared.
+
+## D-195 — The closing check is skipped where the run already proves it
+
+When a plan runs out the model is asked what is left, and the usual answer is
+"nothing". That call is the only way to know the outcome happened, so it stays,
+except in two cases where the run itself is the evidence.
+
+A plan now says whether it is whole: its last step is the last step of the task.
+If a whole plan ran with every step fitting and none re-planned, and its last
+step was the one that commits (the Send, the Enter in a message box, the one the
+person was asked about before it ran) and the window changed, the task is
+finished and no call is made. A whole plan that ends in typing proves nothing
+and is still checked.
+
+When the coach is asked where something is, pointing at it is the answer. A
+whole plan for a "where" question is finished when its last step has been
+pointed at and acted on. A plan that only leads towards the thing is not whole,
+and the planner was checked to say so. "How do I" is still checked, because only
+the screen says whether it worked.
+
+## D-196 — A cookie notice is closed by code, and only by saying no
+
+A consent notice sits over the page a task is for, and getting past it was
+costing a model call to decide something that is the same every time. The page
+reader now marks buttons that sit inside a notice (by the container's id or
+class, or a dialog that talks about cookies). Before a run on a page starts, if
+one of those says no — reject, decline, necessary only — it is clicked, shown
+like any other step, and the model is told it happened.
+
+Accept is never clicked. Saying yes on someone's behalf is consent they did not
+give; a notice with no way to say no is left for the run to deal with as before.
+A button named Decline that is not inside a notice is a button of the page and
+is not touched.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -236,7 +237,7 @@ func coachKey(shape string) string {
 
 func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(GuideStep), advance <-chan struct{}) (StepWork, error) {
 	g := plan.Guide
-	ctx = withLooking(ctx, g.Looking)
+	ctx = withAsked(withLooking(ctx, g.Looking), g.Task)
 	limit := MaxGuideSteps
 	if g.Web {
 		if !e.canDrivePages() {
@@ -374,16 +375,22 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 	planned := e.stepsFromLastTime(ctx, g.App, memo.Shape, g.Literals)
 	memo.Kept = len(planned) > 0
 	planCalls := 0
+	whole := false
 	switch {
 	case memo.Kept:
 		e.logf("%d step(s) kept from showing this last time; the model is only asked if one stops fitting", len(planned))
 	case e.Plans != nil:
 		if tree, err := e.windowToWorkFrom(ctx, g.App); err == nil && len(tree.Elements) > 0 {
-			planned, planCalls = e.planAhead(ctx, synth.PlanRequest{Task: asTask(g.Task), Tree: tree, Most: limit})
+			var ahead synth.PlanAnswer
+			ahead, planCalls = e.planOn(ctx, synth.PlanRequest{Task: asTask(g.Task), Tree: tree, Most: limit})
+			planned, whole = ahead.Steps, ahead.Whole
 		}
 	}
 
-	run, err := e.stepThroughTask(ctx, g.App, asTask(g.Task), limit, point, planned, memo.Kept, false, nil)
+	run, err := e.stepThroughTask(ctx, walk{
+		app: g.App, task: asTask(g.Task), limit: limit, handle: point,
+		trace: planned, confirmed: memo.Kept, whole: whole, pointing: asksWhere(g.Task),
+	})
 	e.settleTheTrace(context.WithoutCancel(ctx), memo, run)
 	e.noteTheTask(ctx, g.App, g.Shape, ModeShow, run, planCalls, err)
 	work := StepWork{Steps: run.Steps(), Replayed: run.Replayed, Calls: run.Calls + planCalls}
@@ -728,4 +735,10 @@ func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uia
 			return errStillWaiting
 		}
 	}
+}
+
+var whereIsIt = regexp.MustCompile(`(?i)^\s*(please\s+)?(where('s|\s+is|\s+are|\s+can\s+i\s+find|\s+do\s+i\s+find)|show\s+me\s+where|point\s+(at|to|out))\b`)
+
+func asksWhere(question string) bool {
+	return whereIsIt.MatchString(question)
 }

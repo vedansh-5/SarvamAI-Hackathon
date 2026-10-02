@@ -186,3 +186,34 @@ func pinsHold(want, got map[string]string) bool {
 	}
 	return true
 }
+
+type KeptRun struct {
+	Shape   string
+	Program uiact.Program
+}
+
+const MostKeptRunsRead = 40
+
+func (s *Store) DriveTracesIn(ctx context.Context, app string) ([]KeptRun, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT shape, program FROM drive_traces WHERE app = ? ORDER BY last_used_at DESC, created_at DESC LIMIT ?`,
+		app, MostKeptRunsRead)
+	if err != nil {
+		return nil, fmt.Errorf("store: list drive traces: %w", err)
+	}
+	defer rows.Close()
+
+	var out []KeptRun
+	for rows.Next() {
+		var shape, program string
+		if err := rows.Scan(&shape, &program); err != nil {
+			return nil, fmt.Errorf("store: read drive trace: %w", err)
+		}
+		var p uiact.Program
+		if err := json.Unmarshal([]byte(program), &p); err != nil || len(p.Steps) == 0 {
+			continue
+		}
+		out = append(out, KeptRun{Shape: shape, Program: p})
+	}
+	return out, rows.Err()
+}

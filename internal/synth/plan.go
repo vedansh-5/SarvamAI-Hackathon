@@ -39,7 +39,11 @@ Rules that decide whether a step is usable:
 
 You may also be shown what is known from earlier runs: which controls a click led to. Use it to plan confidently through screens you cannot see yet, spelling the controls exactly as it lists them. A control of the same kind as a listed one (another chat, another row in the same list) usually leads to the same sort of screen. It can be out of date, which is fine, because every step is checked.
 
+You may also be shown how similar tasks were done here before: the exact controls, in order, that worked. Where this task needs the same thing, use the same controls, with this task's own values in place of theirs; an ellipsis stands for a value that request gave. They are not this task: leave out what this one does not need, and add what it does.
+
 Give the shortest sequence that does the task. Stop the plan where you stop being able to predict the screen — a short honest plan costs one look at the screen to continue, where a long invented one gets thrown away.
+
+Set whole to true only when the last step of your plan is the last step of the task, so that once it has happened nothing remains. If you stopped early because you cannot see the screens that follow, whole is false. When the task is a question about where something is, the plan is whole when its last step is the thing asked about itself, and not whole when that step only leads towards it.
 
 ` + askingRule + `
 
@@ -56,8 +60,9 @@ func planSchema() map[string]any {
 			"done":  map[string]any{"type": "boolean"},
 			"ask":   askSchema(),
 			"stuck": map[string]any{"type": "boolean"},
+			"whole": map[string]any{"type": "boolean"},
 		},
-		"required":             []string{"steps", "why", "done"},
+		"required":             []string{"steps", "why", "done", "whole"},
 		"additionalProperties": false,
 	}
 }
@@ -76,6 +81,8 @@ type PlanRequest struct {
 
 	Known []string
 
+	Similar []string
+
 	Rehearse bool
 }
 
@@ -89,6 +96,8 @@ type PlanAnswer struct {
 	Question *Question
 
 	Stuck bool
+
+	Whole bool
 }
 
 func BuildPlanPrompt(req PlanRequest) string {
@@ -112,6 +121,13 @@ func BuildPlanPrompt(req PlanRequest) string {
 		b.WriteString("\nKNOWN FROM EARLIER RUNS IN THIS APPLICATION\n")
 		for _, k := range req.Known {
 			fmt.Fprintf(&b, "  - %s\n", k)
+		}
+	}
+
+	if len(req.Similar) > 0 {
+		b.WriteString("\nHOW SIMILAR TASKS WERE DONE HERE BEFORE\n")
+		for _, s := range req.Similar {
+			fmt.Fprintf(&b, "  - %s\n", s)
 		}
 	}
 
@@ -172,6 +188,7 @@ func (c *OpenAICompatible) WritePlan(ctx context.Context, req PlanRequest) (Plan
 		Done  bool         `json:"done"`
 		Ask   *askedJSON   `json:"ask"`
 		Stuck bool         `json:"stuck"`
+		Whole bool         `json:"whole"`
 	}
 	if err := json.Unmarshal([]byte(text), &answer); err != nil {
 		return PlanAnswer{}, fmt.Errorf("synth: decode plan: %w (from %q)", err, truncate(text, 300))
@@ -179,6 +196,7 @@ func (c *OpenAICompatible) WritePlan(ctx context.Context, req PlanRequest) (Plan
 
 	if req.Most > 0 && len(answer.Steps) > req.Most {
 		answer.Steps = answer.Steps[:req.Most]
+		answer.Whole = false
 	}
 	if q := answer.Ask.question(); q != nil && len(answer.Steps) == 0 && !answer.Done {
 		return PlanAnswer{Question: q, Why: answer.Why}, nil
@@ -186,5 +204,9 @@ func (c *OpenAICompatible) WritePlan(ctx context.Context, req PlanRequest) (Plan
 	if answer.Stuck && len(answer.Steps) == 0 && !answer.Done {
 		return PlanAnswer{Stuck: true, Why: answer.Why}, nil
 	}
-	return PlanAnswer{Steps: answer.Steps, Why: answer.Why, Done: answer.Done && len(answer.Steps) == 0}, nil
+	return PlanAnswer{
+		Steps: answer.Steps, Why: answer.Why,
+		Done:  answer.Done && len(answer.Steps) == 0,
+		Whole: answer.Whole && len(answer.Steps) > 0,
+	}, nil
 }

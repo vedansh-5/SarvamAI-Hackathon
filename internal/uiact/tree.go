@@ -17,6 +17,7 @@ type Element struct {
 	Path     []int    `json:"path"`
 
 	Filled bool `json:"-"`
+	Notice bool `json:"-"`
 }
 
 type Tree struct {

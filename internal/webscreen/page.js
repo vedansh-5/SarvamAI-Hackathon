@@ -97,6 +97,17 @@
     return '';
   }
 
+  function inNotice(el) {
+    var n = el;
+    for (var d = 0; n && n !== document.body && d < 8; d++, n = n.parentElement) {
+      var mark = ((n.id || '') + ' ' + (typeof n.className === 'string' ? n.className : '')).toLowerCase();
+      if (/cookie|consent|onetrust|gdpr|truste|cc-window|cmp-/.test(mark)) return true;
+      var role = (n.getAttribute('role') || '').toLowerCase();
+      if ((role === 'dialog' || role === 'alertdialog') && /cookie|consent/.test((n.innerText || '').slice(0, 1500).toLowerCase())) return true;
+    }
+    return false;
+  }
+
   function shown(el, r) {
     if (r.width < 2 || r.height < 2) return false;
     if (el.checkVisibility && !el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return false;
@@ -143,6 +154,7 @@
       value: valueOf(el),
       enabled: !(el.disabled || el.getAttribute('aria-disabled') === 'true'),
       focused: document.activeElement === el,
+      notice: role === 'AXButton' || role === 'AXLink' ? inNotice(el) : false,
       x: Math.round(ox + r.left * zoom),
       y: Math.round(oy + r.top * zoom),
       w: Math.round(r.width * zoom),
@@ -162,7 +174,7 @@
     ready: document.readyState,
     view: { x: Math.round(ox), y: Math.round(oy), w: Math.round(innerWidth * zoom), h: Math.round(innerHeight * zoom) },
     controls: kept.map(function (k) {
-      return { role: k.role, title: k.title, value: k.value, enabled: k.enabled, focused: k.focused, x: k.x, y: k.y, w: k.w, h: k.h };
+      return { role: k.role, title: k.title, value: k.value, enabled: k.enabled, focused: k.focused, notice: k.notice, x: k.x, y: k.y, w: k.w, h: k.h };
     })
   });
 })()
