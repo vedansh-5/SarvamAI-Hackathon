@@ -4157,3 +4157,25 @@ has its own settings, search and menus. Another is named only when the request i
 about something that lives elsewhere and says so — the wallpaper, Wi-Fi, a named
 application. Eighteen live checks of nine requests: all placed as a person would
 expect, including "dark mode for my mac" going to System Settings from the editor.
+
+## D-185 — An open menu is the first thing the model reads
+
+The coach said "Click Antigravity IDE in the menu bar", the person did, the menu
+opened, and the coach said it again. And again.
+
+The menu's rows were being read (D-179). They were appended after the window's
+elements, and an editor's window, once woken (D-183), fills the whole of what the
+model is given. The list was cut off before it reached them. The model was shown a
+window with no menu open and reasonably asked for the menu to be opened.
+
+Menus now come first: an open menu's rows, then the menu bar, then the window. An
+open menu is the thing a person is looking at and the only thing they can act on
+while it is open, so it is the last thing that should be cut. Thinning a large
+window (D-183) keeps the same order.
+
+Submenus are read too, three levels down, since "Settings…" in that same menu
+opens one.
+
+The general lesson is about truncation. What is cut when there is too much is
+whatever is at the end, so the order of the list is a statement about what matters,
+and it had been the order things happened to be walked in.

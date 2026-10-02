@@ -2,6 +2,7 @@ package uiact
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -136,5 +137,30 @@ func TestWhatIsOnScreenIsKeptAheadOfWhatHasScrolledAway(t *testing.T) {
 	kept := Slim(els, 50)
 	if len(kept) != 50 || kept[0].Title != "Settings" {
 		t.Fatalf("kept %d, first is %q; the one control on screen must come before four hundred that are not", len(kept), kept[0].Title)
+	}
+}
+
+func TestAnOpenMenuIsReadBeforeAnythingElseSoItIsNeverCutOff(t *testing.T) {
+	menus := []Element{
+		{Role: "AXMenuBarItem", Title: "File", Enabled: true, Path: []int{-1, 2}, Size: []int{40, 22}},
+		{Role: "AXMenuItem", Title: "Settings\u2026", Enabled: true, Path: []int{-1, 1, 0, 3}, Position: []int{38, 103}, Size: []int{242, 24}},
+	}
+	var window []Element
+	for i := 0; i < 900; i++ {
+		window = append(window, Element{Role: "AXButton", Title: "Row", Enabled: true, Path: []int{i}, Position: []int{10, 10}, Size: []int{50, 20}})
+	}
+
+	all := MenusFirst(menus, window)
+	if all[0].Role != "AXMenuItem" || all[1].Role != "AXMenuBarItem" {
+		t.Fatalf("first two are %s and %s; an open menu's rows come first, then the menu bar", all[0].Role, all[1].Role)
+	}
+
+	kept := Slim(all, 700)
+	if kept[0].Title != "Settings\u2026" {
+		t.Errorf("after thinning the first is %q", kept[0].Title)
+	}
+	text := Tree{App: "Thing", Elements: kept}.TextWithin(2000)
+	if !strings.Contains(text, "Settings") {
+		t.Errorf("the open menu did not survive a tight budget:\n%s", text[:200])
 	}
 }

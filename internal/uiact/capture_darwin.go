@@ -678,34 +678,49 @@ func walkMenuBar(app C.AXUIElementRef, out *[]Element) {
 			Position: position, Size: size, Path: []int{MenuBarRoot, i},
 		})
 
-		menus := C.axCopyList(top, 0)
-		if menus == 0 {
+		*out = append(*out, openMenuUnder(top, []int{MenuBarRoot, i}, 0)...)
+	}
+}
+
+const deepestSubmenu = 3
+
+func openMenuUnder(holder C.AXUIElementRef, path []int, depth int) []Element {
+	if depth >= deepestSubmenu {
+		return nil
+	}
+	menus := C.axCopyList(holder, 0)
+	if menus == 0 {
+		return nil
+	}
+	defer C.axRelease(C.CFTypeRef(menus))
+	if C.axCount(menus) == 0 {
+		return nil
+	}
+	rows := C.axCopyList(C.axAt(menus, 0), 0)
+	if rows == 0 {
+		return nil
+	}
+	defer C.axRelease(C.CFTypeRef(rows))
+
+	var open, deeper []Element
+	for j := 0; j < int(C.axCount(rows)) && j < mostMenuRows; j++ {
+		row := C.axAt(rows, C.int(j))
+		name := text(row, 1)
+		p, s := rect(row)
+		if name == "" || s == nil || s[0] <= 0 || s[1] <= 0 {
 			continue
 		}
-		if C.axCount(menus) > 0 {
-			rows := C.axCopyList(C.axAt(menus, 0), 0)
-			if rows != 0 {
-				var open []Element
-				for j := 0; j < int(C.axCount(rows)) && j < mostMenuRows; j++ {
-					row := C.axAt(rows, C.int(j))
-					name := text(row, 1)
-					p, s := rect(row)
-					if name == "" || s == nil || s[0] <= 0 || s[1] <= 0 {
-						continue
-					}
-					open = append(open, Element{
-						Role: "AXMenuItem", Title: name, Enabled: C.axFlag(row, 0) != 0,
-						Position: p, Size: s, Path: []int{MenuBarRoot, i, 0, j},
-					})
-				}
-				C.axRelease(C.CFTypeRef(rows))
-				if menuIsOpen(open) {
-					*out = append(*out, open...)
-				}
-			}
-		}
-		C.axRelease(C.CFTypeRef(menus))
+		here := append(append([]int{}, path...), 0, j)
+		open = append(open, Element{
+			Role: "AXMenuItem", Title: name, Enabled: C.axFlag(row, 0) != 0,
+			Position: p, Size: s, Path: here,
+		})
+		deeper = append(deeper, openMenuUnder(row, here, depth+1)...)
 	}
+	if !menuIsOpen(open) {
+		return nil
+	}
+	return append(deeper, open...)
 }
 
 type limits struct{ depth, most int }
@@ -789,8 +804,10 @@ func walkAppWithin(pid int, app string, lim limits) (Tree, error) {
 	elements := make([]Element, 0, 64)
 	walkElement(win, nil, 0, &elements, lim)
 	NameByContents(elements)
-	walkMenuBar(appEl, &elements)
-	tree.Elements = elements
+
+	var menus []Element
+	walkMenuBar(appEl, &menus)
+	tree.Elements = MenusFirst(menus, elements)
 
 	return tree, nil
 }

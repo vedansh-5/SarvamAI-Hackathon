@@ -213,17 +213,35 @@ func Slim(elements []Element, most int) []Element {
 		b, ok := el.box()
 		return ok && b.clip(screen).valid()
 	}
-	var here, away []Element
+	var menus, here, away []Element
 	for _, el := range kept {
-		if onScreen(el) {
+		switch {
+		case InMenuBar(el):
+			menus = append(menus, el)
+		case onScreen(el):
 			here = append(here, el)
-		} else {
+		default:
 			away = append(away, el)
 		}
 	}
-	kept = append(here, away...)
+	kept = append(append(menus, here...), away...)
 	if len(kept) > most {
 		kept = kept[:most]
 	}
 	return kept
+}
+
+func MenusFirst(menus, window []Element) []Element {
+	var open, bar []Element
+	for _, el := range menus {
+		if role(el.Role) == "menuitem" {
+			open = append(open, el)
+		} else {
+			bar = append(bar, el)
+		}
+	}
+	out := make([]Element, 0, len(menus)+len(window))
+	out = append(out, open...)
+	out = append(out, bar...)
+	return append(out, window...)
 }
