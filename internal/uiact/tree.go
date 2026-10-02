@@ -25,6 +25,11 @@ type Tree struct {
 
 const MaxTreeBytes = 24000
 
+const (
+	LargeWindow         = 300
+	MostOutOfViewListed = 25
+)
+
 var typeable = map[string]bool{
 	"textfield":   true,
 	"textarea":    true,
@@ -113,11 +118,30 @@ func (t Tree) TextWithin(budget int) string {
 		counts[key]++
 	}
 
+	_, _, _, _, menuOpen := t.OpenMenuBox()
+	if menuOpen {
+		b.WriteString("A menu is open. Only its rows and the menu bar are listed, because nothing else can be used until it closes.\n\n")
+	}
+	large := len(t.Elements) > LargeWindow
+	away, awayLeftOut := 0, 0
+
 	seen := map[string]int{}
 	for _, el := range t.Elements {
 		label := el.Label()
 		key := role(el.Role) + "\x00" + strings.ToLower(label)
 		seen[key]++
+
+		if menuOpen && !InMenuBar(el) {
+			continue
+		}
+		hidden := t.outOfView(el)
+		if large && hidden {
+			away++
+			if away > MostOutOfViewListed {
+				awayLeftOut++
+				continue
+			}
+		}
 
 		line := "  " + el.Role
 		if label != "" {
@@ -138,7 +162,7 @@ func (t Tree) TextWithin(budget int) string {
 		if !el.Enabled {
 			line += " [disabled]"
 		}
-		if t.outOfView(el) {
+		if hidden {
 			line += " [out of view]"
 		}
 		line += "\n"
@@ -148,6 +172,9 @@ func (t Tree) TextWithin(budget int) string {
 			break
 		}
 		b.WriteString(line)
+	}
+	if awayLeftOut > 0 {
+		fmt.Fprintf(&b, "  … and %d more that are scrolled out of view\n", awayLeftOut)
 	}
 	return b.String()
 }

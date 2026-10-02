@@ -4200,3 +4200,27 @@ right, then left, then below, then above, whichever fits on screen and covers
 neither the menu nor the control. The arrow from a card set to one side points
 across. The small label by the ghost goes beside the menu too, and is left out in
 a coached step, where the card beside the menu already says it.
+
+## D-187 — The model is given what can be used now, not everything the window holds
+
+A coached run in an Electron editor worked and was slow: five model calls, 4.5 to
+9.9 seconds each, where the same call against a small native window takes 1.2 to
+1.8. No picture was involved; the log shows none. The time was the size of what was
+sent. Woken (D-183), the editor publishes some seven hundred controls, and every
+call carried all of them to the limit of the budget.
+
+Most of it could not be used at the moment it was sent.
+
+- **With a menu open, only the menu is listed.** Nothing behind an open menu can be
+  clicked until it closes, and the model was reading seven hundred controls to
+  choose between eight rows. The list says a menu is open and gives its rows and
+  the menu bar.
+- **In a large window, what has scrolled away is counted, not listed.** More than
+  three hundred elements is a window that publishes its whole history — every row
+  of a long conversation, thousands of points above the screen. Twenty-five of
+  those are listed, so the model still knows there is more and can ask for a
+  scroll (D-144), and the rest are a number.
+
+A small window is listed in full, as before. What is checked is unchanged: a step
+is still validated against the whole window, so trimming what the model reads
+cannot make a step pass that would not have.

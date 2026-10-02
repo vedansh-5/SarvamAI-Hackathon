@@ -199,3 +199,58 @@ func TestTheOpenMenuIsKnownAsOneBoxToKeepClearOf(t *testing.T) {
 		t.Error("a closed menu bar was reported as an open menu")
 	}
 }
+
+func TestWithAMenuOpenTheModelIsGivenTheMenuAndNotTheWindowBehindIt(t *testing.T) {
+	was := displays
+	displays = func() (box, bool) { return box{0, 0, 1700, 1100}, true }
+	t.Cleanup(func() { displays = was })
+
+	tree := openAppMenu()
+	for i := 0; i < 400; i++ {
+		tree.Elements = append(tree.Elements, Element{Role: "AXButton", Title: fmt.Sprintf("Window button %d", i), Enabled: true, Path: []int{i}, Position: []int{10, 300}, Size: []int{50, 20}})
+	}
+	text := tree.Text()
+
+	if !strings.Contains(text, "Settings") || !strings.Contains(text, "A menu is open") {
+		t.Fatalf("the open menu is missing from:\n%s", text[:300])
+	}
+	if strings.Contains(text, "Window button") {
+		t.Error("the window behind the menu was listed, though none of it can be used while the menu is open")
+	}
+	if len(text) > 1000 {
+		t.Errorf("%d bytes for a four-row menu; this is the call that was taking five seconds", len(text))
+	}
+}
+
+func TestALargeWindowListsWhatIsOnScreenAndOnlyCountsTheRest(t *testing.T) {
+	was := displays
+	displays = func() (box, bool) { return box{0, 0, 1700, 1100}, true }
+	t.Cleanup(func() { displays = was })
+
+	tree := Tree{App: "Thing"}
+	for i := 0; i < 40; i++ {
+		tree.Elements = append(tree.Elements, Element{Role: "AXButton", Title: fmt.Sprintf("Here %d", i), Enabled: true, Path: []int{i}, Position: []int{10, 10 + i*20}, Size: []int{50, 18}})
+	}
+	for i := 0; i < 400; i++ {
+		tree.Elements = append(tree.Elements, Element{Role: "AXCell", Title: fmt.Sprintf("Old row %d", i), Enabled: true, Path: []int{1000 + i}, Position: []int{100, -40000 + i*25}, Size: []int{500, 24}})
+	}
+	text := tree.Text()
+
+	if strings.Count(text, "Here ") != 40 {
+		t.Errorf("listed %d of the 40 controls on screen", strings.Count(text, "Here "))
+	}
+	if n := strings.Count(text, "Old row"); n != MostOutOfViewListed {
+		t.Errorf("listed %d scrolled-away rows, want %d and a count of the rest", n, MostOutOfViewListed)
+	}
+	if !strings.Contains(text, "375 more that are scrolled out of view") {
+		t.Errorf("the rest were not counted:\n%s", text[len(text)-200:])
+	}
+}
+
+func TestASmallWindowIsListedInFullAsBefore(t *testing.T) {
+	tree := scrolledList(600)
+	text := tree.Text()
+	if !strings.Contains(text, `"Big Sur" [out of view]`) || strings.Contains(text, "more that are scrolled") {
+		t.Errorf("a three-control window was trimmed:\n%s", text)
+	}
+}
