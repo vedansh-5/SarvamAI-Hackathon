@@ -101,6 +101,15 @@ type GuideStep struct {
 
 	Ask   string
 	Offer bool
+
+	AvoidX, AvoidY, AvoidW, AvoidH int
+}
+
+func clearOfTheMenu(g GuideStep, tree uiact.Tree) GuideStep {
+	if x, y, w, h, open := tree.OpenMenuBox(); open {
+		g.AvoidX, g.AvoidY, g.AvoidW, g.AvoidH = x, y, w, h
+	}
+	return g
 }
 
 func (e *Engine) canGuide() bool {
@@ -318,12 +327,12 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 		}
 
 		for attempt := 1; ; attempt++ {
-			show(GuideStep{
+			show(clearOfTheMenu(GuideStep{
 				Number: number + opened, Label: describe,
 				X: x, Y: y, W: w, H: h,
 				Do: step.Do, Detail: detailOf(step),
 				Offer: offering,
-			})
+			}, tree))
 
 			var reply <-chan bool
 			if offering {

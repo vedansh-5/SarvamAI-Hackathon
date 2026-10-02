@@ -97,6 +97,7 @@ fn point_at(
     app_name: Option<String>,
     mode: Option<String>,
     offer: Option<bool>,
+    avoid: Option<Vec<f64>>,
 ) {
     coach::point_at(
         &app,
@@ -114,6 +115,7 @@ fn point_at(
             ox: 0.0,
             oy: 0.0,
             offer: offer.unwrap_or(false),
+            avoid: avoid.filter(|a| a.len() == 4).unwrap_or_default(),
         },
     );
 }

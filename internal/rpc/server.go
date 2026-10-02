@@ -511,6 +511,7 @@ func (s *Server) commit(ctx context.Context, req Request) (CommitResult, error) 
 			Number: g.Number, Label: g.Label,
 			X: g.X, Y: g.Y, W: g.W, H: g.H,
 			Do: g.Do, Detail: g.Detail,
+			AvoidX: g.AvoidX, AvoidY: g.AvoidY, AvoidW: g.AvoidW, AvoidH: g.AvoidH,
 		})
 	}
 
@@ -523,6 +524,7 @@ func (s *Server) commit(ctx context.Context, req Request) (CommitResult, error) 
 			Number: g.Number, Label: g.Label,
 			X: g.X, Y: g.Y, W: g.W, H: g.H,
 			Do: g.Do, Detail: g.Detail, Ask: g.Ask,
+			AvoidX: g.AvoidX, AvoidY: g.AvoidY, AvoidW: g.AvoidW, AvoidH: g.AvoidH,
 		})
 	}
 
@@ -834,6 +836,7 @@ func (s *Server) guide(ctx context.Context, req Request) (GuideResult, error) {
 			Number: g.Number, Label: g.Label,
 			X: g.X, Y: g.Y, W: g.W, H: g.H,
 			Do: g.Do, Detail: g.Detail, Offer: g.Offer,
+			AvoidX: g.AvoidX, AvoidY: g.AvoidY, AvoidW: g.AvoidW, AvoidH: g.AvoidH,
 		})
 	}, advance)
 	if err != nil {

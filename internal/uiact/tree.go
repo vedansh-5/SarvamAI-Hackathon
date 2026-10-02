@@ -280,7 +280,7 @@ func (t Tree) visibleBox(el Element) (box, bool) {
 		return box{}, false
 	}
 	for _, a := range t.Elements {
-		if !encloses(a.Path, el.Path) {
+		if InMenuBar(el) || !encloses(a.Path, el.Path) {
 			continue
 		}
 		if ab, ok := a.box(); ok {

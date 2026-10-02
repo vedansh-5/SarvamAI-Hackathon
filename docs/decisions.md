@@ -4179,3 +4179,24 @@ opens one.
 The general lesson is about truncation. What is cut when there is too much is
 whatever is at the end, so the order of the list is a statement about what matters,
 and it had been the order things happened to be walked in.
+
+## D-186 — A row of an open menu is in view, and the overlay keeps clear of the menu
+
+Two faults seen together on the first coached step into a menu.
+
+**The step was wrong.** With the menu open and "Settings…" in plain sight, the coach
+said "Scroll down to find Settings…". Whether a control is in view is worked out by
+clipping its rectangle to every element that encloses it (D-144), and a menu row is
+addressed underneath its menu bar item. The row hangs below that item; it is not
+inside it, and clipping one to the other leaves nothing. Controls in the menu bar
+are now clipped to the display only.
+
+**The step could not be seen.** macOS draws menus at window level 101 and the
+overlay sat at 26, one above the panel, so the ring and the card were both under
+the menu they were about. The overlay is now at 102. Raising it is not enough on
+its own, because a card laid over a menu hides the rows: each step now carries the
+rectangle of whatever menu is open, and the card is placed beside that rectangle —
+right, then left, then below, then above, whichever fits on screen and covers
+neither the menu nor the control. The arrow from a card set to one side points
+across. The small label by the ghost goes beside the menu too, and is left out in
+a coached step, where the card beside the menu already says it.

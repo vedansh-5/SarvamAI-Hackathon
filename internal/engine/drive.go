@@ -305,13 +305,13 @@ func (e *Engine) showBeforeActing(ctx context.Context, tree uiact.Tree, step uia
 		return nil
 	}
 
-	e.ShowStep(GuideStep{
+	e.ShowStep(clearOfTheMenu(GuideStep{
 		Number: number,
 		Label:  describe,
 		X:      x, Y: y, W: w, H: h,
 		Do:     strings.ToLower(strings.TrimSpace(step.Do)),
 		Detail: detailOf(step),
-	})
+	}, tree))
 
 	if lookBeforeActing <= 0 {
 		return nil
@@ -360,12 +360,12 @@ drain:
 	}
 
 	x, y, w, h, _ := tree.RectFor(step.Target)
-	e.Paused(GuideStep{
+	e.Paused(clearOfTheMenu(GuideStep{
 		Number: number, Label: describe,
 		X: x, Y: y, W: w, H: h,
 		Do: strings.ToLower(strings.TrimSpace(step.Do)), Detail: detailOf(step),
 		Ask: ask,
-	})
+	}, tree))
 
 	select {
 	case <-ctx.Done():

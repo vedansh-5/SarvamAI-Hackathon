@@ -300,6 +300,8 @@ pub struct Pointer {
     pub oy: f64,
 
     pub offer: bool,
+
+    pub avoid: Vec<f64>,
 }
 
 fn build(app: &AppHandle) -> Option<WebviewWindow> {
@@ -349,10 +351,11 @@ fn float_above(win: &WebviewWindow) {
             | NSWindowCollectionBehavior::IgnoresCycle,
     );
 
-    // One above the panel's status level, so a tip is never covered by the
-    // window that produced it.
-    const ABOVE_STATUS: NSWindowLevel = 26;
-    ns.setLevel(ABOVE_STATUS);
+    // Above menus, which macOS draws at level 101. One above the panel was enough
+    // until the thing being pointed at was a row in an open menu, and the ring and
+    // the card were both drawn underneath it.
+    const ABOVE_MENUS: NSWindowLevel = 102;
+    ns.setLevel(ABOVE_MENUS);
     ns.setIgnoresMouseEvents(true);
 }
 
@@ -447,6 +450,10 @@ fn draw(app: &AppHandle, mut p: Pointer) {
         p.y -= origin.1;
         p.ox = origin.0;
         p.oy = origin.1;
+        if p.avoid.len() == 4 {
+            p.avoid[0] -= origin.0;
+            p.avoid[1] -= origin.1;
+        }
     }
 
     show_without_taking_the_keyboard(&win);

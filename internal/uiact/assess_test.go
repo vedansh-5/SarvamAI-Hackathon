@@ -164,3 +164,38 @@ func TestAnOpenMenuIsReadBeforeAnythingElseSoItIsNeverCutOff(t *testing.T) {
 		t.Errorf("the open menu did not survive a tight budget:\n%s", text[:200])
 	}
 }
+
+func openAppMenu() Tree {
+	return Tree{App: "Thing", Elements: []Element{
+		{Role: "AXMenuItem", Title: "About Thing", Enabled: true, Path: []int{-1, 1, 0, 0}, Position: []int{38, 44}, Size: []int{242, 24}},
+		{Role: "AXMenuItem", Title: "Settings\u2026", Enabled: true, Path: []int{-1, 1, 0, 3}, Position: []int{38, 103}, Size: []int{242, 24}},
+		{Role: "AXMenuItem", Title: "Quit Thing", Enabled: true, Path: []int{-1, 1, 0, 11}, Position: []int{38, 256}, Size: []int{242, 24}},
+		{Role: "AXMenuBarItem", Title: "Thing", Enabled: true, Path: []int{-1, 1}, Position: []int{43, 0}, Size: []int{118, 24}},
+	}}
+}
+
+func TestARowOfAnOpenMenuIsInViewThoughItHangsBelowItsMenuBarItem(t *testing.T) {
+	was := displays
+	displays = func() (box, bool) { return box{0, 0, 1700, 1100}, true }
+	t.Cleanup(func() { displays = was })
+
+	tree := openAppMenu()
+	settings := Selector{Role: "AXMenuItem", Title: "Settings\u2026"}
+	if tree.OutOfView(settings) {
+		t.Fatal("a row of an open menu was called out of view; it hangs below the menu bar item, not inside it")
+	}
+	x, y, w, h, why := tree.RectFor(settings)
+	if why != "" || x != 38 || y != 103 || w != 242 || h != 24 {
+		t.Errorf("rect = (%d,%d %dx%d) %q, want the row where it is", x, y, w, h, why)
+	}
+}
+
+func TestTheOpenMenuIsKnownAsOneBoxToKeepClearOf(t *testing.T) {
+	x, y, w, h, ok := openAppMenu().OpenMenuBox()
+	if !ok || x != 38 || y != 44 || w != 242 || h != 236 {
+		t.Errorf("box = (%d,%d %dx%d) ok=%v, want the whole menu", x, y, w, h, ok)
+	}
+	if _, _, _, _, ok := (Tree{Elements: []Element{{Role: "AXMenuBarItem", Title: "File", Path: []int{-1, 2}, Position: []int{0, 0}, Size: []int{40, 22}}}}).OpenMenuBox(); ok {
+		t.Error("a closed menu bar was reported as an open menu")
+	}
+}

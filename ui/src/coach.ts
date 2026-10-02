@@ -46,6 +46,7 @@ interface Pointer {
   ox?: number;
   oy?: number;
   offer?: boolean;
+  avoid?: number[];
 }
 
 interface Bounds {
@@ -177,6 +178,14 @@ function setCaption(text: string, hint: string) {
 
 function moveCaption(x: number, y: number) {
   const caption = elementById<HTMLElement>("caption");
+  if (keepClearOf) {
+    // Beside the menu, level with the row. Anywhere on the menu covers a row.
+    let beside = keepClearOf.x + keepClearOf.w + 10;
+    if (beside + captionWidth > window.innerWidth - 8) beside = keepClearOf.x - 10 - captionWidth;
+    const level = Math.max(8, Math.min(y - 13, window.innerHeight - 34));
+    caption.style.transform = `translate(${Math.round(beside)}px, ${Math.round(level)}px)`;
+    return;
+  }
   let left = x + 18;
   if (left + captionWidth > window.innerWidth - 8) left = x - 18 - captionWidth;
   const top = captionAbove
@@ -436,7 +445,45 @@ function animateSpotlightTransition(from: Bounds, to: Bounds, onComplete?: () =>
   animationFrameId = requestAnimationFrame(step);
 }
 
+let keepClearOf: Bounds | null = null;
+
+function overlaps(left: number, top: number, box: DOMRect, r: Bounds): boolean {
+  return !(left + box.width <= r.x || left >= r.x + r.w || top + box.height <= r.y || top >= r.y + r.h);
+}
+
+/// Beside an open menu rather than over it. A menu is the thing being pointed
+/// into, and a card laid across its rows hides the row the step is about.
+function besideTheMenu(target: Bounds, box: DOMRect, menu: Bounds): { top: number; left: number } | null {
+  const edge = 8;
+  const level = Math.max(
+    edge,
+    Math.min(target.y + target.h / 2 - box.height / 2, window.innerHeight - box.height - edge),
+  );
+  const across = Math.max(edge, Math.min(target.x, window.innerWidth - box.width - edge));
+  const places = [
+    { left: menu.x + menu.w + GAP, top: level },
+    { left: menu.x - box.width - GAP, top: level },
+    { left: across, top: menu.y + menu.h + GAP },
+    { left: across, top: menu.y - box.height - GAP },
+  ];
+  for (const p of places) {
+    const onScreen =
+      p.left >= edge &&
+      p.top >= edge &&
+      p.left + box.width <= window.innerWidth - edge &&
+      p.top + box.height <= window.innerHeight - edge;
+    if (onScreen && !overlaps(p.left, p.top, box, menu) && !overlaps(p.left, p.top, box, target)) {
+      return p;
+    }
+  }
+  return null;
+}
+
 function calculateTooltipPosition(target: Bounds, box: DOMRect): { top: number; left: number } {
+  if (keepClearOf) {
+    const beside = besideTheMenu(target, box, keepClearOf);
+    if (beside) return beside;
+  }
   let top = target.y + target.h + GAP;
   if (top + box.height > window.innerHeight - 8) {
     top = Math.max(8, target.y - box.height - GAP);
@@ -456,6 +503,25 @@ function drawArrow(tip: DOMRect, target: Bounds) {
 
   const targetCentre = { x: target.x + target.w / 2, y: target.y + target.h / 2 };
   const cardCentre = { x: tip.left + tip.width / 2, y: tip.top + tip.height / 2 };
+
+  // A card set to one side of its control points across, not up or down.
+  const toTheRight = tip.left >= target.x + target.w;
+  const toTheLeft = tip.right <= target.x;
+  if (toTheRight || toTheLeft) {
+    const fromX = toTheRight ? tip.left - 2 : tip.right + 2;
+    const toX = toTheRight ? target.x + target.w + 10 : target.x - 10;
+    if (Math.abs(fromX - toX) < 24) {
+      arrow.setAttribute("opacity", "0");
+      return;
+    }
+    const pull = (toX - fromX) / 2;
+    arrow.setAttribute(
+      "d",
+      `M ${fromX} ${cardCentre.y} C ${fromX + pull} ${cardCentre.y}, ${toX - pull} ${targetCentre.y}, ${toX} ${targetCentre.y}`,
+    );
+    arrow.setAttribute("opacity", "1");
+    return;
+  }
 
   const goingUp = targetCentre.y < cardCentre.y;
   const from = { x: cardCentre.x, y: goingUp ? tip.top - 2 : tip.bottom + 2 };
@@ -555,6 +621,11 @@ function renderCoachStep(pointer: Pointer) {
   elementById<HTMLElement>("caption").classList.remove("asking");
   runMode = pointer.mode === "drive" ? "drive" : "coach";
   origin = { x: pointer.ox ?? 0, y: pointer.oy ?? 0 };
+  const avoid = pointer.avoid ?? [];
+  keepClearOf =
+    avoid.length === 4 && avoid[2] > 0 && avoid[3] > 0
+      ? { x: avoid[0], y: avoid[1], w: avoid[2], h: avoid[3], r: 0 }
+      : null;
   const targetBounds = calculateTargetBounds(pointer);
   note(
     `point ${pointer.w}x${pointer.h} at (${pointer.x}, ${pointer.y})` +
@@ -601,10 +672,16 @@ function renderCoachStep(pointer: Pointer) {
   captionAbove = runMode === "coach" && tipBelow && landing.y - captionLift >= 8;
   rememberStep(stepNumber(pointer), landing);
   drawTrail(landing);
-  setCaption(
-    captionFor(pointer, currentVerb),
-    runMode === "drive" ? "Esc to stop" : pointer.offer ? "\u2318\u21A9 do it for me" : "",
-  );
+  if (keepClearOf && runMode === "coach") {
+    // The card is already beside the menu saying what to do; a second label
+    // there would sit on top of it.
+    hideCaption();
+  } else {
+    setCaption(
+      captionFor(pointer, currentVerb),
+      runMode === "drive" ? "Esc to stop" : pointer.offer ? "\u2318\u21A9 do it for me" : "",
+    );
+  }
 
   // Once per step, from here and not from the drawing code: the spotlight is
   // redrawn on every frame while it moves, and a glide restarted on every frame

@@ -245,3 +245,25 @@ func MenusFirst(menus, window []Element) []Element {
 	out = append(out, bar...)
 	return append(out, window...)
 }
+
+func (t Tree) OpenMenuBox() (x, y, w, h int, ok bool) {
+	var all box
+	for _, el := range t.Elements {
+		if !InMenuBar(el) || role(el.Role) != "menuitem" {
+			continue
+		}
+		b, has := el.box()
+		if !has {
+			continue
+		}
+		if !ok {
+			all, ok = b, true
+			continue
+		}
+		all = box{min(all.x0, b.x0), min(all.y0, b.y0), max(all.x1, b.x1), max(all.y1, b.y1)}
+	}
+	if !ok {
+		return 0, 0, 0, 0, false
+	}
+	return all.x0, all.y0, all.x1 - all.x0, all.y1 - all.y0, true
+}

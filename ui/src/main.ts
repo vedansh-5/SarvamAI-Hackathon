@@ -560,6 +560,10 @@ listen<{
     h: number;
     do?: string;
     detail?: string;
+    avoid_x?: number;
+    avoid_y?: number;
+    avoid_w?: number;
+    avoid_h?: number;
   };
 }>("engine://drive_step", (event) => {
   if (actingIn === null) return;
@@ -575,6 +579,7 @@ listen<{
     detail: s.detail ?? "",
     appName: actingIn,
     mode: "drive",
+    avoid: [s.avoid_x ?? 0, s.avoid_y ?? 0, s.avoid_w ?? 0, s.avoid_h ?? 0],
   }).catch(console.error);
 });
 
@@ -670,6 +675,10 @@ listen<{
     h: number;
     do?: string;
     detail?: string;
+    avoid_x?: number;
+    avoid_y?: number;
+    avoid_w?: number;
+    avoid_h?: number;
     offer?: boolean;
   };
 }>(
@@ -696,6 +705,7 @@ listen<{
       // and take itself off the screen until they come back.
       appName: coachedApp,
       mode: "coach",
+      avoid: [s.avoid_x ?? 0, s.avoid_y ?? 0, s.avoid_w ?? 0, s.avoid_h ?? 0],
       offer: s.offer ?? false,
     }).catch(console.error);
   },
