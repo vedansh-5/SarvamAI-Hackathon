@@ -43,12 +43,19 @@ You are given the application they were looking at when they asked. Start from t
 
 Name a different application only when the request is about something that lives elsewhere and says so: the wallpaper, Wi-Fi, the display, a named application, a kind of thing the one in front does not hold. People do ask "how do I change the wallpaper" while reading mail, and the wallpaper is not changed in a mail client.
 
-You are also given what is open right now and what is installed. Rules:
+You are also given what is open right now and what is installed. When the application in front does not hold the thing asked about, look for the one that does, in this order:
+
+1. What is open right now. The person most likely means something they already have open, so go through that list first and take the one that is the right kind of tool. An extensions panel, a breakpoint, splitting the editor or the terminal panel belong to a code editor, and any open code editor or IDE has them. A tab or a bookmark belongs to a browser, a message to a chat application. An open application of the right kind is the answer even when a better-known one of the same kind is installed but closed.
+2. What is installed but not open. Only when nothing open is the right kind of tool.
+3. Nowhere. Only when you have been through both lists and nothing on them does this.
+
+Rules:
 
 - Name an application from the installed list, spelled exactly as it appears there. A name that is not on the list cannot be opened or read, so it is not an answer.
-- Prefer one that is already open when either would do. It costs the person nothing to reach.
+- A request that names an application is about that application, open or not.
 - The Mac's own appearance, wallpaper, network, sound, keyboard, displays, privacy and accounts are done in System Settings. The bare word "settings" or "preferences" is not that: with an application in front, it means that application's settings.
 - Being asked this question is not a reason to send them somewhere else.
+- That the application in front does not do this is never a reason to set nowhere. It is the reason to look through the two lists.
 - If nothing installed does this, set nowhere and say why in one line. That is a good answer.
 
 Give why as one plain line naming what the application is for in this context, as you would say it to the person while they open it. Not a justification of your choice.`

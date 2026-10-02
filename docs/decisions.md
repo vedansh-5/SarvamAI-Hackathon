@@ -4248,3 +4248,28 @@ a task joined by "and" is done when its last part is. Stuck before anything was
 done is still "nothing to do here", as before.
 
 The run that opened the panel and stopped had been kept, and was removed.
+
+## D-189 — When the application in front cannot do it, the open ones are looked at before giving up
+
+"How do I open the extensions panel and search for python", asked while a chat
+application was in front and an editor was open behind it, came back as "nothing
+installed does that", with the reason that the chat application has no extensions
+panel.
+
+Starting from the application in front (D-184) was right and is kept. What was
+missing is what happens when that application does not hold the thing asked
+about. The prompt said to name another one "only when" the request lives
+elsewhere, and to set nowhere "if nothing installed does this", and the model
+judged the one application it had been told to start from and stopped there. Run
+again it sometimes named the best-known editor on the installed list, which was
+closed, over the one that was open.
+
+The prompt now gives the order: what is open, then what is installed and closed,
+then nowhere. An open application of the right kind is the answer even when a
+better-known one of the same kind is installed. That the application in front
+does not do it is never a reason for nowhere; it is the reason to look. A request
+that names an application is about that application, open or not, so "on
+WhatsApp" is not pulled towards whichever chat application happens to be open.
+
+Checked against the model with this Mac's lists: twenty answers over ten requests,
+all right, where the two that failed had failed three times in three before.
