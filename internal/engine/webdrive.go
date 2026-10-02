@@ -43,7 +43,9 @@ func (e *Engine) canDrivePages() bool {
 
 func (e *Engine) onThePage() *Engine {
 	c := *e
+	c.native = e.nativeScreen()
 	c.UIScreen = e.PageScreen
+	c.onPage = true
 	return &c
 }
 

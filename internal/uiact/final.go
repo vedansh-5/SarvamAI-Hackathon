@@ -15,6 +15,8 @@ func Commits(step Step, el Element) (bool, string) {
 		return true, "the step is marked as one that cannot be taken back"
 	}
 	switch verb(step.Do) {
+	case "choose":
+		return true, "it hands a file over"
 	case "click":
 		name := strings.TrimSpace(el.Label())
 		if name == "" {

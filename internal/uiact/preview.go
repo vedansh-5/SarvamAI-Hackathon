@@ -19,6 +19,10 @@ func Preview(p Program) string {
 			lines = append(lines, fmt.Sprintf("Type %q into %s", s.Text, describe(s.Target)))
 		case "press":
 			lines = append(lines, fmt.Sprintf("Press %s in %s", s.Key, describe(s.Target)))
+		case "choose":
+			lines = append(lines, fmt.Sprintf("Choose the file %q with %s", s.Text, describe(s.Target)))
+		case "switch":
+			lines = append(lines, "Switch to "+s.App)
 		}
 	}
 	return strings.Join(lines, "\n")

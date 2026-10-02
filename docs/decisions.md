@@ -4410,3 +4410,56 @@ Accept is never clicked. Saying yes on someone's behalf is consent they did not
 give; a notice with no way to say no is left for the run to deal with as before.
 A button named Decline that is not inside a notice is a button of the page and
 is not touched.
+
+## D-197 — A file is chosen by going to its path, and only a file the person named
+
+Uploading needs the system file chooser, and a page cannot be scripted past it:
+a file input only opens for a real click, and what opens is a window that
+belongs to no page. So "choose" is a step of its own. Its target is the control
+that opens the chooser and its text is the file's path. The click is made with
+the real pointer; then, once a chooser is actually there, Go to Folder
+(Command-Shift-G), the path, Enter, Enter. Every chooser on the Mac takes that,
+which is why it is typed rather than clicked through.
+
+Nothing is typed unless a chooser is seen first: a sheet, or Cancel beside Open,
+Choose or Upload. Without that check a path would be typed into whatever had the
+keyboard. If the chooser is still there afterwards it is cancelled and the step
+fails.
+
+Which file is not the model's to decide. The path must be a file that exists,
+and its name must appear in what the person said: the request, an answer they
+gave, or what they had selected in Finder, which is now read when the request
+points at "this file". A path nobody named is refused whatever it is. Choosing a
+file hands it over, so it is confirmed like any step that cannot be taken back.
+
+A click that opens a chooser by mistake leaves the run facing a window it cannot
+read. On a page, a click that changed nothing is followed by one look at the
+browser's own window; a chooser found there is closed, and the model is told to
+use a choose step or ask which file.
+
+Not tried against a real chooser yet. What a chooser looks like to the
+accessibility API was written from what the API documents, not from a reading.
+
+## D-198 — A task can move between applications, and the clipboard is how it carries things
+
+"Copy this from Notes into WhatsApp" is one task in two windows. "Switch" is a
+step that names an application; the run carries on in that application's
+window, read by whichever screen suits it, a page or a native window. VANS still
+opens nothing (D-032): switching to an application that is not open stops the
+run and says to open it, and Carry on picks up from there. The coach shows
+"Switch to …" and waits for it to be in front. A switch into an application the
+rules forbid is refused.
+
+What moves between the two is the clipboard, so Command with A, C, V, X, Z and F
+can now be pressed, and the arrow, page, Home and End keys with them. A letter is
+only pressed with Command held; on its own it is typing. On a page those chords
+are pressed for real, since a scripted key event copies nothing. The prompts list
+the other open applications, so a switch names one that exists.
+
+A request that names two installed applications skips the scripting tier, which
+can only speak to one, and is worked through on screen from the one that is open.
+
+Also here: an answer is capped at 1,200 tokens for a step and 3,500 for a plan,
+after a reply that reasoned in its "why" until it ran out at 16,000; and a
+question written into "why" with nothing else is put to the person instead of
+being thrown away, because that is what it was.

@@ -106,6 +106,9 @@ func (e *Engine) planOn(ctx context.Context, req synth.PlanRequest) (synth.PlanA
 	} else {
 		e.logf("planning the whole of it in one go")
 	}
+	if len(req.Open) == 0 {
+		req.Open = e.openApps()
+	}
 	if len(req.Similar) == 0 && !req.Rehearse {
 		req.Similar = e.similarRuns(ctx, req.Tree.App, askedIn(ctx, req.Task))
 		if len(req.Similar) > 0 {
@@ -236,29 +239,34 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	if !e.canDrive() {
 		return Receipt{}, fmt.Errorf("engine: this build cannot work through a task on screen")
 	}
-	act := func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) (uiact.Tree, error) {
-		tree = e.bringIntoView(ctx, tree, program.Steps[0])
-		if err := e.showBeforeActing(ctx, tree, program.Steps[0], number, describe); err != nil {
+	act := func(ctx context.Context, on *Engine, tree uiact.Tree, program uiact.Program, number int, describe string) (uiact.Tree, error) {
+		step := program.Steps[0]
+		if step.Switches() {
+			on.logf("bringing %s to the front", step.App)
+			return tree, on.UIScreen.BringToFront(ctx, step.App)
+		}
+		tree = on.bringIntoView(ctx, tree, step)
+		if err := on.showBeforeActing(ctx, tree, step, number, describe); err != nil {
 			return tree, err
 		}
-		if err := e.overTheLimit(ctx, tree, program.Steps[0]); err != nil {
+		if err := on.overTheLimit(ctx, tree, step); err != nil {
 			return tree, err
 		}
-		ask := e.askFirst(tree, program.Steps[0])
-		if ask == "" && e.Paused != nil && e.Resume != nil {
-			ask = e.asksFirstIn(ctx, d)
+		ask := on.askFirst(tree, step)
+		if ask == "" && on.Paused != nil && on.Resume != nil {
+			ask = on.asksFirstAt(ctx, tree.App, d.Browser)
 		}
-		if ask == "" && e.Paused != nil && e.Resume != nil && checkpointEvery > 0 && number > 1 && (number-1)%checkpointEvery == 0 {
+		if ask == "" && on.Paused != nil && on.Resume != nil && checkpointEvery > 0 && number > 1 && (number-1)%checkpointEvery == 0 {
 			ask = fmt.Sprintf("%s%d steps done so far", checkpointPrefix, number-1)
 		}
 		if ask != "" {
-			fresh, err := e.waitOutThePause(ctx, d.App, tree, program, number, describe, ask)
+			fresh, err := on.waitOutThePause(ctx, tree.App, tree, program, number, describe, ask)
 			if err != nil {
 				return fresh, err
 			}
 			tree = fresh
 		}
-		return tree, e.UIScreen.Act(ctx, program, tree)
+		return tree, on.UIScreen.Act(ctx, program, tree)
 	}
 
 	switch {
@@ -441,7 +449,7 @@ func (e *BrokeOffError) Error() string {
 
 func (e *BrokeOffError) Unwrap() error { return e.Err }
 
-type stepHandler func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) (uiact.Tree, error)
+type stepHandler func(ctx context.Context, on *Engine, tree uiact.Tree, program uiact.Program, number int, describe string) (uiact.Tree, error)
 
 func (e *Engine) bringIntoView(ctx context.Context, tree uiact.Tree, step uiact.Step) uiact.Tree {
 	if !tree.OutOfView(step.Target) {
@@ -583,6 +591,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 	var next uiact.Tree
 	var soFar stepsSoFar
 	filled := map[string]bool{}
+	open := e.openApps()
 
 	state := func() taskRun {
 		return taskRun{
@@ -609,7 +618,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 			replannedAt = i
 			again, n := e.planOn(ctx, synth.PlanRequest{
 				Task: task, Tree: against.WithFilled(filled), Most: limit - i + 1,
-				Done: done, Failures: why,
+				Done: done, Failures: why, Open: open,
 			})
 			calls += n
 			if len(again.Steps) == 0 {
@@ -656,7 +665,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 			}
 			if replaying && i > len(trace) && !confirmed {
 				e.logf("the %d planned step(s) are done; asking what is left", len(trace))
-				more, n := e.planOn(ctx, synth.PlanRequest{Task: task, Tree: tree.WithFilled(filled), Most: limit - i + 1, Done: done})
+				more, n := e.planOn(ctx, synth.PlanRequest{Task: task, Tree: tree.WithFilled(filled), Most: limit - i + 1, Done: done, Open: open})
 				calls += n
 				if more.Question != nil {
 					told, err := e.askThePerson(ctx, app, more.Question, &questions, recalled)
@@ -712,6 +721,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 					Tree:     tree.WithFilled(filled),
 					Done:     done,
 					Failures: failures,
+					Open:     open,
 				})
 				e.logf("the model answered in %s", took(asked))
 				if err != nil {
@@ -770,6 +780,24 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 			if err := uiact.Validate(program, tree); err != nil {
 				if !errors.As(err, &refused) {
 					return state(), err
+				}
+			}
+			if refused == nil && acting && answer.Step.Chooses() {
+				path, why := fileToChoose(answer.Step.Text, taskWithLooking(ctx, task)+"\n"+strings.Join(done, "\n"))
+				if why != "" {
+					refused = &uiact.InvalidError{App: tree.App, Reasons: []string{why}}
+				} else {
+					answer.Step.Text = path
+					program.Steps[0].Text = path
+				}
+			}
+			if refused == nil && answer.Step.Switches() {
+				name, why := e.whereToSwitch(ctx, answer.Step, app, acting)
+				if why != "" {
+					refused = &uiact.InvalidError{App: tree.App, Reasons: []string{why}}
+				} else {
+					answer.Step.App = name
+					program.Steps[0].App = name
 				}
 			}
 
@@ -844,7 +872,37 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 			}
 			e.logf("step %d: %s", i, describe)
 
-			startedFrom, err := handle(ctx, tree, program, i, describe)
+			if answer.Step.Switches() {
+				to := answer.Step.App
+				if acting && !e.isOpen(to) {
+					return state(), stopped(app,
+						"engine: the next part is done in %s, which is not open. Open %s, then carry on", to, to)
+				}
+				there := e.screenFor(ctx, to)
+				if _, err := handle(ctx, there, tree, program, i, describe); err != nil {
+					return state(), err
+				}
+				arrived, err := there.windowToWorkFrom(ctx, to)
+				if err != nil {
+					return state(), err
+				}
+				e, app = there, to
+				if strings.TrimSpace(arrived.App) != "" {
+					app = arrived.App
+				}
+				done = append(done, fmt.Sprintf("%s \u2014 %s is now the application in front", describe, to))
+				did = append(did, answer.Step)
+				soFar.did(answer.Step, describe)
+				lastCommitted = false
+				next = arrived
+				if fromTrace {
+					replayed++
+				}
+				acted = true
+				break
+			}
+
+			startedFrom, err := handle(ctx, e, tree, program, i, describe)
 			if len(startedFrom.Elements) > 0 {
 				tree = startedFrom
 			}
@@ -865,7 +923,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 				if fresh, readErr := e.UIScreen.Capture(ctx, app); readErr == nil && len(fresh.Elements) > 0 {
 					tree = fresh
 				}
-				startedFrom, err = handle(ctx, tree, program, i, describe)
+				startedFrom, err = handle(ctx, e, tree, program, i, describe)
 				if len(startedFrom.Elements) > 0 {
 					tree = startedFrom
 				}
@@ -893,6 +951,9 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 			}
 
 			effect, changed, after := describeEffect(ctx, e, app, tree)
+			if !changed && acting && strings.EqualFold(strings.TrimSpace(answer.Step.Do), "click") && e.closedAStrayChooser(ctx) {
+				effect, changed = strayChooser, true
+			}
 
 			// A replayed step that changed nothing is a divergence, not a success
 			// — the same rule D-076 applies to a live one. Nothing moved, so

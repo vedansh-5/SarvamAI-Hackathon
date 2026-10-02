@@ -80,6 +80,8 @@ func run() error {
 
 		RealClick: desktop.ClickAt,
 		RealType:  desktop.TypeText,
+		RealKey:   desktop.PressKey,
+		Choose:    desktop.ChooseFile,
 		Log: func(format string, args ...any) {
 			fmt.Fprintf(os.Stderr, "[page] "+format+"\n", args...)
 		},
@@ -92,6 +94,8 @@ func run() error {
 
 		RealClick: desktop.ClickAt,
 		RealType:  desktop.TypeText,
+		RealKey:   desktop.PressKey,
+		Choose:    desktop.ChooseFile,
 		Log:       inChrome.Log,
 	}
 	page := &webscreen.Multi{

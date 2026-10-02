@@ -22,6 +22,10 @@ What a step may be:
 - click a control
 - type text into a control, which clicks it first
 - %s
+- choose a file: do is choose, the target is the control that opens the file chooser (Upload, Attach, Select files, Browse), and text is the file's full path. The chooser itself is worked for you, so never click that control as a step of its own: a click leaves a chooser open that nothing can work. Only a file the person named may be chosen. If the task needs a file and they have not said which, ask for its path before anything else.
+- switch to another application: do is switch, app is its name exactly as it is listed under the other open applications, and target is {"role": "AXApplication"}. Use it when the task moves from one application to another. The screen you are shown next is that application's window.
+
+Command-C copies what is selected, Command-V pastes it where the cursor is, and Command-A selects everything in the field with the cursor. That is how something is carried from one place to another, including between two applications. A letter key is only ever pressed with Command held.
 
 Rules that decide whether a step is usable:
 
@@ -46,6 +50,8 @@ Give the shortest sequence that does the task. Stop the plan where you stop bein
 Set whole to true only when the last step of your plan is the last step of the task, so that once it has happened nothing remains. If you stopped early because you cannot see the screens that follow, whole is false. When the task is a question about where something is, the plan is whole when its last step is the thing asked about itself, and not whole when that step only leads towards it.
 
 ` + askingRule + `
+
+Keep why to one short line. Decide first, then say it: reasoning written out in why is thrown away with the rest of the answer.
 
 If steps are listed as already done and the screen shows every part of the task is now complete, give no steps, set done to true, and say in one line what shows it. A task with several parts, such as "open the panel and search for python", is done when the last part is, not the first. Only set done when the screen in front of you shows it; steps you have just listed do not count.
 
@@ -82,6 +88,8 @@ type PlanRequest struct {
 	Known []string
 
 	Similar []string
+
+	Open []string
 
 	Rehearse bool
 }
@@ -124,6 +132,8 @@ func BuildPlanPrompt(req PlanRequest) string {
 		}
 	}
 
+	writeOpenApps(&b, req.Open, req.Tree.App)
+
 	if len(req.Similar) > 0 {
 		b.WriteString("\nHOW SIMILAR TASKS WERE DONE HERE BEFORE\n")
 		for _, s := range req.Similar {
@@ -156,7 +166,7 @@ func (c *OpenAICompatible) WritePlan(ctx context.Context, req PlanRequest) (Plan
 
 	maxTokens := c.MaxTokens
 	if maxTokens == 0 {
-		maxTokens = int(DefaultMaxTokens)
+		maxTokens = MostTokensForAPlan
 	}
 
 	system, err := c.systemFor(planSystemPrompt, "plan", planSchema)
@@ -203,6 +213,11 @@ func (c *OpenAICompatible) WritePlan(ctx context.Context, req PlanRequest) (Plan
 	}
 	if answer.Stuck && len(answer.Steps) == 0 && !answer.Done {
 		return PlanAnswer{Stuck: true, Why: answer.Why}, nil
+	}
+	if len(answer.Steps) == 0 && !answer.Done {
+		if q := questionIn(answer.Why); q != nil {
+			return PlanAnswer{Question: q, Why: answer.Why}, nil
+		}
 	}
 	return PlanAnswer{
 		Steps: answer.Steps, Why: answer.Why,

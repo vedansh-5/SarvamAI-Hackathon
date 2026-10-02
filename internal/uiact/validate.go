@@ -76,6 +76,12 @@ func Validate(p Program, t Tree) error {
 			add("%s: %q is not something VANS does to a window", where, s.Do)
 			continue
 		}
+		if s.Switches() {
+			if strings.TrimSpace(s.App) == "" {
+				add("%s: it switches application without saying which", where)
+			}
+			continue
+		}
 
 		el, why := t.resolve(s.Target)
 		if why != "" {
@@ -100,9 +106,19 @@ func Validate(p Program, t Tree) error {
 			if !el.Pressable() {
 				add("%s: the %s %q cannot be pressed", where, el.Role, el.Title)
 			}
+		case "choose":
+			if !el.Pressable() {
+				add("%s: the %s %q cannot be pressed, so it opens no file chooser", where, el.Role, el.Title)
+			}
+			if strings.TrimSpace(s.Text) == "" {
+				add("%s: it chooses a file without giving its path", where)
+			}
 		case "press":
 			if _, ok := Keys[s.Key]; !ok {
 				add("%s: %q is not a key VANS presses", where, s.Key)
+			}
+			if NeedsCommand[s.Key] && !s.HoldsCommand() {
+				add("%s: %s is only pressed with Command held; a letter on its own is typed, not pressed", where, s.Key)
 			}
 			for _, name := range s.Modifiers {
 				if _, ok := Modifiers[name]; !ok {

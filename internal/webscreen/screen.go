@@ -70,6 +70,8 @@ type Screen struct {
 
 	RealClick func(x, y int)
 	RealType  func(text string)
+	RealKey   func(code int, flags uint64)
+	Choose    func(ctx context.Context, app, path string) error
 	Log       func(format string, args ...any)
 }
 
@@ -249,11 +251,55 @@ type act struct {
 }
 
 var domKeys = map[string]act{
-	"Enter":  {Key: "Enter", Code: "Enter", KeyCode: 13},
-	"Escape": {Key: "Escape", Code: "Escape", KeyCode: 27},
-	"Tab":    {Key: "Tab", Code: "Tab", KeyCode: 9},
-	"Space":  {Key: " ", Code: "Space", KeyCode: 32},
-	"Delete": {Key: "Backspace", Code: "Backspace", KeyCode: 8},
+	"Enter":    {Key: "Enter", Code: "Enter", KeyCode: 13},
+	"Escape":   {Key: "Escape", Code: "Escape", KeyCode: 27},
+	"Tab":      {Key: "Tab", Code: "Tab", KeyCode: 9},
+	"Space":    {Key: " ", Code: "Space", KeyCode: 32},
+	"Delete":   {Key: "Backspace", Code: "Backspace", KeyCode: 8},
+	"Up":       {Key: "ArrowUp", Code: "ArrowUp", KeyCode: 38},
+	"Down":     {Key: "ArrowDown", Code: "ArrowDown", KeyCode: 40},
+	"Left":     {Key: "ArrowLeft", Code: "ArrowLeft", KeyCode: 37},
+	"Right":    {Key: "ArrowRight", Code: "ArrowRight", KeyCode: 39},
+	"PageUp":   {Key: "PageUp", Code: "PageUp", KeyCode: 33},
+	"PageDown": {Key: "PageDown", Code: "PageDown", KeyCode: 34},
+	"Home":     {Key: "Home", Code: "Home", KeyCode: 36},
+	"End":      {Key: "End", Code: "End", KeyCode: 35},
+}
+
+func (s *Screen) pressForReal(ctx context.Context, step uiact.Step) error {
+	if s.RealKey == nil {
+		return fmt.Errorf("webscreen: this build cannot press %s on a page", step.Chord())
+	}
+	if s.Raise != nil {
+		if err := s.Raise(ctx, s.browser()); err != nil {
+			return err
+		}
+	}
+	s.RealKey(uiact.Keys[step.Key], step.HeldDown())
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(HandPause):
+	}
+	return nil
+}
+
+func (s *Screen) chooseFile(ctx context.Context, step uiact.Step, t uiact.Tree) error {
+	if s.RealClick == nil || s.Choose == nil {
+		return fmt.Errorf("webscreen: this build cannot choose a file on a page")
+	}
+	x, y, w, h, why := t.RectFor(step.Target)
+	if why != "" {
+		return &uiact.InvalidError{App: t.App, Reasons: []string{why}}
+	}
+	if s.Raise != nil {
+		if err := s.Raise(ctx, s.browser()); err != nil {
+			return err
+		}
+	}
+	s.logf("opening the file chooser with the real pointer, which is the only click a page accepts for it")
+	s.RealClick(x+w/2, y+h/2)
+	return s.Choose(ctx, s.browser(), step.Text)
 }
 
 func (s *Screen) send(ctx context.Context, a act) error {
@@ -288,6 +334,24 @@ func (s *Screen) Act(ctx context.Context, p uiact.Program, t uiact.Tree) error {
 
 	for _, step := range p.Steps {
 		a := act{Verb: strings.ToLower(strings.TrimSpace(step.Do)), Text: step.Text}
+
+		if step.Switches() {
+			continue
+		}
+		if step.Chooses() {
+			if err := s.chooseFile(ctx, step, t); err != nil {
+				return err
+			}
+			s.waitForAnAnswer(ctx, t)
+			continue
+		}
+		if a.Verb == "press" && uiact.NeedsCommand[step.Key] {
+			if err := s.pressForReal(ctx, step); err != nil {
+				return err
+			}
+			s.waitForAnAnswer(ctx, t)
+			continue
+		}
 
 		if a.Verb == "press" {
 			key, ok := domKeys[step.Key]

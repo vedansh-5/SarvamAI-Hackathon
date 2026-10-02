@@ -69,12 +69,12 @@ func sameSite(place, never string) bool {
 	return false
 }
 
-func (e *Engine) asksFirstIn(ctx context.Context, d *DrivePlan) string {
+func (e *Engine) asksFirstAt(ctx context.Context, places ...string) string {
 	r := e.rules(ctx)
 	if len(r.AskFirst) == 0 {
 		return ""
 	}
-	where, yes := forbidden(store.Rules{Never: r.AskFirst}, d.App, d.Browser)
+	where, yes := forbidden(store.Rules{Never: r.AskFirst}, places...)
 	if !yes {
 		return ""
 	}

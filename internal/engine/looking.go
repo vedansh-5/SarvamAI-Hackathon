@@ -75,6 +75,9 @@ func (e *Engine) lookingFor(ctx context.Context, in Ask) string {
 	if !refersToWhatIsInFront(in.Instruction) {
 		return ""
 	}
+	if files := e.filesSelectedIn(ctx, in.Context); len(files) > 0 {
+		return filesNote(files)
+	}
 	return whatTheyWereLookingAt(in.Context, e.selectionIn(ctx, in.Context))
 }
 

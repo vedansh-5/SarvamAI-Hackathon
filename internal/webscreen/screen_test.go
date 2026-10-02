@@ -283,3 +283,76 @@ func TestAPageThatAnswersIsNotClickedTwice(t *testing.T) {
 		t.Errorf("clicked for real %d time(s) on a page that had already answered", clicks)
 	}
 }
+
+func TestChoosingAFileOnAPageUsesTheRealPointerThenTheChooser(t *testing.T) {
+	var clicked [][2]int
+	var chosen []string
+	page := &fakePage{snap: snapshot{
+		Host: "site.example", Ready: "complete",
+		Controls: []control{{Role: "AXButton", Title: "Select files", Enabled: true, X: 100, Y: 200, W: 120, H: 40}},
+	}}
+	s := &Screen{
+		Page:      page,
+		RealClick: func(x, y int) { clicked = append(clicked, [2]int{x, y}) },
+		Choose: func(_ context.Context, app, path string) error {
+			chosen = append(chosen, app+" "+path)
+			return nil
+		},
+	}
+	quick(t)
+
+	tree, err := s.Capture(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	step := uiact.Step{Do: "choose", Target: uiact.Selector{Role: "AXButton", Title: "Select files"}, Text: "/tmp/clip.mp4"}
+	if err := s.Act(context.Background(), uiact.Program{App: tree.App, Steps: []uiact.Step{step}}, tree); err != nil {
+		t.Fatalf("Act: %v", err)
+	}
+	if len(clicked) != 1 || clicked[0] != [2]int{160, 220} {
+		t.Errorf("clicked = %v, want one real click in the middle of the button", clicked)
+	}
+	if len(chosen) != 1 || chosen[0] != "Google Chrome /tmp/clip.mp4" {
+		t.Errorf("chosen = %q, want the chooser worked in the browser with the path", chosen)
+	}
+	if n := scriptedActs(page); n != 0 {
+		t.Errorf("sent %d scripted act(s); a scripted click cannot open a file chooser", n)
+	}
+}
+
+func TestCopyAndPasteOnAPageArePressedForReal(t *testing.T) {
+	var pressed []int
+	page := &fakePage{snap: snapshot{
+		Host: "site.example", Ready: "complete",
+		Controls: []control{{Role: "AXTextField", Title: "Title", Enabled: true, X: 100, Y: 200, W: 120, H: 40}},
+	}}
+	s := &Screen{Page: page, RealKey: func(code int, _ uint64) { pressed = append(pressed, code) }}
+	quick(t)
+	pause := HandPause
+	HandPause = time.Millisecond
+	t.Cleanup(func() { HandPause = pause })
+
+	tree, _ := s.Capture(context.Background(), "")
+	field := uiact.Selector{Role: "AXTextField", Title: "Title"}
+	paste := uiact.Step{Do: "press", Key: "V", Modifiers: []string{"Command"}, Target: field}
+	down := uiact.Step{Do: "press", Key: "Down", Target: field}
+	if err := s.Act(context.Background(), uiact.Program{App: tree.App, Steps: []uiact.Step{paste, down}}, tree); err != nil {
+		t.Fatalf("Act: %v", err)
+	}
+	if len(pressed) != 1 || pressed[0] != uiact.Keys["V"] {
+		t.Errorf("pressed = %v, want Command-V as a real key", pressed)
+	}
+	if n := scriptedActs(page); n != 1 {
+		t.Errorf("sent %d scripted act(s), want the arrow key sent to the page", n)
+	}
+}
+
+func scriptedActs(p *fakePage) int {
+	n := 0
+	for _, script := range p.asked {
+		if strings.HasPrefix(script, actOnPage) {
+			n++
+		}
+	}
+	return n
+}

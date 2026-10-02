@@ -33,6 +33,9 @@ func Plan(p Program, t Tree) ([]Act, error) {
 
 	var out []Act
 	for i, step := range p.Steps {
+		if step.Switches() {
+			continue
+		}
 		el, why := t.resolve(step.Target)
 		if why != "" {
 			return nil, &InvalidError{App: t.App, Reasons: []string{why}}
@@ -58,6 +61,16 @@ func Plan(p Program, t Tree) ([]Act, error) {
 			if verb(step.Do) == "type" {
 				out = append(out, Act{Step: i, Do: "type", X: x, Y: y, Text: step.Text, Path: el.Path})
 			}
+
+		case "choose":
+			x, y, ok := t.ClickPoint(el)
+			if !ok {
+				return nil, &InvalidError{App: t.App, Reasons: []string{fmt.Sprintf(
+					"step %d: no part of the %s %q is visible on screen, so it cannot be clicked",
+					i+1, el.Role, el.Title)}}
+			}
+			out = append(out, Act{Step: i, Do: "click", X: x, Y: y, Path: el.Path})
+			out = append(out, Act{Step: i, Do: "choose", Text: step.Text})
 
 		case "press":
 			out = append(out, Act{Step: i, Do: "press", Code: Keys[step.Key], Flags: step.HeldDown()})
@@ -103,6 +116,10 @@ func RunScreen(ctx context.Context, r Runner, p Program, t Tree) error {
 			}
 		case "press":
 			keyPoster(a.Code, a.Flags)
+		case "choose":
+			if err := ChooseFile(ctx, r, t.App, a.Text); err != nil {
+				return err
+			}
 		}
 		if !pause(ctx, StepPause) {
 			return ctx.Err()
@@ -240,7 +257,7 @@ var frontWait = 800 * time.Millisecond
 
 func VerifyTargets(pid int, p Program, t Tree) error {
 	for i, step := range p.Steps {
-		if verb(step.Do) == "press" {
+		if verb(step.Do) == "press" || step.Switches() {
 			continue
 		}
 

@@ -2,6 +2,7 @@ package synth
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -26,7 +27,8 @@ func screenStepSchema(required ...string) map[string]any {
 	return map[string]any{
 		"type": "object",
 		"properties": map[string]any{
-			"do":     map[string]any{"type": "string", "enum": []string{"click", "type", "press"}},
+			"do":     map[string]any{"type": "string", "enum": []string{"click", "type", "press", "choose", "switch"}},
+			"app":    map[string]any{"type": "string"},
 			"target": selector,
 			"text":   map[string]any{"type": "string"},
 			"key":    map[string]any{"type": "string", "enum": uiact.KeyNames()},
@@ -109,4 +111,39 @@ func orList(names []string) string {
 		return strings.Join(names, "")
 	}
 	return strings.Join(names[:len(names)-1], ", ") + " or " + names[len(names)-1]
+}
+
+const MostOpenAppsListed = 16
+
+func writeOpenApps(b *strings.Builder, open []string, here string) {
+	var others []string
+	for _, name := range open {
+		if strings.EqualFold(strings.TrimSpace(name), strings.TrimSpace(here)) || len(others) == MostOpenAppsListed {
+			continue
+		}
+		others = append(others, name)
+	}
+	if len(others) == 0 {
+		return
+	}
+	b.WriteString("\nTHE OTHER OPEN APPLICATIONS\n  ")
+	b.WriteString(strings.Join(others, ", "))
+	b.WriteString("\n")
+}
+
+const (
+	MostTokensForAStep = 1200
+	MostTokensForAPlan = 3500
+)
+
+var asksThePerson = regexp.MustCompile(`(?i)(\?\s*$|^\s*(please|which|what|where|who|when|could you|can you|would you)\b|\b(please (provide|specify|tell|give|say|confirm|choose)|let me know|need(s)? to know|i need the|which (file|one|date|city|contact|account))\b)`)
+
+const longestQuestionFromWhy = 240
+
+func questionIn(why string) *Question {
+	why = strings.TrimSpace(why)
+	if why == "" || len([]rune(why)) > longestQuestionFromWhy || !asksThePerson.MatchString(why) {
+		return nil
+	}
+	return &Question{Ask: why}
 }

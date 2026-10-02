@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vedansh/vans/internal/names"
 	"github.com/vedansh/vans/internal/screen"
 	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
@@ -296,11 +297,23 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 	}
 
 	changed := e.watchTheWindow(ctx, g.App)
+	watching := g.App
 
-	point := func(ctx context.Context, tree uiact.Tree, program uiact.Program, number int, describe string) (uiact.Tree, error) {
+	point := func(ctx context.Context, on *Engine, tree uiact.Tree, program uiact.Program, number int, describe string) (uiact.Tree, error) {
 		step := program.Steps[0]
+		if step.Switches() {
+			if err := on.waitForTheSwitch(ctx, step.App, number+opened, describe, show, advance); err != nil {
+				return tree, err
+			}
+			changed, watching = on.watchTheWindow(ctx, step.App), step.App
+			return tree, nil
+		}
+		here := tree.App
+		if here != watching {
+			changed, watching = on.watchTheWindow(ctx, here), here
+		}
 		if tree.OutOfView(step.Target) {
-			scrolled, err := e.waitForTheScroll(ctx, g.App, tree, step, number+opened, show, advance, changed)
+			scrolled, err := on.waitForTheScroll(ctx, here, tree, step, number+opened, show, advance, changed)
 			if err != nil {
 				return tree, err
 			}
@@ -308,51 +321,56 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 		}
 		x, y, w, h, why := tree.RectFor(step.Target)
 		if why != "" {
-			return tree, stopped(g.App, "engine: %s", why)
+			return tree, stopped(here, "engine: %s", why)
 		}
 
 		// A step nobody has done yet is still the step. Pointing at it again
 		// costs nothing and asks the model for nothing; starting over from the
 		// first step because someone was slow is the behaviour being avoided.
 		offering := false
-		if e.Reply != nil {
+		if on.Reply != nil && !step.Chooses() {
 			if el, why := tree.Resolve(step.Target); why == "" {
 				offering = uiact.EntersAValue(step, el)
 			}
 		}
 		if offering {
 			select {
-			case <-e.Reply:
+			case <-on.Reply:
 			default:
 			}
+		}
+
+		verb, detail := step.Do, detailOf(step)
+		if step.Chooses() {
+			verb, detail = "click", "then choose "+step.Text
 		}
 
 		for attempt := 1; ; attempt++ {
 			show(clearOfTheMenu(GuideStep{
 				Number: number + opened, Label: describe,
 				X: x, Y: y, W: w, H: h,
-				Do: step.Do, Detail: detailOf(step),
+				Do: verb, Detail: detail,
 				Offer: offering,
 			}, tree))
 
 			var reply <-chan bool
 			if offering {
-				reply = e.Reply
+				reply = on.Reply
 			}
 
 			// The hand is theirs. Nothing is clicked here — the next step is only
 			// worked out once the window shows they have done this one.
-			err := e.waitForTheUserToAct(ctx, g.App, tree, step, advance, changed, reply)
+			err := on.waitForTheUserToAct(ctx, here, tree, step, advance, changed, reply)
 			if errors.Is(err, errOfferTaken) {
-				e.logf("step %d: doing this one for you", number)
-				if err := e.UIScreen.Act(ctx, program, tree); err != nil {
+				on.logf("step %d: doing this one for you", number)
+				if err := on.UIScreen.Act(ctx, program, tree); err != nil {
 					return tree, err
 				}
-				e.waitForTheWindowToAnswer(ctx, g.App, tree, changed)
+				on.waitForTheWindowToAnswer(ctx, here, tree, changed)
 				return tree, nil
 			}
 			if errors.Is(err, errOfferDeclined) {
-				e.logf("step %d: yours to do", number)
+				on.logf("step %d: yours to do", number)
 				offering = false
 				attempt = 0
 				continue
@@ -361,9 +379,9 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 				return tree, err
 			}
 			if attempt >= timesToRepeatAStep {
-				return tree, stopped(g.App, "engine: nothing happened in %s, so the steps stopped", g.App)
+				return tree, stopped(here, "engine: nothing happened in %s, so the steps stopped", here)
 			}
-			e.logf("still on step %d: %s", number, describe)
+			on.logf("still on step %d: %s", number, describe)
 		}
 	}
 	// Planned once, up front. Without it the next step was only worked out after
@@ -741,4 +759,52 @@ var whereIsIt = regexp.MustCompile(`(?i)^\s*(please\s+)?(where('s|\s+is|\s+are|\
 
 func asksWhere(question string) bool {
 	return whereIsIt.MatchString(question)
+}
+
+func (e *Engine) frontApp(ctx context.Context) string {
+	name, err := e.nativeScreen().Frontmost(ctx)
+	if err != nil {
+		return ""
+	}
+	return name
+}
+
+func (e *Engine) waitForTheSwitch(ctx context.Context, app string, number int, describe string, show func(GuideStep), advance <-chan struct{}) error {
+	there := func() bool {
+		if !names.Same(e.frontApp(ctx), app) {
+			return false
+		}
+		tree, err := e.UIScreen.Capture(ctx, app)
+		return err == nil && len(tree.Elements) > 0
+	}
+	if advance != nil {
+		select {
+		case <-advance:
+		default:
+		}
+	}
+
+	label := strings.TrimSpace(describe)
+	if label == "" {
+		label = "Switch to " + app
+	}
+	for attempt := 1; attempt <= timesToRepeatAStep; attempt++ {
+		show(GuideStep{Number: number, Label: label, Do: "open", Detail: app})
+
+		deadline := time.Now().Add(openAppTimeout)
+		for time.Now().Before(deadline) {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-advance:
+			case <-time.After(guidePoll):
+			}
+			if there() {
+				e.logf("%s is in front; carrying on", app)
+				return nil
+			}
+		}
+		e.logf("still waiting for %s to be brought to the front", app)
+	}
+	return stopped(app, "engine: %s was never brought to the front, so the steps stopped", app)
 }

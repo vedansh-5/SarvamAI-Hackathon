@@ -78,6 +78,12 @@ func (System) ClickAt(x, y int) { clickPoster(x, y) }
 
 func (System) TypeText(text string) { textPoster(text) }
 
+func (System) PressKey(code int, flags uint64) { keyPoster(code, flags) }
+
+func (s System) ChooseFile(ctx context.Context, app, path string) error {
+	return ChooseFile(ctx, s.Runner, app, path)
+}
+
 type SelectionReader interface {
 	Selection(ctx context.Context, app string) (string, bool)
 }

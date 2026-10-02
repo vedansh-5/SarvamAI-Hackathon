@@ -19,6 +19,7 @@ type Step struct {
 	Describe  string   `json:"describe,omitempty"`
 	Final     bool     `json:"final,omitempty"`
 	Fill      bool     `json:"fill,omitempty"`
+	App       string   `json:"app,omitempty"`
 }
 
 type Selector struct {
@@ -28,19 +29,50 @@ type Selector struct {
 }
 
 var Verbs = map[string]bool{
-	"click": true,
-	"type":  true,
-	"press": true,
+	"click":  true,
+	"type":   true,
+	"press":  true,
+	"choose": true,
+	"switch": true,
 }
+
+func (s Step) Switches() bool { return verb(s.Do) == "switch" }
+
+func (s Step) Chooses() bool { return verb(s.Do) == "choose" }
+
+func (s Step) HoldsCommand() bool {
+	for _, name := range s.Modifiers {
+		if name == "Command" {
+			return true
+		}
+	}
+	return false
+}
+
+var NeedsCommand = map[string]bool{"A": true, "C": true, "V": true, "X": true, "Z": true, "F": true}
 
 // Virtual key codes, and the CGEventFlags that go with a held modifier. Both
 // are stable parts of the platform ABI rather than values to look up at runtime.
 var Keys = map[string]int{
-	"Delete": 51,
-	"Enter":  36,
-	"Escape": 53,
-	"Space":  49,
-	"Tab":    48,
+	"Delete":   51,
+	"Enter":    36,
+	"Escape":   53,
+	"Space":    49,
+	"Tab":      48,
+	"Up":       126,
+	"Down":     125,
+	"Left":     123,
+	"Right":    124,
+	"PageUp":   116,
+	"PageDown": 121,
+	"Home":     115,
+	"End":      119,
+	"A":        0,
+	"C":        8,
+	"V":        9,
+	"X":        7,
+	"Z":        6,
+	"F":        3,
 }
 
 var Modifiers = map[string]uint64{

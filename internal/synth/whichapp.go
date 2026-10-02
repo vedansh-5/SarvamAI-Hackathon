@@ -53,6 +53,7 @@ Rules:
 
 - Name an application from the installed list, spelled exactly as it appears there. A name that is not on the list cannot be opened or read, so it is not an answer.
 - A request that names an application is about that application, open or not.
+- A task that goes from one application to another, such as copying from one and pasting into the other, is started in the one it takes from. Name that one.
 - The Mac's own appearance, wallpaper, network, sound, keyboard, displays, privacy and accounts are done in System Settings. The bare word "settings" or "preferences" is not that: with an application in front, it means that application's settings.
 - Being asked this question is not a reason to send them somewhere else.
 - That the application in front does not do this is never a reason to set nowhere. It is the reason to look through the two lists.

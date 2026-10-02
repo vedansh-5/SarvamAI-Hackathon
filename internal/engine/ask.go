@@ -399,6 +399,14 @@ func (e *Engine) ask(ctx context.Context, in Ask) (*Plan, error) {
 				r.Slots["app"] = front
 			}
 		}
+		if plan, ok, err := e.acrossApps(ctx, in, r, res.Shape); ok {
+			if err != nil {
+				return nil, err
+			}
+			plan.Route = &r
+			plan.DecisionCalls = res.DecisionCalls
+			return plan, nil
+		}
 		if e.canAct() {
 			plan, calls, err := e.actInApplication(ctx, r, res.Shape)
 			if err != nil {

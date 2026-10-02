@@ -20,6 +20,10 @@ What a step may be:
 - click a control
 - type text into a control, which clicks it first
 - %s
+- choose a file: do is choose, the target is the control that opens the file chooser (Upload, Attach, Select files, Browse), and text is the file's full path. The chooser itself is worked for you, so never click that control as a step of its own: a click leaves a chooser open that nothing can work. Only a file the person named may be chosen. If the task needs a file and they have not said which, ask for its path before anything else.
+- switch to another application: do is switch, app is its name exactly as it is listed under the other open applications, and target is {"role": "AXApplication"}. Use it when the task moves from one application to another. The screen you are shown next is that application's window.
+
+Command-C copies what is selected, Command-V pastes it where the cursor is, and Command-A selects everything in the field with the cursor. That is how something is carried from one place to another, including between two applications. A letter key is only ever pressed with Command held.
 
 Rules that decide whether your step is usable:
 
@@ -37,6 +41,8 @@ Rules that decide whether your step is usable:
 - Never give a step that is already listed under what has been done. Being listed there means it happened, whatever the screen looks like now — a search field still holding the word that was typed into it is the result of that step, not a reason to type it again. Give the step that follows it.
 
 ` + askingRule + `
+
+Keep why to one short line. Decide first, then say it: reasoning written out in why is thrown away with the rest of the answer.
 
 Every answer is a step, a question or a stop. If done is false you must give a step; an answer with neither is not an answer, and it is thrown away.
 
@@ -64,6 +70,7 @@ type StepRequest struct {
 	Tree     uiact.Tree
 	Done     []string
 	Failures []string
+	Open     []string
 }
 
 type StepAnswer struct {
@@ -95,6 +102,8 @@ func BuildStepPrompt(req StepRequest) string {
 	b.WriteString("\nWHAT IS ON SCREEN NOW\n")
 	b.WriteString(req.Tree.TextWithin(uiact.MaxTreeBytes))
 
+	writeOpenApps(&b, req.Open, req.Tree.App)
+
 	if len(req.Failures) > 0 {
 		b.WriteString("\nYOUR LAST STEP WAS REJECTED\n")
 		for _, f := range req.Failures {
@@ -113,7 +122,7 @@ func (c *OpenAICompatible) WriteStep(ctx context.Context, req StepRequest) (Step
 
 	maxTokens := c.MaxTokens
 	if maxTokens == 0 {
-		maxTokens = int(DefaultMaxTokens)
+		maxTokens = MostTokensForAStep
 	}
 
 	system, err := c.systemFor(driveSystemPrompt, "step", driveSchema)
@@ -163,6 +172,9 @@ func (c *OpenAICompatible) WriteStep(ctx context.Context, req StepRequest) (Step
 		out.Step = *answer.Step
 	}
 	if !out.Done && answer.Step == nil {
+		if q := questionIn(answer.Why); q != nil {
+			return StepAnswer{Question: q, Why: answer.Why}, nil
+		}
 		return StepAnswer{}, &NoStepError{Why: strings.TrimSpace(answer.Why)}
 	}
 	return out, nil

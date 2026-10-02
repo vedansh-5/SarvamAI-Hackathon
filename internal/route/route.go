@@ -141,7 +141,7 @@ var Specs = []Spec{
 	},
 	{
 		Kind:     KindAppAction,
-		Describe: "Do something inside a macOS application, the way a person would, by clicking and typing in its window: send a message in WhatsApp or Messages, add a reminder, play a song, type into a document, change a setting. Any application counts, named or in front. Not for websites: something done on a site is page.act.",
+		Describe: "Do something inside a macOS application, the way a person would, by clicking and typing in its window: send a message in WhatsApp or Messages, add a reminder, play a song, type into a document, change a setting, attach a file, or carry something from one application into another (copy this from Notes into WhatsApp). Any application counts, named or in front. Not for websites: something done on a site is page.act.",
 		Slots: []Slot{
 			{"app", "the application to act in, if named; otherwise the application in front", false},
 			{"action", "what to do there, in plain words", true},

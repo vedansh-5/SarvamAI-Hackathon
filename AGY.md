@@ -1418,8 +1418,8 @@ No local model runtimes (§11 still holds); these come first.
   is blind.
 - B2. **Built (D-170).** Real mouse and keyboard as the fallback on pages that
   ignore scripted input.
-- B3. Choosing files, for uploads.
-- B4. Tasks across two applications.
+- B3. **Built (D-197), not yet tried against a real file chooser.** Choosing files, for uploads.
+- B4. **Built (D-198), not yet tried live.** Tasks across two applications.
 - B5. **Safari built (D-180), not tried against Safari itself.** Safari and other browsers.
 - B6. **Menu bar built (D-179); system controls are not.** The menu bar and system controls.
 - B7. Files and Finder tasks.

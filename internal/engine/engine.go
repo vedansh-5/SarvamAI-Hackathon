@@ -145,6 +145,9 @@ type Engine struct {
 
 	PageScreen uiact.Screen
 
+	native uiact.Screen
+	onPage bool
+
 	Eyes      uiact.Screen
 	UIActions UIActionCache
 	Steps     StepWriter
