@@ -87,6 +87,10 @@ func placesOf(plan *Plan) []string {
 		return []string{plan.Drive.App, plan.Drive.Browser, hostOf(plan.Drive.Open)}
 	case plan.UI != nil:
 		return []string{plan.UI.App}
+	case plan.Files != nil:
+		return []string{whereFilesLive, "Files"}
+	case plan.Setting != nil:
+		return []string{"System Settings", "Settings"}
 	case plan.Action != nil:
 		return []string{plan.Action.App}
 	case plan.Web != nil:

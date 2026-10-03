@@ -70,6 +70,10 @@ func kindOf(plan *Plan) string {
 		return "window"
 	case plan.Drive != nil:
 		return "steps"
+	case plan.Files != nil:
+		return "files"
+	case plan.Setting != nil:
+		return "setting"
 	case plan.Action != nil:
 		return "application"
 	default:
@@ -87,6 +91,10 @@ func whereItHappened(plan *Plan, receipt Receipt) string {
 		return plan.UI.App
 	case plan.Drive != nil:
 		return plan.Drive.App
+	case plan.Files != nil:
+		return whereFilesLive
+	case plan.Setting != nil:
+		return whereSettingsLive
 	case plan.Action != nil:
 		return plan.Action.App
 	}
@@ -108,6 +116,10 @@ func previewOf(plan *Plan) string {
 		return plan.UI.Preview
 	case plan.Drive != nil:
 		return plan.Drive.Preview
+	case plan.Files != nil:
+		return plan.Files.Preview
+	case plan.Setting != nil:
+		return plan.Setting.Preview
 	case plan.Action != nil:
 		return plan.Action.Preview
 	default:
@@ -126,6 +138,12 @@ func previewOf(plan *Plan) string {
 func undoFor(plan *Plan) string {
 	if plan.Style != nil && !plan.Style.Clears {
 		return marshalUndo(howToUndo{Kind: undoByClearingTheStyle})
+	}
+	if plan.Files != nil && len(plan.Files.done) > 0 {
+		return marshalUndo(howToUndo{Kind: undoByMovingFilesBack, Files: plan.Files.done})
+	}
+	if plan.Setting != nil {
+		return marshalUndo(howToUndo{Kind: undoBySettingItBack, Setting: plan.Setting.Setting, Was: plan.Setting.Was})
 	}
 	return ""
 }

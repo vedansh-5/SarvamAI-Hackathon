@@ -4463,3 +4463,55 @@ Also here: an answer is capped at 1,200 tokens for a step and 3,500 for a plan,
 after a reply that reasoned in its "why" until it ran out at 16,000; and a
 question written into "why" with nothing else is put to the person instead of
 being thrown away, because that is what it was.
+
+## D-199 — File tasks are done as operations on files, not as clicks in Finder
+
+"Move the screenshots on my Desktop into a folder" could be driven through
+Finder's window like any other application. It would be slow, it would depend on
+what view Finder happens to be in, and nothing it did could be listed before it
+was done or reversed after. Files are the one thing on a Mac where the exact
+change can be written down first.
+
+So `files.do` is its own kind. The folders the request names are read (Desktop,
+Downloads and the like, a path, or the folder of what is selected in Finder):
+names, sizes, dates, never contents, at most three folders and four hundred
+items each. The model writes a list of operations from five: move, rename, copy,
+trash, mkdir. The list is checked before anyone sees it, and the model cannot
+lower any of it:
+
+- what an operation acts on must be an item that was shown, or something an
+  earlier operation in the list made;
+- where it goes must be a folder that was shown or made in the list;
+- nothing is overwritten, and nothing leaves the home folder;
+- hidden files and Library are never touched;
+- there is no delete. Trash moves the item to the Bin.
+
+What survives is shown as the confirmation, line by line. Before it runs the
+folders are read again and the list checked again, so a folder that changed in
+between stops the run with nothing done. The first failure stops the rest. What
+did run is written down as its own inverse, and History puts it back: moves and
+renames reversed, copies and made folders removed, binned items returned.
+
+A request that names no folder is asked which, with no model call. Sorting or
+tidying with no names given lets the model choose plain folder names, because
+choosing them is what was asked; it asks only when two items could both be the
+one meant.
+
+Checked against the model on a temporary folder. Not yet run on a real one.
+
+## D-200 — Four settings are changed directly, with what they were kept
+
+Volume, mute, dark or light appearance and Wi-Fi each have a command that reads
+them and one that sets them. Walking System Settings for these costs a dozen
+steps and several model calls to do what one line does exactly, so `system.set`
+does that line: read the value, work out the new one from what was said ("up" is
+ten more, "half" is fifty), confirm with both shown, set, read back.
+
+The model only picks the kind and passes on the words; which setting and what
+value are worked out by code, and a value out of range is never sent. What it
+was is kept, so History puts it back. A setting already as asked changes nothing
+and says so. Turning Wi-Fi off says first that VANS can do little without it.
+
+Only those four. Anything else is declined with what can be changed, and "how do
+I" is still coached in System Settings. Reading all four was checked on this
+Mac; setting them was checked against a stand-in only.

@@ -57,6 +57,10 @@ const (
 
 	KindText Kind = "text.work"
 
+	KindFiles Kind = "files.do"
+
+	KindSetting Kind = "system.set"
+
 	// KindUnknown is the honest answer. The router is allowed to say it does
 	// not know, and saying so is better than routing to the nearest kind and
 	// failing somewhere the user cannot interpret.
@@ -115,6 +119,22 @@ var Specs = []Spec{
 		Describe: "Work on a piece of text and give the result back as words, touching nothing on screen: translate it, rewrite or shorten it, fix its spelling and grammar, summarise or explain it, or draft a reply to it. The text is what the user has selected, or what they wrote in the instruction itself (\"translate this to Hindi\", \"make this sound more formal\", \"what does this mean\"). Use this whenever what is wanted back is words rather than an action. Never app.act or page.act for these: no application is being asked to do anything.",
 		Slots: []Slot{
 			{"intent", "what to do with the text, in plain words", true},
+		},
+	},
+	{
+		Kind:     KindFiles,
+		Describe: "Move, rename, copy or bin files and folders, or make a folder, in the folders of this Mac: tidy the Desktop, sort Downloads into folders, rename a file, bin what was named. For files as Finder shows them, not for something inside another application's window. Nothing is overwritten or deleted for good, and it can be undone.",
+		Slots: []Slot{
+			{"intent", "what to do with the files, in plain words", true},
+			{"folder", "the folder named in the instruction, such as Desktop or Downloads, or a path; empty if none is named", false},
+		},
+	},
+	{
+		Kind:     KindSetting,
+		Describe: "Change one of the Mac's own quick settings straight away: the sound volume, mute, dark or light appearance, or Wi-Fi on and off. Only those four, and only when the instruction is to change it (\"turn the volume down\", \"switch to dark mode\", \"turn off wifi\"). A question about how or where is app.guide, and any other setting is done in System Settings.",
+		Slots: []Slot{
+			{"setting", "which one: volume, mute, dark mode or wifi", true},
+			{"value", "what to set it to, as said: a number, on, off, up, down, dark, light", false},
 		},
 	},
 	{

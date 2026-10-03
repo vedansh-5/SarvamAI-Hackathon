@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vedansh/vans/internal/fileops"
 	"github.com/vedansh/vans/internal/store"
 )
 
@@ -35,10 +36,16 @@ var ErrCannotBeUndone = errors.New("engine: that cannot be undone")
 type howToUndo struct {
 	Kind string `json:"kind"`
 	App  string `json:"app,omitempty"`
+
+	Files   []fileops.Done `json:"files,omitempty"`
+	Setting string         `json:"setting,omitempty"`
+	Was     string         `json:"was,omitempty"`
 }
 
 const (
 	undoByClearingTheStyle = "restyle"
+	undoByMovingFilesBack  = "files"
+	undoBySettingItBack    = "setting"
 )
 
 func marshalUndo(u howToUndo) string {
@@ -98,6 +105,13 @@ func (e *Engine) putItBack(ctx context.Context, how howToUndo) error {
 	switch how.Kind {
 	case undoByClearingTheStyle:
 		return e.ClearStyle(ctx)
+	case undoByMovingFilesBack:
+		return fileops.Reverse(how.Files)
+	case undoBySettingItBack:
+		if !e.canSet() {
+			return fmt.Errorf("%w: this build cannot change settings", ErrCannotBeUndone)
+		}
+		return e.Settings.Set(ctx, how.Setting, how.Was)
 	default:
 		return fmt.Errorf("%w: nothing here knows how to reverse a %q", ErrCannotBeUndone, how.Kind)
 	}

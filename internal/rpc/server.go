@@ -443,6 +443,12 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 		}
 	case plan.Style != nil:
 		action = plan.Style.Preview
+	case plan.Files != nil:
+		action = plan.Files.Preview
+		app = "Finder"
+	case plan.Setting != nil:
+		action = plan.Setting.Preview
+		app = "this Mac"
 	case plan.Guide != nil:
 		action = plan.Guide.Preview
 		app = plan.Guide.App

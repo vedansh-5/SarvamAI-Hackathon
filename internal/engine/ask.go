@@ -284,6 +284,32 @@ func (e *Engine) ask(ctx context.Context, in Ask) (*Plan, error) {
 		plan.DecisionCalls = res.DecisionCalls
 		return plan, nil
 
+	case route.KindFiles:
+		if !e.canDoFiles() {
+			break
+		}
+		plan, err := e.planFiles(ctx, in, res.Route.Slot("folder"))
+		if err != nil {
+			return nil, err
+		}
+		r := res.Route
+		plan.Route = &r
+		plan.DecisionCalls = res.DecisionCalls
+		return plan, nil
+
+	case route.KindSetting:
+		if !e.canSet() {
+			break
+		}
+		plan, err := e.planSetting(ctx, in.Instruction, res.Route.Slot("setting"), res.Route.Slot("value"))
+		if err != nil {
+			return nil, err
+		}
+		r := res.Route
+		plan.Route = &r
+		plan.DecisionCalls = res.DecisionCalls
+		return plan, nil
+
 	case route.KindWebExtract:
 		plan, err := e.Prepare(ctx, Task{
 			URL:         res.Route.Slot("url"),
@@ -465,6 +491,10 @@ func (e *Engine) canRun(k route.Kind) bool {
 		return true
 	case route.KindText:
 		return e.canWorkOnText()
+	case route.KindFiles:
+		return e.canDoFiles()
+	case route.KindSetting:
+		return e.canSet()
 	case route.KindPageAction:
 		_, ok := e.pageDriver()
 		return (ok && e.WebWriter != nil) || e.canDrivePages()

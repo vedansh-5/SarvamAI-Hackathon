@@ -159,6 +159,9 @@ type Engine struct {
 
 	Texts TextWorker
 
+	FileOps  FileWriter
+	Settings MacSettings
+
 	// Deeds is what VANS has done. Without one nothing is remembered, and
 	// nothing else changes — recording is not a precondition for acting.
 	Deeds Ledger
@@ -327,6 +330,9 @@ type Plan struct {
 	Action *ActionPlan
 
 	UI *UIPlan
+
+	Files   *FilesPlan
+	Setting *SettingPlan
 
 	Drive *DrivePlan
 
@@ -605,6 +611,16 @@ func (e *Engine) carryOut(ctx context.Context, plan *Plan) (Receipt, error) {
 		return e.runDrive(ctx, plan)
 	}
 
+	if plan.Files != nil {
+		plan.committed = true
+		return e.runFiles(ctx, plan)
+	}
+
+	if plan.Setting != nil {
+		plan.committed = true
+		return e.runSetting(ctx, plan)
+	}
+
 	if plan.Action != nil {
 		// Set before the call, not after: if the program panics or the
 		// process dies mid-flight the plan is still spent, because the change
@@ -679,8 +695,11 @@ func (p *Plan) NeedsCommit() bool {
 		return true
 	}
 
-	if p.Drive != nil {
+	if p.Drive != nil || p.Files != nil || p.Setting != nil {
 		return true
+	}
+	if p.Say != "" {
+		return false
 	}
 	return p.Destination != "" && p.Destination != PanelDestination
 }

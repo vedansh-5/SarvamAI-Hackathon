@@ -1421,8 +1421,8 @@ No local model runtimes (§11 still holds); these come first.
 - B3. **Built (D-197), not yet tried against a real file chooser.** Choosing files, for uploads.
 - B4. **Built (D-198), not yet tried live.** Tasks across two applications.
 - B5. **Safari built (D-180), not tried against Safari itself.** Safari and other browsers.
-- B6. **Menu bar built (D-179); system controls are not.** The menu bar and system controls.
-- B7. Files and Finder tasks.
+- B6. **Menu bar built (D-179); volume, mute, appearance and Wi-Fi set directly (D-200); other system controls are not.** The menu bar and system controls.
+- B7. **Built (D-199), not yet run on a real folder.** Files and Finder tasks.
 - B8. Several displays, tested.
 
 **C. Voice.** C1. Voice in (hold ⌥Space and talk). C2. Voice out (steps read

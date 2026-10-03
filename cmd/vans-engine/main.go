@@ -26,6 +26,7 @@ import (
 	"github.com/vedansh/vans/internal/engine"
 	"github.com/vedansh/vans/internal/extract"
 	"github.com/vedansh/vans/internal/eyes"
+	"github.com/vedansh/vans/internal/macset"
 	"github.com/vedansh/vans/internal/route"
 	"github.com/vedansh/vans/internal/rpc"
 	"github.com/vedansh/vans/internal/store"
@@ -180,6 +181,11 @@ func run() error {
 		texts = t
 	}
 
+	var fileOps engine.FileWriter
+	if f, ok := synthesizer.(engine.FileWriter); ok {
+		fileOps = f
+	}
+
 	srv := &rpc.Server{
 		Engine: &engine.Engine{
 			Browser: browser,
@@ -203,6 +209,8 @@ func run() error {
 			History:    st,
 			Chooser:    chooser,
 			Texts:      texts,
+			FileOps:    fileOps,
+			Settings:   macset.Mac{},
 			Deeds:      st,
 			Recorded:   st,
 			Traces:     st,
