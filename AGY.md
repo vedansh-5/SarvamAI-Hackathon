@@ -1454,9 +1454,16 @@ aloud).
 
 **F. A product.**
 
-- F1. Something installable and signed, with the key in the Keychain.
-- F2. First-run setup without a terminal.
-- F3. A choice of model, and what each task cost.
+- F1. Something installable and signed, with the key in the Keychain. **Parked on
+  2026-10-03 until testers are close.** The outline agreed: a compiled app with the
+  repository kept private; an updater so a published build reaches testers without a
+  reinstall; no paid Developer ID for friends, who allow it once in System Settings;
+  every build signed with one self-signed certificate so the Accessibility permission
+  survives an update, which has to be proven on this macOS before anyone gets a
+  build. Open: where release files are hosted, and when the Developer ID is worth
+  paying for.
+- F2. **Built (D-201).** First-run setup without a terminal.
+- F3. **Built (D-201, D-202).** A choice of model, and what each task cost.
 - F4. Background runs. Last on purpose: not safe before D1.
 
 **Order being followed:** A1–A3 now; then B1; then C; then F1; with D5 and E2

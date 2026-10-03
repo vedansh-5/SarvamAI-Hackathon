@@ -27,6 +27,9 @@ interface Plan {
   synthesis_calls: number;
   from_cache: boolean;
   elapsed_ms: number;
+  tokens_in?: number;
+  tokens_out?: number;
+  cost?: number;
   destination: string;
   needs_commit: boolean;
   kind: string;
@@ -70,6 +73,9 @@ interface StepWork {
   steps: number;
   replayed: number;
   calls: number;
+  tokens_in?: number;
+  tokens_out?: number;
+  cost?: number;
 }
 
 interface Attempt {
@@ -1008,7 +1014,7 @@ function documentText(plan: Plan): string {
 
 function timing(plan: Plan): string {
   const calls = plan.synthesis_calls + plan.decision_calls;
-  const cost = calls === 0 ? "no model calls" : `${calls} model call${calls === 1 ? "" : "s"}`;
+  const cost = (calls === 0 ? "no model calls" : `${calls} model call${calls === 1 ? "" : "s"}`) + spent(plan);
   return `${cost}, ${plan.elapsed_ms} ms — page signature ${plan.signature}`;
 }
 
@@ -1102,13 +1108,29 @@ async function confirmWrite() {
 function howItWent(work?: StepWork): string {
   if (!work || work.steps === 0) return "";
 
-  const asked = work.calls === 1 ? "1 model call" : `${work.calls} model calls`;
+  const asked = (work.calls === 1 ? "1 model call" : `${work.calls} model calls`) + spent(work);
 
   if (work.replayed === 0) return `${plural(work.steps, "step")}, ${asked}`;
   if (work.replayed === work.steps && work.calls === 0) {
     return `all ${plural(work.steps, "step")} from last time, nothing asked`;
   }
   return `${work.replayed} of ${plural(work.steps, "step")} from last time, ${asked}`;
+}
+
+function tokens(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}k tokens` : `${n} tokens`;
+}
+
+function money(cost: number): string {
+  if (cost >= 0.01) return `$${cost.toFixed(2)}`;
+  if (cost >= 0.0001) return `$${cost.toFixed(4)}`;
+  return "under $0.0001";
+}
+
+function spent(work: { tokens_in?: number; tokens_out?: number; cost?: number }): string {
+  const used = (work.tokens_in ?? 0) + (work.tokens_out ?? 0);
+  if (used === 0) return "";
+  return work.cost ? `, ${tokens(used)}, ${money(work.cost)}` : `, ${tokens(used)}`;
 }
 
 function plural(n: number, word: string): string {
@@ -2044,8 +2066,91 @@ $("rules-save").addEventListener("click", async () => {
   }
 });
 void loadRules();
+void loadModel();
 
 $("show-history").addEventListener("click", showHistory);
+interface ModelStatus {
+  configured: boolean;
+  source: string;
+  base_url: string;
+  model: string;
+  fast_model: string;
+  fallback_model: string;
+  has_key: boolean;
+  key_hint: string;
+  price_in: number;
+  price_out: number;
+}
+
+function field(id: string): HTMLInputElement {
+  return $(id) as HTMLInputElement;
+}
+
+function showModel(m: ModelStatus) {
+  field("model-key").value = "";
+  field("model-key").placeholder = m.has_key ? `Key saved (${m.key_hint || "hidden"}). Paste a new one to replace it` : "Paste your model key";
+  field("model-name").value = m.model ?? "";
+  field("model-base").value = m.base_url ?? "";
+  field("model-fast").value = m.fast_model ?? "";
+  field("model-fallback").value = m.fallback_model ?? "";
+  field("model-price-in").value = m.price_in ? String(m.price_in) : "";
+  field("model-price-out").value = m.price_out ? String(m.price_out) : "";
+  $("model-forget").hidden = !(m.has_key && m.source === "saved");
+  $("model-note").textContent =
+    m.source === "environment"
+      ? "The model is set by the environment this copy was started with. Saving here applies until it is restarted."
+      : "VANS needs a key for the model it thinks with. It is kept in your Mac\u2019s Keychain and sent only to that model.";
+}
+
+async function loadModel() {
+  try {
+    showModel(await invoke<ModelStatus>("model_settings"));
+  } catch {
+    // A build that takes its model from the environment has nothing to show.
+  }
+}
+
+function price(id: string): number {
+  return Number(field(id).value.replace(/[^0-9.]/g, "")) || 0;
+}
+
+$("model-save").addEventListener("click", async () => {
+  const button = $("model-save") as HTMLButtonElement;
+  button.disabled = true;
+  $("model-saved").textContent = "Testing\u2026";
+  try {
+    const status = await invoke<ModelStatus>("set_model_settings", {
+      apiKey: field("model-key").value.trim(),
+      baseUrl: field("model-base").value.trim(),
+      model: field("model-name").value.trim(),
+      fastModel: field("model-fast").value.trim(),
+      fallbackModel: field("model-fallback").value.trim(),
+      priceIn: price("model-price-in"),
+      priceOut: price("model-price-out"),
+    });
+    showModel(status);
+    $("model-saved").textContent = "Saved. The model answered.";
+    runPreflight(false);
+  } catch (e) {
+    $("model-saved").textContent = isRpcError(e) ? withoutThePrefix(e.message) : String(e);
+  } finally {
+    button.disabled = false;
+    fitWindow();
+  }
+});
+
+$("model-forget").addEventListener("click", async () => {
+  try {
+    showModel(await invoke<ModelStatus>("forget_model_key"));
+    $("model-saved").textContent = "Key removed";
+    runPreflight(false);
+  } catch (e) {
+    $("model-saved").textContent = isRpcError(e) ? withoutThePrefix(e.message) : String(e);
+  }
+});
+
+$("model-more").addEventListener("toggle", () => fitWindow());
+
 $("history-back").addEventListener("click", () => show("preflight"));
 
 $("recheck").addEventListener("click", () => runPreflight(false));

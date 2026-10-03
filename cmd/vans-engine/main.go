@@ -26,9 +26,11 @@ import (
 	"github.com/vedansh/vans/internal/engine"
 	"github.com/vedansh/vans/internal/extract"
 	"github.com/vedansh/vans/internal/eyes"
+	"github.com/vedansh/vans/internal/keychain"
 	"github.com/vedansh/vans/internal/macset"
 	"github.com/vedansh/vans/internal/route"
 	"github.com/vedansh/vans/internal/rpc"
+	"github.com/vedansh/vans/internal/setup"
 	"github.com/vedansh/vans/internal/store"
 	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
@@ -109,9 +111,26 @@ func run() error {
 	// A missing key is reported by preflight rather than refused at startup.
 	// The shell needs to open and explain what to fix; exiting here would give
 	// it nothing to show.
-	synthesizer, synthErr := synth.FromEnv()
-	if synthErr != nil {
-		synthesizer = unconfigured{err: synthErr}
+	var (
+		synthesizer synth.Synthesizer
+		synthErr    error
+		model       *setup.Model
+		meter       *synth.Usage
+	)
+	if os.Getenv(synth.EnvProvider) == "anthropic" {
+		synthesizer, synthErr = synth.FromEnv()
+		if synthErr != nil {
+			synthesizer = unconfigured{err: synthErr}
+		}
+	} else {
+		llm := synth.NewLive()
+		wait, mode := synth.WaitAndModeFromEnv()
+		model = &setup.Model{
+			Live: llm, Keys: keychain.System{}, Saved: st, Env: os.Getenv,
+			Wait: wait, Mode: mode,
+		}
+		model.Load(ctx)
+		synthesizer, meter = llm, llm.Meter
 	}
 
 	// The router shares the store, so a routing decision and an extraction
@@ -211,6 +230,7 @@ func run() error {
 			Texts:      texts,
 			FileOps:    fileOps,
 			Settings:   macset.Mac{},
+			Meter:      meter,
 			Deeds:      st,
 			Recorded:   st,
 			Traces:     st,
@@ -225,7 +245,9 @@ func run() error {
 		},
 		Deeds: st,
 		Rules: st,
+		Model: model,
 		Probe: probe{
+			model:    model,
 			hostPort: *hostPort,
 			notes:    notes,
 			synthErr: synthErr,
@@ -247,9 +269,18 @@ type probe struct {
 	notes    appleevents.Notes
 	synthErr error
 	live     *appleevents.Chrome
+	model    *setup.Model
 }
 
-func (p probe) LLMConfigured() error { return p.synthErr }
+func (p probe) LLMConfigured() error {
+	if p.model != nil {
+		if !p.model.Live.Configured() {
+			return synth.ErrNotSetUp
+		}
+		return nil
+	}
+	return p.synthErr
+}
 
 // AccessibilityGranted asks whether the trust is in place, which does not
 // prompt for it. Nothing here asks for the permission: a window opening is not

@@ -153,6 +153,44 @@ async fn set_rules(
 }
 
 #[tauri::command]
+async fn model_settings(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("model_settings", None).await
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+async fn set_model_settings(
+    engine: State<'_, Engine>,
+    api_key: String,
+    base_url: String,
+    model: String,
+    fast_model: String,
+    fallback_model: String,
+    price_in: f64,
+    price_out: f64,
+) -> Result<Value, RpcError> {
+    engine
+        .call(
+            "set_model_settings",
+            Some(json!({
+                "api_key": api_key,
+                "base_url": base_url,
+                "model": model,
+                "fast_model": fast_model,
+                "fallback_model": fallback_model,
+                "price_in": price_in,
+                "price_out": price_out,
+            })),
+        )
+        .await
+}
+
+#[tauri::command]
+async fn forget_model_key(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("forget_model_key", None).await
+}
+
+#[tauri::command]
 async fn resume_drive(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("resume_drive", None).await
 }
@@ -389,6 +427,9 @@ pub fn run() {
             answer_question,
             rules,
             set_rules,
+            model_settings,
+            set_model_settings,
+            forget_model_key,
             pause_pointer,
             history,
             undo,

@@ -238,6 +238,7 @@ func coachKey(shape string) string {
 
 func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(GuideStep), advance <-chan struct{}) (StepWork, error) {
 	g := plan.Guide
+	before := e.Meter.Now()
 	ctx = withAsked(withLooking(ctx, g.Looking), g.Task)
 	limit := MaxGuideSteps
 	if g.Web {
@@ -410,8 +411,11 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 		trace: planned, confirmed: memo.Kept, whole: whole, pointing: asksWhere(g.Task),
 	})
 	e.settleTheTrace(context.WithoutCancel(ctx), memo, run)
-	e.noteTheTask(ctx, g.App, g.Shape, ModeShow, run, planCalls, err)
-	work := StepWork{Steps: run.Steps(), Replayed: run.Replayed, Calls: run.Calls + planCalls}
+	used := e.noteTheTask(ctx, g.App, g.Shape, ModeShow, run, planCalls, err, before)
+	work := StepWork{
+		Steps: run.Steps(), Replayed: run.Replayed, Calls: run.Calls + planCalls,
+		TokensIn: used.In, TokensOut: used.Out,
+	}
 	if err != nil {
 		return work, err
 	}

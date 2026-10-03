@@ -69,6 +69,8 @@ type OpenAICompatible struct {
 	// HTTP, when set, is used as it is, and its own timeout governs instead of
 	// AnswerWait.
 	HTTP *http.Client
+
+	Usage *Usage
 }
 
 // Retry defaults for the transient-failure path.
@@ -209,6 +211,10 @@ type chatResponse struct {
 		Message string `json:"message"`
 		Type    string `json:"type"`
 	} `json:"error"`
+	Usage struct {
+		PromptTokens     int64 `json:"prompt_tokens"`
+		CompletionTokens int64 `json:"completion_tokens"`
+	} `json:"usage"`
 }
 
 func (c *OpenAICompatible) Synthesize(ctx context.Context, req Request) (extract.Program, error) {
@@ -457,6 +463,7 @@ func (c *OpenAICompatible) postOnce(ctx context.Context, body chatRequest) (stri
 	if out.Error != nil {
 		return "", fmt.Errorf("synth: provider error: %s", out.Error.Message)
 	}
+	c.Usage.add(out.Usage.PromptTokens, out.Usage.CompletionTokens)
 	if len(out.Choices) == 0 {
 		return "", fmt.Errorf("synth: response had no choices")
 	}

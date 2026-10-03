@@ -87,6 +87,9 @@ type StepWork struct {
 
 	// Calls is how many times the model was asked.
 	Calls int
+
+	TokensIn  int64
+	TokensOut int64
 }
 
 // Warm reports that the whole run came from what was kept last time.
@@ -161,6 +164,8 @@ type Engine struct {
 
 	FileOps  FileWriter
 	Settings MacSettings
+
+	Meter *synth.Usage
 
 	// Deeds is what VANS has done. Without one nothing is remembered, and
 	// nothing else changes — recording is not a precondition for acting.

@@ -515,8 +515,8 @@ func TestPreflightExplainsAMissingBrowser(t *testing.T) {
 	}, req(1, "preflight", nil))
 
 	res := decode[PreflightResult](t, s.ok(1))
-	if res.Ready {
-		t.Error("ready with no browser")
+	if !res.Ready {
+		t.Error("a browser is only needed for tasks on websites, and its absence held up everything else")
 	}
 
 	var browser Check
@@ -544,8 +544,8 @@ func TestPreflightReportsAMissingKey(t *testing.T) {
 	if res.Ready {
 		t.Error("ready with no synthesis backend")
 	}
-	if !strings.Contains(res.Checks[0].Fix, "VANS_LLM_API_KEY") {
-		t.Errorf("fix = %q", res.Checks[0].Fix)
+	if fix := res.Checks[0].Fix; !strings.Contains(fix, "Paste a model key") || strings.Contains(fix, "VANS_LLM_API_KEY") {
+		t.Errorf("fix = %q, want what to do in the window, not in a terminal", fix)
 	}
 }
 

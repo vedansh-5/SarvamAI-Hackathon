@@ -45,6 +45,8 @@ const (
 	CodeBadRequest = "bad_request"
 	CodeInternal   = "internal"
 
+	CodeModelNotSaved = "model_not_saved"
+
 	// CodeUnresolved is rung 3: extraction was attempted and failed. Data
 	// carries UnresolvedData so the shell can show what was tried.
 	CodeUnresolved = "unresolved"
@@ -235,6 +237,10 @@ type PrepareResult struct {
 	FromCache      bool  `json:"from_cache"`
 	ElapsedMS      int64 `json:"elapsed_ms"`
 
+	TokensIn  int64   `json:"tokens_in"`
+	TokensOut int64   `json:"tokens_out"`
+	Cost      float64 `json:"cost"`
+
 	// Destination is where this plan will go if committed, and NeedsCommit
 	// says whether committing is a thing that exists for it. The panel writes
 	// nothing, so the window shows no gate — a confirmation in front of an
@@ -387,6 +393,10 @@ type CommitWork struct {
 	Steps    int `json:"steps"`
 	Replayed int `json:"replayed"`
 	Calls    int `json:"calls"`
+
+	TokensIn  int64   `json:"tokens_in"`
+	TokensOut int64   `json:"tokens_out"`
+	Cost      float64 `json:"cost"`
 }
 
 // UnresolvedData is rung 3 rendered for a person.

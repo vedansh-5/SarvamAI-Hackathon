@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/vedansh/vans/internal/store"
+	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
 )
 
@@ -158,9 +159,10 @@ func (e *Engine) knownAbout(ctx context.Context, tree uiact.Tree) []string {
 	return out
 }
 
-func (e *Engine) noteTheTask(ctx context.Context, app, shape, mode string, run taskRun, planCalls int, failed error) {
+func (e *Engine) noteTheTask(ctx context.Context, app, shape, mode string, run taskRun, planCalls int, failed error, since synth.Used) synth.Used {
+	used := e.Meter.Now().Since(since)
 	if e.Tasks == nil {
-		return
+		return used
 	}
 	why := ""
 	switch {
@@ -173,9 +175,10 @@ func (e *Engine) noteTheTask(ctx context.Context, app, shape, mode string, run t
 	err := e.Tasks.RecordTask(context.WithoutCancel(ctx), store.Run{
 		App: app, Shape: shape, Mode: mode,
 		Steps: run.Steps(), Replayed: run.Replayed, Calls: run.Calls + planCalls, Finished: run.Finished,
-		Failed: why,
+		Failed: why, TokensIn: used.In, TokensOut: used.Out,
 	})
 	if err != nil {
 		e.logf("could not note what this task cost: %v", err)
 	}
+	return used
 }

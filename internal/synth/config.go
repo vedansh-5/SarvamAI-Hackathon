@@ -118,18 +118,28 @@ func FromEnv() (Synthesizer, error) {
 			return nil, err
 		}
 
-		return &OpenAICompatible{
-			BaseURL:    base,
-			APIKey:     key,
-			Model:      model,
-			Fallback:   strings.TrimSpace(os.Getenv(EnvFallbackModel)),
-			Fast:       strings.TrimSpace(os.Getenv(EnvFastModel)),
-			AnswerWait: wait,
-			SchemaMode: mode,
-		}, nil
+		return FromSettings(Settings{
+			APIKey:   key,
+			BaseURL:  base,
+			Model:    model,
+			Fallback: os.Getenv(EnvFallbackModel),
+			Fast:     os.Getenv(EnvFastModel),
+		}, wait, mode), nil
 
 	default:
 		return nil, fmt.Errorf("synth: unknown %s=%q, want \"openai\" or \"anthropic\"",
 			EnvProvider, os.Getenv(EnvProvider))
 	}
+}
+
+func WaitAndModeFromEnv() (time.Duration, SchemaMode) {
+	mode, err := ParseSchemaMode(os.Getenv(EnvSchemaMode))
+	if err != nil {
+		mode, _ = ParseSchemaMode("")
+	}
+	wait, err := parseAnswerWait(os.Getenv(EnvTimeout))
+	if err != nil {
+		wait = 0
+	}
+	return wait, mode
 }

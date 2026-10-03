@@ -132,8 +132,8 @@ func writeOpenApps(b *strings.Builder, open []string, here string) {
 }
 
 const (
-	MostTokensForAStep = 1200
-	MostTokensForAPlan = 3500
+	MostTokensForAStep = 3000
+	MostTokensForAPlan = 6000
 )
 
 var asksThePerson = regexp.MustCompile(`(?i)(\?\s*$|^\s*(please|which|what|where|who|when|could you|can you|would you)\b|\b(please (provide|specify|tell|give|say|confirm|choose)|let me know|need(s)? to know|i need the|which (file|one|date|city|contact|account))\b)`)

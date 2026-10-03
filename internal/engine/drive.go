@@ -288,11 +288,12 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	if d.Web && !d.Resumed {
 		noticed, _ = e.closeTheNotice(ctx, d.App)
 	}
+	before := e.Meter.Now()
 	run, err := e.stepThroughTask(ctx, walk{
 		app: d.App, task: d.Task, limit: limit, handle: act,
 		trace: d.Replay, confirmed: d.Kept, whole: d.Whole, acting: true, already: d.Done, noted: noticed,
 	})
-	e.noteTheTask(ctx, d.App, d.Shape, ModeDo, run, d.PlanCalls, err)
+	used := e.noteTheTask(ctx, d.App, d.Shape, ModeDo, run, d.PlanCalls, err, before)
 	if err != nil {
 		e.settleTheTrace(ctx, d, run)
 		if ctx.Err() == nil && len(run.Told) > 0 {
@@ -317,7 +318,10 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	// A run that performed nothing has nothing to verify, and every step having
 	// landed is trivially true of no steps. Left alone it reported success for
 	// having done nothing at all — the same hole D-095 closed on the coach side.
-	work := &StepWork{Steps: run.Steps(), Replayed: run.Replayed, Calls: run.Calls + d.PlanCalls}
+	work := &StepWork{
+		Steps: run.Steps(), Replayed: run.Replayed, Calls: run.Calls + d.PlanCalls,
+		TokensIn: used.In, TokensOut: used.Out,
+	}
 
 	if run.Steps() == 0 {
 		e.logf("nothing was done in %s: %s", d.App, reasonOr(run.Why, "the model gave no reason"))

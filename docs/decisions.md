@@ -4515,3 +4515,45 @@ and says so. Turning Wi-Fi off says first that VANS can do little without it.
 Only those four. Anything else is declined with what can be changed, and "how do
 I" is still coached in System Settings. Reading all four was checked on this
 Mac; setting them was checked against a stand-in only.
+
+## D-201 — The model is set up in the window, and its key is kept in the Keychain
+
+The key came from an environment variable, so VANS could only be started from a
+terminal by someone who knew which variable. Nobody else could run it.
+
+Setup now has a model section: paste a key, optionally name a model, Save and
+test. Saving asks the model one small question first. A key or name that does
+not answer is not saved, and the error says so, because a saved key that does
+not work is found out later, mid-task, as something that looks like a different
+fault. A key that works is written to the login Keychain and nowhere else; the
+model's name, address and prices are ordinary settings. The window is never sent
+the key back, only its last four characters.
+
+A key on its own is pointed at the usual model and address, since that is what a
+tester will have. An address is only needed for another provider.
+
+The model client can be replaced while the engine runs, so saving takes effect
+at once and nothing is restarted. With no key the engine still starts, every
+model call answers "no model is set up yet", and Setup says what to do in the
+window instead of naming a variable. The environment still wins at startup, so a
+development copy behaves as before.
+
+The browser check is no longer required for Setup to be ready. It guards tasks
+on websites; without it everything else works, and it was holding the whole
+window on a flag most people would never set.
+
+## D-202 — What a task cost is counted, and priced only when a price is given
+
+Every reply from the model carries how many tokens went in and came out. They
+are added up as they arrive, and a run records the difference between when it
+started and when it ended, so the number covers every call in the run whichever
+kind it was. It is stored with the run and shown beside the count of calls.
+
+Cost is tokens times price, and the price is the person's to enter: two numbers,
+dollars per million in and out. No table of prices is built in. Prices change,
+aliases such as "latest" move between models, and a cost worked out from a stale
+table is a wrong number shown with two decimal places. With no price set, tokens
+are shown and no cost is claimed.
+
+Answers are now capped at 3,000 tokens for a step and 6,000 for a plan, raised
+from the first cap so a model that reasons before it answers still has room.

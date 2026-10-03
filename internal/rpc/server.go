@@ -17,6 +17,7 @@ import (
 	"github.com/vedansh/vans/internal/engine"
 	"github.com/vedansh/vans/internal/extract"
 	"github.com/vedansh/vans/internal/runner"
+	"github.com/vedansh/vans/internal/setup"
 	"github.com/vedansh/vans/internal/store"
 	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
@@ -73,6 +74,8 @@ type Server struct {
 	Deeds DeedReader
 
 	Rules RuleStore
+
+	Model *setup.Model
 
 	out   *json.Encoder
 	outMu sync.Mutex
@@ -186,6 +189,12 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.rules(ctx)
 	case "set_rules":
 		result, err = s.setRules(ctx, req)
+	case "model_settings":
+		result, err = s.modelSettings(ctx)
+	case "set_model_settings":
+		result, err = s.setModelSettings(ctx, req)
+	case "forget_model_key":
+		result, err = s.forgetModelKey(ctx)
 	default:
 		err = &Error{Code: CodeBadRequest, Message: fmt.Sprintf("unknown method %q", req.Method)}
 	}
@@ -250,13 +259,12 @@ func (s *Server) preflight(ctx context.Context) (PreflightResult, error) {
 	checks := []Check{
 		{
 			Name:     "llm",
-			Label:    "Synthesis backend",
+			Label:    "Model",
 			Required: true,
 		},
 		{
-			Name:     "browser",
-			Label:    "Chrome debugging endpoint",
-			Required: true,
+			Name:  "browser",
+			Label: "Browser, for tasks on websites",
 		},
 		{
 			Name:  "accessibility",
@@ -265,8 +273,8 @@ func (s *Server) preflight(ctx context.Context) (PreflightResult, error) {
 	}
 
 	if err := s.Probe.LLMConfigured(); err != nil {
-		checks[0].Detail = err.Error()
-		checks[0].Fix = "Set VANS_LLM_API_KEY to an OpenRouter key, or VANS_LLM_PROVIDER=anthropic with ANTHROPIC_API_KEY."
+		checks[0].Detail = "VANS has no model to think with yet."
+		checks[0].Fix = "Paste a model key under \u201Cmodel\u201D below and press Save and test."
 	} else {
 		checks[0].OK = true
 		checks[0].Detail = "Configured."
@@ -378,6 +386,7 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 	eng.Log = func(format string, args ...any) { s.notify(req.ID, format, args...) }
 
 	started := time.Now()
+	spent := s.meter()
 
 	// Free text when there is any, the resolved form otherwise. The CLI and
 	// anything else that already knows what it wants skips the router
@@ -423,6 +432,7 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 	if plan.Route != nil {
 		kind = string(plan.Route.Kind)
 	}
+	used := s.meter().Since(spent)
 
 	action := ""
 	app := ""
@@ -478,6 +488,9 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 		SynthesisCalls: plan.SynthesisCalls,
 		FromCache:      plan.FromCache,
 		ElapsedMS:      time.Since(started).Milliseconds(),
+		TokensIn:       used.In,
+		TokensOut:      used.Out,
+		Cost:           s.cost(ctx, used),
 		Destination:    plan.Destination,
 		NeedsCommit:    plan.NeedsCommit(),
 		Kind:           kind,
@@ -573,11 +586,7 @@ func (s *Server) commit(ctx context.Context, req Request) (CommitResult, error) 
 	}
 	out := CommitResult{ID: receipt.ID, Title: receipt.Title, Verified: receipt.Verified}
 	if receipt.Work != nil {
-		out.Work = &CommitWork{
-			Steps:    receipt.Work.Steps,
-			Replayed: receipt.Work.Replayed,
-			Calls:    receipt.Work.Calls,
-		}
+		out.Work = s.workDone(ctx, *receipt.Work)
 	}
 	return out, nil
 }
@@ -855,7 +864,7 @@ func (s *Server) guide(ctx context.Context, req Request) (GuideResult, error) {
 
 	return GuideResult{
 		Steps: work.Steps,
-		Work:  &CommitWork{Steps: work.Steps, Replayed: work.Replayed, Calls: work.Calls},
+		Work:  s.workDone(ctx, work),
 	}, nil
 }
 
@@ -1091,3 +1100,54 @@ var _ = func() bool {
 	_ = map[string]string(r)
 	return true
 }()
+
+func (s *Server) meter() synth.Used {
+	if s.Engine == nil {
+		return synth.Used{}
+	}
+	return s.Engine.Meter.Now()
+}
+
+func (s *Server) cost(ctx context.Context, used synth.Used) float64 {
+	if s.Model == nil {
+		return 0
+	}
+	return s.Model.Cost(ctx, used)
+}
+
+func (s *Server) workDone(ctx context.Context, work engine.StepWork) *CommitWork {
+	used := synth.Used{In: work.TokensIn, Out: work.TokensOut}
+	return &CommitWork{
+		Steps: work.Steps, Replayed: work.Replayed, Calls: work.Calls,
+		TokensIn: work.TokensIn, TokensOut: work.TokensOut, Cost: s.cost(ctx, used),
+	}
+}
+
+func (s *Server) modelSettings(ctx context.Context) (setup.Status, error) {
+	if s.Model == nil {
+		return setup.Status{}, &Error{Code: CodeBadRequest, Message: "this build takes its model from the environment only"}
+	}
+	return s.Model.Status(ctx), nil
+}
+
+func (s *Server) setModelSettings(ctx context.Context, req Request) (setup.Status, error) {
+	if s.Model == nil {
+		return setup.Status{}, &Error{Code: CodeBadRequest, Message: "this build takes its model from the environment only"}
+	}
+	var change setup.Change
+	if err := json.Unmarshal(req.Params, &change); err != nil {
+		return setup.Status{}, &Error{Code: CodeBadRequest, Message: err.Error()}
+	}
+	status, err := s.Model.Save(ctx, change)
+	if err != nil {
+		return status, &Error{Code: CodeModelNotSaved, Message: err.Error()}
+	}
+	return status, nil
+}
+
+func (s *Server) forgetModelKey(ctx context.Context) (setup.Status, error) {
+	if s.Model == nil {
+		return setup.Status{}, &Error{Code: CodeBadRequest, Message: "this build takes its model from the environment only"}
+	}
+	return s.Model.Forget(ctx)
+}
