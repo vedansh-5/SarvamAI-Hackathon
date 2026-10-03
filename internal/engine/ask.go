@@ -148,6 +148,9 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 	if plan, handled, err := e.aboutMemory(ctx, in.Instruction); handled {
 		return plan, err
 	}
+	if plan, handled, err := e.aboutSchedules(ctx, in.Instruction); handled {
+		return plan, err
+	}
 	if saved, ok := e.routineFor(ctx, in.Instruction); ok {
 		e.logf("that is the routine %q", strings.TrimSpace(in.Instruction))
 		in.Instruction = saved

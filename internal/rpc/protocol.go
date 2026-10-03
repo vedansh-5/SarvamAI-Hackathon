@@ -199,6 +199,11 @@ type QuestionParams struct {
 	Options  []string `json:"options"`
 }
 
+type ScheduleDueParams struct {
+	What string `json:"what"`
+	When string `json:"when"`
+}
+
 type AnswerQuestionParams struct {
 	Answer string `json:"answer"`
 }

@@ -107,6 +107,10 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 	var wg sync.WaitGroup
 	defer wg.Wait()
 
+	watching, stopWatching := context.WithCancel(ctx)
+	defer stopWatching()
+	go s.watchTheClock(watching)
+
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
@@ -1150,4 +1154,36 @@ func (s *Server) forgetModelKey(ctx context.Context) (setup.Status, error) {
 		return setup.Status{}, &Error{Code: CodeBadRequest, Message: "this build takes its model from the environment only"}
 	}
 	return s.Model.Forget(ctx)
+}
+
+var ScheduleTick = 20 * time.Second
+
+func (s *Server) bringUpWhatIsDue(ctx context.Context, now time.Time) int {
+	if s.Engine == nil {
+		return 0
+	}
+	due := s.Engine.DueNow(ctx, now)
+	for _, d := range due {
+		if s.Trace != nil {
+			fmt.Fprintf(s.Trace, "[schedule] it is time for %q (%s)\n", d.What, d.When)
+		}
+		s.push(0, "schedule_due", ScheduleDueParams{What: d.What, When: d.When})
+	}
+	return len(due)
+}
+
+func (s *Server) watchTheClock(ctx context.Context) {
+	if s.Engine == nil || s.Engine.Schedules == nil {
+		return
+	}
+	tick := time.NewTicker(ScheduleTick)
+	defer tick.Stop()
+	for {
+		s.bringUpWhatIsDue(ctx, time.Now())
+		select {
+		case <-ctx.Done():
+			return
+		case <-tick.C:
+		}
+	}
 }

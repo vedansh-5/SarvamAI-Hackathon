@@ -1446,7 +1446,7 @@ aloud).
   at".
 - E3. **Built (D-178).** Long tasks with checkpoints.
 - E4. **Built (D-178).** Saved routines ("do my Monday report").
-- E5. Scheduled tasks.
+- E5. **Built (D-205): a task is brought up at its time and waits to be told to go.** Scheduled tasks.
 - E6. "Yes to all" for value entry in a coached run (the offer itself is off,
   D-166).
 - E7. **Built (D-192).** Working on text: translate, rewrite, summarise or reply to

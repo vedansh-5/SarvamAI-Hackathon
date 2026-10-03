@@ -231,6 +231,7 @@ func run() error {
 			FileOps:    fileOps,
 			Settings:   macset.Mac{},
 			Meter:      meter,
+			Schedules:  st,
 			Deeds:      st,
 			Recorded:   st,
 			Traces:     st,

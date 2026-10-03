@@ -1904,6 +1904,53 @@ $("copy-result").addEventListener("click", async () => {
   $("copy-result").textContent = (await copyText(text)) ? "Copied" : "Could not copy";
 });
 
+interface DueTask {
+  what: string;
+  when: string;
+}
+
+let dueTasks: DueTask[] = [];
+
+function renderDue() {
+  const box = $("due");
+  clear(box);
+  box.hidden = dueTasks.length === 0;
+  for (const task of dueTasks) {
+    const row = el("div", "row");
+    row.appendChild(el("span", "field-note", `It is time: ${task.what}`));
+    const run = el("button", "btn secondary", "Run") as HTMLButtonElement;
+    run.addEventListener("click", () => {
+      dueTasks = dueTasks.filter((t) => t !== task);
+      renderDue();
+      void extract(undefined, task.what);
+    });
+    const skip = el("button", "btn quiet", "Skip") as HTMLButtonElement;
+    skip.addEventListener("click", () => {
+      dueTasks = dueTasks.filter((t) => t !== task);
+      renderDue();
+      fitWindow();
+    });
+    row.appendChild(run);
+    row.appendChild(skip);
+    box.appendChild(row);
+  }
+}
+
+listen<{ params: DueTask }>("engine://schedule_due", (event) => {
+  const task = event.payload?.params;
+  if (!task?.what) return;
+  dueTasks.push(task);
+  renderDue();
+  if (showing === "ask" || FINISHED.has(showing)) {
+    openFresh = false;
+    show("ask");
+    fitWindow();
+    invoke("summon").catch(console.error);
+  } else {
+    toast(`Scheduled: ${task.what}. It is waiting in the ask box.`);
+  }
+});
+
 listen("overlay://hidden", () => {
   const offersAWayOn = showing === "failure" && $("failure-detail").querySelector("button") !== null;
   openFresh = FINISHED.has(showing) && !offersAWayOn;

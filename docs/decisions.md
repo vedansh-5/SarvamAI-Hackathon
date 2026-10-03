@@ -4589,3 +4589,28 @@ more controls appearing or going while it is the target is taken as typing,
 because that is what results arriving under a search box look like. Clicking
 into the box changes nothing around it and is not taken for typing. A field that
 can be read is still judged only by what it holds.
+
+## D-205 — A scheduled task is brought up at its time, and waits to be told to go
+
+"Every weekday at 9 run my morning report" is a time and a task. The time is read
+by code: every day, weekday, weekend or named day at a clock time; today or
+tomorrow at a time; in so many minutes or hours. A bare hour from one to six is
+taken as afternoon, and what was understood is said back, with the next
+occurrence, so a wrong reading is seen at once. The task is whatever is left: an
+instruction or the name of a routine.
+
+It is only a schedule when the request starts with one, so "search for flights
+at 5pm" is still a search.
+
+When the time comes the panel is summoned with the task and two buttons, Run and
+Skip. Run puts the task through exactly as if it had been typed, with every
+confirmation it would normally have. Nothing starts by itself: acting on a
+screen nobody is watching is background running (F4), and that is not built or
+agreed. A task that was due several times while VANS was not running is brought
+up once, not once per time missed. A one-off is removed when it comes up; a
+repeating one is moved to its next time before the panel is told, so a crash in
+between cannot bring it up twice.
+
+It needs VANS to be running at the time, and saying so is part of the reply.
+There is no system agent behind it, because there is no installed copy for one
+to belong to yet.

@@ -167,6 +167,8 @@ type Engine struct {
 
 	Meter *synth.Usage
 
+	Schedules ScheduleBook
+
 	// Deeds is what VANS has done. Without one nothing is remembered, and
 	// nothing else changes — recording is not a precondition for acting.
 	Deeds Ledger
