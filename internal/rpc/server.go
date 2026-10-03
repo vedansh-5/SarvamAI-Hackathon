@@ -388,6 +388,7 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 	// takes ten seconds and a silent window looks broken.
 	eng := *s.Engine
 	eng.Log = func(format string, args ...any) { s.notify(req.ID, format, args...) }
+	eng.Question = s.asker(req.ID)
 
 	started := time.Now()
 	spent := s.meter()
@@ -882,6 +883,15 @@ func (s *Server) stopGuide() (StopGuideResult, error) {
 	}
 	if act != nil {
 		act()
+	}
+	s.mu.Lock()
+	waiting := s.answers
+	s.mu.Unlock()
+	if waiting != nil && guide == nil && act == nil {
+		select {
+		case waiting <- "":
+		default:
+		}
 	}
 	return StopGuideResult{Stopped: true}, nil
 }

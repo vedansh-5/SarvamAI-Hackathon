@@ -4718,3 +4718,16 @@ never only about clicking. A page in a browser is read through the page.
 
 The text is treated as what is on screen and never as instructions. A line in a
 chat telling the reader to do something was quoted back as the message it is.
+
+## D-211 — A file task asks its question in the window and carries on
+
+When a file task turned on something only the person knew (which of two files,
+what to call a folder), it said "ask again with that in it" and stopped, and the
+whole request had to be typed again with the answer folded in.
+
+A request being prepared can now ask, the same way a run can (D-164). The
+question comes up in the window, the answer is given to the model with the
+question it answers, and the list of operations is written with it. Three
+questions at most; a fourth ends it with the question shown, as before. No answer,
+or Stop, ends it with nothing planned and nothing changed. Asking does not use up
+one of the attempts a refused list gets.

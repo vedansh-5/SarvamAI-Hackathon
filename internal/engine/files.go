@@ -25,9 +25,10 @@ type FilesPlan struct {
 }
 
 const (
-	mostFoldersRead  = 3
-	mostLinesPreview = 14
-	whereFilesLive   = "Finder"
+	mostFoldersRead   = 3
+	mostLinesPreview  = 14
+	mostFileQuestions = 3
+	whereFilesLive    = "Finder"
 )
 
 var homeDir = fileops.Home
@@ -119,7 +120,7 @@ func (e *Engine) planFiles(ctx context.Context, in Ask, slot string) (*Plan, err
 	}
 
 	req := synth.FilesRequest{Ask: ask, Folders: shown}
-	calls := 0
+	calls, asked := 0, 0
 	for attempt := 1; attempt <= e.maxSynthesis(); attempt++ {
 		calls++
 		answer, err := e.FileOps.WriteFileOps(ctx, req)
@@ -127,9 +128,27 @@ func (e *Engine) planFiles(ctx context.Context, in Ask, slot string) (*Plan, err
 			return nil, err
 		}
 		if answer.Question != "" && len(answer.Ops) == 0 {
-			plan := saying("One thing first", answer.Question+"\n\nAsk again with that in it.")
-			plan.SynthesisCalls = calls
-			return plan, nil
+			if e.Question == nil || asked >= mostFileQuestions {
+				plan := saying("One thing first", answer.Question+"\n\nAsk again with that in it.")
+				plan.SynthesisCalls = calls
+				return plan, nil
+			}
+			e.logf("asking: %s", answer.Question)
+			reply, err := e.Question(ctx, answer.Question, nil)
+			if err != nil {
+				return nil, err
+			}
+			if reply = strings.TrimSpace(reply); reply == "" {
+				plan := saying("Stopped", "The question went unanswered, so nothing was planned and nothing was changed.")
+				plan.SynthesisCalls = calls
+				return plan, nil
+			}
+			e.logf("answered: %s", reply)
+			req.Ask += fmt.Sprintf("\n\nThey were asked %q and answered %q. Use that answer and do not ask it again.", answer.Question, reply)
+			req.Failures = nil
+			asked++
+			attempt--
+			continue
 		}
 		if len(answer.Ops) == 0 {
 			plan := saying("Nothing to do", reasonOr(answer.Why, "nothing in that folder fits what was asked"))

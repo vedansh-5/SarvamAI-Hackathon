@@ -236,3 +236,67 @@ func TestASettingVANSDoesNotChangeIsDeclinedWithWhatItCan(t *testing.T) {
 		t.Errorf("err = %v, want it declined with what can be changed", err)
 	}
 }
+
+func TestAFileTaskAsksItsQuestionAndCarriesOnWithTheAnswer(t *testing.T) {
+	_, desk := aHome(t)
+	rename := []fileops.Op{{Do: fileops.Rename, From: filepath.Join(desk, "shot 1.png"), To: filepath.Join(desk, "cover.png")}}
+	w := &fileWriter{answers: []synth.FilesAnswer{
+		{Question: "Which screenshot: shot 1.png or shot 2.png?"},
+		{Ops: rename, Why: "Rename shot 1.png to cover.png."},
+	}}
+	var asked []string
+	e := &Engine{FileOps: w, Log: func(string, ...any) {}}
+	e.Question = func(_ context.Context, q string, _ []string) (string, error) {
+		asked = append(asked, q)
+		return "the first one", nil
+	}
+
+	plan, err := e.planFiles(context.Background(), Ask{Instruction: "rename the screenshot on my desktop to cover.png"}, "")
+	if err != nil {
+		t.Fatalf("planFiles: %v", err)
+	}
+	if len(asked) != 1 || plan.Files == nil || len(plan.Files.Ops) != 1 {
+		t.Fatalf("asked %q, plan = %+v; want one question and then the rename", asked, plan.Files)
+	}
+	if told := w.asked[1].Ask; !strings.Contains(told, "the first one") || !strings.Contains(told, "Which screenshot") {
+		t.Errorf("the model was not given the answer: %q", told)
+	}
+}
+
+func TestAnUnansweredFileQuestionChangesNothing(t *testing.T) {
+	_, desk := aHome(t)
+	w := &fileWriter{answers: []synth.FilesAnswer{{Question: "Which one?"}}}
+	e := &Engine{FileOps: w, Log: func(string, ...any) {}}
+	e.Question = func(context.Context, string, []string) (string, error) { return "", nil }
+
+	plan, err := e.planFiles(context.Background(), Ask{Instruction: "rename the screenshot on my desktop"}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.Files != nil || plan.SayTitle != "Stopped" || len(w.asked) != 1 {
+		t.Errorf("plan = %+v after %d ask(s); want it stopped with nothing planned", plan, len(w.asked))
+	}
+	if _, err := os.Stat(filepath.Join(desk, "shot 1.png")); err != nil {
+		t.Error("a file was touched")
+	}
+}
+
+func TestAFileTaskStopsAskingAfterAFewQuestions(t *testing.T) {
+	aHome(t)
+	endless := make([]synth.FilesAnswer, 10)
+	for i := range endless {
+		endless[i] = synth.FilesAnswer{Question: "And which?"}
+	}
+	w := &fileWriter{answers: endless}
+	questions := 0
+	e := &Engine{FileOps: w, Log: func(string, ...any) {}}
+	e.Question = func(context.Context, string, []string) (string, error) { questions++; return "that one", nil }
+
+	plan, err := e.planFiles(context.Background(), Ask{Instruction: "tidy my desktop"}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if questions != mostFileQuestions || plan.SayTitle != "One thing first" {
+		t.Errorf("asked %d time(s), title %q; want it to give up asking after %d", questions, plan.SayTitle, mostFileQuestions)
+	}
+}
