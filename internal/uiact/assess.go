@@ -285,6 +285,7 @@ func FieldsYouCanSee(elements []Element) {
 		if sized(*el) && !unnamed {
 			continue
 		}
+		el.Blind = true
 
 		holder := -1
 		for j := i - 1; j >= 0; j-- {

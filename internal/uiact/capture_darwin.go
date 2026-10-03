@@ -342,6 +342,17 @@ static int axValueAt(int pid, const int *path, int n, char *buf, int len) {
     return ok;
 }
 
+static int axSetValueAt(int pid, const int *path, int n, const char *value) {
+    AXUIElementRef el = axAtPath(pid, path, n);
+    if (!el) return -1;
+    CFStringRef s = CFStringCreateWithCString(NULL, value, kCFStringEncodingUTF8);
+    if (!s) { CFRelease(el); return -2; }
+    AXError e = AXUIElementSetAttributeValue(el, kAXValueAttribute, s);
+    CFRelease(s);
+    CFRelease(el);
+    return e == kAXErrorSuccess ? 1 : -3;
+}
+
 static int cgWindowOf(int pid, int *wid, double *x, double *y, double *w, double *h) {
     CFArrayRef list = CGWindowListCopyWindowInfo(
         kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements, kCGNullWindowID);
@@ -501,6 +512,25 @@ func elementValue(pid int, path []int) (string, bool) {
 		return "", false
 	}
 	return names.Strip(C.GoString(&buf[0])), true
+}
+
+func setElementValue(pid int, path []int, value string) error {
+	if !trusted() {
+		return ErrNoAssistiveAccess
+	}
+	indices := cPath(path)
+	text := C.CString(value)
+	defer C.free(unsafe.Pointer(text))
+	switch int(C.axSetValueAt(C.int(pid), &indices[0], C.int(len(path)), text)) {
+	case 1:
+		return nil
+	case -1:
+		return fmt.Errorf("uiact: the window no longer has the field that held that text")
+	case -2:
+		return fmt.Errorf("uiact: that text cannot be written back")
+	default:
+		return fmt.Errorf("uiact: the field would not take its text back")
+	}
 }
 
 func selectedText(pid int) (string, bool) {

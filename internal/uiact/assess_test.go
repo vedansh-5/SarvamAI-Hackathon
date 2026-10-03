@@ -321,3 +321,34 @@ func TestTheModelSeesToggleStatesAndOnlyTheFieldsFilledThisRun(t *testing.T) {
 		t.Error("marking what was filled changed the tree it was given")
 	}
 }
+
+func TestTypingIntoAFieldThatCannotBeReadIsSeenByWhatChangesAroundIt(t *testing.T) {
+	search := Element{Role: "AXTextArea", Title: "Search Extensions", Enabled: true, Blind: true,
+		Position: []int{10, 10}, Size: []int{200, 20}, Path: []int{0}}
+	before := Tree{App: "IDE", Elements: []Element{search}}
+	step := Step{Do: "type", Target: Selector{Role: "AXTextArea", Title: "Search Extensions"}, Text: "python"}
+
+	focused := search
+	focused.Focused = true
+	clicked := Tree{App: "IDE", Elements: []Element{focused}}
+	if PersonActedOn(before, clicked, step) {
+		t.Error("clicking into the box was taken for having typed in it")
+	}
+
+	results := Tree{App: "IDE", Elements: []Element{focused,
+		{Role: "AXStaticText", Title: "Python", Path: []int{1}},
+		{Role: "AXStaticText", Title: "Pylance", Path: []int{2}},
+		{Role: "AXStaticText", Title: "Python Debugger", Path: []int{3}},
+	}}
+	if !PersonActedOn(before, results, step) {
+		t.Error("results appearing under a box that cannot be read were not taken as typing")
+	}
+
+	readable := search
+	readable.Blind = false
+	plain := Tree{App: "IDE", Elements: []Element{readable}}
+	withResults := Tree{App: "IDE", Elements: append([]Element{readable}, results.Elements[1:]...)}
+	if PersonActedOn(plain, withResults, step) {
+		t.Error("a box that can be read was judged by its surroundings instead of by what it holds")
+	}
+}

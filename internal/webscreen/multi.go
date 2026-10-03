@@ -130,3 +130,19 @@ func (m *Multi) Selection(ctx context.Context, app string) (string, bool) {
 	}
 	return s.Selection(ctx, app)
 }
+
+func (m *Multi) ValueOf(ctx context.Context, t uiact.Tree, sel uiact.Selector) (string, bool) {
+	s := m.pick(ctx, "")
+	if s == nil {
+		return "", false
+	}
+	return s.ValueOf(ctx, t, sel)
+}
+
+func (m *Multi) PutBack(ctx context.Context, app string, sel uiact.Selector, value string) error {
+	s := m.pick(ctx, app)
+	if s == nil {
+		return errNoBrowser
+	}
+	return s.PutBack(ctx, app, sel, value)
+}

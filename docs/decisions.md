@@ -4557,3 +4557,35 @@ are shown and no cost is claimed.
 
 Answers are now capped at 3,000 tokens for a step and 6,000 for a plan, raised
 from the first cap so a model that reasons before it answers still has room.
+
+## D-203 — What a field held is kept before it is typed over, and can be put back
+
+A run that types into a field replaces what was there, and until now that was
+gone. Before the first keystroke into a field, the whole of what it holds is
+read (the reading the window is planned from is cut to 120 characters, so this
+is a separate one) and kept with the run, once per field. History then offers to
+put it back, by setting the field's value directly: through accessibility for a
+window, through the page for a web form.
+
+Three limits, each on purpose. A run that committed something, a send or a pay,
+is not offered for undo: clearing the box does not unsend the message, and
+offering it would say it did. A field whose text cannot be read, or that is a
+password field, or that held more than 8,000 characters, is not kept, so the
+offer is never made on a guess. And only text is put back; a click that went
+somewhere is not reversed, so a field that is no longer on screen fails with
+that said plainly.
+
+The older attempt at this (`put-typing-back`) worked on the one-shot tier and
+was not carried over; this is written against the step loop.
+
+## D-204 — Typing the coach cannot read is seen by what changes around the field
+
+The coach knows a type step is done when the field holds the text. An editor's
+search box publishes no value at all, so that never became true and the step
+waited for ⌥Space.
+
+A field recognised as one of those (D-188) is now judged differently: three or
+more controls appearing or going while it is the target is taken as typing,
+because that is what results arriving under a search box look like. Clicking
+into the box changes nothing around it and is not taken for typing. A field that
+can be read is still judged only by what it holds.

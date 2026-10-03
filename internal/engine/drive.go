@@ -51,6 +51,9 @@ type DrivePlan struct {
 
 	Looking string
 
+	typed     []TypedField
+	committed bool
+
 	// PlanCalls is what writing that plan cost, so the count a run reports is
 	// the whole of what the task cost and not just what happened after it
 	// started.
@@ -294,6 +297,7 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 		trace: d.Replay, confirmed: d.Kept, whole: d.Whole, acting: true, already: d.Done, noted: noticed,
 	})
 	used := e.noteTheTask(ctx, d.App, d.Shape, ModeDo, run, d.PlanCalls, err, before)
+	d.typed, d.committed = append(d.typed, run.Typed...), d.committed || run.Committed
 	if err != nil {
 		e.settleTheTrace(ctx, d, run)
 		if ctx.Err() == nil && len(run.Told) > 0 {
@@ -506,6 +510,9 @@ type taskRun struct {
 
 	Asked int
 	Told  []string
+
+	Typed     []TypedField
+	Committed bool
 }
 
 // Steps is how many were carried out.
@@ -596,12 +603,21 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 	var soFar stepsSoFar
 	filled := map[string]bool{}
 	open := e.openApps()
+	var typed typedSoFar
+	committedSomething := false
 
 	state := func() taskRun {
 		return taskRun{
 			Did: did, Landed: landed,
 			Replayed: replayed, Calls: calls, Diverged: diverged, Asked: questions, Told: done,
+			Typed: typed.fields, Committed: committedSomething,
 		}
+	}
+
+	finished := func(why string) taskRun {
+		run := state()
+		run.Finished, run.Why = true, why
+		return run
 	}
 
 	for i := 1; i <= limit; i++ {
@@ -662,10 +678,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 					why = "what was asked about has been pointed at"
 				}
 				e.logf("finished after %d step(s) without asking: %s", len(done), why)
-				return taskRun{
-					Did: did, Landed: landed, Finished: true, Why: why,
-					Replayed: replayed, Calls: calls, Diverged: diverged, Asked: questions, Told: done,
-				}, nil
+				return finished(why), nil
 			}
 			if replaying && i > len(trace) && !confirmed {
 				e.logf("the %d planned step(s) are done; asking what is left", len(trace))
@@ -686,10 +699,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 				switch {
 				case more.Done:
 					e.logf("finished after %d step(s): %s", len(done), more.Why)
-					return taskRun{
-						Did: did, Landed: landed, Finished: true, Why: more.Why,
-						Replayed: replayed, Calls: calls, Diverged: diverged, Asked: questions, Told: done,
-					}, nil
+					return finished(more.Why), nil
 				case len(more.Steps) > 0:
 					trace = append(append([]uiact.Step{}, trace[:i-1]...), more.Steps...)
 					whole = more.Whole
@@ -708,11 +718,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 				// "is this done", and asking would spend the one call a warm run
 				// is supposed to cost nothing for.
 				e.logf("finished after %d step(s), all of them from the steps kept last time", len(done))
-				return taskRun{
-					Did: did, Landed: landed, Finished: true,
-					Replayed: replayed, Calls: calls, Diverged: diverged, Asked: questions, Told: done,
-					Why: "these are the steps that worked last time, and they have all been done",
-				}, nil
+				return finished("these are the steps that worked last time, and they have all been done"), nil
 			} else {
 				asks++
 				if asks == 1 {
@@ -771,10 +777,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 
 				if answer.Done {
 					e.logf("finished after %d step(s): %s", len(done), answer.Why)
-					return taskRun{
-						Did: did, Landed: landed, Finished: true, Why: answer.Why,
-						Replayed: replayed, Calls: calls, Diverged: diverged, Asked: questions, Told: done,
-					}, nil
+					return finished(answer.Why), nil
 				}
 			}
 
@@ -906,6 +909,9 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 				break
 			}
 
+			if acting {
+				typed.note(ctx, e, tree, answer.Step)
+			}
 			startedFrom, err := handle(ctx, e, tree, program, i, describe)
 			if len(startedFrom.Elements) > 0 {
 				tree = startedFrom
@@ -984,9 +990,10 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 			}
 
 			lastCommitted = false
-			if changed {
-				if el, why := tree.Resolve(answer.Step.Target); why == "" {
-					lastCommitted, _ = uiact.Commits(answer.Step, el)
+			if el, why := tree.Resolve(answer.Step.Target); why == "" {
+				if commits, _ := uiact.Commits(answer.Step, el); commits {
+					committedSomething = true
+					lastCommitted = changed
 				}
 			}
 			done = append(done, describe+" — "+effect)

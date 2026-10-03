@@ -451,3 +451,44 @@ func (s *Screen) Selection(ctx context.Context, _ string) (string, bool) {
 	picked = strings.TrimSpace(picked)
 	return picked, picked != ""
 }
+
+func (s *Screen) ValueOf(ctx context.Context, t uiact.Tree, sel uiact.Selector) (string, bool) {
+	el, why := t.Resolve(sel)
+	if why != "" || el.Role == "AXSecureTextField" {
+		return "", false
+	}
+	id, ok := idOf(el)
+	if !ok {
+		return "", false
+	}
+	var out struct {
+		OK    bool   `json:"ok"`
+		Value string `json:"value"`
+	}
+	script := fmt.Sprintf(`(function(){var e=(window.__vansEls||[])[%d];`+
+		`if(!e||!e.isConnected)return JSON.stringify({ok:false});`+
+		`var t=e.tagName.toLowerCase();`+
+		`if(t!=='input'&&t!=='textarea')return JSON.stringify({ok:false});`+
+		`if((e.getAttribute('type')||'').toLowerCase()==='password')return JSON.stringify({ok:false});`+
+		`return JSON.stringify({ok:true,value:String(e.value)})})()`, id)
+	if err := s.Page.AskFront(ctx, script, &out); err != nil || !out.OK {
+		return "", false
+	}
+	return out.Value, true
+}
+
+func (s *Screen) PutBack(ctx context.Context, _ string, sel uiact.Selector, value string) error {
+	tree, err := s.Capture(ctx, "")
+	if err != nil {
+		return err
+	}
+	el, why := tree.Resolve(sel)
+	if why != "" {
+		return fmt.Errorf("webscreen: %s, so there is nowhere to put the text back", why)
+	}
+	id, ok := idOf(el)
+	if !ok {
+		return fmt.Errorf("webscreen: that is not a field on the page")
+	}
+	return s.send(ctx, act{Verb: "type", ID: id, Text: value})
+}

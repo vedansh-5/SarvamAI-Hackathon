@@ -356,3 +356,29 @@ func scriptedActs(p *fakePage) int {
 	}
 	return n
 }
+
+func TestTextIsPutBackIntoAFieldOnAPage(t *testing.T) {
+	page := &fakePage{snap: snapshot{
+		Host: "site.example", Ready: "complete",
+		Controls: []control{{Role: "AXTextField", Title: "Title", Value: "new", Enabled: true, X: 100, Y: 200, W: 120, H: 40}},
+	}}
+	s := &Screen{Page: page}
+	quick(t)
+
+	if err := s.PutBack(context.Background(), "", uiact.Selector{Role: "AXTextField", Title: "Title"}, "what was there"); err != nil {
+		t.Fatalf("PutBack: %v", err)
+	}
+	sent := ""
+	for _, script := range page.asked {
+		if strings.HasPrefix(script, actOnPage) {
+			sent = script[len(actOnPage):]
+		}
+	}
+	if !strings.Contains(sent, `"verb":"type"`) || !strings.Contains(sent, `"text":"what was there"`) {
+		t.Errorf("sent %q, want the old text typed back into the field", sent)
+	}
+
+	if err := s.PutBack(context.Background(), "", uiact.Selector{Role: "AXTextField", Title: "Gone"}, "x"); err == nil {
+		t.Error("putting text back into a field that is not there was reported as done")
+	}
+}

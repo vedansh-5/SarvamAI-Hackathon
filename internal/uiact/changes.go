@@ -113,9 +113,19 @@ func ActedOn(before, after Tree, step Step) bool {
 // So: evidence about the control itself, never the general churn of the window.
 // A key press is the exception — there is no click to observe, and pressing a key
 // need not touch the control at all — so it keeps the older, looser test.
+const typingSeenAround = 3
+
+func typedWhereItCannotBeRead(before, after Tree, step Step) bool {
+	el, why := after.resolve(step.Target)
+	if why != "" || !el.Blind {
+		return false
+	}
+	return upheaval(before, after) >= typingSeenAround
+}
+
 func PersonActedOn(before, after Tree, step Step) bool {
 	if typed, decided := typingLanded(after, step); decided {
-		return typed
+		return typed || typedWhereItCannotBeRead(before, after, step)
 	}
 	if verb(step.Do) == "press" {
 		return windowMovedOn(before, after, step.Target)

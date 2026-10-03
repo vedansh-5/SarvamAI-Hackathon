@@ -47,6 +47,8 @@ func scrollElement(int, []int) error { return errNoAccessibilityAPI }
 
 func elementValue(int, []int) (string, bool) { return "", false }
 
+func setElementValue(int, []int, string) error { return errNoAccessibilityAPI }
+
 func windowOf(int) (int, int, int, int, int, bool) { return 0, 0, 0, 0, 0, false }
 
 func selectedText(int) (string, bool) { return "", false }

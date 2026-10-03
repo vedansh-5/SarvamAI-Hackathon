@@ -40,12 +40,14 @@ type howToUndo struct {
 	Files   []fileops.Done `json:"files,omitempty"`
 	Setting string         `json:"setting,omitempty"`
 	Was     string         `json:"was,omitempty"`
+	Typed   []TypedField   `json:"typed,omitempty"`
 }
 
 const (
 	undoByClearingTheStyle = "restyle"
 	undoByMovingFilesBack  = "files"
 	undoBySettingItBack    = "setting"
+	undoByPuttingTextBack  = "typing"
 )
 
 func marshalUndo(u howToUndo) string {
@@ -107,6 +109,8 @@ func (e *Engine) putItBack(ctx context.Context, how howToUndo) error {
 		return e.ClearStyle(ctx)
 	case undoByMovingFilesBack:
 		return fileops.Reverse(how.Files)
+	case undoByPuttingTextBack:
+		return e.putTheTextBack(ctx, how.Typed)
 	case undoBySettingItBack:
 		if !e.canSet() {
 			return fmt.Errorf("%w: this build cannot change settings", ErrCannotBeUndone)

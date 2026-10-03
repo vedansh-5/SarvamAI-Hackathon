@@ -1,6 +1,9 @@
 package uiact
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 type Screen interface {
 	Capture(ctx context.Context, app string) (Tree, error)
@@ -94,4 +97,48 @@ func (s System) Selection(ctx context.Context, app string) (string, bool) {
 		return "", false
 	}
 	return selectedText(pid)
+}
+
+type ValueKeeper interface {
+	ValueOf(ctx context.Context, t Tree, sel Selector) (string, bool)
+	PutBack(ctx context.Context, app string, sel Selector, value string) error
+}
+
+var (
+	valueSetter = setElementValue
+	wholeValue  = elementValue
+)
+
+func (s System) ValueOf(ctx context.Context, t Tree, sel Selector) (string, bool) {
+	el, why := t.resolve(sel)
+	if why != "" || !el.Typeable() || el.Blind || role(el.Role) == "securetextfield" {
+		return "", false
+	}
+	pid, err := pidFor(ctx, s.Runner, t.App)
+	if err != nil {
+		return "", false
+	}
+	return wholeValue(pid, el.Path)
+}
+
+func (s System) PutBack(ctx context.Context, app string, sel Selector, value string) error {
+	tree, err := Capture(ctx, s.Runner, app)
+	if err != nil {
+		return err
+	}
+	el, why := tree.resolve(sel)
+	if why != "" {
+		return fmt.Errorf("uiact: %s, so there is nowhere to put the text back", why)
+	}
+	pid, err := pidFor(ctx, s.Runner, app)
+	if err != nil {
+		return err
+	}
+	if err := valueSetter(pid, el.Path, value); err != nil {
+		return err
+	}
+	if now, ok := wholeValue(pid, el.Path); ok && now != value {
+		return fmt.Errorf("uiact: the %s %q did not take its text back", el.Role, el.Title)
+	}
+	return nil
 }

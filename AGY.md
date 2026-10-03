@@ -1436,7 +1436,7 @@ aloud).
 - D4. **Built (D-176).** A dry run: what would be done, without doing it.
 - D5. **Built (D-171).** Recovery when a task breaks partway: say where it got to, offer to carry on
   or back out.
-- D6. Undo for typing (half built on `put-typing-back`).
+- D6. **Built (D-203), not yet tried on a real field.** Undo for typing.
 - D7. **Built (D-172).** Notes kept locally of what failed, so general faults surface from use.
 
 **E. Smarter.**

@@ -18,6 +18,7 @@ type Element struct {
 
 	Filled bool `json:"-"`
 	Notice bool `json:"-"`
+	Blind  bool `json:"-"`
 }
 
 type Tree struct {

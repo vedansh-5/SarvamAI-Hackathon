@@ -139,6 +139,9 @@ func undoFor(plan *Plan) string {
 	if plan.Style != nil && !plan.Style.Clears {
 		return marshalUndo(howToUndo{Kind: undoByClearingTheStyle})
 	}
+	if plan.Drive != nil && len(plan.Drive.typed) > 0 && !plan.Drive.committed {
+		return marshalUndo(howToUndo{Kind: undoByPuttingTextBack, Typed: plan.Drive.typed})
+	}
 	if plan.Files != nil && len(plan.Files.done) > 0 {
 		return marshalUndo(howToUndo{Kind: undoByMovingFilesBack, Files: plan.Files.done})
 	}
