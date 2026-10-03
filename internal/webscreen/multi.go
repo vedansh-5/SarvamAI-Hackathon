@@ -146,3 +146,11 @@ func (m *Multi) PutBack(ctx context.Context, app string, sel uiact.Selector, val
 	}
 	return s.PutBack(ctx, app, sel, value)
 }
+
+func (m *Multi) ReadText(ctx context.Context, app string) (uiact.ScreenText, error) {
+	s := m.pick(ctx, app)
+	if s == nil {
+		return uiact.ScreenText{}, errNoBrowser
+	}
+	return s.ReadText(ctx, app)
+}

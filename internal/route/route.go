@@ -59,6 +59,8 @@ const (
 
 	KindFiles Kind = "files.do"
 
+	KindScreenRead Kind = "screen.read"
+
 	KindSetting Kind = "system.set"
 
 	// KindUnknown is the honest answer. The router is allowed to say it does
@@ -119,6 +121,13 @@ var Specs = []Spec{
 		Describe: "Work on a piece of text and give the result back as words, touching nothing on screen: translate it, rewrite or shorten it, fix its spelling and grammar, summarise or explain it, or draft a reply to it. The text is what the user has selected, or what they wrote in the instruction itself (\"translate this to Hindi\", \"make this sound more formal\", \"what does this mean\"). Use this whenever what is wanted back is words rather than an action. Never app.act or page.act for these: no application is being asked to do anything.",
 		Slots: []Slot{
 			{"intent", "what to do with the text, in plain words", true},
+		},
+	},
+	{
+		Kind:     KindScreenRead,
+		Describe: "Answer a question about what an application's window is showing right now: what a message says, who wrote last, what a dialog is asking, what the total is, what is in a list. The window's text is read and the answer given in words; nothing is clicked. Use it for questions about what is shown (\"what did Joe say last\", \"read me this error\", \"what's the due date here\"). Not for where a control is or how to do something (app.guide), and not for a web page's contents as a table (page.here).",
+		Slots: []Slot{
+			{"intent", "what they want to know about what is on screen, in plain words", true},
 		},
 	},
 	{

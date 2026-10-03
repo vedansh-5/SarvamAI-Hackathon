@@ -1428,6 +1428,11 @@ No local model runtimes (§11 still holds); these come first.
 - B9. **Built (D-206, D-207), not yet tried live.** More kinds of step: double-click,
   right-click, hover, drag, scroll, set a slider, wait.
 
+- B10. **Built (D-209), checked on a sample page only.** Pages inside pages, and a
+  click that leaves for another site.
+- B11. **Built (D-210), not yet tried on a real window.** Reading what a window shows
+  to answer a question about it.
+
 **C. Voice.** C1. Voice in (hold ⌥Space and talk). C2. Voice out (steps read
 aloud).
 

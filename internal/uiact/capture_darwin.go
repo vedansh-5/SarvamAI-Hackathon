@@ -911,6 +911,10 @@ func walkApp(pid int, app string) (Tree, error) {
 	return walkAppWithin(pid, app, limits{depth: MaxDepth, most: MaxElements})
 }
 
+func walkAppText(pid int, app string) (Tree, error) {
+	return walkAppWithin(pid, app, limits{depth: DeepDepth, most: DeepElements, value: LongestTextRead})
+}
+
 func walkAppDeep(pid int, app string) (Tree, error) {
 	tree, err := walkAppWithin(pid, app, limits{depth: DeepDepth, most: DeepElements})
 	if err != nil {

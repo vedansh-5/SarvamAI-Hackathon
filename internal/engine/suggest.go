@@ -41,6 +41,7 @@ func (e *Engine) Suggestions(ctx context.Context, front string) []Suggestion {
 	candidates := []Suggestion{
 		{Icon: "page", Text: "what is this page about", Kind: route.KindPageHere},
 		{Icon: "pencil", Text: "translate this to Hindi", Kind: route.KindText},
+		{Icon: "page", Text: "what does this error say", Kind: route.KindScreenRead},
 		{Icon: "page", Text: "move the screenshots on my Desktop into a folder called Screenshots", Kind: route.KindFiles},
 		{Icon: "pencil", Text: "switch to dark mode", Kind: route.KindSetting},
 		{Icon: "search", Text: "search for noise-cancelling headphones under $200", Kind: route.KindWebSearch},

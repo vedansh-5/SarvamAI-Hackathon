@@ -558,3 +558,25 @@ func (s *Screen) pointForReal(ctx context.Context, step uiact.Step, t uiact.Tree
 	s.RealMove(x+w/2, y+h/2)
 	s.waitForAnAnswer(ctx, t)
 }
+
+const mostPageText = 20000
+
+func (s *Screen) ReadText(ctx context.Context, _ string) (uiact.ScreenText, error) {
+	var out struct {
+		Host  string `json:"host"`
+		Title string `json:"title"`
+		Text  string `json:"text"`
+	}
+	script := fmt.Sprintf(`JSON.stringify({host: location.hostname.replace(/^www\./, ''), title: document.title, `+
+		`text: String(document.body ? document.body.innerText : '').slice(0, %d)})`, mostPageText)
+	if err := s.Page.AskFront(ctx, script, &out); err != nil {
+		return uiact.ScreenText{}, err
+	}
+	var lines []string
+	for _, line := range strings.Split(out.Text, "\n") {
+		if line = strings.Join(strings.Fields(line), " "); line != "" {
+			lines = append(lines, line)
+		}
+	}
+	return uiact.ScreenText{App: out.Host, Window: out.Title, Lines: lines}, nil
+}

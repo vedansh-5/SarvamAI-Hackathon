@@ -204,6 +204,11 @@ func run() error {
 		texts = t
 	}
 
+	var reader engine.ScreenReader
+	if r, ok := synthesizer.(engine.ScreenReader); ok {
+		reader = r
+	}
+
 	var fileOps engine.FileWriter
 	if f, ok := synthesizer.(engine.FileWriter); ok {
 		fileOps = f
@@ -232,6 +237,7 @@ func run() error {
 			History:    st,
 			Chooser:    chooser,
 			Texts:      texts,
+			Reader:     reader,
 			FileOps:    fileOps,
 			Settings:   macset.Mac{},
 			Meter:      meter,

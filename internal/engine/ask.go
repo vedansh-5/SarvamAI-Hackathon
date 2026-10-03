@@ -287,6 +287,19 @@ func (e *Engine) ask(ctx context.Context, in Ask) (*Plan, error) {
 		plan.DecisionCalls = res.DecisionCalls
 		return plan, nil
 
+	case route.KindScreenRead:
+		if !e.canReadScreens() {
+			break
+		}
+		plan, err := e.readTheScreen(ctx, in)
+		if err != nil {
+			return nil, err
+		}
+		r := res.Route
+		plan.Route = &r
+		plan.DecisionCalls = res.DecisionCalls
+		return plan, nil
+
 	case route.KindFiles:
 		if !e.canDoFiles() {
 			break
@@ -494,6 +507,8 @@ func (e *Engine) canRun(k route.Kind) bool {
 		return true
 	case route.KindText:
 		return e.canWorkOnText()
+	case route.KindScreenRead:
+		return e.canReadScreens()
 	case route.KindFiles:
 		return e.canDoFiles()
 	case route.KindSetting:

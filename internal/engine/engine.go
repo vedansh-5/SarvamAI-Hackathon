@@ -160,7 +160,8 @@ type Engine struct {
 	// the application in front is used, which is what happened before it existed.
 	Chooser AppChooser
 
-	Texts TextWorker
+	Texts  TextWorker
+	Reader ScreenReader
 
 	FileOps  FileWriter
 	Settings MacSettings

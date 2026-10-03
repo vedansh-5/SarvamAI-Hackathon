@@ -218,3 +218,11 @@ func (l *Live) SeeScreen(ctx context.Context, req SeeRequest) (SeeAnswer, error)
 	}
 	return c.SeeScreen(ctx, req)
 }
+
+func (l *Live) ReadScreen(ctx context.Context, req ReadRequest) (ReadAnswer, error) {
+	c, err := l.use()
+	if err != nil {
+		return ReadAnswer{}, err
+	}
+	return c.ReadScreen(ctx, req)
+}

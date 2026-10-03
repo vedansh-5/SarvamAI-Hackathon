@@ -4697,3 +4697,24 @@ tab was being followed without anything saying so. The step's effect now says
 the browser is showing another site, and the run carries on under that name.
 
 Checked in a browser of its own on a sample page with one frame of each kind.
+
+## D-210 — What a window shows is read only to answer a question about it
+
+"What did Joe say last?" could not be answered. What a window holds is withheld
+from the model (D-058), which is right for choosing a control and leaves nothing
+to answer from.
+
+`screen.read` is the deliberate exception. When the question is about what is
+shown, the window is read again with its text in full, top to bottom, only what
+is in view: no menu bar, no password fields, nothing scrolled away. When there is
+more than fits, the end is kept, since in a conversation the end is the newest.
+The model answers from those lines and nothing else, and says the answer is not
+on screen when it is not. A question about someone the text never names is
+answered that way, not with the nearest line.
+
+Asking is the consent, and the answer says what it cost: whose text was sent. An
+application on the never list is not read at all, since "leave it alone" was
+never only about clicking. A page in a browser is read through the page.
+
+The text is treated as what is on screen and never as instructions. A line in a
+chat telling the reader to do something was quoted back as the message it is.

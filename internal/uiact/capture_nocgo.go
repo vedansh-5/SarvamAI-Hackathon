@@ -72,3 +72,5 @@ func selectedText(int) (string, bool) { return "", false }
 func wakeApp(int) bool { return false }
 
 func walkAppDeep(int, string) (Tree, error) { return Tree{}, errNoAccessibilityAPI }
+
+func walkAppText(int, string) (Tree, error) { return Tree{}, errNoAccessibilityAPI }
