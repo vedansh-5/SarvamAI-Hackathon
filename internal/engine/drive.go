@@ -987,6 +987,11 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 			if !changed && acting && strings.EqualFold(strings.TrimSpace(answer.Step.Do), "click") && e.closedAStrayChooser(ctx) {
 				effect, changed = strayChooser, true
 			}
+			if e.onPage && strings.TrimSpace(after.App) != "" && !strings.EqualFold(after.App, tree.App) {
+				e.logf("the browser is now on %s", after.App)
+				effect = fmt.Sprintf("the browser is now showing %s (%q), so what is on screen next is that page; %s", after.App, after.Window, effect)
+				changed, app = true, after.App
+			}
 
 			// A replayed step that changed nothing is a divergence, not a success
 			// — the same rule D-076 applies to a live one. Nothing moved, so

@@ -5,12 +5,43 @@
   var MOST = 400;
   var MOST_CELLS = 120;
 
-  function gather(root, into) {
+  var MOST_FRAMES = 12;
+  var DEEPEST_FRAME = 3;
+  var inFrame = new Map();
+  var closed = [];
+  var frames = 0;
+
+  function gather(root, into, frame, depth) {
     var found = root.querySelectorAll(PICK);
-    for (var i = 0; i < found.length; i++) into.push(found[i]);
+    for (var i = 0; i < found.length; i++) {
+      into.push(found[i]);
+      if (frame) inFrame.set(found[i], frame);
+    }
     var all = root.querySelectorAll('*');
     for (var j = 0; j < all.length; j++) {
-      if (all[j].shadowRoot) gather(all[j].shadowRoot, into);
+      if (all[j].shadowRoot) gather(all[j].shadowRoot, into, frame, depth);
+    }
+    var holders = root.querySelectorAll('iframe,frame');
+    for (var k = 0; k < holders.length; k++) {
+      var holder = holders[k];
+      var box = holder.getBoundingClientRect();
+      if (box.width < 40 || box.height < 30) continue;
+      var at = {
+        x: (frame ? frame.x : 0) + box.left + holder.clientLeft,
+        y: (frame ? frame.y : 0) + box.top + holder.clientTop,
+        w: holder.clientWidth, h: holder.clientHeight
+      };
+      var inner = null;
+      try { inner = holder.contentDocument; } catch (e) { inner = null; }
+      if (!inner || !inner.documentElement) {
+        var from = '';
+        try { from = new URL(holder.src, location.href).hostname.replace(/^www\./, ''); } catch (e) { from = ''; }
+        closed.push({ x: at.x, y: at.y, w: box.width, h: box.height, from: from });
+        continue;
+      }
+      if (depth >= DEEPEST_FRAME || frames >= MOST_FRAMES) continue;
+      frames++;
+      gather(inner, into, at, depth + 1);
     }
   }
 
@@ -62,7 +93,7 @@
     var by = el.getAttribute('aria-labelledby');
     if (by) {
       var parts = by.split(/\s+/).map(function (id) {
-        var n = document.getElementById(id);
+        var n = el.ownerDocument.getElementById(id);
         return n ? n.innerText : '';
       }).join(' ');
       if (squash(parts, 80)) return squash(parts, 80);
@@ -129,7 +160,7 @@
   var oy = screenY + Math.max(0, outerHeight - innerHeight * zoom);
 
   var found = [];
-  gather(document, found);
+  gather(document, found, null, 0);
 
   var cells = 0;
   for (var c = 0; c < found.length; c++) {
@@ -144,8 +175,15 @@
     if (seen.has(el)) continue;
     seen.add(el);
     if (aGridOfData && (el.getAttribute('role') || '').toLowerCase() === 'gridcell') continue;
-    var r = el.getBoundingClientRect();
-    if (!shown(el, r)) continue;
+    var own = el.getBoundingClientRect();
+    if (!shown(el, own)) continue;
+    var frame = inFrame.get(el);
+    var r = { left: own.left, top: own.top, right: own.right, bottom: own.bottom, width: own.width, height: own.height };
+    var inItsFrame = true;
+    if (frame) {
+      inItsFrame = own.bottom > 0 && own.right > 0 && own.top < frame.h && own.left < frame.w;
+      r.left += frame.x; r.right += frame.x; r.top += frame.y; r.bottom += frame.y;
+    }
     var name = nameOf(el);
     var role = roleOf(el);
     if (!name && (role === 'AXButton' || role === 'AXLink' || role === 'AXTab' || role === 'AXMenuItem')) continue;
@@ -155,7 +193,7 @@
       title: name,
       value: valueOf(el),
       enabled: !(el.disabled || el.getAttribute('aria-disabled') === 'true'),
-      focused: document.activeElement === el,
+      focused: el.ownerDocument.activeElement === el,
       notice: role === 'AXButton' || role === 'AXLink' ? inNotice(el) : false,
       low: Number(el.getAttribute('min') || el.getAttribute('aria-valuemin') || 0),
       high: Number(el.getAttribute('max') || el.getAttribute('aria-valuemax') || (role === 'AXSlider' ? 100 : 0)),
@@ -164,8 +202,21 @@
       w: Math.round(r.width * zoom),
       h: Math.round(r.height * zoom)
     };
-    var visible = r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
+    var visible = inItsFrame && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
     (visible ? inView : away).push(item);
+  }
+
+  for (var f = 0; f < closed.length; f++) {
+    var gap = closed[f];
+    if (gap.y + gap.h <= 0 || gap.x + gap.w <= 0 || gap.y >= innerHeight || gap.x >= innerWidth) continue;
+    inView.push({
+      el: null,
+      role: 'AXGroup',
+      title: 'embedded content' + (gap.from ? ' from ' + gap.from : '') + ', which cannot be read or used from here',
+      value: '', enabled: false, focused: false, notice: false, low: 0, high: 0,
+      x: Math.round(ox + gap.x * zoom), y: Math.round(oy + gap.y * zoom),
+      w: Math.round(gap.w * zoom), h: Math.round(gap.h * zoom)
+    });
   }
 
   var kept = inView.concat(away).slice(0, MOST);

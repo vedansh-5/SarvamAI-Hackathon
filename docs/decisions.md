@@ -4632,7 +4632,7 @@ pointing, reordering, sliders, and lists that load as they are scrolled.
   with that said. A value outside the range is refused before anything moves.
   Sliders are never dragged: a drag lands near a value, never on it.
 - **scroll** is only for content that is not listed yet. A control that is
-  listed is still scrolled to by itself (D-142), and the prompt says so.
+  listed is still scrolled to by itself (D-144), and the prompt says so.
 
 On a page the same steps are scripted where a page answers a scripted event
 (double-click, context menu, hover, scroll, sliders) and done with the real
@@ -4672,3 +4672,28 @@ Twenty-four live answers across eight kinds of task: all usable, where the same
 set had eleven unusable before the step was required. The length cap is back to
 1,200 tokens for a step and 4,000 for a plan, since a runaway now costs seconds
 rather than a retry.
+
+## D-209 — A page inside a page is read where the browser allows it, and named where it does not
+
+The page reader looked at the top document only, so a form inside an embedded
+frame was simply absent: nothing to click, nothing to explain why.
+
+A frame the page is allowed to look into (same site, or written inline) is now
+read like the rest: its controls are listed at where they really are on screen,
+and clicking and typing in them work through the same script. Up to twelve
+frames, three deep. A control scrolled out of its own frame is marked out of
+view, as one scrolled off the page is.
+
+A frame from another site cannot be looked into by any script the browser will
+run; that is the wall card forms are built behind, on purpose. It is listed as
+what it is, "embedded content from that site, which cannot be read or used from
+here", greyed out, with its place on the page. The model is told that nothing
+inside can be used and that a task which needs it is stuck, with the part the
+person has to do named. That is the right end for a payment form anyway: card
+numbers are never typed (D-151).
+
+Reading already follows whichever tab is in front, so a click that opens a new
+tab was being followed without anything saying so. The step's effect now says
+the browser is showing another site, and the run carries on under that name.
+
+Checked in a browser of its own on a sample page with one frame of each kind.

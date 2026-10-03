@@ -240,3 +240,29 @@ func TestAChooserOpenedByAStrayClickIsClosedAndTheModelTold(t *testing.T) {
 		t.Errorf("the model was not told a chooser had opened and been closed: %+v", steps.requests)
 	}
 }
+
+func TestAClickThatLeavesThePageTellsTheModelWhereItIsNow(t *testing.T) {
+	look := lookBeforeActing
+	lookBeforeActing = 0
+	t.Cleanup(func() { lookBeforeActing = look })
+
+	elsewhere := editorTree()
+	elsewhere.App, elsewhere.Window = "pay.example", "Checkout"
+	page := &fakeScreen{tree: editorTree(), afterwards: &elsewhere, front: "Google Chrome"}
+	steps := &recordingSteps{answers: []synth.StepAnswer{{Step: clickMessage()}, {Done: true, Why: "there"}}}
+	e := (&Engine{UIScreen: &browserWindow{}, PageScreen: page, Steps: steps}).onThePage()
+
+	if _, err := e.runDrive(context.Background(), &Plan{Drive: &DrivePlan{App: "Editor", Task: "go to checkout", Web: true, Browser: "Google Chrome"}}); err != nil {
+		t.Fatalf("runDrive: %v", err)
+	}
+	if len(steps.requests) < 2 {
+		t.Fatalf("asked %d time(s), want a second look at the new page", len(steps.requests))
+	}
+	told := strings.Join(steps.requests[1].Done, "\n")
+	if !strings.Contains(told, "pay.example") || !strings.Contains(told, "Checkout") {
+		t.Errorf("the model was not told the browser moved to another page: %q", told)
+	}
+	if steps.requests[1].Tree.App != "pay.example" {
+		t.Errorf("the next screen shown was %q, want the page the click led to", steps.requests[1].Tree.App)
+	}
+}

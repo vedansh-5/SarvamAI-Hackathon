@@ -2,8 +2,17 @@
   function fail(why) { return JSON.stringify({ ok: false, error: why }); }
   var el = (window.__vansEls || [])[a.id];
 
+  var W = (el && el.ownerDocument && el.ownerDocument.defaultView) || window;
+  var D = (el && el.ownerDocument) || document;
+
   if (a.verb === 'press') {
     var on = document.activeElement || document.body;
+    for (var hop = 0; hop < 4 && on && (on.tagName === 'IFRAME' || on.tagName === 'FRAME'); hop++) {
+      var within = null;
+      try { within = on.contentDocument; } catch (e) { within = null; }
+      if (!within || !within.activeElement) break;
+      on = within.activeElement;
+    }
     var init = {
       key: a.key, code: a.code, keyCode: a.keyCode, which: a.keyCode,
       bubbles: true, cancelable: true,
@@ -45,11 +54,11 @@
   }
 
   var r = el.getBoundingClientRect();
-  if (r.bottom <= 0 || r.top >= innerHeight || r.right <= 0 || r.left >= innerWidth) {
+  if (r.bottom <= 0 || r.top >= W.innerHeight || r.right <= 0 || r.left >= W.innerWidth) {
     el.scrollIntoView({ block: 'center', inline: 'center' });
     r = el.getBoundingClientRect();
   }
-  var at = { bubbles: true, cancelable: true, view: window, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, button: 0 };
+  var at = { bubbles: true, cancelable: true, view: W, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, button: 0 };
 
   if (a.verb === 'dblclick') {
     ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(function (t) {
@@ -80,7 +89,7 @@
     var want = Number(a.text);
     if (isNaN(want)) return fail('that is not a number');
     if (el.tagName.toLowerCase() === 'input') {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, String(want));
+      Object.getOwnPropertyDescriptor(W.HTMLInputElement.prototype, 'value').set.call(el, String(want));
       el.dispatchEvent(new Event('input', { bubbles: true }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
       return JSON.stringify({ ok: true });
@@ -122,13 +131,13 @@
       if (pick < 0) return fail('that list has no choice called ' + a.text);
       el.selectedIndex = pick;
     } else if (tag === 'input' || tag === 'textarea') {
-      var proto = tag === 'textarea' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      var proto = tag === 'textarea' ? W.HTMLTextAreaElement.prototype : W.HTMLInputElement.prototype;
       Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, a.text);
     } else if (el.isContentEditable) {
-      var sel = window.getSelection();
+      var sel = W.getSelection();
       sel.selectAllChildren(el);
       sel.collapseToEnd();
-      document.execCommand('insertText', false, a.text);
+      D.execCommand('insertText', false, a.text);
       return JSON.stringify({ ok: true });
     } else {
       return fail('that control does not hold typed text');
