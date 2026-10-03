@@ -382,3 +382,56 @@ func TestTextIsPutBackIntoAFieldOnAPage(t *testing.T) {
 		t.Error("putting text back into a field that is not there was reported as done")
 	}
 }
+
+func TestTheNewStepsReachAPageInItsOwnTerms(t *testing.T) {
+	var dragged []int
+	page := &fakePage{snap: snapshot{
+		Host: "site.example", Ready: "complete",
+		Controls: []control{
+			{Role: "AXButton", Title: "Card", Enabled: true, X: 100, Y: 100, W: 100, H: 40},
+			{Role: "AXButton", Title: "Done column", Enabled: true, X: 500, Y: 100, W: 200, H: 400},
+			{Role: "AXSlider", Title: "Volume", Value: "20", Low: 0, High: 100, Enabled: true, X: 100, Y: 300, W: 200, H: 20},
+		},
+	}}
+	s := &Screen{Page: page, RealDrag: func(x1, y1, x2, y2 int) { dragged = []int{x1, y1, x2, y2} }}
+	quick(t)
+
+	tree, err := s.Capture(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if text := tree.TextWithin(4000); !strings.Contains(text, `AXSlider "Volume" value=20 (from 0 to 100)`) {
+		t.Errorf("the page's slider is not shown with its range:\n%s", text)
+	}
+
+	card := uiact.Selector{Role: "AXButton", Title: "Card"}
+	column := uiact.Selector{Role: "AXButton", Title: "Done column"}
+	steps := []uiact.Step{
+		{Do: "doubleclick", Target: card},
+		{Do: "rightclick", Target: card},
+		{Do: "scroll", Target: uiact.Selector{Role: WebArea}, Text: "down"},
+		{Do: "set", Target: uiact.Selector{Role: "AXSlider", Title: "Volume"}, Text: "60"},
+		{Do: "drag", Target: card, To: &column},
+	}
+	if err := s.Act(context.Background(), uiact.Program{App: tree.App, Steps: steps}, tree); err != nil {
+		t.Fatalf("Act: %v", err)
+	}
+
+	var sent []string
+	for _, script := range page.asked {
+		if strings.HasPrefix(script, actOnPage) {
+			sent = append(sent, script[len(actOnPage):])
+		}
+	}
+	for i, want := range []string{`"verb":"dblclick"`, `"verb":"contextmenu"`, `"verb":"scrollby","id":-1,"text":"down"`, `"verb":"set"`} {
+		if i >= len(sent) || !strings.Contains(sent[i], want) {
+			t.Errorf("act %d = %q, want %s", i+1, sent, want)
+		}
+	}
+	if len(sent) != 4 {
+		t.Errorf("sent %d scripted act(s), want 4: a drag is made with the real pointer", len(sent))
+	}
+	if len(dragged) != 4 || dragged[0] != 150 || dragged[1] != 120 || dragged[2] != 600 || dragged[3] != 300 {
+		t.Errorf("dragged %v, want from the middle of the card to the middle of the column", dragged)
+	}
+}

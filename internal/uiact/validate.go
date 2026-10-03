@@ -82,6 +82,15 @@ func Validate(p Program, t Tree) error {
 			}
 			continue
 		}
+		if s.Waits() {
+			if strings.TrimSpace(s.Target.Role) == "" {
+				add("%s: it waits without naming what for", where)
+			}
+			if text := strings.ToLower(strings.TrimSpace(s.Text)); text != "" && !Waits[text] {
+				add("%s: a wait is for something that appears, is ready, or goes; %q is none of those", where, s.Text)
+			}
+			continue
+		}
 
 		el, why := t.resolve(s.Target)
 		if why != "" {
@@ -89,7 +98,7 @@ func Validate(p Program, t Tree) error {
 			continue
 		}
 
-		if !el.Enabled {
+		if !el.Enabled && verb(s.Do) != "hover" && verb(s.Do) != "scroll" {
 			add("%s: the %s %q is disabled", where, el.Role, el.Title)
 			continue
 		}
@@ -105,6 +114,22 @@ func Validate(p Program, t Tree) error {
 		case "click":
 			if !el.Pressable() {
 				add("%s: the %s %q cannot be pressed", where, el.Role, el.Title)
+			}
+		case "scroll":
+			if !Directions[strings.ToLower(strings.TrimSpace(s.Text))] {
+				add("%s: a scroll goes up, down, left or right, given as text", where)
+			}
+		case "drag":
+			if s.To == nil {
+				add("%s: it drags the %s %q without saying where to", where, el.Role, el.Title)
+			} else if _, why := t.resolve(*s.To); why != "" {
+				add("%s: where it is dragged to: %s", where, why)
+			}
+		case "set":
+			if !el.Adjustable() {
+				add("%s: a %s is not a slider or stepper, so it has no value to set; type into a field instead", where, el.Role)
+			} else if _, err := AmountFor(el, s.Text); err != nil {
+				add("%s: %v", where, err)
 			}
 		case "choose":
 			if !el.Pressable() {

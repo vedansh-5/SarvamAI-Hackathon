@@ -11,15 +11,16 @@ type Program struct {
 }
 
 type Step struct {
-	Do        string   `json:"do"`
-	Target    Selector `json:"target"`
-	Text      string   `json:"text,omitempty"`
-	Key       string   `json:"key,omitempty"`
-	Modifiers []string `json:"modifiers,omitempty"`
-	Describe  string   `json:"describe,omitempty"`
-	Final     bool     `json:"final,omitempty"`
-	Fill      bool     `json:"fill,omitempty"`
-	App       string   `json:"app,omitempty"`
+	Do        string    `json:"do"`
+	Target    Selector  `json:"target"`
+	Text      string    `json:"text,omitempty"`
+	Key       string    `json:"key,omitempty"`
+	Modifiers []string  `json:"modifiers,omitempty"`
+	Describe  string    `json:"describe,omitempty"`
+	Final     bool      `json:"final,omitempty"`
+	Fill      bool      `json:"fill,omitempty"`
+	App       string    `json:"app,omitempty"`
+	To        *Selector `json:"to,omitempty"`
 }
 
 type Selector struct {
@@ -29,12 +30,40 @@ type Selector struct {
 }
 
 var Verbs = map[string]bool{
-	"click":  true,
-	"type":   true,
-	"press":  true,
-	"choose": true,
-	"switch": true,
+	"click":       true,
+	"type":        true,
+	"press":       true,
+	"choose":      true,
+	"switch":      true,
+	"doubleclick": true,
+	"rightclick":  true,
+	"hover":       true,
+	"scroll":      true,
+	"drag":        true,
+	"set":         true,
+	"wait":        true,
 }
+
+var Directions = map[string]bool{"up": true, "down": true, "left": true, "right": true}
+
+const (
+	WaitAppears = "appears"
+	WaitReady   = "ready"
+	WaitGoes    = "goes"
+)
+
+var Waits = map[string]bool{WaitAppears: true, WaitReady: true, WaitGoes: true}
+
+func (s Step) Waits() bool { return verb(s.Do) == "wait" }
+
+func (s Step) WaitsFor() string {
+	if w := strings.ToLower(strings.TrimSpace(s.Text)); Waits[w] {
+		return w
+	}
+	return WaitAppears
+}
+
+func (s Step) Verb() string { return verb(s.Do) }
 
 func (s Step) Switches() bool { return verb(s.Do) == "switch" }
 

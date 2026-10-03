@@ -309,6 +309,14 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 			changed, watching = on.watchTheWindow(ctx, step.App), step.App
 			return tree, nil
 		}
+		if step.Waits() {
+			waiting := GuideStep{Number: number + opened, Label: describe, Do: "wait", Detail: step.WaitsFor()}
+			if x, y, w, h, why := tree.RectFor(step.Target); why == "" {
+				waiting.X, waiting.Y, waiting.W, waiting.H = x, y, w, h
+			}
+			show(clearOfTheMenu(waiting, tree))
+			return tree, nil
+		}
 		here := tree.App
 		if here != watching {
 			changed, watching = on.watchTheWindow(ctx, here), here
@@ -342,8 +350,15 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 		}
 
 		verb, detail := step.Do, detailOf(step)
-		if step.Chooses() {
+		switch step.Verb() {
+		case "choose":
 			verb, detail = "click", "then choose "+step.Text
+		case "drag":
+			if step.To != nil {
+				detail = step.To.Title
+			}
+		case "set", "scroll":
+			detail = strings.TrimSpace(step.Text)
 		}
 
 		for attempt := 1; ; attempt++ {

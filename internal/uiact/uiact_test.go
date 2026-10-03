@@ -149,7 +149,7 @@ func TestAnElementThatIsNotThereIsRefused(t *testing.T) {
 
 func TestUnknownVerbAndKeyAreRefused(t *testing.T) {
 	p := Program{App: "Telegram", Steps: []Step{
-		{Do: "drag", Target: Selector{Role: "AXButton", Title: "Send"}},
+		{Do: "swipe", Target: Selector{Role: "AXButton", Title: "Send"}},
 		{Do: "press", Target: Selector{Role: "AXTextArea", Title: "Message"}, Key: "F13"},
 	}}
 	rs := reasons(t, Validate(p, window()))

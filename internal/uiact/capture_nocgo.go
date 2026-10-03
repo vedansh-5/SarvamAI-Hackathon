@@ -27,6 +27,22 @@ func postClick(int, int) {}
 
 func postKey(int, uint64) {}
 
+func postMove(int, int) {}
+
+func postDoubleClick(int, int) {}
+
+func postRightClick(int, int) {}
+
+func postScroll(int, int, int, int) {}
+
+func postDrag(int, int, int, int) {}
+
+func elementNumber(int, []int) (float64, bool) { return 0, false }
+
+func setElementNumber(int, []int, float64) error { return errNoAccessibilityAPI }
+
+func performOn(int, []int, string) (bool, error) { return false, errNoAccessibilityAPI }
+
 func postText(string) {}
 
 func frontmostApp() (string, bool) { return "", false }

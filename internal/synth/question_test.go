@@ -24,3 +24,32 @@ func TestAQuestionWrittenAsTheReasonIsStillAQuestion(t *testing.T) {
 		}
 	}
 }
+
+func TestAnAnswerIsReadByTheKindItSaysItIs(t *testing.T) {
+	for name, tc := range map[string]struct {
+		body string
+		want func(StepAnswer, error) bool
+	}{
+		"a step": {`{"next":"step","step":{"do":"click","target":{"role":"AXButton","title":"Send"},"describe":"Click Send"},"why":"send it"}`,
+			func(a StepAnswer, err error) bool { return err == nil && a.Step.Do == "click" && !a.Done }},
+		"done with a padded step": {`{"next":"done","step":{"do":"click","target":{"role":""}},"why":"the message is there"}`,
+			func(a StepAnswer, err error) bool { return err == nil && a.Done && a.Step.Do == "" }},
+		"stuck with a padded step": {`{"next":"stuck","step":{"do":"click","target":{"role":""}},"why":"nothing here books a table"}`,
+			func(a StepAnswer, err error) bool { return err == nil && a.Stuck }},
+		"a question in ask": {`{"next":"ask","step":null,"why":"need it","ask":{"question":"Which file?","options":[]}}`,
+			func(a StepAnswer, err error) bool {
+				return err == nil && a.Question != nil && a.Question.Ask == "Which file?"
+			}},
+		"a question left in why": {`{"next":"ask","step":null,"why":"The date of travel is not given"}`,
+			func(a StepAnswer, err error) bool { return err == nil && a.Question != nil }},
+		"a step that is missing": {`{"next":"step","step":null,"why":"click send"}`,
+			func(a StepAnswer, err error) bool { return err != nil }},
+		"the older shape": {`{"done":true,"why":"all there"}`,
+			func(a StepAnswer, err error) bool { return err == nil && a.Done }},
+	} {
+		got, err := decodeStep(tc.body)
+		if !tc.want(got, err) {
+			t.Errorf("%s: got %+v, %v", name, got, err)
+		}
+	}
+}

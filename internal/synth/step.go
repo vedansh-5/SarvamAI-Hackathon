@@ -27,8 +27,12 @@ func screenStepSchema(required ...string) map[string]any {
 	return map[string]any{
 		"type": "object",
 		"properties": map[string]any{
-			"do":     map[string]any{"type": "string", "enum": []string{"click", "type", "press", "choose", "switch"}},
+			"do": map[string]any{"type": "string", "enum": []string{
+				"click", "type", "press", "choose", "switch",
+				"doubleclick", "rightclick", "hover", "drag", "set", "scroll", "wait",
+			}},
 			"app":    map[string]any{"type": "string"},
+			"to":     selector,
 			"target": selector,
 			"text":   map[string]any{"type": "string"},
 			"key":    map[string]any{"type": "string", "enum": uiact.KeyNames()},
@@ -132,8 +136,8 @@ func writeOpenApps(b *strings.Builder, open []string, here string) {
 }
 
 const (
-	MostTokensForAStep = 3000
-	MostTokensForAPlan = 6000
+	MostTokensForAStep = 1200
+	MostTokensForAPlan = 4000
 )
 
 var asksThePerson = regexp.MustCompile(`(?i)(\?\s*$|^\s*(please|which|what|where|who|when|could you|can you|would you)\b|\b(please (provide|specify|tell|give|say|confirm|choose)|let me know|need(s)? to know|i need the|which (file|one|date|city|contact|account))\b)`)

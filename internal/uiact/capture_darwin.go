@@ -39,10 +39,30 @@ static void axText(AXUIElementRef el, int which, char *buf, int len) {
 
     CFTypeRef v = NULL;
     if (AXUIElementCopyAttributeValue(el, attr, &v) == kAXErrorSuccess && v) {
-        if (CFGetTypeID(v) == CFStringGetTypeID())
+        if (CFGetTypeID(v) == CFStringGetTypeID()) {
             CFStringGetCString((CFStringRef)v, buf, len, kCFStringEncodingUTF8);
+        } else if (which == 3 && CFGetTypeID(v) == CFBooleanGetTypeID()) {
+            snprintf(buf, len, "%d", CFBooleanGetValue((CFBooleanRef)v) ? 1 : 0);
+        } else if (which == 3 && CFGetTypeID(v) == CFNumberGetTypeID()) {
+            double d = 0;
+            if (CFNumberGetValue((CFNumberRef)v, kCFNumberDoubleType, &d)) snprintf(buf, len, "%g", d);
+        }
         CFRelease(v);
     }
+}
+
+static int axNumber(AXUIElementRef el, int which, double *out) {
+    CFStringRef attr = kAXValueAttribute;
+    if (which == 1) attr = kAXMinValueAttribute;
+    else if (which == 2) attr = kAXMaxValueAttribute;
+    CFTypeRef v = NULL;
+    int ok = 0;
+    if (AXUIElementCopyAttributeValue(el, attr, &v) == kAXErrorSuccess && v) {
+        if (CFGetTypeID(v) == CFNumberGetTypeID())
+            ok = CFNumberGetValue((CFNumberRef)v, kCFNumberDoubleType, out) ? 1 : 0;
+        CFRelease(v);
+    }
+    return ok;
 }
 
 static int axFlag(AXUIElementRef el, int focused) {
@@ -353,6 +373,38 @@ static int axSetValueAt(int pid, const int *path, int n, const char *value) {
     return e == kAXErrorSuccess ? 1 : -3;
 }
 
+static int axNumberAt(int pid, const int *path, int n, double *out) {
+    AXUIElementRef el = axAtPath(pid, path, n);
+    if (!el) return -1;
+    int ok = axNumber(el, 0, out);
+    CFRelease(el);
+    return ok;
+}
+
+static int axSetNumberAt(int pid, const int *path, int n, double value) {
+    AXUIElementRef el = axAtPath(pid, path, n);
+    if (!el) return -1;
+    CFNumberRef num = CFNumberCreate(NULL, kCFNumberDoubleType, &value);
+    if (!num) { CFRelease(el); return -2; }
+    AXError e = AXUIElementSetAttributeValue(el, kAXValueAttribute, num);
+    CFRelease(num);
+    CFRelease(el);
+    return e == kAXErrorSuccess ? 1 : -3;
+}
+
+static int axPerformAt(int pid, const int *path, int n, const char *action) {
+    AXUIElementRef el = axAtPath(pid, path, n);
+    if (!el) return -1;
+    CFStringRef name = CFStringCreateWithCString(NULL, action, kCFStringEncodingUTF8);
+    if (!name) { CFRelease(el); return -2; }
+    AXError e = AXUIElementPerformAction(el, name);
+    CFRelease(name);
+    CFRelease(el);
+    if (e == kAXErrorSuccess) return 1;
+    if (e == kAXErrorActionUnsupported) return 0;
+    return -3;
+}
+
 static int cgWindowOf(int pid, int *wid, double *x, double *y, double *w, double *h) {
     CFArrayRef list = CGWindowListCopyWindowInfo(
         kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements, kCGNullWindowID);
@@ -530,6 +582,52 @@ func setElementValue(pid int, path []int, value string) error {
 		return fmt.Errorf("uiact: that text cannot be written back")
 	default:
 		return fmt.Errorf("uiact: the field would not take its text back")
+	}
+}
+
+func elementNumber(pid int, path []int) (float64, bool) {
+	if !trusted() {
+		return 0, false
+	}
+	indices := cPath(path)
+	var out C.double
+	if C.axNumberAt(C.int(pid), &indices[0], C.int(len(path)), &out) != 1 {
+		return 0, false
+	}
+	return float64(out), true
+}
+
+func setElementNumber(pid int, path []int, value float64) error {
+	if !trusted() {
+		return ErrNoAssistiveAccess
+	}
+	indices := cPath(path)
+	switch int(C.axSetNumberAt(C.int(pid), &indices[0], C.int(len(path)), C.double(value))) {
+	case 1:
+		return nil
+	case -1:
+		return fmt.Errorf("uiact: the window no longer has that control")
+	default:
+		return fmt.Errorf("uiact: the control would not take a value directly")
+	}
+}
+
+func performOn(pid int, path []int, action string) (bool, error) {
+	if !trusted() {
+		return false, ErrNoAssistiveAccess
+	}
+	indices := cPath(path)
+	name := C.CString(action)
+	defer C.free(unsafe.Pointer(name))
+	switch int(C.axPerformAt(C.int(pid), &indices[0], C.int(len(path)), name)) {
+	case 1:
+		return true, nil
+	case 0:
+		return false, nil
+	case -1:
+		return false, fmt.Errorf("uiact: the window no longer has that control")
+	default:
+		return false, fmt.Errorf("uiact: the control refused %s", action)
 	}
 }
 
@@ -753,7 +851,14 @@ func openMenuUnder(holder C.AXUIElementRef, path []int, depth int) []Element {
 	return append(deeper, open...)
 }
 
-type limits struct{ depth, most int }
+type limits struct{ depth, most, value int }
+
+func (l limits) longest() int {
+	if l.value > 0 {
+		return l.value
+	}
+	return 120
+}
 
 func walkElement(el C.AXUIElementRef, path []int, depth int, out *[]Element, lim limits) {
 	if len(*out) >= lim.most || depth > lim.depth {
@@ -780,16 +885,23 @@ func walkElement(el C.AXUIElementRef, path []int, depth int, out *[]Element, lim
 		copy(here, path)
 		here[len(path)] = i
 
-		*out = append(*out, Element{
+		found := Element{
 			Role:     text(child, 0),
 			Title:    title,
-			Value:    truncate(text(child, 3), 120),
+			Value:    truncate(text(child, 3), lim.longest()),
 			Enabled:  C.axFlag(child, 0) != 0,
 			Focused:  C.axFlag(child, 1) == 1,
 			Position: position,
 			Size:     size,
 			Path:     here,
-		})
+		}
+		if adjustable[role(found.Role)] {
+			var low, high C.double
+			if C.axNumber(child, 1, &low) == 1 && C.axNumber(child, 2, &high) == 1 && float64(high) > float64(low) {
+				found.Ranged, found.Low, found.High = true, float64(low), float64(high)
+			}
+		}
+		*out = append(*out, found)
 
 		walkElement(child, here, depth+1, out, lim)
 	}

@@ -1,7 +1,7 @@
 (function () {
   var PICK = 'a[href],button,input,textarea,select,summary,[role=button],[role=link],[role=tab],' +
     '[role=menuitem],[role=option],[role=checkbox],[role=radio],[role=switch],[role=combobox],' +
-    '[role=textbox],[role=searchbox],[role=gridcell],[contenteditable=""],[contenteditable=true],[onclick]';
+    '[role=textbox],[role=searchbox],[role=gridcell],[role=slider],[contenteditable=""],[contenteditable=true],[onclick]';
   var MOST = 400;
   var MOST_CELLS = 120;
 
@@ -35,6 +35,7 @@
     var role = (el.getAttribute('role') || '').toLowerCase();
     var type = (el.getAttribute('type') || '').toLowerCase();
     if (secret(el)) return 'AXSecureTextField';
+    if (role === 'slider' || (tag === 'input' && type === 'range')) return 'AXSlider';
     if (role === 'textbox' || role === 'searchbox') return 'AXTextField';
     if (role === 'combobox') return 'AXComboBox';
     if (role === 'checkbox' || role === 'switch') return 'AXCheckBox';
@@ -86,6 +87,7 @@
     var type = (el.getAttribute('type') || '').toLowerCase();
     if (type === 'password') return '';
     if (type === 'checkbox' || type === 'radio') return el.checked ? 'checked' : 'unchecked';
+    if ((el.getAttribute('role') || '').toLowerCase() === 'slider') return squash(el.getAttribute('aria-valuenow'), 40);
     var pressed = el.getAttribute('aria-checked') || el.getAttribute('aria-selected');
     if (pressed) return pressed === 'true' ? 'checked' : 'unchecked';
     if (tag === 'select') {
@@ -155,6 +157,8 @@
       enabled: !(el.disabled || el.getAttribute('aria-disabled') === 'true'),
       focused: document.activeElement === el,
       notice: role === 'AXButton' || role === 'AXLink' ? inNotice(el) : false,
+      low: Number(el.getAttribute('min') || el.getAttribute('aria-valuemin') || 0),
+      high: Number(el.getAttribute('max') || el.getAttribute('aria-valuemax') || (role === 'AXSlider' ? 100 : 0)),
       x: Math.round(ox + r.left * zoom),
       y: Math.round(oy + r.top * zoom),
       w: Math.round(r.width * zoom),
@@ -174,7 +178,7 @@
     ready: document.readyState,
     view: { x: Math.round(ox), y: Math.round(oy), w: Math.round(innerWidth * zoom), h: Math.round(innerHeight * zoom) },
     controls: kept.map(function (k) {
-      return { role: k.role, title: k.title, value: k.value, enabled: k.enabled, focused: k.focused, notice: k.notice, x: k.x, y: k.y, w: k.w, h: k.h };
+      return { role: k.role, title: k.title, value: k.value, enabled: k.enabled, focused: k.focused, notice: k.notice, low: k.low, high: k.high, x: k.x, y: k.y, w: k.w, h: k.h };
     })
   });
 })()

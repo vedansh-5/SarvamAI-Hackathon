@@ -19,7 +19,15 @@ type Element struct {
 	Filled bool `json:"-"`
 	Notice bool `json:"-"`
 	Blind  bool `json:"-"`
+
+	Ranged bool    `json:"ranged,omitempty"`
+	Low    float64 `json:"low,omitempty"`
+	High   float64 `json:"high,omitempty"`
 }
+
+var adjustable = map[string]bool{"slider": true, "incrementor": true, "valueindicator": true, "stepper": true}
+
+func (e Element) Adjustable() bool { return adjustable[role(e.Role)] }
 
 type Tree struct {
 	App      string    `json:"app"`
@@ -159,6 +167,10 @@ func (t Tree) TextWithin(budget int) string {
 		if el.Value != "" && label != strings.TrimSpace(el.Value) {
 			state, toggles := toggled(el)
 			switch {
+			case el.Adjustable() && el.Ranged:
+				line += fmt.Sprintf(" value=%s (from %g to %g)", truncate(el.Value, 20), el.Low, el.High)
+			case el.Adjustable():
+				line += fmt.Sprintf(" value=%s", truncate(el.Value, 20))
 			case toggles:
 				line += " [" + state + "]"
 			case el.Focused || el.Filled:

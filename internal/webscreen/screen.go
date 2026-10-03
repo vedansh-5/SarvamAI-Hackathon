@@ -71,6 +71,8 @@ type Screen struct {
 	RealClick func(x, y int)
 	RealType  func(text string)
 	RealKey   func(code int, flags uint64)
+	RealMove  func(x, y int)
+	RealDrag  func(x1, y1, x2, y2 int)
 	Choose    func(ctx context.Context, app, path string) error
 	Log       func(format string, args ...any)
 }
@@ -86,16 +88,18 @@ var (
 const WebArea = "AXWebArea"
 
 type control struct {
-	Role    string `json:"role"`
-	Title   string `json:"title"`
-	Value   string `json:"value"`
-	Enabled bool   `json:"enabled"`
-	Focused bool   `json:"focused"`
-	Notice  bool   `json:"notice"`
-	X       int    `json:"x"`
-	Y       int    `json:"y"`
-	W       int    `json:"w"`
-	H       int    `json:"h"`
+	Role    string  `json:"role"`
+	Title   string  `json:"title"`
+	Value   string  `json:"value"`
+	Enabled bool    `json:"enabled"`
+	Focused bool    `json:"focused"`
+	Notice  bool    `json:"notice"`
+	Low     float64 `json:"low"`
+	High    float64 `json:"high"`
+	X       int     `json:"x"`
+	Y       int     `json:"y"`
+	W       int     `json:"w"`
+	H       int     `json:"h"`
 }
 
 type snapshot struct {
@@ -229,6 +233,7 @@ func treeOf(snap snapshot) uiact.Tree {
 	for i, c := range snap.Controls {
 		tree.Elements = append(tree.Elements, uiact.Element{
 			Role: c.Role, Title: c.Title, Value: c.Value,
+			Ranged: c.Role == "AXSlider" && c.High > c.Low, Low: c.Low, High: c.High,
 			Enabled: c.Enabled, Focused: c.Focused, Notice: c.Notice,
 			Position: []int{c.X, c.Y}, Size: []int{c.W, c.H},
 			Path: []int{i},
@@ -335,7 +340,17 @@ func (s *Screen) Act(ctx context.Context, p uiact.Program, t uiact.Tree) error {
 	for _, step := range p.Steps {
 		a := act{Verb: strings.ToLower(strings.TrimSpace(step.Do)), Text: step.Text}
 
-		if step.Switches() {
+		if step.Switches() || step.Waits() {
+			continue
+		}
+		if page, ok := pageVerbs[a.Verb]; ok {
+			a.Verb = page
+		}
+		if step.Verb() == "drag" {
+			if err := s.dragForReal(ctx, step, t); err != nil {
+				return err
+			}
+			s.waitForAnAnswer(ctx, t)
 			continue
 		}
 		if step.Chooses() {
@@ -377,6 +392,9 @@ func (s *Screen) Act(ctx context.Context, p uiact.Program, t uiact.Tree) error {
 				return &uiact.InvalidError{App: t.App, Reasons: []string{why}}
 			}
 			id, ok := idOf(el)
+			if !ok && step.Verb() == "scroll" {
+				id, ok = -1, true
+			}
 			if !ok {
 				return &uiact.InvalidError{App: t.App, Reasons: []string{fmt.Sprintf("the %s is not something on the page to act on", el.Role)}}
 			}
@@ -395,6 +413,10 @@ func (s *Screen) Act(ctx context.Context, p uiact.Program, t uiact.Tree) error {
 			return ctx.Err()
 		}
 		if !s.waitForAnAnswer(ctx, t) {
+			if step.Verb() == "hover" {
+				s.pointForReal(ctx, step, t)
+				continue
+			}
 			s.byHand(ctx, step, t)
 		}
 	}
@@ -491,4 +513,48 @@ func (s *Screen) PutBack(ctx context.Context, _ string, sel uiact.Selector, valu
 		return fmt.Errorf("webscreen: that is not a field on the page")
 	}
 	return s.send(ctx, act{Verb: "type", ID: id, Text: value})
+}
+
+var pageVerbs = map[string]string{
+	"doubleclick": "dblclick",
+	"rightclick":  "contextmenu",
+	"scroll":      "scrollby",
+}
+
+func (s *Screen) dragForReal(ctx context.Context, step uiact.Step, t uiact.Tree) error {
+	if s.RealDrag == nil || step.To == nil {
+		return fmt.Errorf("webscreen: this build cannot drag on a page")
+	}
+	x, y, w, h, why := t.RectFor(step.Target)
+	if why != "" {
+		return &uiact.InvalidError{App: t.App, Reasons: []string{why}}
+	}
+	tx, ty, tw, th, why := t.RectFor(*step.To)
+	if why != "" {
+		return &uiact.InvalidError{App: t.App, Reasons: []string{why}}
+	}
+	if s.Raise != nil {
+		if err := s.Raise(ctx, s.browser()); err != nil {
+			return err
+		}
+	}
+	s.logf("dragging with the real pointer, which is the only drag a page answers")
+	s.RealDrag(x+w/2, y+h/2, tx+tw/2, ty+th/2)
+	return nil
+}
+
+func (s *Screen) pointForReal(ctx context.Context, step uiact.Step, t uiact.Tree) {
+	if s.RealMove == nil {
+		return
+	}
+	x, y, w, h, why := t.RectFor(step.Target)
+	if why != "" {
+		return
+	}
+	if s.Raise != nil && s.Raise(ctx, s.browser()) != nil {
+		return
+	}
+	s.logf("the page did not answer a scripted hover, so the real pointer is rested there")
+	s.RealMove(x+w/2, y+h/2)
+	s.waitForAnAnswer(ctx, t)
 }

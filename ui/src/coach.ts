@@ -155,6 +155,18 @@ function captionFor(pointer: Pointer, verb: string): string {
       return detail ? `Press ${detail}` : "Press the keys";
     case "scroll":
       return `Scroll ${detail} ${KEYS_SHOWN[detail] ?? ""}`.trim();
+    case "doubleclick":
+      return "Double-click here";
+    case "rightclick":
+      return "Right-click here";
+    case "hover":
+      return "Point here, without clicking";
+    case "drag":
+      return detail ? `Drag this to ${detail}` : "Drag this";
+    case "set":
+      return detail ? `Set this to ${detail}` : "Set this";
+    case "wait":
+      return "Waiting for this";
     default:
       return "Click here";
   }

@@ -3,6 +3,7 @@ package uiact
 import (
 	"context"
 	"fmt"
+	"strconv"
 )
 
 type Screen interface {
@@ -83,6 +84,10 @@ func (System) TypeText(text string) { textPoster(text) }
 
 func (System) PressKey(code int, flags uint64) { keyPoster(code, flags) }
 
+func (System) MoveTo(x, y int) { mover(x, y) }
+
+func (System) Drag(x1, y1, x2, y2 int) { dragger(x1, y1, x2, y2) }
+
 func (s System) ChooseFile(ctx context.Context, app, path string) error {
 	return ChooseFile(ctx, s.Runner, app, path)
 }
@@ -111,12 +116,19 @@ var (
 
 func (s System) ValueOf(ctx context.Context, t Tree, sel Selector) (string, bool) {
 	el, why := t.resolve(sel)
-	if why != "" || !el.Typeable() || el.Blind || role(el.Role) == "securetextfield" {
+	if why != "" || el.Blind || role(el.Role) == "securetextfield" {
+		return "", false
+	}
+	if !el.Typeable() && !el.Adjustable() {
 		return "", false
 	}
 	pid, err := pidFor(ctx, s.Runner, t.App)
 	if err != nil {
 		return "", false
+	}
+	if el.Adjustable() {
+		n, ok := numberReader(pid, el.Path)
+		return strconv.FormatFloat(n, 'g', -1, 64), ok
 	}
 	return wholeValue(pid, el.Path)
 }
@@ -133,6 +145,13 @@ func (s System) PutBack(ctx context.Context, app string, sel Selector, value str
 	pid, err := pidFor(ctx, s.Runner, app)
 	if err != nil {
 		return err
+	}
+	if el.Adjustable() {
+		n, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("uiact: %q is not a value the %s %q can be put back to", value, el.Role, el.Title)
+		}
+		return numberSetter(pid, el.Path, n)
 	}
 	if err := valueSetter(pid, el.Path, value); err != nil {
 		return err

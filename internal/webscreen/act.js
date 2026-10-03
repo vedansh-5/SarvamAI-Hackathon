@@ -19,6 +19,24 @@
     return JSON.stringify({ ok: true });
   }
 
+  if (a.verb === 'scrollby') {
+    var box = el && el.isConnected ? el : null;
+    while (box && box !== document.body && box !== document.documentElement) {
+      var style = getComputedStyle(box);
+      var tall = box.scrollHeight > box.clientHeight + 4 && /(auto|scroll)/.test(style.overflowY);
+      var wide = box.scrollWidth > box.clientWidth + 4 && /(auto|scroll)/.test(style.overflowX);
+      if (tall || wide) break;
+      box = box.parentElement;
+    }
+    var page = !box || box === document.body || box === document.documentElement;
+    var far = Math.round((page ? innerHeight : box.clientHeight) * 0.8);
+    var across = Math.round((page ? innerWidth : box.clientWidth) * 0.8);
+    var dx = a.text === 'left' ? -across : a.text === 'right' ? across : 0;
+    var dy = a.text === 'up' ? -far : a.text === 'down' ? far : 0;
+    if (page) window.scrollBy(dx, dy); else box.scrollBy(dx, dy);
+    return JSON.stringify({ ok: true });
+  }
+
   if (!el || !el.isConnected) return fail('that control is no longer on the page');
 
   if (a.verb === 'scroll') {
@@ -32,6 +50,54 @@
     r = el.getBoundingClientRect();
   }
   var at = { bubbles: true, cancelable: true, view: window, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, button: 0 };
+
+  if (a.verb === 'dblclick') {
+    ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(function (t) {
+      el.dispatchEvent(new MouseEvent(t, at));
+    });
+    var twice = Object.assign({}, at, { detail: 2 });
+    el.dispatchEvent(new MouseEvent('dblclick', twice));
+    return JSON.stringify({ ok: true });
+  }
+
+  if (a.verb === 'contextmenu') {
+    var right = Object.assign({}, at, { button: 2, buttons: 2 });
+    ['pointerdown', 'mousedown'].forEach(function (t) { el.dispatchEvent(new MouseEvent(t, right)); });
+    el.dispatchEvent(new MouseEvent('contextmenu', right));
+    ['pointerup', 'mouseup'].forEach(function (t) { el.dispatchEvent(new MouseEvent(t, right)); });
+    return JSON.stringify({ ok: true });
+  }
+
+  if (a.verb === 'hover') {
+    ['pointerover', 'pointerenter', 'mouseover', 'mouseenter', 'pointermove', 'mousemove'].forEach(function (t) {
+      el.dispatchEvent(new MouseEvent(t, at));
+    });
+    if (el.focus && el.tabIndex >= 0) el.focus();
+    return JSON.stringify({ ok: true });
+  }
+
+  if (a.verb === 'set') {
+    var want = Number(a.text);
+    if (isNaN(want)) return fail('that is not a number');
+    if (el.tagName.toLowerCase() === 'input') {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, String(want));
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      return JSON.stringify({ ok: true });
+    }
+    if (el.focus) el.focus();
+    for (var n = 0; n < 200; n++) {
+      var now = Number(el.getAttribute('aria-valuenow'));
+      if (isNaN(now) || now === want) break;
+      var key = now < want ? 'ArrowRight' : 'ArrowLeft';
+      var code = now < want ? 39 : 37;
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: key, code: key, keyCode: code, which: code, bubbles: true, cancelable: true }));
+      el.dispatchEvent(new KeyboardEvent('keyup', { key: key, code: key, keyCode: code, which: code, bubbles: true, cancelable: true }));
+      var after = Number(el.getAttribute('aria-valuenow'));
+      if (after === now || (now < want && after > want) || (now > want && after < want)) break;
+    }
+    return JSON.stringify({ ok: true });
+  }
 
   if (a.verb === 'click') {
     ['pointerdown', 'mousedown', 'pointerup', 'mouseup'].forEach(function (t) {

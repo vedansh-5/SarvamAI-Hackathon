@@ -248,6 +248,9 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 			on.logf("bringing %s to the front", step.App)
 			return tree, on.UIScreen.BringToFront(ctx, step.App)
 		}
+		if step.Waits() {
+			return tree, on.showBeforeActing(ctx, tree, step, number, describe)
+		}
 		tree = on.bringIntoView(ctx, tree, step)
 		if err := on.showBeforeActing(ctx, tree, step, number, describe); err != nil {
 			return tree, err
@@ -909,6 +912,26 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 				break
 			}
 
+			if answer.Step.Waits() {
+				if _, err := handle(ctx, e, tree, program, i, describe); err != nil {
+					return state(), err
+				}
+				arrived, what, err := e.waitFor(ctx, app, answer.Step)
+				if err != nil {
+					return state(), err
+				}
+				done = append(done, describe+" \u2014 "+what)
+				did = append(did, answer.Step)
+				soFar.did(answer.Step, describe)
+				lastCommitted = false
+				next = arrived
+				if fromTrace {
+					replayed++
+				}
+				acted = true
+				break
+			}
+
 			if acting {
 				typed.note(ctx, e, tree, answer.Step)
 			}
@@ -999,7 +1022,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 			done = append(done, describe+" — "+effect)
 			did = append(did, answer.Step)
 			soFar.did(answer.Step, describe)
-			if strings.EqualFold(strings.TrimSpace(answer.Step.Do), "type") {
+			if verb := answer.Step.Verb(); verb == "type" || verb == "set" {
 				filled[uiact.FieldKey(answer.Step.Target.Role, answer.Step.Target.Title)] = true
 			}
 			next = after

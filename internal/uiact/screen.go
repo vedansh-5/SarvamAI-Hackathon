@@ -24,6 +24,12 @@ type Act struct {
 	// focused without the pointer going anywhere. X and Y stay as the fallback
 	// for a control that publishes no action of its own.
 	Path []int
+
+	ToX, ToY int
+	Amount   float64
+	Low      float64
+	High     float64
+	Ranged   bool
 }
 
 func Plan(p Program, t Tree) ([]Act, error) {
@@ -33,7 +39,7 @@ func Plan(p Program, t Tree) ([]Act, error) {
 
 	var out []Act
 	for i, step := range p.Steps {
-		if step.Switches() {
+		if step.Switches() || step.Waits() {
 			continue
 		}
 		el, why := t.resolve(step.Target)
@@ -41,7 +47,45 @@ func Plan(p Program, t Tree) ([]Act, error) {
 			return nil, &InvalidError{App: t.App, Reasons: []string{why}}
 		}
 
+		unseen := func() error {
+			return &InvalidError{App: t.App, Reasons: []string{fmt.Sprintf(
+				"step %d: no part of the %s %q is visible on screen, so the pointer cannot reach it",
+				i+1, el.Role, el.Title)}}
+		}
+
 		switch verb(step.Do) {
+		case "doubleclick", "rightclick", "hover", "scroll":
+			x, y, ok := t.ClickPoint(el)
+			if !ok {
+				return nil, unseen()
+			}
+			out = append(out, Act{Step: i, Do: verb(step.Do), X: x, Y: y, Path: el.Path, Text: strings.ToLower(strings.TrimSpace(step.Text))})
+
+		case "drag":
+			x, y, ok := t.ClickPoint(el)
+			if !ok {
+				return nil, unseen()
+			}
+			to, why := t.resolve(*step.To)
+			if why != "" {
+				return nil, &InvalidError{App: t.App, Reasons: []string{why}}
+			}
+			tx, ty, ok := t.ClickPoint(to)
+			if !ok {
+				return nil, &InvalidError{App: t.App, Reasons: []string{fmt.Sprintf(
+					"step %d: no part of the %s %q is visible on screen, so nothing can be dropped on it",
+					i+1, to.Role, to.Title)}}
+			}
+			out = append(out, Act{Step: i, Do: "drag", X: x, Y: y, ToX: tx, ToY: ty, Path: el.Path})
+
+		case "set":
+			amount, err := AmountFor(el, step.Text)
+			if err != nil {
+				return nil, &InvalidError{App: t.App, Reasons: []string{err.Error()}}
+			}
+			out = append(out, Act{Step: i, Do: "set", Path: el.Path, Amount: amount, Text: step.Text,
+				Low: el.Low, High: el.High, Ranged: el.Ranged})
+
 		case "click", "type":
 			x, y, ok := t.ClickPoint(el)
 			if !ok {
@@ -118,6 +162,23 @@ func RunScreen(ctx context.Context, r Runner, p Program, t Tree) error {
 			keyPoster(a.Code, a.Flags)
 		case "choose":
 			if err := ChooseFile(ctx, r, t.App, a.Text); err != nil {
+				return err
+			}
+		case "doubleclick":
+			doubleClicker(a.X, a.Y)
+		case "rightclick":
+			if shown, err := performer(pid, a.Path, "AXShowMenu"); err != nil || !shown {
+				rightClicker(a.X, a.Y)
+			}
+		case "hover":
+			mover(a.X, a.Y)
+		case "scroll":
+			down, right := scrollBy(a.Text)
+			scroller(a.X, a.Y, down, right)
+		case "drag":
+			dragger(a.X, a.Y, a.ToX, a.ToY)
+		case "set":
+			if err := adjust(ctx, pid, a); err != nil {
 				return err
 			}
 		}
@@ -247,7 +308,31 @@ var (
 
 	elementPresser = pressElement
 	elementFocuser = focusElement
+
+	doubleClicker = postDoubleClick
+	rightClicker  = postRightClick
+	mover         = postMove
+	scroller      = postScroll
+	dragger       = postDrag
+	performer     = performOn
+	numberReader  = elementNumber
+	numberSetter  = setElementNumber
 )
+
+const ScrollLines = 10
+
+func scrollBy(direction string) (down, right int) {
+	switch direction {
+	case "up":
+		return -ScrollLines, 0
+	case "left":
+		return 0, -ScrollLines
+	case "right":
+		return 0, ScrollLines
+	default:
+		return ScrollLines, 0
+	}
+}
 
 var windowWait = 1200 * time.Millisecond
 
@@ -256,12 +341,21 @@ var windowWait = 1200 * time.Millisecond
 var frontWait = 800 * time.Millisecond
 
 func VerifyTargets(pid int, p Program, t Tree) error {
+	var checks []Selector
+	var from []int
 	for i, step := range p.Steps {
-		if verb(step.Do) == "press" || step.Switches() {
+		if verb(step.Do) == "press" || step.Switches() || step.Waits() || verb(step.Do) == "set" {
 			continue
 		}
+		checks, from = append(checks, step.Target), append(from, i)
+		if verb(step.Do) == "drag" && step.To != nil {
+			checks, from = append(checks, *step.To), append(from, i)
+		}
+	}
 
-		want, why := t.resolve(step.Target)
+	for n, target := range checks {
+		i := from[n]
+		want, why := t.resolve(target)
 		if why != "" {
 			return &InvalidError{App: t.App, Reasons: []string{why}}
 		}

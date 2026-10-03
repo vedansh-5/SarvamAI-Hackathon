@@ -1425,6 +1425,9 @@ No local model runtimes (§11 still holds); these come first.
 - B7. **Built (D-199), not yet run on a real folder.** Files and Finder tasks.
 - B8. Several displays, tested.
 
+- B9. **Built (D-206, D-207), not yet tried live.** More kinds of step: double-click,
+  right-click, hover, drag, scroll, set a slider, wait.
+
 **C. Voice.** C1. Voice in (hold ⌥Space and talk). C2. Voice out (steps read
 aloud).
 

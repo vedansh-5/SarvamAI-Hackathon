@@ -4614,3 +4614,61 @@ between cannot bring it up twice.
 It needs VANS to be running at the time, and saying so is part of the reply.
 There is no system agent behind it, because there is no installed copy for one
 to belong to yet.
+
+## D-206 — Seven more kinds of step, each with the least it needs
+
+A step could click, type, press a key, choose a file or switch application. That
+left out opening a row, a control's own menu, anything that only shows on
+pointing, reordering, sliders, and lists that load as they are scrolled.
+
+- **doubleclick, rightclick, hover** act on a named control like a click. A
+  right-click asks the control for its menu through accessibility first and uses
+  the pointer only if that is refused.
+- **drag** names two controls, what is picked up and where it is dropped. Both
+  go through the check on what is really under the pointer (D-058).
+- **set** is for a slider or stepper, which are now listed with their value and
+  range. The number is set directly; where a control will not take one it is
+  stepped there and read back, and one that can be neither set nor stepped fails
+  with that said. A value outside the range is refused before anything moves.
+  Sliders are never dragged: a drag lands near a value, never on it.
+- **scroll** is only for content that is not listed yet. A control that is
+  listed is still scrolled to by itself (D-142), and the prompt says so.
+
+On a page the same steps are scripted where a page answers a scripted event
+(double-click, context menu, hover, scroll, sliders) and done with the real
+pointer where it does not (drag, and a hover that changed nothing).
+
+A slider's value is a number, not something someone wrote, so it is shown to the
+model, and a checkbox in a native window now says whether it is on. Setting a
+slider keeps what it was, like typing does (D-203).
+
+Checked: the page scripts in a browser of their own on a sample page, and the
+model choosing each kind for a task that calls for it. Not tried in a real
+application.
+
+## D-207 — A run can wait for something that takes time
+
+"Publish once the upload has finished" had no way to be said: the next step was
+either taken at once or the model was asked again and again. **wait** names a
+control and what is waited for: that it appears, that it is ready (there and not
+greyed out), or that it goes. The screen is read once a second for up to three
+minutes and no model is asked while it waits. A wait that never ends stops the
+run and says what it waited for. It is for things that need nobody; something
+only the person can do is still a question.
+
+## D-208 — An answer says what kind it is, and always carries a step
+
+One in three or four answers from the step writer was unusable: a reason and
+nothing else, or text that ran on until the length limit. The model was filling
+in what the format marked required, which was a flag and a reason, and treating
+the step as optional.
+
+The format now requires three things every time: next (step, ask, done or
+stuck), step (the step, or null), and why. The code trusts next: a "done" or an
+"ask" that arrives with a padded, empty step is still a done or an ask. The
+older shape is still read.
+
+Twenty-four live answers across eight kinds of task: all usable, where the same
+set had eleven unusable before the step was required. The length cap is back to
+1,200 tokens for a step and 4,000 for a plan, since a runaway now costs seconds
+rather than a retry.

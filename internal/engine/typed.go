@@ -3,7 +3,6 @@ package engine
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/vedansh/vans/internal/uiact"
 )
@@ -23,7 +22,7 @@ type typedSoFar struct {
 }
 
 func (t *typedSoFar) note(ctx context.Context, e *Engine, tree uiact.Tree, step uiact.Step) {
-	if !strings.EqualFold(strings.TrimSpace(step.Do), "type") {
+	if verb := step.Verb(); verb != "type" && verb != "set" {
 		return
 	}
 	keeper, ok := e.UIScreen.(uiact.ValueKeeper)
