@@ -7,6 +7,7 @@ import (
 
 	"github.com/vedansh/vans/internal/route"
 	"github.com/vedansh/vans/internal/store"
+	"github.com/vedansh/vans/internal/synth"
 )
 
 // The list is a promise. Offering something this build cannot carry out makes
@@ -70,6 +71,8 @@ func TestABrowserInFrontPutsThePageFirst(t *testing.T) {
 type fakeHistory struct{ recent []store.Remembered }
 
 func (f fakeHistory) RecordInstruction(context.Context, string, string) error { return nil }
+func (f fakeHistory) FinishInstruction(context.Context, string, int) error    { return nil }
+func (f fakeHistory) ForgetInstruction(context.Context, string) error         { return nil }
 
 func (f fakeHistory) RecentInstructions(context.Context) ([]store.Remembered, error) {
 	return f.recent, nil
@@ -78,7 +81,7 @@ func (f fakeHistory) RecentInstructions(context.Context) ([]store.Remembered, er
 func TestWhatWasAskedBeforeComesFirst(t *testing.T) {
 	e := &Engine{
 		Sinks:   DefaultSinks(),
-		History: fakeHistory{recent: []store.Remembered{{Text: "search for a lens hood", Kind: "web.search"}}},
+		History: fakeHistory{recent: []store.Remembered{{Text: "search for a lens hood", Kind: "web.search", Done: true}}},
 	}
 
 	got := e.Suggestions(context.Background(), "")
@@ -93,7 +96,7 @@ func TestWhatWasAskedBeforeComesFirst(t *testing.T) {
 func TestARememberedInstructionThisBuildCannotRunIsNotOffered(t *testing.T) {
 	e := &Engine{
 		Sinks:   DefaultSinks(),
-		History: fakeHistory{recent: []store.Remembered{{Text: "add milk to my list", Kind: "app.act"}}},
+		History: fakeHistory{recent: []store.Remembered{{Text: "add milk to my list", Kind: "app.act", Done: true}}},
 	}
 
 	for _, s := range e.Suggestions(context.Background(), "") {
@@ -106,7 +109,7 @@ func TestARememberedInstructionThisBuildCannotRunIsNotOffered(t *testing.T) {
 func TestARememberedInstructionIsNotOfferedTwice(t *testing.T) {
 	e := &Engine{
 		Sinks:   DefaultSinks(),
-		History: fakeHistory{recent: []store.Remembered{{Text: "what is this page about", Kind: "page.here"}}},
+		History: fakeHistory{recent: []store.Remembered{{Text: "what is this page about", Kind: "page.here", Done: true}}},
 	}
 
 	seen := 0
@@ -174,5 +177,141 @@ func TestTheFrontApplicationIsIgnoredWhenItIsNotInstalled(t *testing.T) {
 	got, ok := appExampleFor([]string{"Notes"}, "Reminders")
 	if !ok || !strings.Contains(got.Text, "Notes") {
 		t.Errorf("offered %q (ok=%v), want the installed application", got.Text, ok)
+	}
+}
+
+type keptHistory struct {
+	recent    []store.Remembered
+	finished  map[string]int
+	forgotten []string
+}
+
+func (k *keptHistory) RecordInstruction(context.Context, string, string) error { return nil }
+func (k *keptHistory) RecentInstructions(context.Context) ([]store.Remembered, error) {
+	return k.recent, nil
+}
+func (k *keptHistory) FinishInstruction(_ context.Context, text string, calls int) error {
+	if k.finished == nil {
+		k.finished = map[string]int{}
+	}
+	k.finished[text] = calls
+	return nil
+}
+func (k *keptHistory) ForgetInstruction(_ context.Context, text string) error {
+	k.forgotten = append(k.forgotten, text)
+	return nil
+}
+
+func TestOnlyWhatFinishedIsOfferedAsRemembered(t *testing.T) {
+	e := &Engine{
+		Sinks: DefaultSinks(),
+		History: fakeHistory{recent: []store.Remembered{
+			{Text: "search for a tripod", Kind: "web.search"},
+			{Text: "search for a lens hood", Kind: "web.search", Done: true, Calls: 2},
+			{Text: "search for a camera bag", Kind: "web.search", Done: true},
+		}},
+	}
+
+	got := e.Suggestions(context.Background(), "")
+	if len(got) < 2 || !got[0].Remembered || !got[1].Remembered {
+		t.Fatalf("the two finished instructions do not lead as remembered: %+v", got)
+	}
+	if got[0].Instant || !got[1].Instant {
+		t.Errorf("instant is %v then %v, want it only where the last run asked the model nothing", got[0].Instant, got[1].Instant)
+	}
+	for _, s := range got {
+		if s.Text == "search for a tripod" {
+			t.Error("an instruction that never finished was offered")
+		}
+		if !s.Remembered && s.Instant {
+			t.Errorf("%q is an example and cannot be instant", s.Text)
+		}
+	}
+}
+
+func TestAnExampleThatIsRememberedIsShownAsRemembered(t *testing.T) {
+	e := &Engine{
+		Sinks:   DefaultSinks(),
+		History: fakeHistory{recent: []store.Remembered{{Text: "What is this page about", Kind: "page.here", Done: true}}},
+	}
+
+	var found []Suggestion
+	for _, s := range e.Suggestions(context.Background(), "") {
+		if strings.EqualFold(s.Text, "what is this page about") {
+			found = append(found, s)
+		}
+	}
+	if len(found) != 1 || !found[0].Remembered {
+		t.Errorf("found %+v, want it once and as remembered", found)
+	}
+}
+
+func TestAnAnswerInTheWindowCountsAsFinished(t *testing.T) {
+	answered := &Plan{Asked: "translate this", Copy: "नमस्ते", Say: "नमस्ते"}
+	if !answered.answers() {
+		t.Error("an answer given in the window was not counted as finished")
+	}
+	for name, plan := range map[string]*Plan{
+		"a refusal said in words":   {Asked: "translate this", Say: "Select the text first"},
+		"a guide still to be run":   {Asked: "how do I mute", Guide: &GuidePlan{}, Copy: "x"},
+		"a change still to confirm": {Asked: "mute it", Web: &WebPlan{}, Copy: "x"},
+	} {
+		if plan.answers() {
+			t.Errorf("%s was counted as finished", name)
+		}
+	}
+}
+
+func TestFinishingIsNotedAgainstWhatWasAsked(t *testing.T) {
+	kept := &keptHistory{}
+	e := &Engine{History: kept}
+
+	e.finished(context.Background(), &Plan{Asked: "top stories"}, 0)
+	e.finished(context.Background(), &Plan{}, 3)
+	e.finished(context.Background(), nil, 3)
+
+	if calls, ok := kept.finished["top stories"]; !ok || calls != 0 || len(kept.finished) != 1 {
+		t.Errorf("finished = %+v, want only what was asked, with what it cost", kept.finished)
+	}
+}
+
+func TestForgettingGoesToTheHistory(t *testing.T) {
+	kept := &keptHistory{}
+	e := &Engine{History: kept}
+
+	if err := e.ForgetAsked(context.Background(), "top stories"); err != nil {
+		t.Fatalf("ForgetAsked: %v", err)
+	}
+	if len(kept.forgotten) != 1 || kept.forgotten[0] != "top stories" {
+		t.Errorf("forgotten = %v", kept.forgotten)
+	}
+	if err := (&Engine{}).ForgetAsked(context.Background(), "anything"); err != nil {
+		t.Errorf("with nothing kept, forgetting failed: %v", err)
+	}
+}
+
+func TestAskingMarksAnAnswerFinishedAndARefusalNot(t *testing.T) {
+	answered := &keptHistory{}
+	e := textEngine(t, route.KindText, "Can we move it to Saturday?", &textWorker{answer: synth.TextAnswer{Text: "शनिवार को चलें?"}})
+	e.History = answered
+	plan, err := e.Ask(context.Background(), Ask{Instruction: "translate this to Hindi", Context: mail})
+	if err != nil {
+		t.Fatalf("Ask: %v", err)
+	}
+	if plan.Asked != "translate this to Hindi" {
+		t.Errorf("the plan carries %q as what was asked", plan.Asked)
+	}
+	if _, ok := answered.finished["translate this to Hindi"]; !ok {
+		t.Errorf("an answered request was not marked finished: %+v", answered.finished)
+	}
+
+	refused := &keptHistory{}
+	e = textEngine(t, route.KindText, "", &textWorker{})
+	e.History = refused
+	if _, err := e.Ask(context.Background(), Ask{Instruction: "translate this to Hindi", Context: mail}); err != nil {
+		t.Fatalf("Ask: %v", err)
+	}
+	if len(refused.finished) != 0 {
+		t.Errorf("a request that was turned down was marked finished: %+v", refused.finished)
 	}
 }

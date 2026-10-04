@@ -4779,3 +4779,30 @@ for voice itself, and the prototype's own demo controls. The row of examples is
 labelled "Try", not "Remembered" as drawn, because what it lists is what the
 runtime offers (D-053), and calling that remembered would claim a run that never
 happened.
+
+## D-213 — The remembered row shows what finished, within the three that are kept
+
+The design's first row is "Remembered", and D-212 labelled it "Try" because what
+it held was examples. The three instructions VANS keeps (D-055) were already in
+that row, unmarked, and they were kept from the moment they were understood,
+whether or not anything came of them.
+
+An instruction is now marked when it finishes: an answer given in the window, a
+change confirmed and carried out, a coached run seen through to the end. Only
+those are shown as remembered. Being turned down in words is not finishing.
+
+The cap stays at three. Nothing more is kept; what changes is which goes when a
+fourth arrives. The one just asked stays, then the ones that finished, newest
+first, and only then the ones that never did. A run of failures cannot push out
+a task that worked.
+
+Each is kept with what its last run cost. One that asked the model nothing has a
+volt dot, the same claim "Remembered · instant" makes beside the field, and made
+only when it was true last time.
+
+Each can be forgotten from its own chip. D-055 said keeping what someone typed
+comes with a way to remove it, and until now that way existed in the store with
+nothing leading to it.
+
+Not done: more than three. More chips would mean more kept, and that is the
+question D-055 already answered.

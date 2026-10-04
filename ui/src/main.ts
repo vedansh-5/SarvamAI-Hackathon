@@ -152,6 +152,8 @@ interface Suggestion {
   icon: string;
   text: string;
   destination?: string;
+  remembered?: boolean;
+  instant?: boolean;
 }
 
 const SUGGESTIONS: Suggestion[] = [
@@ -178,30 +180,64 @@ async function loadSuggestions(appName?: string) {
   } catch (e) {
     console.error("failed to load suggestions", e);
   }
-  renderChips($("suggestions"), currentSuggestions());
+  renderAskChips();
   showExample();
 }
 
 const MOST_CHIPS = 6;
+const MOST_BESIDE_REMEMBERED = 4;
+
+function renderAskChips() {
+  const all = currentSuggestions();
+  const remembered = all.filter((s) => s.remembered);
+  const examples = all.filter((s) => !s.remembered);
+  $("remembered-row").hidden = remembered.length === 0;
+  renderChips($("remembered"), remembered);
+  renderChips($("suggestions"), examples.slice(0, remembered.length ? MOST_BESIDE_REMEMBERED : MOST_CHIPS));
+}
 
 function renderChips(into: HTMLElement, items: Suggestion[]) {
   clear(into);
-  items.slice(0, MOST_CHIPS).forEach((s, i) => {
-    const writes = !!s.destination && destinationWrites(s.destination);
-    const chip = el("button", writes ? "chip write" : "chip") as HTMLButtonElement;
-    chip.type = "button";
-    chip.style.animationDelay = `${i * 0.05}s`;
-    chip.title = s.text;
-    chip.appendChild(el("span", "dot"));
-    chip.appendChild(el("span", undefined, s.destination ? `${s.text} → ${label(s.destination)}` : s.text));
-    chip.addEventListener("click", () => {
-      ($("intent") as HTMLInputElement).value = s.text;
-      if (s.destination) pickDestination(s.destination);
-      show("ask");
-      extract();
-    });
-    into.appendChild(chip);
+  items.forEach((s, i) => into.appendChild(chipFor(s, i)));
+}
+
+function chipFor(s: Suggestion, i: number): HTMLElement {
+  const writes = !!s.destination && destinationWrites(s.destination);
+  const chip = el("button", "chip") as HTMLButtonElement;
+  chip.classList.toggle("write", writes);
+  chip.classList.toggle("instant", !!s.instant);
+  chip.type = "button";
+  chip.style.animationDelay = `${i * 0.05}s`;
+  chip.title = s.instant ? `${s.text} · ran without asking the model last time` : s.text;
+  chip.appendChild(el("span", "dot"));
+  chip.appendChild(el("span", undefined, s.destination ? `${s.text} → ${label(s.destination)}` : s.text));
+  chip.addEventListener("click", () => {
+    ($("intent") as HTMLInputElement).value = s.text;
+    if (s.destination) pickDestination(s.destination);
+    show("ask");
+    extract();
   });
+  if (!s.remembered) return chip;
+
+  const forget = el("button", "chip-x", "×") as HTMLButtonElement;
+  forget.type = "button";
+  forget.title = "Forget this";
+  forget.setAttribute("aria-label", `Forget “${s.text}”`);
+  forget.addEventListener("click", async () => {
+    try {
+      await invoke("forget_instruction", { text: s.text });
+      toast("Forgotten");
+    } catch (e) {
+      console.error("could not forget that", e);
+    }
+    await loadSuggestions(activeContext?.app_name);
+    fitWindow();
+  });
+
+  const wrap = el("span", "chip-wrap");
+  wrap.appendChild(chip);
+  wrap.appendChild(forget);
+  return wrap;
 }
 
 function icon(name: string): SVGElement {
@@ -344,6 +380,7 @@ function show(id: string) {
   scroller.scrollTop = 0;
   showExample();
   if (id === "ask") renderMode();
+  if (id === "ask" && was !== "ask") void loadSuggestions(activeContext?.app_name);
   renderFoot();
   paintPresence();
   if (id !== "confirm") releaseHold();
@@ -2221,7 +2258,7 @@ function nextExample() {
 window.setInterval(nextExample, 2800);
 
 function suggestionButtons(): HTMLElement[] {
-  const list = $("ask").hidden ? $("can-do") : $("suggestions");
+  const list = $("ask").hidden ? $("can-do") : $("ask");
   return Array.from(list.querySelectorAll<HTMLElement>(".suggestion, .chip"));
 }
 

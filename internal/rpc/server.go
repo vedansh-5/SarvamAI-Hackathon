@@ -169,6 +169,8 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result = s.destinations()
 	case "suggestions":
 		result, err = s.suggestions(ctx, req)
+	case "forget_instruction":
+		result, err = s.forgetInstruction(ctx, req)
 	case "screen_context":
 		result, err = s.screenContext(ctx, req)
 	case "clear_style":
@@ -361,9 +363,26 @@ func (s *Server) suggestions(ctx context.Context, req Request) ([]Suggestion, er
 
 	out := []Suggestion{}
 	for _, sg := range s.Engine.Suggestions(ctx, params.AppName) {
-		out = append(out, Suggestion{Icon: sg.Icon, Text: sg.Text, Destination: sg.Destination})
+		out = append(out, Suggestion{
+			Icon: sg.Icon, Text: sg.Text, Destination: sg.Destination,
+			Remembered: sg.Remembered, Instant: sg.Instant,
+		})
 	}
 	return out, nil
+}
+
+func (s *Server) forgetInstruction(ctx context.Context, req Request) (ForgetInstructionResult, error) {
+	var p ForgetInstructionParams
+	if err := json.Unmarshal(req.Params, &p); err != nil {
+		return ForgetInstructionResult{}, &Error{Code: CodeBadRequest, Message: err.Error()}
+	}
+	if strings.TrimSpace(p.Text) == "" {
+		return ForgetInstructionResult{}, &Error{Code: CodeBadRequest, Message: "nothing named to forget"}
+	}
+	if err := s.Engine.ForgetAsked(ctx, p.Text); err != nil {
+		return ForgetInstructionResult{}, err
+	}
+	return ForgetInstructionResult{Forgotten: true}, nil
 }
 
 func (s *Server) destinations() []Destination {

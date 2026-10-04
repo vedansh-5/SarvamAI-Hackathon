@@ -1459,6 +1459,8 @@ aloud).
   D-166).
 - E7. **Built (D-192).** Working on text: translate, rewrite, summarise or reply to
   the selection, given back as words with a Copy button.
+- E8. **Built (D-213).** The remembered row: the tasks that finished, out of the
+  three that are kept, each forgettable from its chip.
 
 **F. A product.**
 

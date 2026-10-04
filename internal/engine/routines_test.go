@@ -39,6 +39,8 @@ func (r *routineBook) ForgetRoutine(_ context.Context, name string) (bool, error
 type lastAsked struct{ text string }
 
 func (l lastAsked) RecordInstruction(context.Context, string, string) error { return nil }
+func (l lastAsked) FinishInstruction(context.Context, string, int) error    { return nil }
+func (l lastAsked) ForgetInstruction(context.Context, string) error         { return nil }
 func (l lastAsked) RecentInstructions(context.Context) ([]store.Remembered, error) {
 	if l.text == "" {
 		return nil, nil

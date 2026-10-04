@@ -283,6 +283,17 @@ type Suggestion struct {
 	Icon        string `json:"icon"`
 	Text        string `json:"text"`
 	Destination string `json:"destination,omitempty"`
+
+	Remembered bool `json:"remembered,omitempty"`
+	Instant    bool `json:"instant,omitempty"`
+}
+
+type ForgetInstructionParams struct {
+	Text string `json:"text"`
+}
+
+type ForgetInstructionResult struct {
+	Forgotten bool `json:"forgotten"`
 }
 
 // SuggestionsParams carries what the user is looking at, so the list can lead

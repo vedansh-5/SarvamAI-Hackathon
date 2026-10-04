@@ -593,6 +593,51 @@ section:not([hidden]) {
   transform: translateY(-1px);
 }
 
+.chip.instant .dot {
+  background: var(--volt);
+  opacity: 1;
+  box-shadow: 0 0 0 0.5px rgba(16, 17, 14, 0.35);
+}
+
+.chip.instant:hover .dot,
+.chip.instant:focus-visible .dot {
+  background: currentColor;
+  box-shadow: none;
+}
+
+.chip-wrap {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.chip-x {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 17px;
+  height: 17px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--ink);
+  color: rgb(var(--panel-rgb));
+  font-size: 12px;
+  line-height: 17px;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.8);
+  transition:
+    opacity 0.12s,
+    transform 0.12s;
+}
+
+.chip-wrap:hover .chip-x,
+.chip-x:focus-visible {
+  opacity: 1;
+  transform: none;
+}
+
 .due {
   padding: 12px 22px 0;
 }

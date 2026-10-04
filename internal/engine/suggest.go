@@ -14,6 +14,9 @@ type Suggestion struct {
 	Destination string
 
 	Kind route.Kind
+
+	Remembered bool
+	Instant    bool
 }
 
 var browsers = map[string]bool{
@@ -35,6 +38,28 @@ func isBrowser(app string) bool {
 type History interface {
 	RecordInstruction(ctx context.Context, text, kind string) error
 	RecentInstructions(ctx context.Context) ([]store.Remembered, error)
+	FinishInstruction(ctx context.Context, text string, calls int) error
+	ForgetInstruction(ctx context.Context, text string) error
+}
+
+func (e *Engine) finished(ctx context.Context, plan *Plan, calls int) {
+	if e.History == nil || plan == nil || plan.Asked == "" {
+		return
+	}
+	if err := e.History.FinishInstruction(context.WithoutCancel(ctx), plan.Asked, calls); err != nil {
+		e.logf("could not note that this finished: %v", err)
+	}
+}
+
+func (p *Plan) answers() bool {
+	return p.Guide == nil && !p.NeedsCommit() && (len(p.Rows) > 0 || p.Answer != nil || p.Copy != "")
+}
+
+func (e *Engine) ForgetAsked(ctx context.Context, text string) error {
+	if e.History == nil {
+		return nil
+	}
+	return e.History.ForgetInstruction(ctx, text)
 }
 
 func (e *Engine) Suggestions(ctx context.Context, front string) []Suggestion {
@@ -86,7 +111,8 @@ func (e *Engine) Suggestions(ctx context.Context, front string) []Suggestion {
 	if isBrowser(front) {
 		out = pageFirst(out)
 	}
-	return append(e.remembered(ctx, out), out...)
+	remembered := e.remembered(ctx)
+	return append(remembered, withoutTheRemembered(out, remembered)...)
 }
 
 var appExamples = []Suggestion{
@@ -136,7 +162,7 @@ func appExampleFor(installed []string, front string) (Suggestion, bool) {
 	return Suggestion{}, false
 }
 
-func (e *Engine) remembered(ctx context.Context, already []Suggestion) []Suggestion {
+func (e *Engine) remembered(ctx context.Context) []Suggestion {
 	if e.History == nil {
 		return nil
 	}
@@ -148,20 +174,35 @@ func (e *Engine) remembered(ctx context.Context, already []Suggestion) []Suggest
 	}
 
 	seen := map[string]bool{}
-	for _, s := range already {
-		seen[strings.ToLower(strings.TrimSpace(s.Text))] = true
-	}
-
 	var out []Suggestion
 	for _, r := range recent {
-		key := strings.ToLower(strings.TrimSpace(r.Text))
-		if key == "" || seen[key] {
+		key := sameAsking(r.Text)
+		if key == "" || !r.Done || seen[key] {
 			continue
 		}
 		seen[key] = true
 
-		s := Suggestion{Icon: "search", Text: r.Text, Kind: route.Kind(r.Kind)}
+		s := Suggestion{Icon: "search", Text: r.Text, Kind: route.Kind(r.Kind), Remembered: true, Instant: r.Calls == 0}
 		if !e.offers(s) {
+			continue
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+func sameAsking(text string) string {
+	return strings.ToLower(strings.TrimSpace(text))
+}
+
+func withoutTheRemembered(examples, remembered []Suggestion) []Suggestion {
+	known := map[string]bool{}
+	for _, r := range remembered {
+		known[sameAsking(r.Text)] = true
+	}
+	out := make([]Suggestion, 0, len(examples))
+	for _, s := range examples {
+		if s.Destination == "" && known[sameAsking(s.Text)] {
 			continue
 		}
 		out = append(out, s)

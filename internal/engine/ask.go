@@ -173,8 +173,10 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 	if rehearsing {
 		return e.rehearse(withLooking(ctx, looking), in)
 	}
+	asked, _ := withoutTheProfile(in.Instruction)
 	plan, err := e.ask(withLooking(ctx, looking), in)
 	if plan != nil {
+		plan.Asked = asked
 		if plan.Drive != nil {
 			plan.Drive.Looking = looking
 		}
@@ -186,6 +188,9 @@ func (e *Engine) Ask(ctx context.Context, in Ask) (*Plan, error) {
 		if notAllowed := e.allowedToAct(ctx, plan); notAllowed != nil {
 			return nil, notAllowed
 		}
+	}
+	if err == nil && plan != nil && plan.answers() {
+		e.finished(ctx, plan, plan.DecisionCalls+plan.SynthesisCalls)
 	}
 	if err != nil || plan == nil || plan.Route == nil || !isTask(plan.Route.Kind) || plan.Mode != "" {
 		return plan, err

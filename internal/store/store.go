@@ -99,7 +99,7 @@ func Open(path string) (*Store, error) {
 // Close releases the database.
 func (s *Store) Close() error { return s.db.Close() }
 
-const schemaVersion = 15
+const schemaVersion = 16
 
 func (s *Store) migrate(ctx context.Context) error {
 	var v int
@@ -197,7 +197,9 @@ CREATE TABLE IF NOT EXISTS drive_traces (
 CREATE TABLE IF NOT EXISTS instructions (
 	text    TEXT    PRIMARY KEY,
 	kind    TEXT    NOT NULL DEFAULT '',
-	used_at INTEGER NOT NULL
+	used_at INTEGER NOT NULL,
+	done_at INTEGER NOT NULL DEFAULT 0,
+	calls   INTEGER NOT NULL DEFAULT 0
 );
 
 -- What VANS has actually done, as opposed to what it has learned how to do.
@@ -288,6 +290,14 @@ CREATE TABLE IF NOT EXISTS schedules (
 			`ALTER TABLE runs ADD COLUMN `+column+` INTEGER NOT NULL DEFAULT 0`); err != nil &&
 			!strings.Contains(err.Error(), "duplicate column name") {
 			return fmt.Errorf("store: add runs.%s: %w", column, err)
+		}
+	}
+
+	for _, column := range []string{"done_at", "calls"} {
+		if _, err := s.db.ExecContext(ctx,
+			`ALTER TABLE instructions ADD COLUMN `+column+` INTEGER NOT NULL DEFAULT 0`); err != nil &&
+			!strings.Contains(err.Error(), "duplicate column name") {
+			return fmt.Errorf("store: add instructions.%s: %w", column, err)
 		}
 	}
 

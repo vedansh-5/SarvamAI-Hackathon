@@ -191,6 +191,13 @@ async fn forget_model_key(engine: State<'_, Engine>) -> Result<Value, RpcError> 
 }
 
 #[tauri::command]
+async fn forget_instruction(engine: State<'_, Engine>, text: String) -> Result<Value, RpcError> {
+    engine
+        .call("forget_instruction", Some(json!({ "text": text })))
+        .await
+}
+
+#[tauri::command]
 async fn resume_drive(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("resume_drive", None).await
 }
@@ -430,6 +437,7 @@ pub fn run() {
             model_settings,
             set_model_settings,
             forget_model_key,
+            forget_instruction,
             pause_pointer,
             history,
             undo,

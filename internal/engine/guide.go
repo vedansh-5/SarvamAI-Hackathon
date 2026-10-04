@@ -434,7 +434,6 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 	if err != nil {
 		return work, err
 	}
-
 	// Nothing was pointed at, and the panel would otherwise come back saying
 	// "that is all of it" having shown nobody anything. The model's own sentence
 	// is the only account of why — usually that the answer is in an application
@@ -445,6 +444,7 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 		}
 		return work, stopped(g.App, "engine: there was nothing in %s to point at", g.App)
 	}
+	e.finished(ctx, plan, work.Calls)
 	return work, nil
 }
 

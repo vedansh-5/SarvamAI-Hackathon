@@ -291,6 +291,8 @@ type Plan struct {
 	Mode    string
 	ModeWhy string
 
+	Asked string
+
 	Say      string
 	SayTitle string
 	Copy     string
@@ -594,6 +596,13 @@ func (e *Engine) Commit(ctx context.Context, plan *Plan) (Receipt, error) {
 	e.writeItDown(ctx, plan, receipt, err)
 	if err == nil && plan.Drive != nil {
 		plan.Drive.Resumed, plan.Drive.Done = false, nil
+	}
+	if err == nil {
+		calls := plan.DecisionCalls + plan.SynthesisCalls
+		if receipt.Work != nil {
+			calls += receipt.Work.Calls
+		}
+		e.finished(ctx, plan, calls)
 	}
 	return receipt, err
 }
