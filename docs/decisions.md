@@ -4731,3 +4731,51 @@ question it answers, and the list of operations is written with it. Three
 questions at most; a fourth ends it with the question shown, as before. No answer,
 or Stop, ends it with nothing planned and nothing changed. Asking does not use up
 one of the attempts a refused list gets.
+
+## D-212 — The panel and the guide take the v3 design
+
+The panel had grown a screen at a time, and each screen looked it: a header, a
+form, a results page, a confirm page. The v3 design is one shape that holds all
+of them, and it is now what the panel and the guide are built to.
+
+One field stays at the top through asking, working and answering. The question is
+always in view, can be edited where it stands and run again, and the readout
+beside it says how long the answer took, or "Remembered · instant" when no model
+was asked. The foot is the other fixed part: where the answer goes, the keys that
+work on this screen, anything VANS has to say in passing, the theme and setup.
+
+Two colours carry meaning. Volt is VANS. Red is anything that changes something
+outside VANS, and nothing else: the destination that writes, the mark in the
+field while one is chosen, the ring round the whole panel while it asks to be
+confirmed.
+
+Confirming takes holding Return, or the button, for three quarters of a second
+(D-031 still decides what needs it). A press is too easy to make by accident right
+after asking, so a Return still held from asking is ignored, since only a fresh
+press starts the hold. It runs on a timer and the fill is drawn by the stylesheet,
+so it does not depend on the window being painted.
+
+Escape steps back before it dismisses: from an answer or a failure to the field,
+from a field with words in it to an empty one, and only from an empty field to
+gone. A run still stops on Escape as before (D-156).
+
+Dark unless the person has chosen light, where it used to be the other way round.
+The design is drawn dark first; the stored choice still wins.
+
+The guide no longer follows the panel's theme (D-108). It sits on other
+applications, never on the panel, so it is the same ink and volt on any of them:
+one ring round the control with the step's number on it, a card that says the
+step and the keys, and a caption that travels with the pointer. The pointer is an
+arrow again, which D-138 moved away from because it read as the person's own
+pointer having jumped. What answers that now is that it is volt and carries a tag
+saying whose it is. It no longer turns to face its heading, and the ripple under
+a click is gone, since the ring already pulses and the pointer lands there.
+
+Kept although the design does not draw it: the dimming round the control (D-091),
+which is what holds the eye on a busy window.
+
+Left out on purpose: the voice screens and the microphone in the foot, which wait
+for voice itself, and the prototype's own demo controls. The row of examples is
+labelled "Try", not "Remembered" as drawn, because what it lists is what the
+runtime offers (D-053), and calling that remembered would claim a run that never
+happened.

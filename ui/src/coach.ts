@@ -8,31 +8,6 @@ function note(what: string) {
   invoke("note", { from: "coach", what }).catch(() => {});
 }
 
-/// The panel and the overlay are two windows of one application, and they have
-/// to look like it. The panel keeps the choice in localStorage, which Tauri
-/// shares between windows of the same origin, so reading it is the whole of it —
-/// no event to plumb, and no second place where the answer could be stored and
-/// drift.
-///
-/// Read again on every step rather than once at load: the overlay outlives any
-/// number of changes made in the panel behind it, and a step drawn in yesterday's
-/// colours is exactly the kind of thing nobody notices until it looks broken.
-const THEME_KEY = "vans.theme";
-
-function followTheme() {
-  let dark = false;
-  try {
-    dark = localStorage.getItem(THEME_KEY) === "dark";
-  } catch {
-    // Blocked or unavailable. Light is the default the panel falls back to too.
-  }
-  if (dark) {
-    document.documentElement.setAttribute("data-theme", "dark");
-  } else {
-    document.documentElement.removeAttribute("data-theme");
-  }
-}
-
 interface Pointer {
   x: number;
   y: number;
@@ -70,10 +45,6 @@ let animationFrameId: number | null = null;
 // hand.
 let ghostAt: { x: number; y: number } | null = null;
 let ghostFrame: number | null = null;
-
-// Which way the ghost is facing, in degrees. Kept between steps so it does not
-// snap back to a default before turning towards the next target.
-let ghostHeading = -35;
 
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -188,6 +159,8 @@ function setCaption(text: string, hint: string) {
   captionWidth = caption.offsetWidth;
 }
 
+const CAPTION_UNDER_TAG = 38;
+
 function moveCaption(x: number, y: number) {
   const caption = elementById<HTMLElement>("caption");
   if (keepClearOf) {
@@ -198,11 +171,11 @@ function moveCaption(x: number, y: number) {
     caption.style.transform = `translate(${Math.round(beside)}px, ${Math.round(level)}px)`;
     return;
   }
-  let left = x + 18;
+  let left = x + 14;
   if (left + captionWidth > window.innerWidth - 8) left = x - 18 - captionWidth;
   const top = captionAbove
     ? Math.max(8, y - captionLift)
-    : Math.min(y + 12, window.innerHeight - 34);
+    : Math.min(y + CAPTION_UNDER_TAG, window.innerHeight - 34);
   caption.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
 }
 
@@ -225,28 +198,10 @@ function calculateTargetBounds(pointer: Pointer): Bounds {
   return { x, y, w, h, r };
 }
 
-/// Four L-shaped brackets, one per corner, so the edges of the control are
-/// marked as well as ringed. The arm is a quarter of the shorter side, capped,
-/// so a small control gets small brackets rather than a box drawn twice.
-function cornerBrackets(b: Bounds): string {
-  const arm = Math.max(8, Math.min(22, Math.min(b.w, b.h) / 4));
-  const { x, y, w, h } = b;
-  return [
-    `M ${x} ${y + arm} L ${x} ${y} L ${x + arm} ${y}`,
-    `M ${x + w - arm} ${y} L ${x + w} ${y} L ${x + w} ${y + arm}`,
-    `M ${x + w} ${y + h - arm} L ${x + w} ${y + h} L ${x + w - arm} ${y + h}`,
-    `M ${x + arm} ${y + h} L ${x} ${y + h} L ${x} ${y + h - arm}`,
-  ].join(" ");
-}
-
-/// What the step asks for, drawn on the control itself.
+/// Where on the control the step happens.
 ///
-/// A ring says which control. It does not say what to do with it, and pointing
-/// at a field is not the same instruction as typing in one — so a click gets a
-/// cursor and a ripple, typing gets a caret sitting where the text will go, and
-/// a key combination gets neither, because there is nothing on screen to press.
-/// All of them are placed inside the control rather than at its centre, so the
-/// label someone is reading stays legible.
+/// Inside the control rather than at its centre, so the label someone is
+/// reading stays legible.
 function landingPoint(b: Bounds, verb: string): { x: number; y: number } {
   if (verb === "scroll") return { x: b.x + b.w / 2, y: b.y + b.h / 2 };
   const x = verb === "type" ? b.x + 14 : b.x + Math.min(b.w * 0.5, 40);
@@ -277,7 +232,7 @@ function flyGhostTo(to: { x: number; y: number }, press: boolean) {
   ghost.setAttribute("opacity", "1");
 
   const place = (x: number, y: number) => {
-    ghost.setAttribute("transform", `translate(${x} ${y}) rotate(${ghostHeading})`);
+    ghost.setAttribute("transform", `translate(${x} ${y})`);
     moveCaption(x, y);
   };
 
@@ -319,14 +274,6 @@ function flyGhostTo(to: { x: number; y: number }, press: boolean) {
     const e = easeInOutCubic(t);
     const u = 1 - e;
 
-    // Face along the curve: the derivative of the quadratic gives the direction
-    // of travel at this point, so the tip leads the whole way round the bend.
-    const tx = 2 * u * (cx - from.x) + 2 * e * (to.x - cx);
-    const ty = 2 * u * (cy - from.y) + 2 * e * (to.y - cy);
-    if (Math.hypot(tx, ty) > 0.01) {
-      ghostHeading = (Math.atan2(ty, tx) * 180) / Math.PI;
-    }
-
     place(
       u * u * from.x + 2 * u * e * cx + e * e * to.x,
       u * u * from.y + 2 * u * e * cy + e * e * to.y,
@@ -350,24 +297,19 @@ function hideGhost() {
   hideCaption();
 }
 
+/// What the step asks for, drawn on the control itself.
+///
+/// A ring says which control. It does not say what to do with it, and pointing
+/// at a field is not the same instruction as typing in one — so typing gets a
+/// caret sitting where the text will go, and everything else is left to the
+/// ghost, which lands where the step happens.
 function showWhatToDo(b: Bounds, verb: string) {
   const typing = verb === "type";
-  const pressing = verb === "press" || verb === "scroll";
-
   const { x, y } = landingPoint(b, verb);
 
-  // The ghost is the cursor now. The small one that used to bob on the control
-  // would put two pointers on screen at the same spot.
-  elementById<SVGGElement>("cursor").setAttribute("opacity", "0");
-
-  elementById<SVGCircleElement>("ripple").setAttribute("cx", `${x}`);
-  elementById<SVGCircleElement>("ripple").setAttribute("cy", `${y}`);
-  elementById<SVGGElement>("cursor").setAttribute("transform", `translate(${x - 1} ${y - 2})`);
   elementById<SVGGElement>("caret").setAttribute("transform", `translate(${x} ${y})`);
-
-  elementById<SVGCircleElement>("ripple").setAttribute("opacity", typing || pressing ? "0" : "1");
   elementById<SVGGElement>("caret").setAttribute("opacity", typing ? "1" : "0");
-  elementById<SVGGElement>("tap").setAttribute("opacity", pressing ? "0" : "1");
+  elementById<SVGGElement>("tap").setAttribute("opacity", typing ? "1" : "0");
 }
 
 /// How far the dimming fades out around the control.
@@ -386,9 +328,7 @@ function applySpotlightBounds(bounds: Bounds) {
   halo.setAttribute("r", `${haloRadius(bounds)}`);
 
   const hole = elementById<SVGRectElement>("spotlight-hole");
-  const inner = elementById<SVGRectElement>("spotlight-inner");
-  const glow = elementById<SVGRectElement>("spotlight-glow");
-  elementById<SVGPathElement>("corners").setAttribute("d", cornerBrackets(bounds));
+  const ring = elementById<HTMLElement>("ring");
   showWhatToDo(bounds, currentVerb);
 
   hole.setAttribute("x", `${bounds.x}`);
@@ -397,17 +337,11 @@ function applySpotlightBounds(bounds: Bounds) {
   hole.setAttribute("height", `${bounds.h}`);
   hole.setAttribute("rx", `${bounds.r}`);
 
-  inner.setAttribute("x", `${bounds.x}`);
-  inner.setAttribute("y", `${bounds.y}`);
-  inner.setAttribute("width", `${bounds.w}`);
-  inner.setAttribute("height", `${bounds.h}`);
-  inner.setAttribute("rx", `${bounds.r}`);
-
-  glow.setAttribute("x", `${bounds.x - 3}`);
-  glow.setAttribute("y", `${bounds.y - 3}`);
-  glow.setAttribute("width", `${bounds.w + 6}`);
-  glow.setAttribute("height", `${bounds.h + 6}`);
-  glow.setAttribute("rx", `${bounds.r + 3}`);
+  ring.style.left = `${bounds.x}px`;
+  ring.style.top = `${bounds.y}px`;
+  ring.style.width = `${bounds.w}px`;
+  ring.style.height = `${bounds.h}px`;
+  ring.style.borderRadius = `${bounds.r}px`;
 }
 
 function interpolateValue(start: number, end: number, progress: number): number {
@@ -578,18 +512,15 @@ function hasSomethingToPointAt(pointer: Pointer): boolean {
 function renderInstruction(pointer: Pointer) {
   note(`instruction with no control: ${pointer.step} ${pointer.label}`);
 
-  for (const id of ["corners", "arrow"]) {
-    elementById<SVGElement>(id).setAttribute("d", "");
-  }
-  for (const id of ["tap", "caret", "cursor", "done"]) {
+  elementById<SVGElement>("arrow").setAttribute("d", "");
+  for (const id of ["tap", "caret"]) {
     elementById<SVGElement>(id).setAttribute("opacity", "0");
   }
-  for (const id of ["spotlight-hole", "spotlight-inner", "spotlight-glow"]) {
-    const el = elementById<SVGRectElement>(id);
-    el.setAttribute("width", "0");
-    el.setAttribute("height", "0");
-  }
+  const hole = elementById<SVGRectElement>("spotlight-hole");
+  hole.setAttribute("width", "0");
+  hole.setAttribute("height", "0");
   elementById<SVGCircleElement>("spotlight-halo").setAttribute("r", "0");
+  elementById<HTMLElement>("ring").hidden = true;
 
   // Nothing is cut out of the dimming, so the whole screen goes quiet behind
   // one sentence. That is the right weight for a step that is about the Mac
@@ -607,6 +538,28 @@ function renderInstruction(pointer: Pointer) {
     tip.style.visibility = "visible";
     elementById<HTMLElement>("stage").classList.add("on");
   });
+}
+
+function setHint(keys: [string, string][]) {
+  const hint = elementById<HTMLElement>("hint");
+  hint.replaceChildren();
+  for (const [key, what] of keys) {
+    const item = document.createElement("span");
+    const kbd = document.createElement("kbd");
+    kbd.textContent = key;
+    item.append(kbd, what);
+    hint.append(item);
+  }
+}
+
+const DOTS_MOST = 8;
+
+function setDots(n: number) {
+  const dots = elementById<HTMLElement>("dots");
+  dots.replaceChildren();
+  for (let i = 0; i < Math.min(n, DOTS_MOST); i++) {
+    dots.append(document.createElement("span"));
+  }
 }
 
 function showPaused(why: { ask?: string; label?: string } | null) {
@@ -628,7 +581,6 @@ function showPaused(why: { ask?: string; label?: string } | null) {
 }
 
 function renderCoachStep(pointer: Pointer) {
-  followTheme();
   elementById<SVGGElement>("ghost").classList.remove("waiting");
   elementById<HTMLElement>("caption").classList.remove("asking");
   runMode = pointer.mode === "drive" ? "drive" : "coach";
@@ -646,6 +598,13 @@ function renderCoachStep(pointer: Pointer) {
   const tip = elementById<HTMLElement>("tip");
   const step = elementById<HTMLElement>("step");
   const text = elementById<HTMLElement>("text");
+
+  const number = stepNumber(pointer);
+  const ring = elementById<HTMLElement>("ring");
+  ring.hidden = false;
+  ring.classList.remove("done");
+  elementById<HTMLElement>("badge").textContent = number ? `${number}` : "";
+  setDots(number);
 
   step.textContent = pointer.step;
   text.textContent = pointer.label;
@@ -665,12 +624,20 @@ function renderCoachStep(pointer: Pointer) {
   }
 
   tip.classList.toggle("quiet", runMode === "drive");
-  elementById<HTMLElement>("hint").textContent = pointer.offer
-    ? "\u2318\u21A9 VANS does this step \u00B7 Esc you do it"
-    : "\u2325Space for Next \u00B7 Esc to stop";
+  setHint(
+    pointer.offer
+      ? [
+          ["\u2318\u21B5", "Do it for me"],
+          ["esc", "I\u2019ll do it"],
+        ]
+      : [
+          ["\u2325Space", "Next"],
+          ["esc", "Stop"],
+        ],
+  );
 
   if (!hasSomethingToPointAt(pointer)) {
-    rememberStep(stepNumber(pointer), null);
+    rememberStep(number, null);
     drawTrail(null);
     hideGhost();
     tip.classList.remove("quiet");
@@ -682,7 +649,7 @@ function renderCoachStep(pointer: Pointer) {
   const tipBelow = targetBounds.y + targetBounds.h + GAP + 140 <= window.innerHeight - 8;
   captionLift = targetBounds.h / 2 + 30;
   captionAbove = runMode === "coach" && tipBelow && landing.y - captionLift >= 8;
-  rememberStep(stepNumber(pointer), landing);
+  rememberStep(number, landing);
   drawTrail(landing);
   if (keepClearOf && runMode === "coach") {
     // The card is already beside the menu saying what to do; a second label
@@ -733,25 +700,17 @@ function renderCoachStep(pointer: Pointer) {
 /// a run is stopped or gives up. Those are different outcomes and should not
 /// look alike.
 function markItDone() {
-  const b = currentBounds;
-  if (!b) return;
+  if (!currentBounds) return;
 
-  const x = b.x + b.w / 2;
-  const y = b.y + b.h / 2;
-  const done = elementById<SVGGElement>("done");
-
-  elementById<SVGCircleElement>("done-ring").setAttribute("cx", `${x}`);
-  elementById<SVGCircleElement>("done-ring").setAttribute("cy", `${y}`);
-  elementById<SVGPathElement>("done-tick").setAttribute(
-    "d",
-    `M ${x - 7} ${y} L ${x - 2} ${y + 5.5} L ${x + 7.5} ${y - 5.5}`,
-  );
+  const ring = elementById<HTMLElement>("ring");
+  ring.classList.add("done");
+  elementById<HTMLElement>("badge").textContent = "\u2713";
 
   elementById<SVGGElement>("tap").setAttribute("opacity", "0");
   elementById<SVGPathElement>("arrow").setAttribute("opacity", "0");
-  done.setAttribute("opacity", "1");
   elementById<HTMLElement>("text").textContent = "That is all of it";
   elementById<HTMLElement>("detail").hidden = true;
+  setHint([]);
   setCaption("Done", "");
 }
 
@@ -764,7 +723,7 @@ function dismissCoach() {
   elementById<HTMLElement>("tip").classList.remove("on");
   elementById<SVGPathElement>("arrow").setAttribute("opacity", "0");
   elementById<SVGGElement>("tap").setAttribute("opacity", "0");
-  elementById<SVGGElement>("done").setAttribute("opacity", "0");
+  elementById<HTMLElement>("ring").hidden = true;
   hideGhost();
   clearTrail();
   currentBounds = null;

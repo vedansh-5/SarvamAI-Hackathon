@@ -1720,8 +1720,9 @@ every change unless a later instruction says otherwise.
   a person would buy, not a debugging console.
 - **Apple design language.** System font, a clear type scale, a consistent
   spacing rhythm, restraint.
-- **The panel design from the design prototype is final.** Do not revert to an
-  earlier design.
+- **The v3 design is the panel and the guide (D-212).** One field at the top,
+  a foot with destinations and key hints, volt for VANS and red only for what
+  changes something. Do not revert to an earlier design.
 - **Summoned, not launched.** Alt+Space, no dock icon. It opens **on top of
   full-screen applications**, on whichever Space the user is on, and **stays
   in front** once triggered.
@@ -1729,7 +1730,10 @@ every change unless a later instruction says otherwise.
   scrolling, not by typing, not by moving the mouse to the menu bar of the
   application behind it.
 - **Draggable.**
-- **Light theme by default, with a theme switcher.**
+- **Dark by default since the v3 design (D-212), with a theme switcher in the
+  foot.** It was light by default before; a stored choice still wins.
+- **Hold to confirm.** A write or an action takes holding Return or the button,
+  never a single press.
 - **Glass, done properly.** Transparency and blur that look like the system's
   own materials. Appearance controls are tucked away, not always visible;
   sliders are short. The panel makes itself readable over whatever is behind it.

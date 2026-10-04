@@ -22,10 +22,10 @@ static PINNED: AtomicBool = AtomicBool::new(false);
 /// Below this the panel reads as a glitch rather than a window.
 const MIN_HEIGHT: f64 = 180.0;
 
-/// The floor while the coach is pointing, where the panel is a caption for a step
-/// and two buttons. Holding it at the full floor leaves a mostly empty box next
-/// to the ring.
-const COMPACT_MIN_HEIGHT: f64 = 96.0;
+/// The floor while the coach is pointing, where the panel is a one-line capsule:
+/// the step, Next and Stop. Holding it at the full floor leaves a mostly empty
+/// box next to the ring.
+const COMPACT_MIN_HEIGHT: f64 = 64.0;
 
 /// The panel is an overlay, not a full-screen app: past this fraction of the
 /// display it stops looking like something summoned over your work.
@@ -34,7 +34,7 @@ const MAX_SCREEN_FRACTION: f64 = 0.85;
 /// Matches the CSS radius on .panel. The blur is a native layer behind the
 /// webview, so if it does not round with the panel it shows as square corners
 /// poking out from under the rounded ones.
-const CORNER_RADIUS: f64 = 18.0;
+const CORNER_RADIUS: f64 = 20.0;
 
 /// How close to the edge of the display the panel is allowed to sit.
 const EDGE_MARGIN: f64 = 12.0;
@@ -234,10 +234,11 @@ pub fn end_drag() {
 /// Whether the panel is the narrow strip it becomes while the coach is pointing.
 static COMPACT: AtomicBool = AtomicBool::new(false);
 
-/// Full width is the panel reading results; compact is a strip beside the ring,
-/// wide enough for a step and the two buttons that move through them.
+/// Full width is the panel reading results; compact is the capsule the coach
+/// speaks from, wide enough for a step on one line and the two buttons that
+/// move through them.
 const FULL_WIDTH: f64 = 720.0;
-const COMPACT_WIDTH: f64 = 380.0;
+const COMPACT_WIDTH: f64 = 560.0;
 
 /// The shortest the panel may be right now.
 fn panel_min_height() -> f64 {

@@ -4,166 +4,219 @@
     <meta charset="UTF-8" />
     <title>VANS</title>
     <style>
-      /* The panel's palette, kept in step with src/styles.css. The overlay is a
-         separate window with no frosted material behind it, so the surface is
-         carried at a higher opacity than the panel's 0.82 — the panel gets the
-         rest of the way there from AppKit, and this has to do it alone or the
-         text sits on whatever application is underneath. */
+      /* The guide's own palette, taken from src/styles.css. Everything it draws
+         sits on someone else's application rather than on the panel, so it is
+         the same ink-and-volt in either theme: a card that changed colour with
+         the panel would be tuned for the one surface it never sits on. */
       :root {
-        color-scheme: light;
-        --surface-rgb: 234, 233, 233;
-        --tint: 0.97;
-        --ink: #201e1d;
-        --ink-dim: rgba(29, 29, 31, 0.55);
-        --accent: #007aff;
-        --accent-soft: rgba(0, 122, 255, 0.12);
-        --accent-ink: #0a4da3;
-        --r-panel: 18px;
-        --edge: rgba(0, 0, 0, 0.08);
-      }
-      :root[data-theme="dark"] {
-        color-scheme: dark;
-        --surface-rgb: 58, 56, 56;
-        --tint: 0.97;
-        --ink: #f8f4f4;
-        --ink-dim: rgba(245, 245, 247, 0.55);
-        --accent: #0a84ff;
-        --accent-soft: rgba(10, 132, 255, 0.22);
-        --accent-ink: #e9f2ff;
-        --edge: rgba(255, 255, 255, 0.12);
+        --ink: #10110e;
+        --paper: #f3f4ee;
+        --paper-dim: rgba(243, 244, 238, 0.62);
+        --paper-fill: rgba(243, 244, 238, 0.1);
+        --volt: #ffd23f;
+        --mono: ui-monospace, "SF Mono", Menlo, monospace;
+        --spring: cubic-bezier(0.2, 0.8, 0.2, 1);
       }
       html, body {
         margin: 0; padding: 0; width: 100%; height: 100%;
         background: transparent; overflow: hidden;
         font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
         -webkit-user-select: none; user-select: none; cursor: default;
       }
       #stage { position: fixed; inset: 0; opacity: 0; transition: opacity 180ms ease; }
       #stage.on { opacity: 1; }
       svg { position: fixed; inset: 0; width: 100%; height: 100%; }
 
+      #ring {
+        position: fixed;
+        left: 0; top: 0; width: 0; height: 0;
+        box-sizing: border-box;
+        border: 2px solid var(--volt);
+        border-radius: 10px;
+        animation: ring 1.6s ease-out infinite;
+        pointer-events: none;
+      }
+      #ring[hidden] { display: none; }
+      #ring.done { animation: none; border-width: 1.5px; border-color: rgba(255, 210, 63, 0.55); }
+      @keyframes ring {
+        from { box-shadow: 0 0 0 0 rgba(255, 210, 63, 0.7); }
+        to   { box-shadow: 0 0 0 14px rgba(255, 210, 63, 0); }
+      }
+      #badge {
+        position: absolute;
+        left: -11px; top: -11px;
+        width: 22px; height: 22px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        background: var(--volt);
+        color: var(--ink);
+        font-size: 11.5px;
+        font-weight: 800;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      }
+      #badge:empty { display: none; }
+
       #tip {
         position: fixed;
-        max-width: 320px;
-        padding: 12px 14px;
-        border-radius: var(--r-panel);
-        background: rgba(var(--surface-rgb), var(--tint));
-        -webkit-backdrop-filter: blur(20px) saturate(180%);
-        backdrop-filter: blur(20px) saturate(180%);
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28), 0 0 0 0.5px var(--edge) inset;
-        color: var(--ink);
-        font-size: 14px;
-        line-height: 1.45;
-        letter-spacing: -0.01em;
+        width: 268px;
+        box-sizing: border-box;
+        padding: 14px 14px 12px;
+        border-radius: 14px;
+        background: var(--ink);
+        color: var(--paper);
+        box-shadow: 0 18px 40px -10px rgba(0, 0, 0, 0.5), 0 0 0 0.5px rgba(255, 255, 255, 0.1) inset;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
         transform: translateY(6px) scale(0.98);
         opacity: 0;
-        transition: left 320ms cubic-bezier(0.16, 1, 0.3, 1),
-                    top 320ms cubic-bezier(0.16, 1, 0.3, 1),
-                    transform 220ms cubic-bezier(0.25, 0.1, 0.25, 1),
+        transition: left 500ms var(--spring),
+                    top 500ms var(--spring),
+                    transform 220ms var(--spring),
                     opacity 220ms ease;
         pointer-events: none;
       }
       #tip.on { transform: translateY(0) scale(1); opacity: 1; }
+      #tip.quiet { display: none; }
+      #tip-head { display: flex; align-items: center; gap: 4px; }
+      #step {
+        flex: 1;
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--volt);
+      }
+      #dots { display: flex; gap: 4px; }
+      #dots span {
+        width: 6px; height: 6px;
+        border-radius: 3px;
+        background: rgba(255, 210, 63, 0.45);
+        transition: width 300ms;
+      }
+      #dots span:last-child { width: 16px; background: var(--volt); }
+      #text {
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.015em;
+        line-height: 1.3;
+        text-wrap: pretty;
+      }
       #detail {
-        display: block;
-        margin-top: 8px;
-        padding: 5px 9px;
+        padding: 6px 9px;
         border-radius: 8px;
-        background: var(--accent-soft);
-        color: var(--accent-ink);
-        font-size: 13px;
-        font-weight: 550;
-        letter-spacing: 0.01em;
+        background: var(--paper-fill);
+        font: 500 12.5px/1.4 var(--mono);
         font-variant-ligatures: none;
+        word-break: break-word;
       }
       #detail[hidden] { display: none; }
       #hint {
-        display: block;
-        margin-top: 8px;
-        font-size: 11px;
-        letter-spacing: 0.01em;
-        color: var(--ink-dim);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 10px;
+        margin-top: 2px;
+        font-size: 12px;
+        color: var(--paper-dim);
       }
-      #arrow { transition: opacity 200ms ease; }
+      #hint:empty { display: none; }
+      #hint span { display: flex; align-items: center; gap: 6px; }
+      kbd {
+        padding: 2px 6px;
+        border-radius: 5px;
+        background: var(--paper-fill);
+        color: var(--paper);
+        font: 500 10.5px var(--mono);
+      }
 
-      /* The ring and the arrow carry the accent too. Set here rather than on the
-         elements, so the one palette decides it: a CSS rule beats a presentation
-         attribute, which is what the markup still has for anything that does not
-         reach a stylesheet. */
-      #corners, #arrow { stroke: var(--accent); }
-      #ripple { stroke: var(--accent); }
-      #spotlight-glow { stroke: var(--accent); }
-      /* The ghost cursor: a soft, rounded triangle in the accent colour with a
-         glow of the same colour. Deliberately not shaped like a mouse pointer —
-         it should read as VANS moving, never as the person's own cursor having
-         jumped. It turns to face where it is going, and lands tip first. */
+      #arrow { stroke: var(--volt); transition: opacity 200ms ease; }
+      #arrowhead path { fill: var(--volt); }
+      #caret rect { fill: var(--volt); }
+
+      /* The ghost cursor: a pointer in volt, tagged with whose it is. The tag and
+         the colour are what keep it from reading as the person's own cursor
+         having jumped. */
       #ghost { transition: opacity 180ms ease; pointer-events: none; }
       #ghost-body {
         transform-origin: 0 0;
         transition: transform 110ms ease-out;
-        filter: drop-shadow(0 0 7px var(--accent)) drop-shadow(0 0 2px var(--accent));
+        filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
       }
-      #ghost-shape { fill: var(--accent); stroke: var(--accent); }
+      #ghost-shape { fill: var(--volt); stroke: var(--ink); }
+      #ghost-tag rect { fill: var(--ink); }
+      #ghost-tag text {
+        fill: var(--volt);
+        font: 800 10px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+        letter-spacing: 0.06em;
+        text-anchor: middle;
+        dominant-baseline: central;
+      }
       #ghost.pressing #ghost-body { transform: scale(0.82); }
       #ghost.waiting #ghost-body { opacity: 0.45; }
-      #ghost-press { transform-origin: center; }
-      #ghost.landed #ghost-press { animation: ghost-press 520ms ease-out 1; }
+      #ghost-press { fill: var(--volt); }
+      #ghost.landed #ghost-press { animation: ghost-press 500ms ease-out 1; }
       @keyframes ghost-press {
-        from { r: 4; opacity: 0.9; }
-        to   { r: 30; opacity: 0; }
+        from { r: 6; opacity: 0.9; }
+        to   { r: 34; opacity: 0; }
       }
 
       #caption {
         position: fixed;
         left: 0; top: 0;
-        max-width: 260px;
-        padding: 5px 10px;
+        max-width: 280px;
+        padding: 5px 11px 5px 9px;
         border-radius: 999px;
-        background: var(--accent);
-        color: #fff;
+        background: var(--ink);
+        color: var(--paper);
         font-size: 12px;
         font-weight: 600;
         letter-spacing: -0.005em;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25), 0 0 10px var(--accent-soft);
+        box-shadow: 0 8px 22px -6px rgba(0, 0, 0, 0.5), 0 0 0 0.5px rgba(255, 255, 255, 0.1) inset;
         opacity: 0;
         transition: opacity 160ms ease;
         pointer-events: none;
         will-change: transform;
       }
+      #caption::before {
+        content: "";
+        display: inline-block;
+        width: 6px; height: 6px;
+        margin-right: 7px;
+        border-radius: 50%;
+        background: var(--volt);
+        vertical-align: 1px;
+      }
       #caption.on { opacity: 1; }
-      #caption.asking { background: #ff9f0a; color: #1d1d1f; max-width: 420px; }
+      #caption.asking { background: var(--volt); color: var(--ink); max-width: 420px; }
+      #caption.asking::before { background: var(--ink); }
       #caption small {
         font-weight: 500;
-        opacity: 0.75;
-        margin-left: 6px;
+        opacity: 0.6;
+        margin-left: 7px;
       }
-      #tip.quiet { display: none; }
 
-      #trail-line { stroke: var(--accent); }
-      .trail-dot circle { fill: rgba(var(--surface-rgb), 0.95); stroke: var(--accent); }
+      #trail-line { stroke: var(--volt); }
+      .trail-dot circle { fill: var(--ink); stroke: rgba(255, 210, 63, 0.55); }
       .trail-dot text {
-        fill: var(--accent);
-        font: 700 10px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+        fill: var(--volt);
+        font: 800 10px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
         text-anchor: middle;
         dominant-baseline: central;
       }
 
-      #step {
-        display: block;
-        font-size: 11px;
-        font-weight: 590;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: var(--ink-dim);
-        margin-bottom: 4px;
+      @media (prefers-reduced-motion: reduce) {
+        #ring { animation: none; }
       }
     </style>
   </head>
   <body>
     <div id="stage">
+      <div id="ring" hidden><span id="badge"></span></div>
       <svg id="art" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <radialGradient id="halo">
@@ -177,44 +230,18 @@
           </mask>
           <marker id="arrowhead" viewBox="0 0 10 10" refX="8.5" refY="5"
                   markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 1 L 9 5 L 0 9 z" fill="rgba(10,132,255,0.95)" />
+            <path d="M 0 1 L 9 5 L 0 9 z" />
           </marker>
         </defs>
         <rect width="100%" height="100%" fill="rgba(0,0,0,0.34)" mask="url(#cut)" />
-        <rect id="spotlight-inner" x="0" y="0" width="0" height="0" rx="8"
-              fill="none" stroke="rgba(255,255,255,0.92)" stroke-width="2" />
-        <rect id="spotlight-glow" x="0" y="0" width="0" height="0" rx="11"
-              fill="none" stroke="rgba(10,132,255,0.6)" stroke-width="3">
-          <animate attributeName="opacity" values="0.85;0.3;0.85" dur="1.8s" repeatCount="indefinite" />
-        </rect>
-        <path id="corners" d="" fill="none" stroke="rgba(10,132,255,0.95)"
-              stroke-width="3" stroke-linecap="round" />
-        <path id="arrow" d="" fill="none" stroke="rgba(10,132,255,0.9)" stroke-width="2.5"
+        <path id="arrow" d="" fill="none" stroke-width="2"
               stroke-linecap="round" marker-end="url(#arrowhead)" opacity="0" />
 
-        <g id="done" opacity="0">
-          <circle id="done-ring" cx="0" cy="0" r="17" fill="rgba(48,209,88,0.18)"
-                  stroke="rgba(48,209,88,0.95)" stroke-width="2.5" />
-          <path id="done-tick" d="" fill="none" stroke="rgba(48,209,88,1)" stroke-width="3"
-                stroke-linecap="round" stroke-linejoin="round" />
-        </g>
         <g id="tap" opacity="0">
-          <circle id="ripple" cx="0" cy="0" r="14" fill="none"
-                  stroke="rgba(10,132,255,0.75)" stroke-width="2">
-            <animate attributeName="r" values="10;26;10" dur="1.6s" repeatCount="indefinite" />
-            <animate attributeName="opacity" values="0.9;0;0.9" dur="1.6s" repeatCount="indefinite" />
-          </circle>
           <g id="caret" opacity="0">
-            <rect x="-1.2" y="-11" width="2.4" height="22" rx="1.2" fill="rgba(10,132,255,0.95)">
+            <rect x="-1.2" y="-11" width="2.4" height="22" rx="1.2">
               <animate attributeName="opacity" values="1;0.1;1" dur="1.1s" repeatCount="indefinite" />
             </rect>
-          </g>
-          <g id="cursor">
-            <path d="M 0 0 L 0 18 L 4.6 13.6 L 7.4 19.6 L 10.6 18 L 7.9 12.2 L 14 12 Z"
-                  fill="#ffffff" stroke="rgba(0,0,0,0.55)" stroke-width="1.2"
-                  stroke-linejoin="round" />
-            <animateTransform attributeName="transform" type="translate"
-                              values="0 0; 0 -4; 0 0" dur="1.6s" repeatCount="indefinite" />
           </g>
         </g>
         <g id="trail">
@@ -223,21 +250,23 @@
           <g id="trail-dots"></g>
         </g>
         <g id="ghost" opacity="0">
-          <circle id="ghost-press" cx="0" cy="0" r="4" fill="none"
-                  stroke="rgba(10,132,255,0.9)" stroke-width="2.5" opacity="0" />
+          <circle id="ghost-press" cx="0" cy="0" r="6" opacity="0" />
           <g id="ghost-body">
-            <!-- Points along +x with the rounded tip at the origin, so rotating the
-                 group turns it to face its heading and the tip is what lands. The
-                 thick stroke in the fill colour is what rounds the corners. -->
-            <path id="ghost-shape" d="M -3 0 L -20 -9.5 L -20 9.5 Z"
-                  stroke-width="5" stroke-linejoin="round" />
+            <path id="ghost-shape" transform="translate(-4 -2)"
+                  d="M4 2 L4 19 L9 14.5 L12.5 22 L15.5 20.6 L12 13.2 L19 13 Z"
+                  stroke-width="1.4" stroke-linejoin="round" />
+            <g id="ghost-tag" transform="translate(13 15)">
+              <rect width="40" height="17" rx="8.5" />
+              <text x="20" y="8.5">VANS</text>
+            </g>
           </g>
         </g>
       </svg>
       <div id="tip">
-        <span id="step"></span><span id="text"></span>
-        <span id="detail" hidden></span>
-        <span id="hint">⌥Space for Next or Stop</span>
+        <div id="tip-head"><span id="step"></span><span id="dots"></span></div>
+        <div id="text"></div>
+        <div id="detail" hidden></div>
+        <div id="hint"></div>
       </div>
       <div id="caption"></div>
     </div>

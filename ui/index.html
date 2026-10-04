@@ -9,289 +9,285 @@
   <body>
     <div class="panel">
       <div class="panel-body">
-        <div id="write-bar" class="write-bar" hidden></div>
+        <div id="grip" class="field grip">
+          <canvas id="presence" class="presence" width="18" height="18"></canvas>
+          <input
+            id="intent"
+            class="ask"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Ask VANS…"
+          />
+          <span id="active-app-label" class="context"></span>
+          <span id="status" class="status" hidden>
+            <span id="status-pill" class="status-pill" hidden></span>
+            <span id="status-text"></span>
+          </span>
+        </div>
+        <div id="field-line" class="line"></div>
 
-        <header id="grip">
-          <div class="wordmark">
-            <span class="mark">VANS</span>
-            <span id="active-app-label" class="context"></span>
-          </div>
-          <div class="header-right">
-            <span class="kbd-hint">esc to dismiss</span>
-            <button id="setup" class="icon-btn" type="button" title="Setup" aria-label="Setup">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-                <circle cx="12" cy="12" r="3"></circle>
-                <circle cx="12" cy="12" r="8" stroke-dasharray="3 4"></circle>
-              </svg>
-            </button>
-          </div>
-        </header>
-
-        <section id="ask" hidden>
-          <div id="due" class="body-pad tight" hidden></div>
-          <div class="body-pad">
-            <input
-              id="intent"
-              class="ask"
-              type="text"
-              autocomplete="off"
-              spellcheck="false"
-              placeholder="Ask VANS…"
-            />
-
-            <div class="dest-row">
-              <span class="kicker">answer goes to</span>
-              <div id="destination" class="segmented" role="radiogroup"></div>
+        <div class="scroll">
+          <div id="content" class="content">
+          <section id="ask" hidden>
+            <div id="due" class="due" hidden></div>
+            <div class="ask-body">
+              <div class="chip-row">
+                <span class="kicker">Try</span>
+                <div id="suggestions" class="chips"></div>
+              </div>
+              <div class="mode-row">
+                <span class="kicker">For a task</span>
+                <div id="mode" class="seg" role="radiogroup">
+                  <button type="button" role="radio" data-mode="show">Show me how</button>
+                  <button type="button" role="radio" data-mode="do">Do it for me</button>
+                </div>
+                <span id="mode-note" class="note"></span>
+              </div>
+              <p class="note" id="destination-note" hidden></p>
+              <button id="clear-style" class="btn quiet" type="button" hidden>
+                Clear highlighting
+              </button>
             </div>
-            <p class="field-note" id="destination-note"></p>
+          </section>
 
-            <div class="dest-row mode-row">
-              <span class="kicker">for a task</span>
-              <div id="mode" class="segmented" role="radiogroup">
-                <button type="button" role="radio" data-mode="show">Show me how</button>
-                <button type="button" role="radio" data-mode="do">Do it for me</button>
+          <section id="guiding" hidden>
+            <div class="capsule grip">
+              <canvas id="guide-presence" class="presence wide" width="49" height="21"></canvas>
+              <div class="capsule-text">
+                <span class="capsule-kicker" id="guiding-where"></span>
+                <p id="guiding-step" class="capsule-step"></p>
+                <div class="headsup" id="guiding-headsup" hidden>
+                  <span id="guiding-headsup-text"></span>
+                  <button id="guiding-instead" class="btn link" type="button">Do it for me instead</button>
+                </div>
+              </div>
+              <button id="guiding-next" class="btn volt" type="button">Next</button>
+              <button id="guiding-stop" class="kbd-btn" type="button" title="Stop (esc)">esc</button>
+            </div>
+          </section>
+
+          <section id="question" hidden>
+            <div class="plain">
+              <span class="kicker volt">VANS needs to know</span>
+              <h2 id="question-text" class="plain-title"></h2>
+              <div id="question-options" class="rows"></div>
+              <input
+                id="question-other"
+                class="line-input"
+                type="text"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="Or type your answer…"
+              />
+              <div class="actions">
+                <button id="question-stop" class="btn" type="button">Stop</button>
+                <button id="question-send" class="btn volt" type="button">Answer</button>
               </div>
             </div>
-            <p class="field-note" id="mode-note"></p>
+          </section>
 
-            <div class="divider"></div>
+          <section id="working" hidden>
+            <div class="skeleton">
+              <div class="bone" style="--w1: 62%; --w2: 88%; --d: 0s"><i></i><div><b></b><em></em></div></div>
+              <div class="bone" style="--w1: 48%; --w2: 74%; --d: 0.15s"><i></i><div><b></b><em></em></div></div>
+              <div class="bone" style="--w1: 56%; --w2: 80%; --d: 0.3s"><i></i><div><b></b><em></em></div></div>
+            </div>
+            <div class="working-line"><span id="progress">Working</span></div>
+            <div id="working-query" hidden></div>
+            <div id="progress-fill" hidden></div>
+          </section>
 
-            <div class="kicker">try asking</div>
-            <div id="suggestions" class="suggestions"></div>
+          <section id="results" hidden>
+            <div class="results-head">
+              <span id="results-kicker" class="kicker"></span>
+              <div id="view-switch" class="seg small">
+                <button id="view-cards" type="button">List</button>
+                <button id="view-table" type="button">Table</button>
+              </div>
+            </div>
+            <div class="results-list">
+              <div id="answer" class="answer" hidden>
+                <p id="answer-text"></p>
+                <div id="answer-cites" class="cites"></div>
+              </div>
+              <div id="cards" class="cards"></div>
+              <div id="table-wrap" class="table-wrap" hidden>
+                <table id="rows"></table>
+              </div>
+            </div>
+            <div class="results-foot">
+              <button id="copy-result" class="btn volt" type="button" hidden>Copy</button>
+              <button id="ask-again" class="btn quiet" type="button">Ask something else</button>
+            </div>
+          </section>
 
-            <button id="clear-style" class="btn quiet" type="button" hidden>
-              Clear highlighting
-            </button>
+          <section id="confirm" hidden>
+            <div class="confirm">
+              <div class="confirm-head">
+                <span class="write-square"></span>
+                <span id="confirm-tag" class="write-kicker">Changes something</span>
+                <span class="spacer"></span>
+                <span id="confirm-target" class="mono-note"></span>
+              </div>
+              <h2 id="confirm-title" class="confirm-title"></h2>
+              <div id="confirm-preview" class="preview-box"></div>
+              <div class="headsup" id="confirm-headsup" hidden>
+                <span id="confirm-headsup-text"></span>
+                <button id="confirm-instead" class="btn link" type="button">Show me how instead</button>
+              </div>
+              <div class="confirm-foot">
+                <span class="confirm-note">Nothing happens until you confirm.</span>
+                <button id="cancel" class="btn" type="button">Cancel</button>
+                <button id="commit" class="btn hold" type="button">Hold ↵ to do it</button>
+              </div>
+            </div>
+          </section>
+
+          <section id="notunderstood" hidden>
+            <div class="plain">
+              <p class="plain-text">
+                <span id="notunderstood-title">I'm not sure what to do with that.</span>
+                Edit it above, or pick one of these:
+              </p>
+              <p id="notunderstood-why" class="note"></p>
+              <div id="can-do" class="rows"></div>
+              <button id="back-from-unknown" class="btn quiet" type="button">Back</button>
+            </div>
+          </section>
+
+          <section id="failure" hidden>
+            <div class="plain">
+              <div class="plain-head">
+                <span class="write-square"></span>
+                <span id="failure-title" class="plain-title small"></span>
+              </div>
+              <p id="failure-message" class="plain-text mute"></p>
+              <div id="failure-detail"></div>
+              <button id="back" class="btn quiet" type="button">Back</button>
+            </div>
+          </section>
+
+          <section id="history" hidden>
+            <div class="setup">
+              <h2 class="screen-title">What VANS has done</h2>
+              <p class="lede">Every change it made, newest first.</p>
+              <div id="deeds" class="setup-list"></div>
+              <div class="row">
+                <button id="history-back" class="btn" type="button">Back</button>
+              </div>
+            </div>
+          </section>
+
+          <section id="preflight" hidden>
+            <div class="setup">
+              <h2 class="screen-title">Set up VANS</h2>
+              <p class="lede">Grant these once. This window stays put while you switch apps.</p>
+
+              <div id="checks" class="setup-list"></div>
+
+              <div class="row">
+                <button id="recheck" class="btn" type="button">Check again</button>
+                <button id="check-screen" class="btn quiet" type="button">Screen Recording</button>
+                <button id="check-notes" class="btn quiet" type="button">Notes access</button>
+              </div>
+              <div id="screen-result"></div>
+              <div id="notes-result"></div>
+
+              <div class="kicker spaced">Model</div>
+              <p id="model-note" class="note">VANS needs a key for the model it thinks with. It is kept in your Mac’s Keychain and sent only to that model.</p>
+              <input id="model-key" class="line-input" type="password" autocomplete="off" spellcheck="false"
+                     placeholder="Paste your model key" />
+              <p class="note">Model name. Leave empty for the usual one.</p>
+              <input id="model-name" class="line-input" type="text" autocomplete="off" spellcheck="false"
+                     placeholder="gemini-flash-lite-latest" />
+              <details id="model-more">
+                <summary class="note">More</summary>
+                <p class="note">Where the model is reached. Leave empty unless you use another provider.</p>
+                <input id="model-base" class="line-input" type="text" autocomplete="off" spellcheck="false"
+                       placeholder="https://generativelanguage.googleapis.com/v1beta/openai" />
+                <p class="note">A quicker model for the two easy calls, and one to fall back on. Both optional.</p>
+                <input id="model-fast" class="line-input" type="text" autocomplete="off" spellcheck="false" placeholder="quicker model" />
+                <input id="model-fallback" class="line-input" type="text" autocomplete="off" spellcheck="false" placeholder="fallback model" />
+                <p class="note">Price per million tokens in US dollars, in and out. Set both to see what each task cost.</p>
+                <input id="model-price-in" class="line-input" type="text" inputmode="decimal" autocomplete="off" placeholder="in, e.g. 0.10" />
+                <input id="model-price-out" class="line-input" type="text" inputmode="decimal" autocomplete="off" placeholder="out, e.g. 0.40" />
+              </details>
+              <div class="row">
+                <button id="model-save" class="btn volt" type="button">Save and test</button>
+                <button id="model-forget" class="btn quiet" type="button" hidden>Remove key</button>
+                <span id="model-saved" class="note inline"></span>
+              </div>
+
+              <div class="kicker spaced">Rules</div>
+              <p class="note">VANS will never act in these apps or sites. It can still show you how.</p>
+              <input id="rules-never" class="line-input" type="text" autocomplete="off" spellcheck="false"
+                     placeholder="e.g. Mail, mybank.com" />
+              <p class="note">In these, ask before every step.</p>
+              <input id="rules-ask" class="line-input" type="text" autocomplete="off" spellcheck="false"
+                     placeholder="e.g. Mail, WhatsApp" />
+              <p class="note">Never take a step that pays more than this. Leave empty for no limit.</p>
+              <input id="rules-limit" class="line-input" type="text" inputmode="decimal" autocomplete="off"
+                     placeholder="e.g. 5000" />
+              <div class="row">
+                <button id="rules-save" class="btn" type="button">Save rules</button>
+                <span id="rules-saved" class="note inline"></span>
+              </div>
+
+              <div class="kicker spaced">Record</div>
+              <div class="row">
+                <button id="show-history" class="btn" type="button">What VANS has done</button>
+              </div>
+
+              <div class="kicker spaced">Appearance</div>
+              <div class="setting-row">
+                <label for="opacity">Glass</label>
+                <input id="opacity" type="range" min="15" max="100" step="1" />
+                <output id="opacity-value"></output>
+              </div>
+              <div class="setting-row">
+                <label for="blur">Frosted</label>
+                <input id="blur" type="checkbox" class="switch" />
+              </div>
+              <div class="setting-row">
+                <label for="dark">Dark</label>
+                <input id="dark" type="checkbox" class="switch" />
+              </div>
+
+              <p class="helper">
+                Checking access opens applications and may ask macOS for
+                permission. VANS never opens anything on its own.
+              </p>
+
+              <button id="to-task" class="btn volt" type="button">Done</button>
+            </div>
+          </section>
           </div>
-        </section>
+        </div>
 
-        <section id="guiding" hidden>
-          <div class="body-pad">
-            <div class="kicker" id="guiding-where"></div>
-            <p id="guiding-step" class="card-text"></p>
-            <div class="headsup" id="guiding-headsup" hidden>
-              <span id="guiding-headsup-text"></span>
-              <button id="guiding-instead" class="btn link" type="button">Do it for me instead</button>
-            </div>
-            <div class="actions">
-              <button id="guiding-next" class="btn secondary">Next</button>
-              <button id="guiding-stop" class="btn quiet">Stop</button>
-            </div>
+        <footer id="foot" class="foot grip">
+          <div id="dests" class="dests">
+            <span class="foot-label">Answer to</span>
+            <div id="destination" class="seg bare" role="radiogroup"></div>
           </div>
-        </section>
-
-
-        <section id="question" hidden>
-          <div class="body-pad">
-            <div class="kicker">VANS needs to know</div>
-            <h2 id="question-text" class="confirm-title"></h2>
-            <div id="question-options" class="suggestions"></div>
-            <input
-              id="question-other"
-              class="ask"
-              type="text"
-              autocomplete="off"
-              spellcheck="false"
-              placeholder="Or type your answer…"
-            />
-            <div class="actions">
-              <button id="question-stop" class="btn secondary" type="button">Stop</button>
-              <button id="question-send" class="btn" type="button">Answer</button>
-            </div>
-          </div>
-        </section>
-
-        <section id="working" hidden>
-          <div class="body-pad">
-            <div id="working-query" class="ask-echo"></div>
-            <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
-            <div class="kicker working-label">
-              <span id="progress">Working</span><span class="blink">…</span>
-            </div>
-          </div>
-        </section>
-
-        <section id="results" hidden>
-          <div class="results-head">
-            <span id="results-kicker" class="kicker"></span>
-            <div class="segmented small">
-              <button id="view-cards" type="button">List</button>
-              <button id="view-table" type="button">Dense</button>
-            </div>
-          </div>
-          <div class="results-list">
-            <div id="answer" class="answer" hidden>
-              <p id="answer-text"></p>
-              <div id="answer-cites" class="cites"></div>
-            </div>
-            <div id="cards" class="cards"></div>
-            <div id="table-wrap" class="table-wrap" hidden>
-              <table id="rows"></table>
-            </div>
-          </div>
-          <div class="body-pad tight">
-            <button id="copy-result" class="btn secondary" type="button" hidden>Copy</button>
-            <button id="ask-again" class="btn quiet">Ask something else</button>
-          </div>
-        </section>
-
-        <section id="confirm" hidden>
-          <div class="body-pad">
-            <div class="tag-row"><span id="confirm-tag" class="write-tag">WRITE</span></div>
-            <h2 id="confirm-title" class="confirm-title"></h2>
-            <div id="confirm-preview" class="preview-box"></div>
-            <p class="helper">This can't be undone automatically.</p>
-            <div class="headsup" id="confirm-headsup" hidden>
-              <span id="confirm-headsup-text"></span>
-              <button id="confirm-instead" class="btn link" type="button">Show me how instead</button>
-            </div>
-            <div class="actions">
-              <button id="cancel" class="btn secondary">Cancel</button>
-              <button id="commit" class="btn danger">Confirm &amp; write</button>
-            </div>
-          </div>
-        </section>
-
-        <section id="notunderstood" hidden>
-          <div class="body-pad">
-            <div class="head-row">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <path d="M9.09 9a3 3 0 1 1 5.83 1c0 2-3 2-3 4"></path>
-                <line x1="12" y1="17" x2="12" y2="17.01"></line>
-              </svg>
-              <span id="notunderstood-title" class="head-title">I didn't catch that.</span>
-            </div>
-            <p id="notunderstood-why" class="lede"></p>
-            <div class="kicker">here's what I can do</div>
-            <div id="can-do" class="suggestions"></div>
-            <button id="back-from-unknown" class="btn quiet">Back</button>
-          </div>
-        </section>
-
-        <section id="failure" hidden>
-          <div class="body-pad">
-            <div class="head-row">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12.5"></line>
-                <line x1="12" y1="16" x2="12" y2="16.01"></line>
-              </svg>
-              <span id="failure-title" class="head-title"></span>
-            </div>
-            <p id="failure-message" class="lede"></p>
-            <div id="failure-detail"></div>
-            <button id="back" class="btn quiet">Back</button>
-          </div>
-        </section>
-
-        <section id="history" hidden>
-          <div class="body-pad">
-            <h2 class="screen-title">What VANS has done</h2>
-            <p class="lede">Every change it made, newest first.</p>
-            <div id="deeds" class="setup-list"></div>
-            <div class="row">
-              <button id="history-back" class="btn secondary">Back</button>
-            </div>
-          </div>
-        </section>
-
-        <section id="preflight" hidden>
-          <div class="body-pad">
-            <h2 class="screen-title">Setup</h2>
-            <p class="lede">Grant these once — VANS remembers.</p>
-
-            <div id="checks" class="setup-list"></div>
-
-            <div class="row">
-              <button id="recheck" class="btn secondary">Check again</button>
-              <button id="check-screen" class="btn quiet">Screen Recording</button>
-              <button id="check-notes" class="btn quiet">Notes access</button>
-            </div>
-            <div id="screen-result"></div>
-            <div id="notes-result"></div>
-
-            <div class="divider"></div>
-
-            <div class="kicker">model</div>
-            <p id="model-note" class="field-note">VANS needs a key for the model it thinks with. It is kept in your Mac’s Keychain and sent only to that model.</p>
-            <input id="model-key" class="ask" type="password" autocomplete="off" spellcheck="false"
-                   placeholder="Paste your model key" />
-            <p class="field-note">Model name. Leave empty for the usual one.</p>
-            <input id="model-name" class="ask" type="text" autocomplete="off" spellcheck="false"
-                   placeholder="gemini-flash-lite-latest" />
-            <details id="model-more">
-              <summary class="field-note">More</summary>
-              <p class="field-note">Where the model is reached. Leave empty unless you use another provider.</p>
-              <input id="model-base" class="ask" type="text" autocomplete="off" spellcheck="false"
-                     placeholder="https://generativelanguage.googleapis.com/v1beta/openai" />
-              <p class="field-note">A quicker model for the two easy calls, and one to fall back on. Both optional.</p>
-              <input id="model-fast" class="ask" type="text" autocomplete="off" spellcheck="false" placeholder="quicker model" />
-              <input id="model-fallback" class="ask" type="text" autocomplete="off" spellcheck="false" placeholder="fallback model" />
-              <p class="field-note">Price per million tokens in US dollars, in and out. Set both to see what each task cost.</p>
-              <input id="model-price-in" class="ask" type="text" inputmode="decimal" autocomplete="off" placeholder="in, e.g. 0.10" />
-              <input id="model-price-out" class="ask" type="text" inputmode="decimal" autocomplete="off" placeholder="out, e.g. 0.40" />
-            </details>
-            <div class="row">
-              <button id="model-save" class="btn secondary" type="button">Save and test</button>
-              <button id="model-forget" class="btn quiet" type="button" hidden>Remove key</button>
-              <span id="model-saved" class="field-note"></span>
-            </div>
-
-            <div class="divider"></div>
-
-            <div class="kicker">rules</div>
-            <p class="field-note">VANS will never act in these apps or sites. It can still show you how.</p>
-            <input id="rules-never" class="ask" type="text" autocomplete="off" spellcheck="false"
-                   placeholder="e.g. Mail, mybank.com" />
-            <p class="field-note">In these, ask before every step.</p>
-            <input id="rules-ask" class="ask" type="text" autocomplete="off" spellcheck="false"
-                   placeholder="e.g. Mail, WhatsApp" />
-            <p class="field-note">Never take a step that pays more than this. Leave empty for no limit.</p>
-            <input id="rules-limit" class="ask" type="text" inputmode="decimal" autocomplete="off"
-                   placeholder="e.g. 5000" />
-            <div class="row">
-              <button id="rules-save" class="btn secondary" type="button">Save rules</button>
-              <span id="rules-saved" class="field-note"></span>
-            </div>
-
-            <div class="divider"></div>
-
-            <div class="kicker">record</div>
-            <div class="row">
-              <button id="show-history" class="btn quiet">What VANS has done</button>
-            </div>
-
-            <div class="divider"></div>
-
-            <div class="kicker">appearance</div>
-            <div class="setting-row">
-              <label for="opacity">Opacity</label>
-              <input id="opacity" type="range" min="15" max="100" step="1" />
-              <output id="opacity-value"></output>
-            </div>
-            <div class="setting-row">
-              <label for="blur">Frosted</label>
-              <input id="blur" type="checkbox" class="switch" />
-            </div>
-            <div class="setting-row">
-              <label for="dark">Dark</label>
-              <input id="dark" type="checkbox" class="switch" />
-            </div>
-
-            <p class="helper">
-              Checking access opens applications and may ask macOS for
-              permission. VANS never opens anything on its own. This screen
-              stays up while you click away.
-            </p>
-
-            <button id="to-task" class="btn secondary">Done</button>
-          </div>
-        </section>
+          <span id="toast" class="foot-toast" hidden></span>
+          <span class="spacer"></span>
+          <div id="hints" class="hints"></div>
+          <span class="foot-sep"></span>
+          <button id="theme-toggle" class="icon-btn" type="button" title="Light / dark" aria-label="Light or dark">
+            <span class="half-moon"></span>
+          </button>
+          <button id="setup" class="icon-btn" type="button" title="Setup" aria-label="Setup">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <line x1="4" y1="7" x2="20" y2="7"></line>
+              <line x1="4" y1="17" x2="20" y2="17"></line>
+              <circle cx="9" cy="7" r="2.4" class="knob"></circle>
+              <circle cx="15" cy="17" r="2.4" class="knob"></circle>
+            </svg>
+          </button>
+        </footer>
       </div>
     </div>
-
-    <div id="toast" class="toast" hidden></div>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

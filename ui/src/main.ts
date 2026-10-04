@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { DotField, type DotMode } from "./dots";
 
 // --- shapes mirrored from internal/rpc/protocol.go ---
 
@@ -177,7 +178,30 @@ async function loadSuggestions(appName?: string) {
   } catch (e) {
     console.error("failed to load suggestions", e);
   }
-  renderSuggestions($("suggestions"), currentSuggestions());
+  renderChips($("suggestions"), currentSuggestions());
+  showExample();
+}
+
+const MOST_CHIPS = 6;
+
+function renderChips(into: HTMLElement, items: Suggestion[]) {
+  clear(into);
+  items.slice(0, MOST_CHIPS).forEach((s, i) => {
+    const writes = !!s.destination && destinationWrites(s.destination);
+    const chip = el("button", writes ? "chip write" : "chip") as HTMLButtonElement;
+    chip.type = "button";
+    chip.style.animationDelay = `${i * 0.05}s`;
+    chip.title = s.text;
+    chip.appendChild(el("span", "dot"));
+    chip.appendChild(el("span", undefined, s.destination ? `${s.text} → ${label(s.destination)}` : s.text));
+    chip.addEventListener("click", () => {
+      ($("intent") as HTMLInputElement).value = s.text;
+      if (s.destination) pickDestination(s.destination);
+      show("ask");
+      extract();
+    });
+    into.appendChild(chip);
+  });
 }
 
 function icon(name: string): SVGElement {
@@ -219,18 +243,75 @@ function toast(message: string) {
   const node = $("toast");
   node.textContent = message;
   node.hidden = false;
+  renderFoot();
   clearTimeout(toastTimer);
   toastTimer = window.setTimeout(() => {
     node.hidden = true;
+    renderFoot();
     fitWindow();
-  }, 2200);
+  }, 2600);
 }
 
 const FINISHED = new Set(["results", "failure", "notunderstood", "history"]);
+const WITH_FIELD = new Set(["ask", "working", "results", "notunderstood", "failure"]);
+const WITHOUT_FOOT = new Set(["guiding", "question"]);
 let showing = "ask";
 let openFresh = false;
 
+const HINTS: Record<string, [string, string][]> = {
+  ask: [
+    ["↵", "Run"],
+    ["⇥", "Example"],
+  ],
+  working: [["esc", "Hide"]],
+  results: [
+    ["↵", "Ask again"],
+    ["esc", "Back"],
+  ],
+  confirm: [
+    ["hold ↵", "Do it"],
+    ["esc", "Cancel"],
+  ],
+  notunderstood: [
+    ["↑↓", "Pick"],
+    ["esc", "Back"],
+  ],
+  failure: [["esc", "Back"]],
+  preflight: [["esc", "Done"]],
+  history: [["esc", "Back"]],
+};
+
+function renderFoot() {
+  const toasting = !$("toast").hidden;
+  $("dests").hidden = showing !== "ask" || toasting;
+
+  const hints = $("hints");
+  clear(hints);
+  for (const [key, what] of HINTS[showing] ?? []) {
+    const hint = el("span", "hint");
+    hint.appendChild(el("kbd", undefined, key));
+    hint.appendChild(document.createTextNode(what));
+    hints.appendChild(hint);
+  }
+}
+
+let workingSince = 0;
+let workingTick = 0;
+
+function setStatus(text: string, pill = "") {
+  $("status-text").textContent = text;
+  $("status-pill").textContent = pill;
+  $("status-pill").hidden = pill === "";
+  $("status").hidden = text === "" && pill === "";
+  $("active-app-label").hidden = !$("status").hidden || showing !== "ask";
+}
+
+function seconds(since: number): string {
+  return `${((performance.now() - since) / 1000).toFixed(1)}s`;
+}
+
 function show(id: string) {
+  const was = showing;
   showing = id;
   openFresh = false;
   for (const s of document.querySelectorAll("section")) {
@@ -240,7 +321,32 @@ function show(id: string) {
   adjusting = id === "preflight";
   setReading(id !== "ask");
   paintTint();
-  $("write-bar").hidden = id !== "confirm";
+
+  const field = WITH_FIELD.has(id);
+  $("grip").hidden = !field;
+  $("field-line").hidden = !field;
+  $("foot").hidden = WITHOUT_FOOT.has(id);
+  panel.classList.toggle("confirming", id === "confirm");
+  panel.classList.toggle("guiding", id === "guiding");
+  ($("intent") as HTMLInputElement).readOnly = id === "working";
+
+  clearInterval(workingTick);
+  if (id === "working") {
+    workingSince = performance.now();
+    setStatus("0.0s");
+    workingTick = window.setInterval(() => setStatus(seconds(workingSince)), 100);
+  } else if (was === "working" && WITH_FIELD.has(id) && id !== "ask") {
+    setStatus(seconds(workingSince));
+  } else {
+    setStatus("");
+  }
+
+  scroller.scrollTop = 0;
+  showExample();
+  if (id === "ask") renderMode();
+  renderFoot();
+  paintPresence();
+  if (id !== "confirm") releaseHold();
 }
 
 /// Every value that reaches the DOM goes through a text node.
@@ -453,6 +559,7 @@ async function extract(sendAs?: string, text?: string) {
     return;
   }
 
+  ($("intent") as HTMLInputElement).value = instruction;
   $("working-query").textContent = instruction;
   $("progress").textContent = "Working";
   setProgress(6);
@@ -471,6 +578,7 @@ async function extract(sendAs?: string, text?: string) {
     if (plan.say) {
       renderSay(plan);
       show("results");
+      if (plan.decision_calls + plan.synthesis_calls === 0) setStatus("", "Instant");
     } else if (plan.kind === "app.guide") {
       await showTheWay(plan);
     } else if (plan.needs_commit) {
@@ -479,6 +587,7 @@ async function extract(sendAs?: string, text?: string) {
     } else {
       renderResults(plan);
       show("results");
+      if (plan.decision_calls + plan.synthesis_calls === 0) setStatus("instant", "Remembered");
     }
   } catch (e) {
     renderFailure(e);
@@ -789,8 +898,11 @@ function hostOf(url: string): string {
   }
 }
 
+const SHORT_FACT = 32;
+
 /// A card per record: a picture if there is one, a headline that goes
-/// somewhere if there is a link, the site it came from, and the rest as prose.
+/// somewhere if there is a link, the rest as prose with the short facts on one
+/// line, and the site it came from.
 ///
 /// A table was the wrong shape. It is right for dense columns of short values
 /// and wrong for the thing people actually ask for — a handful of results with
@@ -858,12 +970,16 @@ function renderCards(into: HTMLElement, fields: string[], rows: Record<string, s
       }
     }
 
-    if (host) body.appendChild(el("div", "card-host", host));
-
+    const facts: string[] = [];
     for (const f of bodyFields) {
       const v = (row[f] ?? "").trim();
-      if (v) body.appendChild(el("p", "card-text", v));
+      if (!v) continue;
+      if (v.length <= SHORT_FACT) facts.push(v);
+      else body.appendChild(el("p", "card-text", v));
     }
+    if (facts.length) body.appendChild(el("p", "card-text", facts.join(" · ")));
+
+    if (host) body.appendChild(el("div", "card-host", host));
 
     card.appendChild(body);
     into.appendChild(card);
@@ -882,6 +998,7 @@ function renderSay(plan: Plan) {
   clear($("rows"));
   $("cards").hidden = false;
   $("table-wrap").hidden = true;
+  $("view-switch").hidden = true;
   $("copy-result").hidden = !plan.copy;
   $("copy-result").textContent = "Copy";
 }
@@ -905,6 +1022,8 @@ async function copyText(text: string): Promise<boolean> {
 
 function renderResults(plan: Plan) {
   $("copy-result").hidden = true;
+  $("view-switch").hidden = !!plan.action || plan.rows.length === 0;
+  if (!$("view-switch").hidden) applyView(tableView(), false);
   if (plan.action) {
     $("results-kicker").textContent = plan.app
       ? `${plan.app} — nothing to change`
@@ -983,9 +1102,14 @@ function firstLink(row: Record<string, string>, fields: string[]): string {
   return "";
 }
 
+function holdLabel(plan: Plan | null): string {
+  return plan?.action ? "Hold ↵ to do it" : "Hold ↵ to write";
+}
+
 function renderConfirm(plan: Plan) {
   showHeadsup("confirm", plan);
-  $("confirm-tag").textContent = plan.action ? "ACTION" : "WRITE";
+  $("confirm-tag").textContent = plan.action ? "Changes something" : "Writes something";
+  $("confirm-target").textContent = plan.action ? (plan.app ?? "") : label(plan.destination);
   if (plan.action) {
     $("confirm-title").textContent = plan.app ? `Do this in ${plan.app}?` : "Do this?";
     $("confirm-preview").textContent = plan.action;
@@ -995,9 +1119,32 @@ function renderConfirm(plan: Plan) {
       `Write ${n} result${n === 1 ? "" : "s"} to ${label(plan.destination)}?`;
     $("confirm-preview").textContent = documentText(plan);
   }
-  ($("commit") as HTMLButtonElement).textContent = plan.action
-    ? "Confirm & do"
-    : "Confirm & write";
+  ($("commit") as HTMLButtonElement).textContent = holdLabel(plan);
+}
+
+const HOLD_FOR = 750;
+let holdTimer = 0;
+
+function releaseHold() {
+  if (!holdTimer) return;
+  clearTimeout(holdTimer);
+  holdTimer = 0;
+  const button = $("commit") as HTMLButtonElement;
+  button.classList.remove("holding");
+  if (!button.disabled) button.textContent = holdLabel(currentPlan);
+}
+
+function startHold() {
+  const button = $("commit") as HTMLButtonElement;
+  if (holdTimer || button.disabled || $("confirm").hidden || !currentPlan) return;
+  button.style.setProperty("--hold-for", `${HOLD_FOR}ms`);
+  button.textContent = "Keep holding…";
+  button.classList.add("holding");
+  holdTimer = window.setTimeout(() => {
+    holdTimer = 0;
+    button.classList.remove("holding");
+    void confirmWrite();
+  }, HOLD_FOR);
 }
 
 function documentText(plan: Plan): string {
@@ -1094,7 +1241,7 @@ async function confirmWrite() {
     show("failure");
   } finally {
     button.disabled = false;
-    button.textContent = "Confirm & write";
+    button.textContent = holdLabel(null);
     currentPlan = null;
   }
 }
@@ -1502,19 +1649,14 @@ function updateActiveContext(ctx?: ScreenContext) {
   activeContext = ctx ?? null;
   const label = $("active-app-label");
   if (!label) return;
-  clear(label);
 
   if (!ctx || !ctx.app_name || ctx.app_name === "Unknown") {
-    label.textContent = "Active: Entire Desktop";
+    label.textContent = "";
+    label.title = "";
     return;
   }
-
-  label.appendChild(document.createTextNode("Active: "));
-  label.appendChild(el("strong", undefined, ctx.app_name));
-  if (ctx.window_title) {
-    label.appendChild(document.createTextNode(" — "));
-    label.appendChild(el("em", undefined, ctx.window_title));
-  }
+  label.textContent = `in ${ctx.app_name}`;
+  label.title = ctx.window_title ? `${ctx.app_name} — ${ctx.window_title}` : ctx.app_name;
 }
 
 async function refreshActiveContext() {
@@ -1547,10 +1689,11 @@ async function loadDestinations() {
 
   clear(group);
   for (const d of destinations) {
-    const button = el("button", undefined, label(d.name)) as HTMLButtonElement;
+    const button = el("button", d.touches_world ? "writes" : undefined, label(d.name)) as HTMLButtonElement;
     button.type = "button";
     button.setAttribute("role", "radio");
     button.dataset.name = d.name;
+    button.title = `⌘${destinations.indexOf(d) + 1} · ${d.describe}`;
     if (d.touches_world) button.appendChild(el("span", "write-dot"));
     button.addEventListener("click", () => pickDestination(d.name));
     group.appendChild(button);
@@ -1590,6 +1733,8 @@ function pickDestination(name: string) {
   $("destination-note").textContent = d.touches_world
     ? `${d.describe} You will be asked to confirm first.`
     : d.describe;
+  $("destination-note").hidden = !d.touches_world;
+  paintPresence();
 }
 
 // --- appearance ---
@@ -1608,7 +1753,7 @@ interface Look {
   blur: boolean;
 }
 
-const DEFAULT_LOOK: Look = { tint: 62, blur: true };
+const DEFAULT_LOOK: Look = { tint: 86, blur: true };
 
 function storedLook(): Look {
   try {
@@ -1674,11 +1819,11 @@ function applyLook(next: Look, persist: boolean) {
 
 // --- theme ---
 
-/// Light unless the user has said otherwise.
+/// Dark unless the user has said otherwise.
 ///
-/// The stylesheet's bare :root is the light palette, so a first run, a cleared
-/// store, or a failed read all land on light without this code having to run
-/// at all. Only dark is ever written to the document.
+/// The stylesheet's bare :root is the light palette and dark is an attribute on
+/// top of it, so the choice is made here on every start: anything but a stored
+/// "light" comes up dark.
 const THEME_KEY = "vans.theme";
 
 /// localStorage throws outright in some contexts rather than returning null,
@@ -1703,6 +1848,7 @@ function applyTheme(dark: boolean, persist: boolean) {
   }
 
   ($("dark") as HTMLInputElement).checked = dark;
+  paintPresence();
 
   if (persist) {
     try {
@@ -1725,7 +1871,32 @@ function isDark(): boolean {
 // --- the window follows the content ---
 
 const panel = document.querySelector(".panel") as HTMLElement;
-const panelBody = document.querySelector(".panel-body") as HTMLElement;
+const scroller = document.querySelector(".scroll") as HTMLElement;
+
+const presence = new DotField($("presence") as HTMLCanvasElement, { cols: 3, rows: 3, gap: 6, dot: 0.3, baseAlpha: 0.22 });
+const guidePresence = new DotField($("guide-presence") as HTMLCanvasElement, {
+  cols: 7,
+  rows: 3,
+  gap: 7,
+  dot: 0.26,
+  baseAlpha: 0.16,
+});
+let guideMode: DotMode = "think";
+
+function token(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function paintPresence() {
+  const writing = showing === "confirm" || destinationWrites(chosen);
+  presence.colours(token(writing ? "--write" : "--volt"), token("--ink"));
+  presence.mode = showing === "working" ? "think" : "idle";
+  guidePresence.colours(token("--volt"), token("--dark-paper"));
+  guidePresence.mode = guideMode;
+}
+
+presence.start();
+guidePresence.start();
 
 /// Tells the shell how tall the panel wants to be.
 ///
@@ -1734,10 +1905,16 @@ const panelBody = document.querySelector(".panel-body") as HTMLElement;
 /// is to be read — came up scrolled into its own middle with the heading cut
 /// off the top, and nothing on screen suggested there was anything above it.
 ///
-/// Only .panel-body is measured. .panel stretches to fill the window, so
-/// measuring it would report the window's own height back to the window, and
-/// the panel could grow but never shrink again.
+/// The field, the content and the footer are measured, never .panel or the
+/// scrolling middle. Those stretch to fill the window, so measuring them would
+/// report the window's own height back to the window, and the panel could grow
+/// but never shrink again.
 let requested = 0;
+
+function tall(id: string): number {
+  const node = $(id);
+  return node.hidden ? 0 : node.getBoundingClientRect().height;
+}
 
 function fitWindow() {
   const style = getComputedStyle(panel);
@@ -1747,7 +1924,7 @@ function fitWindow() {
     parseFloat(style.borderTopWidth) +
     parseFloat(style.borderBottomWidth);
 
-  const height = Math.ceil(panelBody.getBoundingClientRect().height + chrome);
+  const height = Math.ceil(tall("grip") + tall("field-line") + tall("content") + tall("foot") + chrome);
 
   // Sub-pixel churn from font loading and scrollbar reflow would otherwise
   // resize the window continuously.
@@ -1757,7 +1934,8 @@ function fitWindow() {
   invoke("resize_panel", { height }).catch(console.error);
 }
 
-new ResizeObserver(fitWindow).observe(panelBody);
+const sized = new ResizeObserver(fitWindow);
+for (const id of ["content", "grip", "foot"]) sized.observe($(id));
 
 // --- wiring ---
 
@@ -1766,6 +1944,8 @@ listen<{ for_request: number; message: string }>("engine://progress", (event) =>
   $("progress").textContent = text;
   if (!$("guiding").hidden) {
     $("guiding-step").textContent = text;
+    guideMode = "think";
+    paintPresence();
   }
   const commitBtn = $("commit") as HTMLButtonElement | null;
   if (commitBtn && commitBtn.disabled) {
@@ -1800,7 +1980,7 @@ listen<ScreenContext | undefined>("overlay://shown", (event) => {
 
   void loadSuggestions(event.payload?.app_name);
 
-  panel.scrollTop = 0;
+  scroller.scrollTop = 0;
 
   if (openFresh) {
     const intent = $("intent") as HTMLInputElement;
@@ -1822,6 +2002,14 @@ listen<ScreenContext | undefined>("overlay://shown", (event) => {
 });
 
 window.addEventListener("keydown", (e) => {
+  if (e.metaKey && /^[1-9]$/.test(e.key) && showing === "ask") {
+    const d = destinations[Number(e.key) - 1];
+    if (d) {
+      e.preventDefault();
+      pickDestination(d.name);
+    }
+    return;
+  }
   if (e.key !== "Escape") return;
   if (!$("question").hidden) {
     invoke("stop_guide").catch(console.error);
@@ -1837,6 +2025,20 @@ window.addEventListener("keydown", (e) => {
   if (!$("confirm").hidden) {
     currentPlan = null;
     backToAsk();
+    return;
+  }
+  if (showing === "history") {
+    show("preflight");
+    return;
+  }
+  if (FINISHED.has(showing) || showing === "preflight") {
+    backToAsk();
+    return;
+  }
+  const intent = $("intent") as HTMLInputElement;
+  if (showing === "ask" && intent.value !== "") {
+    intent.value = "";
+    renderMode();
     return;
   }
   invoke("dismiss").catch(console.error);
@@ -1975,6 +2177,7 @@ $("intent").addEventListener("keydown", (e) => {
   const key = (e as KeyboardEvent).key;
 
   if (key === "Enter") {
+    if (showing === "working") return;
     extract((e as KeyboardEvent).metaKey ? "flip" : undefined);
     return;
   }
@@ -1985,13 +2188,41 @@ $("intent").addEventListener("keydown", (e) => {
   }
   if (key === "Tab") {
     e.preventDefault();
+    const intent = $("intent") as HTMLInputElement;
+    if (intent.value === "" && showing === "ask" && examples().length) {
+      intent.value = examples()[exampleAt % examples().length];
+      renderMode();
+      return;
+    }
     cycleDestination((e as KeyboardEvent).shiftKey ? -1 : 1);
   }
 });
 
+let exampleAt = 0;
+
+function examples(): string[] {
+  return currentSuggestions()
+    .filter((s) => !s.destination)
+    .map((s) => s.text);
+}
+
+function showExample() {
+  const all = examples();
+  ($("intent") as HTMLInputElement).placeholder = all.length ? all[exampleAt % all.length] : "Ask VANS…";
+}
+
+function nextExample() {
+  const all = examples();
+  if (!all.length || ($("intent") as HTMLInputElement).value !== "" || showing !== "ask") return;
+  exampleAt = (exampleAt + 1) % all.length;
+  showExample();
+}
+
+window.setInterval(nextExample, 2800);
+
 function suggestionButtons(): HTMLElement[] {
   const list = $("ask").hidden ? $("can-do") : $("suggestions");
-  return Array.from(list.querySelectorAll<HTMLElement>(".suggestion"));
+  return Array.from(list.querySelectorAll<HTMLElement>(".suggestion, .chip"));
 }
 
 function focusSuggestion(index: number) {
@@ -2023,19 +2254,23 @@ document.addEventListener("keydown", (e) => {
 });
 
 window.addEventListener("keydown", (e) => {
-  if ($("confirm").hidden) return;
-  if (e.key === "Enter") {
-    e.preventDefault();
-    confirmWrite();
-  }
+  if ($("confirm").hidden || e.key !== "Enter") return;
+  e.preventDefault();
+  if (!e.repeat) startHold();
 });
+
+window.addEventListener("keyup", (e) => {
+  if (e.key === "Enter") releaseHold();
+});
+
+window.addEventListener("blur", releaseHold);
 
 let dragging = false;
 let dragFrom = { x: 0, y: 0 };
 let dragTo: { dx: number; dy: number } | null = null;
 let dragFrame = 0;
 
-$("grip").addEventListener("mousedown", (e) => {
+function beginDrag(e: MouseEvent) {
   const target = e.target as HTMLElement;
   if (target.closest("button, input, a, select, textarea")) return;
   e.preventDefault();
@@ -2043,7 +2278,11 @@ $("grip").addEventListener("mousedown", (e) => {
   dragging = true;
   dragFrom = { x: e.screenX, y: e.screenY };
   invoke("begin_drag").catch(console.error);
-});
+}
+
+for (const handle of Array.from(document.querySelectorAll<HTMLElement>(".grip"))) {
+  handle.addEventListener("mousedown", beginDrag);
+}
 
 window.addEventListener("mousemove", (e) => {
   if (!dragging) return;
@@ -2203,17 +2442,24 @@ $("history-back").addEventListener("click", () => show("preflight"));
 $("recheck").addEventListener("click", () => runPreflight(false));
 $("check-screen").addEventListener("click", checkScreenRecording);
 $("check-notes").addEventListener("click", checkNotes);
-$("commit").addEventListener("click", confirmWrite);
+$("commit").addEventListener("mousedown", startHold);
+$("commit").addEventListener("mouseup", releaseHold);
+$("commit").addEventListener("mouseleave", releaseHold);
+$("theme-toggle").addEventListener("click", () => applyTheme(!isDark(), true));
 $("cancel").addEventListener("click", () => {
   currentPlan = null;
   backToAsk();
 });
 $("setup").addEventListener("click", () => {
+  if (showing === "preflight") {
+    backToAsk();
+    return;
+  }
   show("preflight");
   runPreflight(false);
 });
 
-applyTheme(storedTheme() === "dark", false);
+applyTheme(storedTheme() !== "light", false);
 applyLook(storedLook(), false);
 applyView(tableView(), false);
 void loadSuggestions();
