@@ -30,10 +30,12 @@ pub const ACTED: &str = "coach://acted";
 pub const NEXT: &str = "coach://next";
 
 pub const YES: &str = "coach://yes";
+pub const YES_TO_ALL: &str = "coach://yes-to-all";
 pub const NO: &str = "coach://no";
 
 static OFFERING: AtomicBool = AtomicBool::new(false);
 static HOLDING_YES: AtomicBool = AtomicBool::new(false);
+static HOLDING_YES_TO_ALL: AtomicBool = AtomicBool::new(false);
 
 fn yes_key() -> Shortcut {
     Shortcut::new(Some(Modifiers::SUPER), Code::Enter)
@@ -61,6 +63,35 @@ fn hold_yes(app: &AppHandle) {
 fn release_yes(app: &AppHandle) {
     if HOLDING_YES.swap(false, Ordering::SeqCst) {
         let _ = app.global_shortcut().unregister(yes_key());
+    }
+}
+
+fn yes_to_all_key() -> Shortcut {
+    Shortcut::new(Some(Modifiers::SUPER | Modifiers::SHIFT), Code::Enter)
+}
+
+fn hold_yes_to_all(app: &AppHandle) {
+    if HOLDING_YES_TO_ALL.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let handle = app.clone();
+    let registered = app
+        .global_shortcut()
+        .on_shortcut(yes_to_all_key(), move |_, _, event| {
+            if event.state() == ShortcutState::Pressed && OFFERING.swap(false, Ordering::SeqCst) {
+                eprintln!("[vans] shift-command-return: doing this step and the rest like it");
+                let _ = handle.emit(YES_TO_ALL, ());
+            }
+        });
+    if let Err(e) = registered {
+        HOLDING_YES_TO_ALL.store(false, Ordering::SeqCst);
+        eprintln!("[vans] could not take Shift-Command-Return for the coach: {e}");
+    }
+}
+
+fn release_yes_to_all(app: &AppHandle) {
+    if HOLDING_YES_TO_ALL.swap(false, Ordering::SeqCst) {
+        let _ = app.global_shortcut().unregister(yes_to_all_key());
     }
 }
 
@@ -300,6 +331,7 @@ pub struct Pointer {
     pub oy: f64,
 
     pub offer: bool,
+    pub offer_all: bool,
 
     pub avoid: Vec<f64>,
 }
@@ -465,6 +497,11 @@ fn draw(app: &AppHandle, mut p: Pointer) {
     } else {
         release_yes(app);
     }
+    if p.offer && p.offer_all {
+        hold_yes_to_all(app);
+    } else {
+        release_yes_to_all(app);
+    }
     eprintln!(
         "[vans] coach: drawing {}x{} at ({}, {}) in window coordinates, visible = {:?}",
         p.w,
@@ -552,6 +589,7 @@ pub fn clear(app: &AppHandle) {
     PAUSED.store(false, Ordering::Relaxed);
     OFFERING.store(false, Ordering::SeqCst);
     release_yes(app);
+    release_yes_to_all(app);
     release_escape(app);
 
     let handle = app.clone();

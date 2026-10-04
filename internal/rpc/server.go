@@ -85,7 +85,7 @@ type Server struct {
 	running      map[int]context.CancelFunc
 	guideCancel  context.CancelFunc
 	guideAdvance chan struct{}
-	guideReply   chan bool
+	guideReply   chan engine.OfferReply
 	answers      chan string
 
 	// actCancel stops a run that is acting on screen. Kept beside guideCancel and
@@ -842,7 +842,7 @@ func (s *Server) guide(ctx context.Context, req Request) (GuideResult, error) {
 
 	guideCtx, cancel := context.WithCancel(ctx)
 	advance := make(chan struct{}, 1)
-	reply := make(chan bool, 1)
+	reply := make(chan engine.OfferReply, 1)
 
 	s.mu.Lock()
 	s.guideCancel = cancel
@@ -870,12 +870,14 @@ func (s *Server) guide(ctx context.Context, req Request) (GuideResult, error) {
 	eng := *s.Engine
 	eng.Log = func(format string, args ...any) { s.notify(req.ID, format, args...) }
 	eng.Question = s.asker(req.ID)
+	eng.Reply = reply
 
 	work, err := eng.RunGuideCounted(guideCtx, plan, func(g engine.GuideStep) {
 		s.push(req.ID, "guide", GuideStepParams{
 			Number: g.Number, Label: g.Label,
 			X: g.X, Y: g.Y, W: g.W, H: g.H,
 			Do: g.Do, Detail: g.Detail, Offer: g.Offer,
+			OfferAll: g.OfferAll, Doing: g.Doing,
 			AvoidX: g.AvoidX, AvoidY: g.AvoidY, AvoidW: g.AvoidW, AvoidH: g.AvoidH,
 		})
 	}, advance)
@@ -1027,8 +1029,15 @@ func (s *Server) answerGuide(req Request) (AnswerGuideResult, error) {
 	if reply == nil {
 		return AnswerGuideResult{}, nil
 	}
+	said := engine.OfferDeclined
+	switch {
+	case p.Yes && p.All:
+		said = engine.OfferTakenForAll
+	case p.Yes:
+		said = engine.OfferTaken
+	}
 	select {
-	case reply <- p.Yes:
+	case reply <- said:
 	default:
 	}
 	return AnswerGuideResult{Heard: true}, nil

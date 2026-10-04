@@ -10,6 +10,7 @@ import (
 
 	"github.com/vedansh/vans/internal/names"
 	"github.com/vedansh/vans/internal/screen"
+	"github.com/vedansh/vans/internal/store"
 	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
 )
@@ -104,7 +105,67 @@ type GuideStep struct {
 	Ask   string
 	Offer bool
 
+	OfferAll bool
+	Doing    bool
+
 	AvoidX, AvoidY, AvoidW, AvoidH int
+}
+
+type OfferReply int
+
+const (
+	OfferDeclined OfferReply = iota
+	OfferTaken
+	OfferTakenForAll
+)
+
+func (e *Engine) mayEnterValues(ctx context.Context, places ...string) (one, all bool) {
+	if _, never := forbidden(e.rules(ctx), places...); never {
+		return false, false
+	}
+	return true, e.asksFirstAt(ctx, places...) == ""
+}
+
+type enteredForThem struct {
+	typed  typedSoFar
+	steps  []string
+	unseen bool
+}
+
+func (f *enteredForThem) enter(ctx context.Context, on *Engine, app string, tree uiact.Tree, program uiact.Program, describe string, changed <-chan struct{}) error {
+	f.typed.note(ctx, on, tree, program.Steps[0])
+	if err := on.UIScreen.Act(ctx, program, tree); err != nil {
+		return err
+	}
+	on.waitForTheWindowToAnswer(ctx, app, tree, changed)
+	f.steps = append(f.steps, describe)
+	if after, err := on.UIScreen.Capture(ctx, app); err != nil || len(uiact.Changes(tree, after)) == 0 {
+		f.unseen = true
+	}
+	return nil
+}
+
+func (e *Engine) writeDownWhatWasEntered(ctx context.Context, g *GuidePlan, f *enteredForThem, committed bool) {
+	if e.Deeds == nil || len(f.steps) == 0 {
+		return
+	}
+	var did strings.Builder
+	for i, step := range f.steps {
+		fmt.Fprintf(&did, "%d. %s\n", i+1, step)
+	}
+	deed := store.Deed{
+		Kind:     "steps",
+		Where:    g.App,
+		Asked:    strings.TrimSpace(g.Task),
+		Did:      "Entered for you while showing how:\n" + strings.TrimRight(did.String(), "\n"),
+		Verified: !f.unseen,
+	}
+	if len(f.typed.fields) > 0 && !committed {
+		deed.Undo = marshalUndo(howToUndo{Kind: undoByPuttingTextBack, Typed: f.typed.fields})
+	}
+	if _, err := e.Deeds.RecordDeed(context.WithoutCancel(ctx), deed); err != nil {
+		e.logf("could not write down what was entered for you: %v", err)
+	}
 }
 
 func clearOfTheMenu(g GuideStep, tree uiact.Tree) GuideStep {
@@ -300,6 +361,9 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 	changed := e.watchTheWindow(ctx, g.App)
 	watching := g.App
 
+	entered := &enteredForThem{}
+	enteringAll, declined := false, false
+
 	point := func(ctx context.Context, on *Engine, tree uiact.Tree, program uiact.Program, number int, describe string) (uiact.Tree, error) {
 		step := program.Steps[0]
 		if step.Switches() {
@@ -336,10 +400,10 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 		// A step nobody has done yet is still the step. Pointing at it again
 		// costs nothing and asks the model for nothing; starting over from the
 		// first step because someone was slow is the behaviour being avoided.
-		offering := false
-		if on.Reply != nil && !step.Chooses() {
-			if el, why := tree.Resolve(step.Target); why == "" {
-				offering = uiact.EntersAValue(step, el)
+		offering, all := false, false
+		if on.Reply != nil && !declined && !step.Chooses() {
+			if el, why := tree.Resolve(step.Target); why == "" && uiact.EntersAValue(step, el) {
+				offering, all = on.mayEnterValues(ctx, here, g.Browser)
 			}
 		}
 		if offering {
@@ -361,15 +425,33 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 			detail = strings.TrimSpace(step.Text)
 		}
 
+		if offering && all && enteringAll {
+			show(clearOfTheMenu(GuideStep{
+				Number: number + opened, Label: describe,
+				X: x, Y: y, W: w, H: h,
+				Do: verb, Detail: detail,
+				Doing: true,
+			}, tree))
+			if lookBeforeActing > 0 {
+				select {
+				case <-ctx.Done():
+					return tree, ctx.Err()
+				case <-time.After(lookBeforeActing):
+				}
+			}
+			on.logf("step %d: entering this one too, as asked", number)
+			return tree, entered.enter(ctx, on, here, tree, program, describe, changed)
+		}
+
 		for attempt := 1; ; attempt++ {
 			show(clearOfTheMenu(GuideStep{
 				Number: number + opened, Label: describe,
 				X: x, Y: y, W: w, H: h,
 				Do: verb, Detail: detail,
-				Offer: offering,
+				Offer: offering, OfferAll: offering && all,
 			}, tree))
 
-			var reply <-chan bool
+			var reply <-chan OfferReply
 			if offering {
 				reply = on.Reply
 			}
@@ -377,17 +459,18 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 			// The hand is theirs. Nothing is clicked here — the next step is only
 			// worked out once the window shows they have done this one.
 			err := on.waitForTheUserToAct(ctx, here, tree, step, advance, changed, reply)
-			if errors.Is(err, errOfferTaken) {
+			if errors.Is(err, errOfferTakenForAll) && all {
+				on.logf("step %d: doing this one for you, and the rest like it", number)
+				enteringAll = true
+				return tree, entered.enter(ctx, on, here, tree, program, describe, changed)
+			}
+			if errors.Is(err, errOfferTaken) || errors.Is(err, errOfferTakenForAll) {
 				on.logf("step %d: doing this one for you", number)
-				if err := on.UIScreen.Act(ctx, program, tree); err != nil {
-					return tree, err
-				}
-				on.waitForTheWindowToAnswer(ctx, here, tree, changed)
-				return tree, nil
+				return tree, entered.enter(ctx, on, here, tree, program, describe, changed)
 			}
 			if errors.Is(err, errOfferDeclined) {
-				on.logf("step %d: yours to do", number)
-				offering = false
+				on.logf("step %d: yours to do, and so are the rest", number)
+				offering, declined = false, true
 				attempt = 0
 				continue
 			}
@@ -426,6 +509,7 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 		trace: planned, confirmed: memo.Kept, whole: whole, pointing: asksWhere(g.Task),
 	})
 	e.settleTheTrace(context.WithoutCancel(ctx), memo, run)
+	e.writeDownWhatWasEntered(ctx, g, entered, run.Committed)
 	used := e.noteTheTask(ctx, g.App, g.Shape, ModeShow, run, planCalls, err, before)
 	work := StepWork{
 		Steps: run.Steps(), Replayed: run.Replayed, Calls: run.Calls + planCalls,
@@ -706,11 +790,12 @@ func (e *Engine) settledView(ctx context.Context, app string, before uiact.Tree,
 }
 
 var (
-	errOfferTaken    = errors.New("engine: asked to do this step for them")
-	errOfferDeclined = errors.New("engine: they will do this step themselves")
+	errOfferTaken       = errors.New("engine: asked to do this step for them")
+	errOfferTakenForAll = errors.New("engine: asked to do this step and the rest like it for them")
+	errOfferDeclined    = errors.New("engine: they will do this step themselves")
 )
 
-func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uiact.Tree, step uiact.Step, advance <-chan struct{}, changed <-chan struct{}, reply <-chan bool) error {
+func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uiact.Tree, step uiact.Step, advance <-chan struct{}, changed <-chan struct{}, reply <-chan OfferReply) error {
 	// A Next left over from the step before belongs to that step. Cleared before
 	// settling rather than after, so a click the person makes while the window is
 	// still settling is kept rather than thrown away with the stale one.
@@ -735,8 +820,11 @@ func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uia
 		case <-advance:
 			e.waitForTheWindowToAnswer(ctx, app, before, changed)
 			return nil
-		case yes := <-reply:
-			if yes {
+		case said := <-reply:
+			switch said {
+			case OfferTakenForAll:
+				return errOfferTakenForAll
+			case OfferTaken:
 				return errOfferTaken
 			}
 			return errOfferDeclined

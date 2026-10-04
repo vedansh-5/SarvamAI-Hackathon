@@ -190,7 +190,7 @@ type Engine struct {
 	Paused func(GuideStep)
 	Resume <-chan struct{}
 
-	Reply <-chan bool
+	Reply <-chan OfferReply
 
 	Question func(ctx context.Context, question string, options []string) (string, error)
 

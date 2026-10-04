@@ -21,6 +21,7 @@ interface Pointer {
   ox?: number;
   oy?: number;
   offer?: boolean;
+  offer_all?: boolean;
   avoid?: number[];
 }
 
@@ -628,7 +629,8 @@ function renderCoachStep(pointer: Pointer) {
     pointer.offer
       ? [
           ["\u2318\u21B5", "Do it for me"],
-          ["esc", "I\u2019ll do it"],
+          ...(pointer.offer_all ? [["\u21E7\u2318\u21B5", "And the rest like it"] as [string, string]] : []),
+          ["esc", "I\u2019ll do them"],
         ]
       : [
           ["\u2325Space", "Next"],

@@ -188,6 +188,9 @@ type GuideStepParams struct {
 	Ask   string `json:"ask,omitempty"`
 	Offer bool   `json:"offer,omitempty"`
 
+	OfferAll bool `json:"offer_all,omitempty"`
+	Doing    bool `json:"doing,omitempty"`
+
 	AvoidX int `json:"avoid_x,omitempty"`
 	AvoidY int `json:"avoid_y,omitempty"`
 	AvoidW int `json:"avoid_w,omitempty"`
@@ -214,6 +217,7 @@ type AnswerQuestionResult struct {
 
 type AnswerGuideParams struct {
 	Yes bool `json:"yes"`
+	All bool `json:"all,omitempty"`
 }
 
 type AnswerGuideResult struct {

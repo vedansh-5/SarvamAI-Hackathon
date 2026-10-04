@@ -804,6 +804,11 @@ listen("coach://yes", () => {
   invoke("answer_guide", { yes: true }).catch(console.error);
 });
 
+listen("coach://yes-to-all", () => {
+  if ($("guiding").hidden) return;
+  invoke("answer_guide", { yes: true, all: true }).catch(console.error);
+});
+
 listen("coach://no", () => {
   if ($("guiding").hidden) return;
   invoke("answer_guide", { yes: false }).catch(console.error);
@@ -839,6 +844,8 @@ listen<{
     avoid_w?: number;
     avoid_h?: number;
     offer?: boolean;
+    offer_all?: boolean;
+    doing?: boolean;
   };
 }>(
   "engine://guide",
@@ -863,9 +870,10 @@ listen<{
       // So the coach can tell when the person has gone to another application
       // and take itself off the screen until they come back.
       appName: coachedApp,
-      mode: "coach",
+      mode: s.doing ? "drive" : "coach",
       avoid: [s.avoid_x ?? 0, s.avoid_y ?? 0, s.avoid_w ?? 0, s.avoid_h ?? 0],
       offer: s.offer ?? false,
+      offerAll: s.offer_all ?? false,
     }).catch(console.error);
   },
 );

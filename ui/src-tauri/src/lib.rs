@@ -97,6 +97,7 @@ fn point_at(
     app_name: Option<String>,
     mode: Option<String>,
     offer: Option<bool>,
+    offer_all: Option<bool>,
     avoid: Option<Vec<f64>>,
 ) {
     coach::point_at(
@@ -115,14 +116,24 @@ fn point_at(
             ox: 0.0,
             oy: 0.0,
             offer: offer.unwrap_or(false),
+            offer_all: offer_all.unwrap_or(false),
             avoid: avoid.filter(|a| a.len() == 4).unwrap_or_default(),
         },
     );
 }
 
 #[tauri::command]
-async fn answer_guide(engine: State<'_, Engine>, yes: bool) -> Result<Value, RpcError> {
-    engine.call("answer_guide", Some(json!({ "yes": yes }))).await
+async fn answer_guide(
+    engine: State<'_, Engine>,
+    yes: bool,
+    all: Option<bool>,
+) -> Result<Value, RpcError> {
+    engine
+        .call(
+            "answer_guide",
+            Some(json!({ "yes": yes, "all": all.unwrap_or(false) })),
+        )
+        .await
 }
 
 #[tauri::command]

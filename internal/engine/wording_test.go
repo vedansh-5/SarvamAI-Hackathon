@@ -104,8 +104,8 @@ func TestAQuestionAskedToBeDoneIsDone(t *testing.T) {
 	}
 }
 
-func offering(e *Engine) chan bool {
-	reply := make(chan bool, 1)
+func offering(e *Engine) chan OfferReply {
+	reply := make(chan OfferReply, 1)
 	e.Reply = reply
 	return reply
 }
@@ -126,7 +126,7 @@ func TestTheCoachOffersToTypeAndDoesItWhenToldYes(t *testing.T) {
 		if s.Offer {
 			go func() {
 				time.Sleep(5 * time.Millisecond)
-				reply <- true
+				reply <- OfferTaken
 			}()
 		}
 	}, nil)
@@ -157,7 +157,7 @@ func TestSayingNoLeavesTheStepToThePerson(t *testing.T) {
 		if s.Offer {
 			go func() {
 				time.Sleep(5 * time.Millisecond)
-				reply <- false
+				reply <- OfferDeclined
 			}()
 			return
 		}

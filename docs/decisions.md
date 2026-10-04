@@ -4806,3 +4806,31 @@ nothing leading to it.
 
 Not done: more than three. More chips would mean more kept, and that is the
 question D-055 already answered.
+
+## D-214 — The coach's offer is back, with "the rest like it" and a no that lasts
+
+D-166 switched off the offer to enter a value (D-159), because it sat on every
+typing step of a run meant for doing it yourself. What was wrong was not the
+offer. It was that an answer covered one step, so the question came back at the
+next.
+
+It is connected again, and an answer can cover the run.
+
+⌘↩ enters this value and nothing more; the next one is asked about. ⇧⌘↩ enters
+this one and every later step that only enters a value. Those are shown as they
+happen, the pointer first and a beat before the value lands, the way a run VANS
+does itself is shown, and Escape in that beat stops the run with the step not
+done. Escape on the offer says no, and nothing more is offered for the rest of
+the run.
+
+"The rest" is the rest of the values, never the rest of the steps. A click is
+still the person's, since where to click is what is being taught, and a step
+that sends or pays is never VANS's in a coached run (D-151).
+
+The rules apply, which they did not before: the offer was built before there
+were any. Where VANS must never act (D-175) nothing is offered at all. Where
+every step is asked first (D-181) there is no "the rest": each value is asked
+for, and saying "all" there enters the one.
+
+What VANS enters is written down, one entry for the run, and can be put back
+while nothing has been sent (D-203).
