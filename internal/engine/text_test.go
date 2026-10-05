@@ -90,6 +90,46 @@ func TestTextWrittenInTheRequestNeedsNoSelection(t *testing.T) {
 	}
 }
 
+func TestQuotedTextIsHandedOverRatherThanLeftToBeNoticed(t *testing.T) {
+	w := &textWorker{answer: synth.TextAnswer{Text: "buenos días"}}
+	e := textEngine(t, route.KindText, "", w)
+
+	if _, err := e.Ask(context.Background(), Ask{Instruction: `translate "good morning" to Spanish`, Context: mail}); err != nil {
+		t.Fatalf("Ask: %v", err)
+	}
+	if len(w.asked) != 1 || w.asked[0].Text != "good morning" {
+		t.Errorf("the model was given %+v, want the quoted text as the text to work on", w.asked)
+	}
+}
+
+func TestASelectionIsUsedEvenWhenTheRequestQuotesSomething(t *testing.T) {
+	w := &textWorker{answer: synth.TextAnswer{Text: "x"}}
+	e := textEngine(t, route.KindText, "Can we move it to Saturday?", w)
+
+	if _, err := e.Ask(context.Background(), Ask{Instruction: `reply to this saying "Saturday works"`, Context: mail}); err != nil {
+		t.Fatalf("Ask: %v", err)
+	}
+	if len(w.asked) != 1 || w.asked[0].Text != "Can we move it to Saturday?" {
+		t.Errorf("the model was given %+v, want the selected text", w.asked)
+	}
+}
+
+func TestTheTextInARequestIsFound(t *testing.T) {
+	for asked, want := range map[string]string{
+		`translate "good morning" to Spanish`:                           "good morning",
+		"translate \u201Cgood morning, see you at three\u201D to Hindi": "good morning, see you at three",
+		`make "hi" formal, like "Dear Sir, good day to you"`:            "Dear Sir, good day to you",
+		"summarise: the meeting moved to 3:30 on Friday":                "the meeting moved to 3:30 on Friday",
+		"translate this to Hindi":                                       "",
+		"reply saying 3:30 works":                                       "",
+		`translate "" to Hindi`:                                         "",
+	} {
+		if got := textInTheRequest(asked); got != want {
+			t.Errorf("textInTheRequest(%q) = %q, want %q", asked, got, want)
+		}
+	}
+}
+
 func TestASelectionBeatsThePageWhenTheRequestPointsAtIt(t *testing.T) {
 	w := &textWorker{answer: synth.TextAnswer{Text: "They want to move the meeting to Saturday."}}
 	e := textEngine(t, route.KindPageHere, "Can we move it to Saturday?", w)

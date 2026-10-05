@@ -4834,3 +4834,19 @@ for, and saying "all" there enters the one.
 
 What VANS enters is written down, one entry for the run, and can be put back
 while nothing has been sent (D-203).
+
+## D-215 — Text quoted in a request is handed over as the text
+
+A request can carry its own text: translate "good morning" to Spanish. With
+nothing selected, the model was told no text was selected and left to notice the
+quote in what was asked. Run three times through the engine with the same words,
+it noticed twice and the third time said there was no text to translate. It
+showed up through a saved routine, which is the same words asked again.
+
+The text is now found by code and given as the text to work on: the longest
+quoted stretch, and failing that whatever follows a colon and a space. A
+selection still wins when there is one. The same request then gave six
+translations in six runs.
+
+Not noticing was never the model's job to get right. Where code can tell what
+the text is, the model is not asked to.

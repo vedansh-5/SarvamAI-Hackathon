@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/vedansh/vans/internal/route"
@@ -33,7 +34,12 @@ func (e *Engine) workOnText(ctx context.Context, in Ask) (*Plan, error) {
 			fmt.Sprintf("Nothing is selected in %s. Select the text you mean, then ask again.", where)), nil
 	}
 
-	answer, err := e.Texts.WorkOnText(ctx, synth.TextRequest{Ask: in.Instruction, Text: selected})
+	given := selected
+	if given == "" {
+		given = textInTheRequest(in.Instruction)
+	}
+
+	answer, err := e.Texts.WorkOnText(ctx, synth.TextRequest{Ask: in.Instruction, Text: given})
 	if err != nil {
 		return nil, err
 	}
@@ -52,6 +58,29 @@ func (e *Engine) workOnText(ctx context.Context, in Ask) (*Plan, error) {
 
 func carriesItsOwnText(instruction string) bool {
 	return strings.ContainsAny(instruction, "\"“”") || strings.Contains(instruction, ":")
+}
+
+var (
+	quotedInTheRequest = regexp.MustCompile(`“([^”]+)”|"([^"]+)"`)
+	afterAColon        = regexp.MustCompile(`(?s):\s+(\S.*)$`)
+)
+
+func textInTheRequest(instruction string) string {
+	longest := ""
+	for _, m := range quotedInTheRequest.FindAllStringSubmatch(instruction, -1) {
+		for _, part := range m[1:] {
+			if len([]rune(part)) > len([]rune(longest)) {
+				longest = part
+			}
+		}
+	}
+	if longest = strings.TrimSpace(longest); longest != "" {
+		return longest
+	}
+	if m := afterAColon.FindStringSubmatch(instruction); m != nil {
+		return strings.TrimSpace(m[1])
+	}
+	return ""
 }
 
 func titleFor(instruction string) string {
