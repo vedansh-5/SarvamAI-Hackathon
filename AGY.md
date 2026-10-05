@@ -1737,6 +1737,9 @@ every change unless a later instruction says otherwise.
   foot.** It was light by default before; a stored choice still wins.
 - **Hold to confirm.** A write or an action takes holding Return or the button,
   never a single press.
+- **One living pill (D-216).** The Ask button in the field is the only control
+  with the drifting gradient and the pointer glow. Do not spread it to other
+  buttons; the listening pill gets it when voice exists.
 - **Glass, done properly.** Transparency and blur that look like the system's
   own materials. Appearance controls are tucked away, not always visible;
   sliders are short. The panel makes itself readable over whatever is behind it.

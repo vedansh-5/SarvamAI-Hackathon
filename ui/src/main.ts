@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { DotField, type DotMode } from "./dots";
+import { livingPill } from "./pill";
 
 // --- shapes mirrored from internal/rpc/protocol.go ---
 
@@ -339,7 +340,13 @@ function setStatus(text: string, pill = "") {
   $("status-pill").textContent = pill;
   $("status-pill").hidden = pill === "";
   $("status").hidden = text === "" && pill === "";
-  $("active-app-label").hidden = !$("status").hidden || showing !== "ask";
+  renderRun();
+}
+
+function renderRun() {
+  const ready = showing === "ask" && ($("intent") as HTMLInputElement).value.trim() !== "";
+  $("run").hidden = !ready;
+  $("active-app-label").hidden = ready || !$("status").hidden || showing !== "ask";
 }
 
 function seconds(since: number): string {
@@ -559,6 +566,7 @@ function renderMode() {
     button.setAttribute("aria-checked", on ? "true" : "false");
   }
   $("mode-note").textContent = note;
+  renderRun();
 }
 
 function pin(next: Mode | null) {
@@ -2143,6 +2151,9 @@ $("guiding-instead").addEventListener("click", async () => {
 
 $("view-cards").addEventListener("click", () => applyView(false, true));
 $("view-table").addEventListener("click", () => applyView(true, true));
+
+livingPill($("run"));
+$("run").addEventListener("click", () => void extract());
 
 $("ask-again").addEventListener("click", backToAsk);
 $("copy-result").addEventListener("click", async () => {

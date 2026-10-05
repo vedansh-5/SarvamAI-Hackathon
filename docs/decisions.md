@@ -4850,3 +4850,29 @@ translations in six runs.
 
 Not noticing was never the model's job to get right. Where code can tell what
 the text is, the model is not asked to.
+
+## D-216 — One living pill, for the one primary action
+
+The field had no button. A request was run with Return, and nothing on screen
+said so except a hint in the foot. There is now an Ask button at the end of the
+field, shown once there is something to run.
+
+It is the one control with the living treatment: a pill whose icon and label
+share a gradient that drifts, a glow that trails the pointer, and an edge that
+lights up near it. One on purpose. A panel where every button moves has no
+primary action.
+
+The colours are ours and not the reference's. On the ink surface the gradient
+runs through volt, a pale volt and paper. In light it runs through ink and a deep
+volt on the panel surface, because volt on paper cannot be read. There is no red
+in it anywhere: red means something changes (D-212).
+
+The icon is a mask over the same gradient as the label, each piece shifted back
+by how far it sits from the left, so it reads as one gradient across both.
+
+The glow is two variables eased toward the pointer on animation frames, and the
+loop stops once it has caught up. With reduced motion the gradient holds still
+and the glow sits on the pointer.
+
+Not there yet: the pill for listening. It takes the same treatment when voice
+exists.
