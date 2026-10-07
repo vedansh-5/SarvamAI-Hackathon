@@ -16,7 +16,7 @@ import (
 
 const routeSystemPrompt = `You decide what a user's instruction is asking for, so a runtime can carry it out.
 
-You are shown the instruction twice: once as the user typed it, and once as a SHAPE with its values replaced by placeholders like {u0} (a web address), {n0} (a number) and {s0} (quoted text).
+You are shown the instruction twice: once as the user typed it, and once as a SHAPE with its values replaced by placeholders like {u0} (a web address), {n0} (a number), {s0} (quoted text) and {p0} (a file path).
 
 Answer about the SHAPE, not about this one instruction. Your answer is cached and reused for every future instruction of the same shape, so slot values must be written as templates that reference placeholders — "{u0}", or "top {n0} stories" — never the literal values you can see.
 

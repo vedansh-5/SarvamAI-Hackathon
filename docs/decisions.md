@@ -4978,3 +4978,42 @@ can be seen from there. Back in the application the control is the place, so
 the redraw puts the panel away first. This is the return half of the rule the
 hotkey already follows (one step, one card).
 
+## D-221 — What a hands-on run against a test window found
+
+A small test application with one of each control (two fields, a slider, a
+checkbox, a pop-up menu, a table, a file button) was driven through the engine
+with real clicks and keys. Six of twelve checks failed the first time. Five
+causes, each closed where code can tell.
+
+**An item in an open menu was called hidden.** A control is clipped to
+everything that encloses it, which is right for a row in a scroll area and
+wrong for a menu: a pop-up's menu hangs outside the button that owns it. Only
+the item overlapping the button could be chosen. Clipping now stops at the
+menu the item is in.
+
+**A table row was refused as "something else is there".** Before a click the
+point is looked up, and what is found has to be the target. The middle of a
+row is a cell, and a cell's own title is often empty with the text one level
+down. A hit is now also accepted when it is a part of the target, or is the
+same kind of control with no name of its own.
+
+**The planner was not told what to act on.** The router splits a request into
+an action and a target, and only the action was handed on. "Right-click Gamma
+and choose Archive" arrived as "right-click and choose Archive", and the
+first row got it. The target now goes with the action whenever the action
+does not already say it.
+
+**A file path was taken apart.** Shaping strips punctuation and lowers case,
+so a path reached the model as a run of words and came back rebuilt wrongly.
+A path is now lifted out whole, like quoted text, as `{p0}`.
+
+**An application named in the request was treated as a website.** A page
+action that named no site was already sent to the application in front
+(D-153's neighbour). One that names the application in front is now sent
+there too. And the guide can choose the application in front even when it is
+not in an Applications folder, which a build run from elsewhere never is.
+
+Still open: handing a path to the file window. The sheet opens, the path is
+typed, and the sheet does not close. Whatever is left behind also stops the
+next typing step from landing. Not understood yet.
+

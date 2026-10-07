@@ -326,8 +326,14 @@ func (t Tree) visibleBox(el Element) (box, bool) {
 	if !ok {
 		return box{}, false
 	}
+	floats := 0
 	for _, a := range t.Elements {
-		if InMenuBar(el) || !encloses(a.Path, el.Path) {
+		if role(a.Role) == "menu" && (encloses(a.Path, el.Path) || samePath(a.Path, el.Path)) && len(a.Path) > floats {
+			floats = len(a.Path)
+		}
+	}
+	for _, a := range t.Elements {
+		if InMenuBar(el) || !encloses(a.Path, el.Path) || len(a.Path) < floats {
 			continue
 		}
 		if ab, ok := a.box(); ok {

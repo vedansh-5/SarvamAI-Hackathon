@@ -139,3 +139,21 @@ func TestAppForTaskIgnoresAnAppThatIsNotInstalled(t *testing.T) {
 		t.Errorf("app = %q, want the window in front", got)
 	}
 }
+
+func TestTheApplicationInFrontCanBeChosenEvenIfItIsNotInstalledHere(t *testing.T) {
+	chooser := &saysApp{choice: synth.AppChoice{App: "Ledger Dev Build"}}
+	e := chooserEngine(t, chooser, []string{"Ledger Dev Build"})
+	e.UIScreen = &runningScreen{fakeScreen: fakeScreen{front: "Ledger Dev Build"}, open: []string{"Ledger Dev Build"}}
+
+	got, err := e.appForTask(context.Background(), "how do I add an entry",
+		&screen.Context{AppName: "Ledger Dev Build"})
+	if err != nil {
+		t.Fatalf("appForTask: %v", err)
+	}
+	if got != "Ledger Dev Build" {
+		t.Errorf("app = %q, want the one in front", got)
+	}
+	if !named(chooser.asked.Installed, "Ledger Dev Build") {
+		t.Errorf("the model was not offered the application in front: %v", chooser.asked.Installed)
+	}
+}

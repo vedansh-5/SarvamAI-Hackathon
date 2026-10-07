@@ -1715,6 +1715,8 @@ every change unless a later instruction says otherwise.
   dictionary, then the application's web version, and the accessibility tree
   only where neither reaches. Fast first, thorough as the fallback.
 - **Remember the last three instructions** and offer them back.
+- **Hands-on findings (D-221).** Menu items, table rows, targets, file paths
+  and applications named in a request are handled; the file window is open.
 - **The guide never brings an application forward (D-219).** Opening it and
   switching to it are steps the person does. Leaving hides the overlay and the
   panel, and the step is held until they are back.

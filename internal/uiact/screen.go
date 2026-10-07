@@ -375,13 +375,29 @@ func VerifyTargets(pid int, p Program, t Tree) error {
 		if err != nil {
 			return fmt.Errorf("step %d: %w", i+1, err)
 		}
-		if owned && !sameControl(want, role, title) {
+		if owned && !sameControl(want, role, title) && !t.partOf(want, role, title, x, y) {
 			return &InvalidError{App: t.App, Reasons: []string{fmt.Sprintf(
 				"step %d: expected the %s %q at (%d,%d) and found a %s %q",
 				i+1, want.Role, want.Title, x, y, role, title)}}
 		}
 	}
 	return nil
+}
+
+func (t Tree) partOf(want Element, role, title string, x, y int) bool {
+	role = strings.TrimSpace(role)
+	if strings.TrimSpace(title) == "" && strings.EqualFold(role, strings.TrimSpace(want.Role)) {
+		return true
+	}
+	for _, a := range t.Elements {
+		if !encloses(want.Path, a.Path) || !strings.EqualFold(strings.TrimSpace(a.Role), role) {
+			continue
+		}
+		if b, ok := a.box(); ok && x >= b.x0 && x < b.x1 && y >= b.y0 && y < b.y1 {
+			return true
+		}
+	}
+	return false
 }
 
 func sameControl(want Element, role, title string) bool {

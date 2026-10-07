@@ -165,3 +165,26 @@ func TestWhatCodeReadsIsLeftAsTheModelGaveIt(t *testing.T) {
 		t.Errorf("setting = %q, value = %q, want them untouched", r.Slot("setting"), r.Slot("value"))
 	}
 }
+
+func TestAFilePathIsLiftedOutWhole(t *testing.T) {
+	shape, lits := Shape("click Choose file and pick /Users/Asha/My-Docs/Report.Final.pdf.")
+	if shape != "click choose file and pick {p0}" {
+		t.Errorf("shape = %q", shape)
+	}
+	if lits["p0"] != "/Users/Asha/My-Docs/Report.Final.pdf" {
+		t.Errorf("path = %q, want it exactly as written", lits["p0"])
+	}
+
+	shape, lits = Shape("open ~/Desktop/Notes.txt and read it")
+	if shape != "open {p0} and read it" || lits["p0"] != "~/Desktop/Notes.txt" {
+		t.Errorf("shape = %q, path = %q", shape, lits["p0"])
+	}
+}
+
+func TestASlashBetweenWordsIsNotAPath(t *testing.T) {
+	for _, in := range []string{"turn wifi on/off", "run /help", "either this and/or that"} {
+		if shape, lits := Shape(in); len(lits) != 0 {
+			t.Errorf("Shape(%q) = %q with %v, want nothing lifted", in, shape, lits)
+		}
+	}
+}

@@ -68,3 +68,27 @@ func TestRedirectingDoesNotChangeTheRouteItWasGiven(t *testing.T) {
 		t.Error("the caller's route gained an app slot; the redirect leaked into shared state")
 	}
 }
+
+func TestAPageActionNamingTheApplicationInFrontIsDoneThere(t *testing.T) {
+	e := &Engine{UIScreen: &fakeScreen{front: "Ledger"}}
+	r := pageAction()
+	r.Slots["site"] = "ledger"
+
+	got := e.aimedAtWhatIsInFront(context.Background(), r, &screen.Context{AppName: "Ledger"})
+
+	if got.Kind != route.KindAppAction || got.Slot("app") != "Ledger" {
+		t.Errorf("kind = %s, app = %q, want an action in Ledger", got.Kind, got.Slot("app"))
+	}
+}
+
+func TestAPageActionNamingAnotherSiteStaysOnThePage(t *testing.T) {
+	e := &Engine{UIScreen: &fakeScreen{front: "Ledger"}}
+	r := pageAction()
+	r.Slots["site"] = "makemytrip"
+
+	got := e.aimedAtWhatIsInFront(context.Background(), r, &screen.Context{AppName: "Ledger"})
+
+	if got.Kind != route.KindPageAction {
+		t.Errorf("kind = %s, want it left as a page action", got.Kind)
+	}
+}

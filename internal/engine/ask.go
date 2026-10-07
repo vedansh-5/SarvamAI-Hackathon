@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/vedansh/vans/internal/names"
 	"github.com/vedansh/vans/internal/route"
 	"github.com/vedansh/vans/internal/screen"
 )
@@ -554,12 +555,11 @@ func (e *Engine) aimedAtWhatIsInFront(ctx context.Context, r route.Route, lookin
 	if r.Kind != route.KindPageAction || e.UIScreen == nil {
 		return r
 	}
-	if strings.TrimSpace(r.Slot("site")) != "" {
-		return r
-	}
-
 	front, err := e.appInQuestion(ctx, lookingAt)
 	if err != nil || strings.TrimSpace(front) == "" || isBrowser(front) {
+		return r
+	}
+	if site := strings.TrimSpace(r.Slot("site")); site != "" && !names.Same(site, front) {
 		return r
 	}
 

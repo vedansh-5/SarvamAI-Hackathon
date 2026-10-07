@@ -60,6 +60,7 @@ var shapePatterns = []struct {
 	re     *regexp.Regexp
 	accept func(string) bool
 }{
+	{"p", regexp.MustCompile(`(?:^|\s)(?:~/|/)[^\s"'<>]+`), pathLike},
 	// Explicit scheme, or a bare host with a known-ish TLD. Bare hosts are
 	// worth catching because people type "news.ycombinator.com" far more often
 	// than they type the scheme.
@@ -68,6 +69,21 @@ var shapePatterns = []struct {
 	// button label. They are values, never part of the shape.
 	{"s", regexp.MustCompile(`"[^"]*"|'[^']*'|\x{201c}[^\x{201d}]*\x{201d}`), nil},
 	{"n", regexp.MustCompile(`\b\d+(?:\.\d+)?\b`), nil},
+}
+
+func aroundThePath(match string) (lead, value, tail string) {
+	value = strings.TrimLeft(match, " \t\n")
+	lead = match[:len(match)-len(value)]
+	trimmed := strings.TrimRight(value, ".,;:!?)")
+	return lead, trimmed, value[len(trimmed):]
+}
+
+func pathLike(match string) bool {
+	_, value, _ := aroundThePath(match)
+	if strings.HasPrefix(value, "~/") {
+		return len(value) > 2
+	}
+	return strings.Count(value, "/") >= 2
 }
 
 var whitespace = regexp.MustCompile(`\s+`)
@@ -96,6 +112,11 @@ func Shape(instruction string) (string, Literals) {
 			}
 			key := fmt.Sprintf("%s%d", p.prefix, n)
 			n++
+			if p.prefix == "p" {
+				lead, value, tail := aroundThePath(match)
+				lits[key] = value
+				return lead + "{" + key + "}" + tail
+			}
 			lits[key] = trimQuotes(match)
 			return "{" + key + "}"
 		})

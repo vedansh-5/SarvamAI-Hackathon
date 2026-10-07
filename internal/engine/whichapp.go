@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"github.com/vedansh/vans/internal/names"
 	"strings"
 
 	"github.com/vedansh/vans/internal/capability"
@@ -61,6 +62,11 @@ func (e *Engine) appForTask(ctx context.Context, task string, lookingAt *screen.
 		return front, frontErr
 	}
 
+	inFrontHere := strings.TrimSpace(front) != "" && !strings.EqualFold(front, "vans")
+	if inFrontHere && !named(installed, front) {
+		installed = append(installed, front)
+	}
+
 	choice, err := e.Chooser.WhichApp(ctx, synth.AppChoiceRequest{
 		Task:      task,
 		InFront:   front,
@@ -78,6 +84,10 @@ func (e *Engine) appForTask(ctx context.Context, task string, lookingAt *screen.
 
 	// The model answers with a name off the installed list, and the catalogue is
 	// what turns that into the application as it is actually installed.
+	if inFrontHere && names.Same(choice.App, front) {
+		return front, frontErr
+	}
+
 	app, err := e.Apps.FindInstalled(choice.App)
 	if err != nil {
 		e.logf("%q is not an application here (%v); using the window in front", choice.App, err)
@@ -139,4 +149,13 @@ func namesOf(apps []capability.App) []string {
 		out = append(out, a.Name)
 	}
 	return out
+}
+
+func named(list []string, name string) bool {
+	for _, n := range list {
+		if names.Same(n, name) {
+			return true
+		}
+	}
+	return false
 }

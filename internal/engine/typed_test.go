@@ -114,3 +114,15 @@ func TestWhatIsTypedTakesTheCapitalsOfTheRequest(t *testing.T) {
 		}
 	}
 }
+
+func TestThePlannerIsToldWhatTheActionIsOn(t *testing.T) {
+	for _, c := range []struct{ action, target, want string }{
+		{"right-click and choose Archive", "Gamma in the Items list", "right-click and choose Archive (on: Gamma in the Items list)"},
+		{"double-click Beta in the list", "Beta", "double-click Beta in the list"},
+		{"press Save", "", "press Save"},
+	} {
+		if got := withItsTarget(c.action, c.target); got != c.want {
+			t.Errorf("withItsTarget(%q, %q) = %q, want %q", c.action, c.target, got, c.want)
+		}
+	}
+}

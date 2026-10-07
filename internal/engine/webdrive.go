@@ -325,6 +325,18 @@ func (e *Engine) planWebGuide(ctx context.Context, task, shape string, literals 
 var quotedText = regexp.MustCompile(`\{(s\d+)\}`)
 
 func theTask(r route.Route) string {
+	return withItsTarget(theAction(r), r.Slot("target"))
+}
+
+func withItsTarget(action, target string) string {
+	action, target = strings.TrimSpace(action), strings.TrimSpace(target)
+	if target == "" || action == "" || strings.Contains(strings.ToLower(action), strings.ToLower(target)) {
+		return action
+	}
+	return action + " (on: " + target + ")"
+}
+
+func theAction(r route.Route) string {
 	template := r.Template("action")
 	if template == "" || !quotedText.MatchString(template) {
 		return r.Slot("action")
