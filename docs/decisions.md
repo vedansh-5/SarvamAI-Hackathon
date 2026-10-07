@@ -4922,3 +4922,44 @@ because by then a kind was chosen and a window was looked at.
 A run that gets stuck part way is unchanged, and so is a planner that returns
 nothing at all: that still hands over to step by step.
 
+## D-219 — The guide follows the person; it does not move them
+
+Three things reported from using the guide, and one cause behind them: the
+guide decided where the person should be looking.
+
+**Switching applications is a step, and theirs.** A guide used to bring its
+application to the front when it started, and again while planning if the
+window was not showing. From the chair that is VANS opening an application
+nobody asked it to. Not running was already a step the person carries out
+(D-032). Not in front now is too: "Switch to Notes" is shown with nothing
+pointed at, and the guide carries on when Notes is in front and readable.
+
+There is a short wait before that step is shown, because the panel has only
+just let go of the keyboard and the application underneath takes a moment to
+be the one in front again. VANS itself being in front counts as there, as long
+as the application can be read.
+
+Only the guide changes. A run VANS carries out itself still brings the window
+forward, because there the clicking is VANS's.
+
+**Time away does not use up a step.** Going to another application is not
+failing to do the step. The step used to give up after its usual patience
+whether the person was there or not. It is now held for as long as they are
+away, up to ten minutes, and gets its full patience back when they return. A
+window that never comes back still ends the run.
+
+**Leaving takes the overlay and the panel off the screen.** The overlay hid
+itself by the name of the application in front. Swiping to a desktop with
+nothing on it leaves the same application in front with its windows
+elsewhere, so the ring stayed, and while it stayed the hotkey meant "next
+step" and could not open the panel. It now also asks whether that application
+has a window on the desktop being looked at. The step is kept and redrawn on
+the way back, as before.
+
+The panel joins every Space so it can be summoned anywhere, and that carried
+it along on a swipe. A change of desktop now puts it away unless it is pinned.
+
+Not changed here, because it has not been measured: how long the guide takes
+to notice a step was done. The log now says how long each click took to be
+answered by the window, so the slow part can be found from a real run.
+

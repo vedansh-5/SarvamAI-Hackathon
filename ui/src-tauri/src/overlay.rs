@@ -661,8 +661,49 @@ pub fn set_blur(app: &AppHandle, blurred: bool, dark: bool) {
     let _ = (win, dark);
 }
 
+/// Puts the panel away when the person moves to another desktop.
+///
+/// The panel joins every Space so that it can be summoned anywhere, and the
+/// same flag carried it along on a swipe: it arrived on the next desktop still
+/// open, over something it had nothing to do with. Leaving is a dismissal. A
+/// pinned panel was asked to stay, and stays.
+#[cfg(target_os = "macos")]
+fn leave_when_the_desktop_changes(app: &AppHandle) {
+    use block2::RcBlock;
+    use objc2_app_kit::{NSWorkspace, NSWorkspaceActiveSpaceDidChangeNotification};
+    use objc2_foundation::NSNotification;
+
+    let handle = app.clone();
+    let block = RcBlock::new(move |_note: core::ptr::NonNull<NSNotification>| {
+        if PINNED.load(Ordering::Relaxed) {
+            return;
+        }
+        let Some(win) = window(&handle) else { return };
+        if win.is_visible().unwrap_or(false) {
+            hide_because(&handle, "moved to another desktop");
+        }
+    });
+
+    let observer = unsafe {
+        NSWorkspace::sharedWorkspace()
+            .notificationCenter()
+            .addObserverForName_object_queue_usingBlock(
+                Some(NSWorkspaceActiveSpaceDidChangeNotification),
+                None,
+                None,
+                &block,
+            )
+    };
+    std::mem::forget(observer);
+}
+
+#[cfg(not(target_os = "macos"))]
+fn leave_when_the_desktop_changes(_app: &AppHandle) {}
+
 /// Registers the hotkey and the dismiss-on-blur behaviour.
 pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    leave_when_the_desktop_changes(app);
+
     // No dock icon. The panel is reached by hotkey, not by an icon to click.
     #[cfg(target_os = "macos")]
     let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);

@@ -30,6 +30,8 @@ type scrollingScreen struct {
 	scrolled int
 }
 
+func (s *scrollingScreen) Frontmost(context.Context) (string, error) { return "Settings", nil }
+
 func (s *scrollingScreen) Capture(context.Context, string) (uiact.Tree, error) {
 	s.captures++
 	if s.captures > len(s.script) {

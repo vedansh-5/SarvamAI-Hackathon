@@ -230,7 +230,11 @@ fn watch_who_is_in_front(app: &AppHandle) {
         // answered.
         let Some(front) = front else { continue };
 
-        let here = front.eq_ignore_ascii_case(&crate::screen::clean_name(&coached));
+        // In front by name, and with a window on this desktop. The name alone
+        // kept the ring up after a swipe to a desktop with nothing on it, where
+        // the same application is still the one "in front".
+        let here = front.eq_ignore_ascii_case(&crate::screen::clean_name(&coached))
+            && crate::screen::front_app_is_on_this_desktop().unwrap_or(true);
 
         if here == SHOWING.load(Ordering::Relaxed) {
             continue;

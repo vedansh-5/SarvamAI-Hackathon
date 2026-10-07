@@ -16,10 +16,10 @@ import (
 
 func quickGuide(t *testing.T) {
 	t.Helper()
-	poll, timeout, settle, click := guidePoll, guideStepTimeout, settleBeforeJudging, afterAClick
-	guidePoll, guideStepTimeout, settleBeforeJudging, afterAClick = time.Millisecond, 200*time.Millisecond, 0, 20*time.Millisecond
+	poll, timeout, settle, click, back, away := guidePoll, guideStepTimeout, settleBeforeJudging, afterAClick, handBackWait, awayAtMost
+	guidePoll, guideStepTimeout, settleBeforeJudging, afterAClick, handBackWait, awayAtMost = time.Millisecond, 200*time.Millisecond, 0, 20*time.Millisecond, 0, 200*time.Millisecond
 	t.Cleanup(func() {
-		guidePoll, guideStepTimeout, settleBeforeJudging, afterAClick = poll, timeout, settle, click
+		guidePoll, guideStepTimeout, settleBeforeJudging, afterAClick, handBackWait, awayAtMost = poll, timeout, settle, click, back, away
 	})
 }
 
@@ -401,7 +401,7 @@ func TestGuideStaysOnTheStepNobodyHasDoneYet(t *testing.T) {
 	}
 }
 
-func TestGuideHandsTheKeyboardToTheApplicationFirst(t *testing.T) {
+func TestTheGuideDoesNotBringTheApplicationForward(t *testing.T) {
 	quickGuide(t)
 
 	moved := editorTree()
@@ -414,8 +414,50 @@ func TestGuideHandsTheKeyboardToTheApplicationFirst(t *testing.T) {
 	if _, err := e.RunGuide(context.Background(), guidePlan(), func(GuideStep) {}, nil); err != nil {
 		t.Fatalf("RunGuide: %v", err)
 	}
-	if len(screen.raised) == 0 || screen.raised[0] != "Editor" {
-		t.Errorf("brought %v to the front; the application being coached has to hold the keyboard", screen.raised)
+	if len(screen.raised) != 0 {
+		t.Errorf("brought %v to the front; switching applications is the person's step", screen.raised)
+	}
+}
+
+type elsewhereThenBack struct {
+	fakeScreen
+	asked int
+}
+
+func (s *elsewhereThenBack) Frontmost(context.Context) (string, error) {
+	s.asked++
+	if s.asked <= 3 {
+		return "Notes", nil
+	}
+	return "Editor", nil
+}
+
+func TestTheGuideAsksForTheSwitchWhenAnotherApplicationIsInFront(t *testing.T) {
+	quickGuide(t)
+	quickOpen(t)
+
+	moved := editorTree()
+	moved.Elements[0].Value = "hello"
+	screen := &elsewhereThenBack{fakeScreen: fakeScreen{tree: editorTree(), afterwards: &moved, changesAfter: 3}}
+	e := &Engine{UIScreen: screen, Steps: &scriptedSteps{
+		answers: []synth.StepAnswer{{Step: typeIntoMessage()}, {Done: true, Why: "that is all"}},
+	}}
+
+	var shown []GuideStep
+	if _, err := e.RunGuide(context.Background(), guidePlan(), func(g GuideStep) { shown = append(shown, g) }, nil); err != nil {
+		t.Fatalf("RunGuide: %v", err)
+	}
+	if len(shown) < 2 {
+		t.Fatalf("shown %d step(s), want the switch and then the control", len(shown))
+	}
+	if shown[0].Number != 1 || shown[0].Label != "Switch to Editor" || shown[0].W != 0 {
+		t.Errorf("first = %+v, want an instruction to switch to Editor", shown[0])
+	}
+	if shown[1].Number != 2 {
+		t.Errorf("second is numbered %d, want 2: the switch was step one", shown[1].Number)
+	}
+	if len(screen.raised) != 0 {
+		t.Errorf("brought %v to the front", screen.raised)
 	}
 }
 
@@ -694,5 +736,70 @@ func TestPressingNextBeforeOpeningTheAppDoesNotSkipTheStep(t *testing.T) {
 		if s.Do != "open" {
 			t.Fatalf("moved on to %q though the application was never opened", s.Label)
 		}
+	}
+}
+
+type awayForAWhile struct {
+	fakeScreen
+	reads     int
+	awayFrom  int
+	awayUntil int
+	typedFrom int
+}
+
+func (s *awayForAWhile) Capture(context.Context, string) (uiact.Tree, error) {
+	s.reads++
+	if s.reads >= s.awayFrom && s.reads < s.awayUntil {
+		return uiact.Tree{}, uiact.ErrNoWindow
+	}
+	if s.reads >= s.typedFrom {
+		moved := editorTree()
+		moved.Elements[0].Value = "hello"
+		return moved, nil
+	}
+	return editorTree(), nil
+}
+
+func TestTimeSpentInAnotherApplicationDoesNotUseUpTheStep(t *testing.T) {
+	quickGuide(t)
+	guideStepTimeout = 30 * time.Millisecond
+	awayAtMost = 5 * time.Second
+
+	screen := &awayForAWhile{awayFrom: 4, awayUntil: 400, typedFrom: 420}
+	e := &Engine{UIScreen: screen, Steps: &scriptedSteps{
+		answers: []synth.StepAnswer{{Step: typeIntoMessage()}, {Done: true, Why: "that is all"}},
+	}}
+
+	var shown []GuideStep
+	if _, err := e.RunGuide(context.Background(), guidePlan(), func(g GuideStep) { shown = append(shown, g) }, nil); err != nil {
+		t.Fatalf("RunGuide: %v, want the step held while they were away", err)
+	}
+	if len(shown) != 1 {
+		t.Errorf("the step was shown %d time(s), want it held as it was: %+v", len(shown), shown)
+	}
+}
+
+type runningButHidden struct{ fakeScreen }
+
+func (*runningButHidden) Capture(context.Context, string) (uiact.Tree, error) {
+	return uiact.Tree{}, uiact.ErrNoWindow
+}
+
+func TestPlanningAGuideDoesNotBringAHiddenApplicationForward(t *testing.T) {
+	screen := &runningButHidden{}
+	e := &Engine{UIScreen: screen, Steps: &alwaysStep{step: typeIntoMessage()}, Log: func(string, ...any) {}}
+
+	plan, err := e.planGuideIn(context.Background(), "say hello", "", nil, "Editor", nil)
+	if err != nil {
+		t.Fatalf("planGuideIn: %v", err)
+	}
+	if plan.Guide == nil || !plan.Guide.MustOpen || !plan.Guide.Running {
+		t.Fatalf("guide = %+v, want switching to it left as the first step", plan.Guide)
+	}
+	if !strings.Contains(plan.Guide.Preview, "switch to it first") {
+		t.Errorf("the preview does not say to switch: %q", plan.Guide.Preview)
+	}
+	if len(screen.raised) != 0 {
+		t.Errorf("brought %v to the front while planning", screen.raised)
 	}
 }

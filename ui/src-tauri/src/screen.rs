@@ -144,6 +144,59 @@ pub fn frontmost_app_name() -> Option<String> {
     None
 }
 
+/// Whether the application in front has a window on the desktop being looked at.
+///
+/// The name of the application in front is not enough to say the person is
+/// still looking at it. Swiping to a desktop with nothing on it leaves the same
+/// application "in front" with every one of its windows somewhere else. The
+/// on-screen window list only holds what is on the current desktop, and who
+/// owns a window needs no permission to read.
+///
+/// None means the list could not be read, which is not the same as no.
+#[cfg(target_os = "macos")]
+pub fn front_app_is_on_this_desktop() -> Option<bool> {
+    use objc2_app_kit::NSWorkspace;
+    use objc2_core_foundation::{CFArray, CFDictionary, CFNumber, CFString, CFType};
+    use objc2_core_graphics::{
+        kCGWindowLayer, kCGWindowOwnerPID, CGWindowListCopyWindowInfo, CGWindowListOption,
+    };
+
+    let pid = NSWorkspace::sharedWorkspace()
+        .frontmostApplication()
+        .map(|app| app.processIdentifier())?;
+
+    type Entry = CFDictionary<CFString, CFType>;
+
+    let options =
+        CGWindowListOption::OptionOnScreenOnly | CGWindowListOption::ExcludeDesktopElements;
+    let windows = CGWindowListCopyWindowInfo(options, 0)?;
+    let entries: &CFArray<Entry> =
+        unsafe { &*((&*windows) as *const CFArray as *const CFArray<Entry>) };
+
+    let number = |entry: &Entry, key: &CFString| -> Option<i32> {
+        entry
+            .get(key)
+            .and_then(|v| v.downcast::<CFNumber>().ok())
+            .and_then(|n| n.as_i32())
+    };
+
+    for i in 0..entries.len() {
+        let Some(entry) = entries.get(i) else { continue };
+        if number(&entry, unsafe { kCGWindowLayer }) != Some(0) {
+            continue;
+        }
+        if number(&entry, unsafe { kCGWindowOwnerPID }) == Some(pid) {
+            return Some(true);
+        }
+    }
+    Some(false)
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn front_app_is_on_this_desktop() -> Option<bool> {
+    None
+}
+
 /// Whether the application in front is VANS itself.
 ///
 /// The panel is meant to be non-activating, but typing into it can still make this

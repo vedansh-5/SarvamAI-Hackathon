@@ -73,6 +73,8 @@ type GuidePlan struct {
 	// yourself.
 	MustOpen bool
 
+	Running bool
+
 	// Why is the model's line about what the application is for, said while they
 	// open it.
 	Why string
@@ -248,7 +250,19 @@ func (e *Engine) planGuideIn(ctx context.Context, task, shape string, literals m
 
 	// Planning needs a window, so this is one of the two places allowed to go
 	// and get one (D-080a). Reading, everywhere else, stays passive.
-	tree, err := e.windowToWorkFrom(ctx, app)
+	tree, err := e.UIScreen.Capture(ctx, app)
+	if errors.Is(err, uiact.ErrNoWindow) {
+		e.logf("%s is not showing a window; switching to it is the first step, and theirs", app)
+		return &Plan{
+			Task:        Task{Intent: task, Title: app},
+			Destination: app,
+			Guide: &GuidePlan{
+				App: app, Task: task, MustOpen: true, Running: true, Shape: shape, Literals: literals,
+				Preview: fmt.Sprintf("Show you how to do this in %s, a step at a time — you will need to switch to it first:\n\n  %s",
+					app, task),
+			},
+		}, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -335,8 +349,15 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 	// about to act in their own application rather than in VANS. Handing it back
 	// is also what keeps the window readable: macOS withdraws the windows of an
 	// application that is not the active one (D-075).
-	if err := e.UIScreen.BringToFront(ctx, g.App); err != nil {
-		return StepWork{}, err
+	inFront := g.App
+	if g.Web && g.Browser != "" {
+		inFront = g.Browser
+	}
+	if !e.handedBack(ctx, inFront) {
+		if err := e.waitForTheSwitch(ctx, inFront, opened+1, "Switch to "+inFront, show, advance); err != nil {
+			return StepWork{}, err
+		}
+		opened++
 	}
 
 	if g.Web {
@@ -608,6 +629,9 @@ var openAppTimeout = 90 * time.Second
 // going on to plan a step against it would fail for a reason nobody could act on.
 func (e *Engine) waitForTheAppToOpen(ctx context.Context, g *GuidePlan, show func(GuideStep), advance <-chan struct{}) error {
 	label := "Open " + g.App
+	if g.Running {
+		label = "Switch to " + g.App
+	}
 
 	if advance != nil {
 		select {
@@ -812,13 +836,16 @@ func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uia
 
 	deadline := time.Now().Add(guideStepTimeout)
 	unreadable := false
+	var awaySince time.Time
 
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-advance:
+			pressed := time.Now()
 			e.waitForTheWindowToAnswer(ctx, app, before, changed)
+			e.logf("%s answered the click in %s", app, took(pressed))
 			return nil
 		case said := <-reply:
 			switch said {
@@ -840,13 +867,18 @@ func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uia
 			// background and picks up where it was. A window that is really
 			// gone runs out the same patience as one nobody touches.
 			if !unreadable {
-				e.logf("%s is not showing a window; still waiting", app)
+				e.logf("%s is not showing a window; holding this step until they are back", app)
 				unreadable = true
+				awaySince = time.Now()
 			}
-			if time.Now().After(deadline) {
+			if time.Since(awaySince) > awayAtMost {
 				return errStillWaiting
 			}
 			continue
+		}
+		if unreadable {
+			e.logf("back in %s after %s; carrying on from the same step", app, took(awaySince))
+			deadline = time.Now().Add(guideStepTimeout)
 		}
 		unreadable = false
 
@@ -874,6 +906,33 @@ func (e *Engine) frontApp(ctx context.Context) string {
 		return ""
 	}
 	return name
+}
+
+var handBackWait = 1200 * time.Millisecond
+
+var awayAtMost = 10 * time.Minute
+
+func (e *Engine) handedBack(ctx context.Context, app string) bool {
+	deadline := time.Now().Add(handBackWait)
+	for {
+		front := strings.TrimSpace(e.frontApp(ctx))
+		if front == "" || names.Same(front, app) {
+			return true
+		}
+		if strings.EqualFold(front, "vans") {
+			if tree, err := e.UIScreen.Capture(ctx, app); err == nil && len(tree.Elements) > 0 {
+				return true
+			}
+		}
+		if !time.Now().Before(deadline) {
+			return false
+		}
+		select {
+		case <-ctx.Done():
+			return true
+		case <-time.After(settlePoll):
+		}
+	}
 }
 
 func (e *Engine) waitForTheSwitch(ctx context.Context, app string, number int, describe string, show func(GuideStep), advance <-chan struct{}) error {
