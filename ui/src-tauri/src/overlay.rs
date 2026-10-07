@@ -106,6 +106,13 @@ pub fn hide_because(app: &AppHandle, reason: &str) {
     let _ = win.emit("overlay://hidden", ());
 }
 
+pub fn hide_if_showing(app: &AppHandle, reason: &str) {
+    let Some(win) = window(app) else { return };
+    if win.is_visible().unwrap_or(false) {
+        hide_because(app, reason);
+    }
+}
+
 pub fn set_pinned(pinned: bool) {
     PINNED.store(pinned, Ordering::Relaxed);
 }

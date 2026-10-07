@@ -4963,3 +4963,18 @@ Not changed here, because it has not been measured: how long the guide takes
 to notice a step was done. The log now says how long each click took to be
 answered by the window, so the slow part can be found from a real run.
 
+## D-220 — Coming back to a guide puts the panel away
+
+The same step was on screen twice: once on the control, and once in the panel
+with its own Next and Stop.
+
+It took two moves. Away from the coached application the overlay is hidden and
+the hotkey opens the panel, which shows the step the guide is on. Coming back,
+the overlay was redrawn and the panel was still there, until the next step
+dismissed it.
+
+The panel away from the application is right: it is the only place the step
+can be seen from there. Back in the application the control is the place, so
+the redraw puts the panel away first. This is the return half of the rule the
+hotkey already follows (one step, one card).
+

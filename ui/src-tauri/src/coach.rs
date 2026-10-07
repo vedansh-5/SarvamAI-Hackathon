@@ -244,7 +244,13 @@ fn watch_who_is_in_front(app: &AppHandle) {
             let last = LAST.lock().unwrap().clone();
             if let Some(p) = last {
                 let inner = handle.clone();
-                let _ = handle.run_on_main_thread(move || draw(&inner, p));
+                let _ = handle.run_on_main_thread(move || {
+                    // The panel may have been summoned while they were away, and
+                    // it shows the same step. Back here the step is on the
+                    // control again, and one step gets one card.
+                    crate::overlay::hide_if_showing(&inner, "the step is back on the overlay");
+                    draw(&inner, p)
+                });
             }
         } else {
             let inner = handle.clone();
