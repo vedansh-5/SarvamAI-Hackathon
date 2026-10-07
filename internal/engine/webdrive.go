@@ -329,6 +329,7 @@ func theTask(r route.Route) string {
 	if template == "" || !quotedText.MatchString(template) {
 		return r.Slot("action")
 	}
+	template = route.InTheirCase(template, r.Instruction)
 	said := quotedText.ReplaceAllStringFunc(template, func(m string) string {
 		value, ok := r.Literals[quotedText.FindStringSubmatch(m)[1]]
 		if !ok {

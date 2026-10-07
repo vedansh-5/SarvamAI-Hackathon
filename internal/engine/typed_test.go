@@ -95,3 +95,22 @@ func TestAFieldThatCannotBeReadIsNotOfferedForUndo(t *testing.T) {
 		t.Errorf("undo = %q, with nothing known about what the field held", how)
 	}
 }
+
+func TestWhatIsTypedTakesTheCapitalsOfTheRequest(t *testing.T) {
+	for _, c := range []struct {
+		step uiact.Step
+		task string
+		want string
+	}{
+		{uiact.Step{Do: "type", Text: "vedansh"}, "type Vedansh into the Name field", "Vedansh"},
+		{uiact.Step{Do: "type", Text: "Hello"}, "type HELLO into the box", "HELLO"},
+		{uiact.Step{Do: "type", Text: "see you at three"}, "tell her See You At Three", "See You At Three"},
+		{uiact.Step{Do: "type", Text: "Dear team, thank you"}, "write a thank-you to the team", "Dear team, thank you"},
+		{uiact.Step{Do: "type", Text: "art"}, "type Start into the box", "art"},
+		{uiact.Step{Do: "click", Text: "save"}, "press Save", "save"},
+	} {
+		if got := typedAsAsked(c.step, c.task).Text; got != c.want {
+			t.Errorf("%s %q for %q came out as %q, want %q", c.step.Do, c.step.Text, c.task, got, c.want)
+		}
+	}
+}

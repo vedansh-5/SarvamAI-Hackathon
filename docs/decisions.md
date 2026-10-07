@@ -4876,3 +4876,27 @@ and the glow sits on the pointer.
 
 Not there yet: the pill for listening. It takes the same treatment when voice
 exists.
+
+## D-217 — What is typed keeps the capitals it was asked with
+
+Asked to type "Vedansh" into a field, VANS typed "vedansh".
+
+A request is lowercased to find its shape, so that one decision can be reused
+for every request of that shape (D-119). The words pulled out of the shape were
+the lowercased ones, and those were what reached the field.
+
+Lowercasing is for recognising, not for answering. The parts taken from a
+request are now put back in the case they were written in, word by word and in
+order, before they are used. Parts that code reads rather than a person, a
+setting name, a value, a search engine, an address, are left alone, because
+those are matched and not shown.
+
+The model can still hand back a lowercased word of its own accord. So each step
+that types is checked once more: if the text it wants to type appears in the
+request as whole words in another case, the request's case wins.
+
+That check runs on replayed steps as well, which closes the wrong capital that
+D-119 wrote down as the cost of caching by shape.
+
+Text the request never contained is not touched. A translation or a rewrite is
+the model's to capitalise.

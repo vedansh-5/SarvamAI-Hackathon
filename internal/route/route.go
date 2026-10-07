@@ -342,6 +342,8 @@ func containsWord(haystack, needle string) bool {
 	return false
 }
 
+var readByCode = map[string]bool{"setting": true, "value": true, "engine": true, "url": true, "site": true}
+
 // Resolve fills a decision's templates with one instruction's literals.
 //
 // A slot that fills to nothing is dropped rather than passed on empty, so a
@@ -359,6 +361,9 @@ func (d Decision) Resolve(instruction, shape string, lits Literals) (Route, erro
 				"route: slot %q hardcodes this instruction's values instead of referencing them: %s — "+
 					"the decision is reused for every instruction of this shape, so those must be placeholders",
 				name, strings.Join(bad, ", "))
+		}
+		if !readByCode[name] {
+			tmpl = InTheirCase(tmpl, instruction)
 		}
 		if v := Fill(tmpl, lits); v != "" {
 			slots[name] = v

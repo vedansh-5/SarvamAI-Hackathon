@@ -784,6 +784,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 				}
 			}
 
+			answer.Step = typedAsAsked(answer.Step, task)
 			program := uiact.Program{App: tree.App, Steps: []uiact.Step{answer.Step}}
 
 			var refused *uiact.InvalidError

@@ -113,3 +113,55 @@ func TestTwoPartHostsAreRecognised(t *testing.T) {
 		}
 	}
 }
+
+func TestWordsComeBackInTheCaseTheyWereWritten(t *testing.T) {
+	for _, c := range []struct{ template, instruction, want string }{
+		{"type vedansh into the name field", "type Vedansh into the Name field in VansBench", "type Vedansh into the Name field"},
+		{"make a note titled groceries", "Make a note titled Groceries in Notes", "Make a note titled Groceries"},
+		{"replace apple with apple", "replace apple with Apple", "replace apple with Apple"},
+		{"send {s0} to joe", `send "see you at 3" to Joe`, "send {s0} to Joe"},
+		{"open the report", "show me the thing", "open the report"},
+		{"type hello", "", "type hello"},
+	} {
+		if got := InTheirCase(c.template, c.instruction); got != c.want {
+			t.Errorf("InTheirCase(%q, %q) = %q, want %q", c.template, c.instruction, got, c.want)
+		}
+	}
+}
+
+func TestAResolvedSlotKeepsTheCapitalsOfTheRequest(t *testing.T) {
+	asked := "type Vedansh into the Name field in VansBench"
+	shape, lits := Shape(asked)
+	d := Decision{Kind: KindAppAction, Slots: map[string]string{
+		"app":    "vansbench",
+		"action": "type vedansh into the name field",
+	}}
+
+	r, err := d.Resolve(asked, shape, lits)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if got := r.Slot("action"); got != "type Vedansh into the Name field" {
+		t.Errorf("action = %q, want the name as it was typed", got)
+	}
+	if got := r.Slot("app"); got != "VansBench" {
+		t.Errorf("app = %q, want it as it was typed", got)
+	}
+	if got := r.Template("action"); got != "type vedansh into the name field" {
+		t.Errorf("the template kept under the shape changed to %q", got)
+	}
+}
+
+func TestWhatCodeReadsIsLeftAsTheModelGaveIt(t *testing.T) {
+	asked := "Switch To Dark Mode"
+	shape, lits := Shape(asked)
+	d := Decision{Kind: KindSetting, Slots: map[string]string{"setting": "dark mode", "value": "dark"}}
+
+	r, err := d.Resolve(asked, shape, lits)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if r.Slot("setting") != "dark mode" || r.Slot("value") != "dark" {
+		t.Errorf("setting = %q, value = %q, want them untouched", r.Slot("setting"), r.Slot("value"))
+	}
+}

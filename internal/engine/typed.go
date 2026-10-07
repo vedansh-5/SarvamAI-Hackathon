@@ -3,9 +3,26 @@ package engine
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/vedansh/vans/internal/uiact"
 )
+
+func typedAsAsked(step uiact.Step, task string) uiact.Step {
+	text := strings.TrimSpace(step.Text)
+	if step.Verb() != "type" || text == "" {
+		return step
+	}
+	said, err := regexp.Compile(`(?i)(?:^|[^\p{L}\p{N}])(` + regexp.QuoteMeta(text) + `)(?:$|[^\p{L}\p{N}])`)
+	if err != nil {
+		return step
+	}
+	if m := said.FindStringSubmatch(task); m != nil && m[1] != text {
+		step.Text = strings.Replace(step.Text, text, m[1], 1)
+	}
+	return step
+}
 
 type TypedField struct {
 	App     string         `json:"app"`

@@ -1715,6 +1715,8 @@ every change unless a later instruction says otherwise.
   dictionary, then the application's web version, and the accessibility tree
   only where neither reaches. Fast first, thorough as the fallback.
 - **Remember the last three instructions** and offer them back.
+- **What is typed keeps the capitals it was asked with (D-217).** A request is
+  lowercased only to recognise its shape; names and text go out as written.
 - **Name:** VANS — Vedansh's Agent Navigation System.
 
 ## G7. UI and design

@@ -142,6 +142,40 @@ var placeholder = regexp.MustCompile(`\{([a-z]\d+)\}`)
 // A placeholder with no literal resolves to empty rather than being left as
 // "{u0}", which would otherwise reach the engine as a URL to navigate to and
 // fail somewhere far from the cause.
+var plainWord = regexp.MustCompile(`[\p{L}\p{N}][\p{L}\p{N}'’_-]*`)
+
+func InTheirCase(template, instruction string) string {
+	theirs := plainWord.FindAllString(instruction, -1)
+	if len(theirs) == 0 {
+		return template
+	}
+	next := 0
+	asWritten := func(word string) string {
+		for i := next; i < len(theirs); i++ {
+			if strings.EqualFold(theirs[i], word) {
+				next = i + 1
+				return theirs[i]
+			}
+		}
+		for i := 0; i < next; i++ {
+			if strings.EqualFold(theirs[i], word) {
+				return theirs[i]
+			}
+		}
+		return word
+	}
+
+	var out strings.Builder
+	at := 0
+	for _, held := range placeholder.FindAllStringIndex(template, -1) {
+		out.WriteString(plainWord.ReplaceAllStringFunc(template[at:held[0]], asWritten))
+		out.WriteString(template[held[0]:held[1]])
+		at = held[1]
+	}
+	out.WriteString(plainWord.ReplaceAllStringFunc(template[at:], asWritten))
+	return out.String()
+}
+
 func Fill(template string, lits Literals) string {
 	out := placeholder.ReplaceAllStringFunc(template, func(m string) string {
 		return lits[placeholder.FindStringSubmatch(m)[1]]
