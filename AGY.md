@@ -1715,6 +1715,7 @@ every change unless a later instruction says otherwise.
   dictionary, then the application's web version, and the accessibility tree
   only where neither reaches. Fast first, thorough as the fallback.
 - **Remember the last three instructions** and offer them back.
+- **A run the planner cannot start is turned down, not offered (D-218).**
 - **What is typed keeps the capitals it was asked with (D-217).** A request is
   lowercased only to recognise its shape; names and text go out as written.
 - **Name:** VANS — Vedansh's Agent Navigation System.

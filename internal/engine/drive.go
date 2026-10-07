@@ -176,6 +176,9 @@ func (e *Engine) driveOn(ctx context.Context, app, task, shape string, literals 
 	if !kept {
 		var planned synth.PlanAnswer
 		planned, planCalls = e.planOn(ctx, synth.PlanRequest{Task: task, Tree: tree, Most: MaxDriveSteps})
+		if planned.Stuck && len(planned.Steps) == 0 {
+			return nil, &synth.UnwritableError{App: tree.App, Why: reasonOr(planned.Why, "nothing in "+tree.App+" matches what was asked")}
+		}
 		replay, whole = planned.Steps, planned.Whole
 	}
 

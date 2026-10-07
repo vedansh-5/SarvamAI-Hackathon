@@ -4900,3 +4900,25 @@ D-119 wrote down as the cost of caching by shape.
 
 Text the request never contained is not touched. A translation or a rewrite is
 the model's to capitalise.
+
+## D-218 — A run the planner cannot start is not offered
+
+"qzx vfrt plonk wibble" was offered for confirmation as up to twelve steps in
+whichever application was in front.
+
+The router declined it, was asked once more (D-153), and the second time called
+it `app.act`. The planner then looked at the window and said it could not go
+further. That answer was logged and dropped, and the run was offered anyway.
+Confirmed, it would have ended as "nothing to do".
+
+The second look stays: it is what stopped real requests being declined. The
+floor goes where code already has the answer. A planner that is stuck before
+its first step has said the window cannot do this, so the request is turned
+down there, with the planner's reason, and nothing is put up to confirm.
+
+It is reported as "cannot do that there" and not as "did not understand",
+because by then a kind was chosen and a window was looked at.
+
+A run that gets stuck part way is unchanged, and so is a planner that returns
+nothing at all: that still hands over to step by step.
+

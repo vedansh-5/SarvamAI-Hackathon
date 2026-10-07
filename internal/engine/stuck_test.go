@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -63,5 +64,25 @@ func TestBeingStuckBeforeDoingAnythingIsANothingToDoNotACrash(t *testing.T) {
 	}
 	if receipt.Verified || receipt.Work == nil || receipt.Work.Steps != 0 {
 		t.Errorf("receipt = %+v, want nothing done and nothing claimed", receipt)
+	}
+}
+
+type stuckAtOnce struct{}
+
+func (stuckAtOnce) WritePlan(context.Context, synth.PlanRequest) (synth.PlanAnswer, error) {
+	return synth.PlanAnswer{Stuck: true, Why: "nothing here answers to qzx vfrt"}, nil
+}
+
+func TestARequestThePlannerCannotStartIsNotOfferedForConfirmation(t *testing.T) {
+	e := &Engine{UIScreen: &movingScreen{}, Plans: stuckAtOnce{}, Steps: &countingSteps{}}
+
+	plan, err := e.driveOn(context.Background(), "Editor", "qzx vfrt plonk wibble", "qzx vfrt plonk wibble", nil)
+
+	var cannot *synth.UnwritableError
+	if !errors.As(err, &cannot) {
+		t.Fatalf("plan = %+v, err = %v, want it turned down before anything is offered", plan, err)
+	}
+	if !strings.Contains(cannot.Why, "qzx vfrt") {
+		t.Errorf("why = %q, want the planner's own reason", cannot.Why)
 	}
 }

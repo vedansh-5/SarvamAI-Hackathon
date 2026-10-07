@@ -93,6 +93,11 @@ func (e *Engine) actInApplication(ctx context.Context, r route.Route, shape stri
 					e.logf("working through it in %s's window, a step at a time", name)
 					return plan, plan.SynthesisCalls, nil
 				}
+				var cannot *synth.UnwritableError
+				if errors.As(driveErr, &cannot) {
+					e.logf("%s cannot do that, so it is not offered: %s", window, cannot.Why)
+					return nil, 1, driveErr
+				}
 				e.logf("could not work through %s's window a step at a time: %v", name, driveErr)
 			}
 			if e.canActOnUI() {
