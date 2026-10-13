@@ -98,34 +98,6 @@ function initScrollFade() {
   });
 }
 
-function initRequestCardClicks() {
-  const cards = document.querySelectorAll<HTMLElement>(".request-card");
-  cards.forEach((card) => {
-    card.addEventListener("click", () => {
-      const category = card.getAttribute("data-category");
-      const requestText = card.getAttribute("data-request");
-
-      if (category === "teach") {
-        const hero = document.getElementById("hero");
-        if (hero) hero.scrollIntoView({ behavior: "smooth" });
-      } else {
-        const twoWays = document.getElementById("two-ways");
-        if (twoWays) twoWays.scrollIntoView({ behavior: "smooth" });
-
-        if (requestText) {
-          const askInput = document.getElementById("panel-ask-input") as HTMLInputElement;
-          if (askInput) {
-            askInput.value = requestText;
-            askInput.dispatchEvent(new Event("input", { bubbles: true }));
-            const enterEvt = new KeyboardEvent("keydown", { key: "Enter", bubbles: true });
-            askInput.dispatchEvent(enterEvt);
-          }
-        }
-      }
-    });
-  });
-}
-
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
   initPills();
@@ -142,6 +114,5 @@ document.addEventListener("DOMContentLoaded", () => {
   const confirmRoot = document.getElementById("confirm-demo-root");
   if (confirmRoot) initConfirmDemo(confirmRoot);
 
-  initRequestCardClicks();
   initSheets();
 });

@@ -849,6 +849,31 @@ section {
     opacity 0.2s;
 }
 
+.guide-tip.narrow {
+  width: 180px;
+  padding: 10px 12px;
+  gap: 5px;
+}
+
+.guide-tip.narrow .guide-tip-step {
+  font-size: 9px;
+}
+
+.guide-tip.narrow .guide-tip-title {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.guide-tip.narrow .guide-tip-foot {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.guide-tip.narrow .guide-tip-next {
+  align-self: flex-end;
+}
+
 .guide-tip-head {
   display: flex;
   justify-content: space-between;

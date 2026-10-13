@@ -55,6 +55,18 @@ export function livingPill(pill: HTMLElement) {
     frame = 0;
     snap({ x: box.width / 2, y: box.height / 2 });
   });
+
+  pill.addEventListener("blur", () => {
+    cancelAnimationFrame(frame);
+    frame = 0;
+  });
+
+  pill.addEventListener("pointerleave", () => {
+    if (!pill.matches(":focus-visible")) {
+      cancelAnimationFrame(frame);
+      frame = 0;
+    }
+  });
 }
 
 export function setPillLabel(pill: HTMLElement, text: string) {

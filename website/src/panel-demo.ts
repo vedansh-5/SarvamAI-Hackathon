@@ -16,9 +16,7 @@ export function initLivePanel(container: HTMLElement) {
     queries[rf.query] = {
       text: rf.query,
       type: rf.kind === "teaching" ? "teach" : rf.kind === "files" ? "write" : "answer",
-      answer: rf.kind === "teaching"
-        ? `${rf.sourceApp || "System Settings"} → Stepping aside to point at the controls on your screen…`
-        : rf.sampleAnswer,
+      answer: rf.sampleAnswer || "Pointing at the controls on your screen…",
       isWrite: rf.kind === "files",
     };
   }
@@ -203,15 +201,6 @@ Move Screenshot 2026-10-13 at 10.02.48.png</div>
 
       if (queryItem) {
         answerText.textContent = queryItem.answer || "";
-        if (queryItem.type === "teach") {
-          // Point towards guide demo
-          window.setTimeout(() => {
-            const heroGuide = document.getElementById("hero");
-            if (heroGuide) {
-              heroGuide.scrollIntoView({ behavior: "smooth" });
-            }
-          }, 1200);
-        }
       } else {
         answerText.textContent = "This is a demo. In the real panel, VANS would work that out.";
       }
@@ -330,21 +319,16 @@ Move Screenshot 2026-10-13 at 10.02.48.png</div>
     });
   });
 
-  // Wire Section 3 cards to panel or guide
+  // Wire Section 3 cards to live panel
   document.querySelectorAll<HTMLElement>(".request-card").forEach((card) => {
     card.addEventListener("click", () => {
+      card.blur();
       const q = card.getAttribute("data-request");
-      const cat = card.getAttribute("data-category");
       if (!q) return;
 
-      if (cat === "teach") {
-        const heroGuide = document.getElementById("hero");
-        heroGuide?.scrollIntoView({ behavior: "smooth" });
-      } else {
-        const panelSec = document.getElementById("two-ways");
-        panelSec?.scrollIntoView({ behavior: "smooth" });
-        runQuery(q);
-      }
+      const panelSec = document.getElementById("two-ways");
+      panelSec?.scrollIntoView({ behavior: "smooth", block: "center" });
+      runQuery(q);
     });
   });
 

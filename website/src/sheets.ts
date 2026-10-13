@@ -2,26 +2,64 @@ import { CONTACT_EMAIL } from "./facts.ts";
 
 const FORM_ENDPOINT = "/api/windows";
 
-function openSheet(id: string, from: HTMLElement) {
+let openedByKeyboard = false;
+
+function openSheet(id: string, from: HTMLElement, keyboard = false) {
   const sheet = document.getElementById(id) as HTMLDialogElement | null;
   if (!sheet || typeof sheet.showModal !== "function") return false;
   sheet.dataset.openedAt = String(Date.now());
   sheet.showModal();
-  sheet.addEventListener("close", () => from.focus(), { once: true });
+  sheet.addEventListener(
+    "close",
+    () => {
+      if (keyboard) {
+        from.focus();
+      } else {
+        from.blur();
+      }
+    },
+    { once: true },
+  );
   return true;
 }
 
 function initOpeners() {
   document.querySelectorAll<HTMLElement>("[data-open]").forEach((opener) => {
+    opener.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        openedByKeyboard = true;
+      }
+    });
+    opener.addEventListener("pointerdown", () => {
+      openedByKeyboard = false;
+    });
     opener.addEventListener("click", (e) => {
-      if (openSheet(opener.dataset.open ?? "", opener)) e.preventDefault();
+      const isKeyboard = openedByKeyboard;
+      openedByKeyboard = false;
+      if (openSheet(opener.dataset.open ?? "", opener, isKeyboard)) {
+        e.preventDefault();
+        if (!isKeyboard) opener.blur();
+      }
     });
   });
 
   document.querySelectorAll<HTMLDialogElement>("dialog.sheet").forEach((sheet) => {
-    sheet.querySelectorAll<HTMLElement>("[data-close]").forEach((b) => b.addEventListener("click", () => sheet.close()));
+    sheet.querySelectorAll<HTMLElement>("[data-close]").forEach((b) =>
+      b.addEventListener("click", () => {
+        openedByKeyboard = false;
+        sheet.close();
+      }),
+    );
     sheet.addEventListener("click", (e) => {
-      if (e.target === sheet) sheet.close();
+      if (e.target === sheet) {
+        openedByKeyboard = false;
+        sheet.close();
+      }
+    });
+    sheet.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        openedByKeyboard = true;
+      }
     });
   });
 }

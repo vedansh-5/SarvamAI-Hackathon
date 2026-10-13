@@ -25,6 +25,7 @@ These are the standing rules for `summonvans.in`. They hold for every change, wh
 
 - **VANS teaches first.** You ask how, and it shows you on your own screen while you do it. That it can also do the job is said second, every time. Copy that makes VANS sound like something that takes over the Mac is rewritten.
 - Demos start in "Show me".
+- Clicking a request in section 3 scrolls to the live panel demo and answers there in-place. Requests do not jump the visitor away to the hero.
 
 ## 4. The name
 
@@ -42,6 +43,7 @@ These are the standing rules for `summonvans.in`. They hold for every change, wh
 - The background dots are a quiet texture. If they can be noticed while reading, they are too strong.
 - Colours, sizes, radii and easing come from the tokens at the top of `src/styles.css`. No literal colour is written anywhere else.
 - Motion uses the one spring, arrives in about 300ms and never bounces. With reduced motion, everything holds still.
+- Focus rings appear on keyboard navigation alone (`:focus-visible`), never left behind after pointer clicks.
 
 ## 6. Privacy
 

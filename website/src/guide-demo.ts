@@ -366,6 +366,9 @@ export function initGuideDemo(container: HTMLElement) {
     tipEl.style.transition = animate ? "transform 0.38s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s" : "none";
 
     const isMobile = window.innerWidth <= 768;
+    const isStep1 = step.targetId === "guide-sidebar-wallpaper";
+    tipEl.classList.toggle("narrow", !isMobile && isStep1);
+
     const galleryGrid = container.querySelector<HTMLElement>("#guide-wallpaper-grid");
     const gridRect = galleryGrid ? galleryGrid.getBoundingClientRect() : null;
 
@@ -382,11 +385,11 @@ export function initGuideDemo(container: HTMLElement) {
       tipX = Math.max(12, Math.min(relX, winRect.width - 290));
     } else {
       // On desktop:
-      if (step.targetId === "guide-sidebar-wallpaper") {
+      if (isStep1) {
         const last = target.parentElement?.lastElementChild;
         const listBottom = last ? last.getBoundingClientRect().bottom - winRect.top : relY + ringH;
         tipX = 10;
-        tipY = listBottom + 22;
+        tipY = listBottom + 16;
       } else if (step.targetId === "guide-tile-horizon") {
         // Step 2: Below the wallpaper grid so all 6 tiles remain visible
         if (gridRect) {
