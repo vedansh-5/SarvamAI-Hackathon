@@ -239,6 +239,7 @@ func run() error {
 			Styler:     styler,
 			History:    st,
 			Chooser:    chooser,
+			Places:     st,
 			Texts:      texts,
 			Reader:     reader,
 			FileOps:    fileOps,

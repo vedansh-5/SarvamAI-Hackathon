@@ -1725,6 +1725,9 @@ every change unless a later instruction says otherwise.
 - **A run the planner cannot start is turned down, not offered (D-218).**
 - **What is typed keeps the capitals it was asked with (D-217).** A request is
   lowercased only to recognise its shape; names and text go out as written.
+- **Where a kind of task is done is remembered (D-226).** A guide shown
+  before asks the model nothing; only one that finished is remembered, and only
+  when it was not in the application in front.
 - **Every key and click VANS posts states its modifiers outright (D-225).**
   Left unset they inherit the last shortcut's, and typed text becomes shortcuts.
 - **Slow steps are the model provider being overloaded (D-224).** Retries are

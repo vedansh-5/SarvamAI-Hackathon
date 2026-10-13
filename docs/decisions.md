@@ -5151,3 +5151,32 @@ reading a window, and the guide entering values and taking them back.
 This cannot be covered by a unit test, since the fault is in what the system
 does with a posted event. The hands-on run is the test.
 
+## D-226 — Where a kind of task is done is remembered, so a repeat guide asks nothing
+
+A guide shown a second time already cost no call to route it (the shape is
+cached), none to plan it (the steps are kept) and none to close it (kept steps
+that all fit are the answer). It still cost one: asking which application the
+task is done in, every time. That one call was the whole of the wait before a
+repeat guide began, and it made "Remembered · instant" untrue for guides.
+
+When a guide finishes, and the application it was shown in was not the one in
+front when it was asked for, the application is remembered against the shape of
+the request. The next request of that shape goes straight there.
+
+Only "not the one in front" is remembered. A question about the window being
+looked at ("where is the search box") is answered in whatever is in front, and
+keeping the name of whichever application that happened to be would send the
+same question to the wrong place tomorrow. Pages are not remembered here; they
+have their own route.
+
+Only a guide that finished is remembered, since that is the evidence the choice
+was right. If what is remembered stops working, because the application is gone
+or its window gives nothing to point at, it is forgotten and the question is
+asked again. An application that is remembered but not open is still a step the
+person carries out.
+
+What this does not change is a guide shown for the first time. That still asks
+once per stretch of steps the planner can see, and once at the end, because
+only the screen says whether "how do I" worked (D-195). Skipping the closing
+question when every step was seen to happen would save one more call and is a
+trade of certainty for speed; it is left for Vedansh to decide.

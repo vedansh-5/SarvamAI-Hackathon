@@ -157,3 +157,68 @@ func TestTheApplicationInFrontCanBeChosenEvenIfItIsNotInstalledHere(t *testing.T
 		t.Errorf("the model was not offered the application in front: %v", chooser.asked.Installed)
 	}
 }
+
+type keptPlaces map[string]string
+
+func (k keptPlaces) Setting(_ context.Context, key string) (string, error) { return k[key], nil }
+func (k keptPlaces) SetSetting(_ context.Context, key, value string) error {
+	k[key] = value
+	return nil
+}
+
+func TestAGuideShownBeforeDoesNotAskAgainWhereItsTaskLives(t *testing.T) {
+	const shape = "how do i change the wallpaper"
+	chooser := &saysApp{choice: synth.AppChoice{App: "System Settings", Why: "appearance lives there"}}
+	e := chooserEngine(t, chooser, []string{"System Settings", "Antigravity IDE"})
+	e.Places = keptPlaces{}
+	e.Steps = &alwaysStep{step: typeIntoMessage()}
+
+	e.rememberThePlace(context.Background(), &GuidePlan{App: "System Settings", Shape: shape, Elsewhere: true, Why: "appearance lives there"})
+
+	app, err, known := e.placeRemembered(context.Background(), shape, "how do I change the wallpaper")
+	if !known || err != nil || app != "System Settings" {
+		t.Fatalf("app = %q, err = %v, known = %v, want System Settings remembered", app, err, known)
+	}
+}
+
+func TestARememberedPlaceThatStopsWorkingIsForgottenAndAskedAbout(t *testing.T) {
+	const shape = "how do i change the wallpaper"
+	chooser := &saysApp{choice: synth.AppChoice{App: "System Settings"}}
+	e := chooserEngine(t, chooser, []string{"System Settings", "Antigravity IDE"})
+	places := keptPlaces{placeKey(shape): "System Settings\t"}
+	e.Places = places
+	e.Steps = &alwaysStep{step: typeIntoMessage()}
+
+	e.planGuideFor(context.Background(), "how do I change the wallpaper", shape, nil, &screen.Context{AppName: "Antigravity IDE"})
+
+	if places[placeKey(shape)] != "" {
+		t.Errorf("kept %q although the window it led to had nothing to point at", places[placeKey(shape)])
+	}
+	if chooser.calls != 1 {
+		t.Errorf("the model was asked %d time(s), want once after forgetting", chooser.calls)
+	}
+}
+
+func TestARememberedPlaceThatIsNotOpenIsStillAStepToOpenIt(t *testing.T) {
+	const shape = "how do i change the wallpaper"
+	e := chooserEngine(t, &saysApp{}, []string{"Antigravity IDE"})
+	e.Places = keptPlaces{placeKey(shape): "System Settings\tappearance lives there"}
+
+	_, err, known := e.placeRemembered(context.Background(), shape, "how do I change the wallpaper")
+	var notOpen *AppNotOpenError
+	if !known || !errors.As(err, &notOpen) || notOpen.App != "System Settings" || notOpen.Why != "appearance lives there" {
+		t.Fatalf("err = %v, known = %v, want System Settings reported as not open, with why", err, known)
+	}
+}
+
+func TestATaskDoneInTheApplicationInFrontIsNotRemembered(t *testing.T) {
+	places := keptPlaces{}
+	e := &Engine{Places: places}
+
+	e.rememberThePlace(context.Background(), &GuidePlan{App: "Notes", Shape: "where is the search box", Elsewhere: false})
+	e.rememberThePlace(context.Background(), &GuidePlan{App: "example.com", Shape: "how do i log in", Elsewhere: true, Web: true})
+
+	if len(places) != 0 {
+		t.Errorf("remembered %v; in front depends on where they were, and a page is not an application", places)
+	}
+}

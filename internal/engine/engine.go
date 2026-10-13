@@ -194,6 +194,8 @@ type Engine struct {
 
 	Noticed func()
 
+	Places PlaceStore
+
 	Question func(ctx context.Context, question string, options []string) (string, error)
 
 	Map   AppMap

@@ -50,6 +50,43 @@ func (e *AppNotOpenError) Error() string {
 // Falls back to the application in front when there is no chooser or the question
 // cannot be answered. Being unable to improve on the old behaviour is not a
 // reason to refuse the request.
+type PlaceStore interface {
+	Setting(ctx context.Context, key string) (string, error)
+	SetSetting(ctx context.Context, key, value string) error
+}
+
+func placeKey(shape string) string { return "place:" + shape }
+
+func (e *Engine) placeRemembered(ctx context.Context, shape, task string) (string, error, bool) {
+	if e.Places == nil || e.Apps == nil || strings.TrimSpace(shape) == "" {
+		return "", nil, false
+	}
+	kept, err := e.Places.Setting(ctx, placeKey(shape))
+	if err != nil || strings.TrimSpace(kept) == "" {
+		return "", nil, false
+	}
+	name, why, _ := strings.Cut(kept, "\t")
+	app, err := e.Apps.FindInstalled(name)
+	if err != nil {
+		e.logf("%s was where this is done, and is no longer installed; working it out again", name)
+		return "", nil, false
+	}
+	e.logf("this is done in %s, remembered from the last time it was shown", app.Name)
+	if !e.isRunning(app.Name) {
+		return "", &AppNotOpenError{App: app.Name, Task: task, Why: why}, true
+	}
+	return app.Name, nil, true
+}
+
+func (e *Engine) rememberThePlace(ctx context.Context, g *GuidePlan) {
+	if e.Places == nil || g == nil || !g.Elsewhere || g.Web || strings.TrimSpace(g.Shape) == "" {
+		return
+	}
+	if err := e.Places.SetSetting(context.WithoutCancel(ctx), placeKey(g.Shape), g.App+"\t"+g.Why); err != nil {
+		e.logf("could not remember where this is done: %v", err)
+	}
+}
+
 func (e *Engine) appForTask(ctx context.Context, task string, lookingAt *screen.Context) (string, error) {
 	front, frontErr := e.appInQuestion(ctx, lookingAt)
 

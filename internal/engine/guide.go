@@ -75,6 +75,8 @@ type GuidePlan struct {
 
 	Running bool
 
+	Elsewhere bool
+
 	// Why is the model's line about what the application is for, said while they
 	// open it.
 	Why string
@@ -207,8 +209,23 @@ func (e *Engine) planGuideFor(ctx context.Context, task, shape string, literals 
 	}
 
 	// Where the task is done, which is usually not the window behind the panel.
+	if app, err, known := e.placeRemembered(ctx, shape, task); known {
+		if plan, planErr := e.planGuideIn(ctx, task, shape, literals, app, err); planErr == nil {
+			return plan, nil
+		}
+		e.logf("what was remembered about where this is done no longer works; working it out again")
+		if forgetErr := e.Places.SetSetting(context.WithoutCancel(ctx), placeKey(shape), ""); forgetErr != nil {
+			e.logf("could not forget it: %v", forgetErr)
+		}
+	}
+
 	app, err := e.appForTask(ctx, task, lookingAt)
-	return e.planGuideIn(ctx, task, shape, literals, app, err)
+	plan, planErr := e.planGuideIn(ctx, task, shape, literals, app, err)
+	if planErr == nil && plan.Guide != nil {
+		front, _ := e.appInQuestion(ctx, lookingAt)
+		plan.Guide.Elsewhere = !names.Same(plan.Guide.App, front)
+	}
+	return plan, planErr
 }
 
 func (e *Engine) planGuideIn(ctx context.Context, task, shape string, literals map[string]string, app string, err error) (*Plan, error) {
@@ -549,6 +566,7 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 		}
 		return work, stopped(g.App, "engine: there was nothing in %s to point at", g.App)
 	}
+	e.rememberThePlace(ctx, g)
 	e.finished(ctx, plan, work.Calls)
 	return work, nil
 }
