@@ -1791,13 +1791,16 @@ Status on 2026-10-13. Nothing here is code in this repository yet.
   separate setup, not needed yet. A second address for the site
   (`hello@summonvans.in`) can be added as another rule when the site wants one.
 
+- **Site:** live since 2026-10-13 at `https://summonvans.in` and
+  `https://www.summonvans.in`. Source in `website/`. Cloudflare builds it from
+  `main` (project `vans`, root directory `/website`, `npm run build`, then
+  `npx wrangler deploy`), so merging to `main` publishes it. The plan and its
+  work list are `docs/plans/2026-10-13-website.md`.
+
 Next, in order:
 
-1. The website. Built with AGY in `website/` in this repository, which stays
-   private; only the built page is public. Hosted on Cloudflare Pages with
-   root directory `website`, attached to `summonvans.in` from the project's
-   custom-domains tab. The plan is `docs/plans/2026-10-13-website.md`.
-2. The startup-program application, once the site is live.
+1. Vedansh reads the privacy page and rewrites the founder note.
+2. The startup-program application.
 
 Owed, not started:
 
