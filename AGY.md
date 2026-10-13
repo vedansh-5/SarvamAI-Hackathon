@@ -1785,10 +1785,10 @@ Status on 2026-10-13. Nothing here is code in this repository yet.
 
 Next, in order:
 
-1. The website. Built with AGY, in its own public repository (this one stays
-   private), hosted on Cloudflare Pages, attached to `summonvans.in` from the
-   project's custom-domains tab. The plan is
-   `docs/plans/2026-10-13-website.md`.
+1. The website. Built with AGY in `website/` in this repository, which stays
+   private; only the built page is public. Hosted on Cloudflare Pages with
+   root directory `website`, attached to `summonvans.in` from the project's
+   custom-domains tab. The plan is `docs/plans/2026-10-13-website.md`.
 2. The startup-program application, once the site is live.
 
 Decided for the site so far: one page, in the panel's own look (ink, paper,
