@@ -27,8 +27,9 @@ G8. Decided, and parked for later
 
 ## 1. What VANS is
 
-**VANS — Vedansh's Agent Navigation System.** (It began as "Virtual Agent
-Navigation System" and was renamed on 2026-08-16.) A macOS runtime that sits between
+**VANS — Visual Agent Navigation System.** (It began as "Virtual Agent
+Navigation System", became "Vedansh's Agent Navigation System" on 2026-08-16,
+and has been "Visual" since 2026-10-13; D-222.) A macOS runtime that sits between
 a person and their machine. You summon a panel with a hotkey, say what you want
 in your own words, and it does it — on the web, inside applications, or on the
 screen in front of you.
@@ -78,6 +79,7 @@ is no value to validate at all.
 | 2026-09-13 | Why nothing on screen ever worked: `delay` returning -1708, the middle of a tall control being off screen, Stage Manager owning the hit test (#40). |
 | 2026-09-17 | Why VANS would not open (the engine was never built). Gemini wired in. Input moved from scripting to posted events (#44). Read-back verification (#46). CSS injection, softened and background-aware (#47). The on-screen coach overlay. |
 | 2026-09-18 | This record and the README (#48); the working guidelines added. |
+| 2026-10-13 | The domain `summonvans.in`, the site plan, and the name settled as Visual Agent Navigation System, shown only in official documents (D-222). VANS said plainly to be a teacher first. |
 
 ## 3. Shape of the system
 
@@ -1723,7 +1725,13 @@ every change unless a later instruction says otherwise.
 - **A run the planner cannot start is turned down, not offered (D-218).**
 - **What is typed keeps the capitals it was asked with (D-217).** A request is
   lowercased only to recognise its shape; names and text go out as written.
-- **Name:** VANS — Vedansh's Agent Navigation System.
+- **A step is acknowledged the moment it is noticed (D-223).** The ring ticks
+  at once; the wait for the next step comes after, not before.
+- **Name:** VANS. The full form is Visual Agent Navigation System, and it is
+  used only in official documents: this file, the README, the privacy policy
+  and terms. The product, the panel and the site's pages say VANS and do not
+  spell it out. It grew out of "Vedansh's Agent Navigation System", which is
+  kept on record as the origin and no longer used (D-222).
 
 ## G7. UI and design
 

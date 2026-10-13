@@ -844,6 +844,7 @@ func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uia
 			return ctx.Err()
 		case <-advance:
 			pressed := time.Now()
+			e.sayItWasNoticed()
 			e.waitForTheWindowToAnswer(ctx, app, before, changed)
 			e.logf("%s answered the click in %s", app, took(pressed))
 			return nil
@@ -885,6 +886,7 @@ func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uia
 		// The coach's test, not the drive loop's: somebody else is acting, and
 		// the shell reports their click directly (D-109).
 		if uiact.PersonActedOn(before, after, step) {
+			e.sayItWasNoticed()
 			return nil
 		}
 
@@ -906,6 +908,12 @@ func (e *Engine) frontApp(ctx context.Context) string {
 		return ""
 	}
 	return name
+}
+
+func (e *Engine) sayItWasNoticed() {
+	if e.Noticed != nil {
+		e.Noticed()
+	}
 }
 
 var handBackWait = 1200 * time.Millisecond

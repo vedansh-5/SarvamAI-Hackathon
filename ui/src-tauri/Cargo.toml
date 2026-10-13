@@ -1,7 +1,7 @@
 [package]
 name = "vans"
 version = "0.1.0"
-description = "Vedansh's Agent Navigation System"
+description = "Visual Agent Navigation System"
 edition = "2021"
 
 [lib]

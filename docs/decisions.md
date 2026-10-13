@@ -1,6 +1,6 @@
 # VANS — Design Decision Log
 
-**VANS — Vedansh's Agent Navigation System.** A runtime that sits between the user and the operating system, separating reasoning from execution: a language model writes a program once, and the runtime owns, verifies, caches, and replays it with no model involved.
+**VANS — Visual Agent Navigation System.** A runtime that sits between the user and the operating system, separating reasoning from execution: a language model writes a program once, and the runtime owns, verifies, caches, and replays it with no model involved.
 
 A running record of design decisions, the reasoning behind them, and what each one costs.
 
@@ -5016,4 +5016,72 @@ not in an Applications folder, which a build run from elsewhere never is.
 Still open: handing a path to the file window. The sheet opens, the path is
 typed, and the sheet does not close. Whatever is left behind also stops the
 next typing step from landing. Not understood yet.
+
+## D-222 — The letters stand for Visual, and are mostly not spelled out
+
+VANS has had three full forms. It began as "Virtual Agent Navigation System".
+On 2026-08-16 it became "Vedansh's Agent Navigation System", when it stopped
+being an app window and became a panel summoned over whatever you are doing.
+From 2026-10-13 it is "Visual Agent Navigation System".
+
+"Vedansh's" is where it came from and is kept here as the origin. It does not
+suit a thing other people are about to use: it reads as one person's tool.
+"Virtual agent" is the trade's name for a support chatbot, which is not what
+this is. "Visual" says the one thing that sets VANS apart, that it shows you
+on your own screen.
+
+The full form is for official documents only: this log, AGY.md, the README,
+the privacy policy and terms. The product, the panel and the site's pages say
+VANS and nothing more. A name people have to have explained is a weaker name
+than one they just use.
+
+What this costs: the full form was also one of the things that told VANS apart
+from a clothing brand of the same letters. That job is left to the capitals,
+the look, and one line in the site's footer.
+
+Earlier records that say "Vedansh's Agent Navigation System", such as the V1
+design spec, are left as they were written.
+
+## D-223 — A step is acknowledged the moment it is noticed
+
+"It is slow at knowing when a step is completed." The log of that run says
+otherwise about the noticing and agrees about the wait: the click was heard at
+once, and then nothing on screen changed for three to nine seconds.
+
+Two waits sit between a step being done and the next one being drawn. The
+window is given time to answer the click, which took 3.5 seconds in an
+application with a very large tree. And when the plan has run out, the model is
+asked what is left, which took 6 and 9 seconds. Through both, the ring stayed
+on the control exactly as it was before the click, which reads as not having
+been noticed at all.
+
+Neither wait is removed here. What changes is that the person is told at
+once: the ring ticks, and the card says the step was taken and the next is
+coming. It is sent the instant the click is reported or the window shows the
+step was done, before either wait begins. It is its own message to the
+overlay and not a step, so nothing that counts or records steps sees it.
+
+Three smaller things from the same run.
+
+**Asked where something is, the guide stops once it has pointed at it.** The
+plan was not marked as the whole task, so after the click the model was asked
+what was left, and it asked for the same control again, because clicking a
+search box changes nothing it can see. A next step that names the control just
+pointed at now ends a "where is" run.
+
+**The caption stays on screen.** The caption beside the pointer flips to the
+other side when it would run off the edge, by a width measured when its text
+was set. Pausing before a step that cannot be taken back replaces the text
+with a longer line and did not place it again. It is now placed again whenever
+its text changes, and kept inside the screen either way.
+
+**A change of desktop no longer hides a panel that is in the middle of
+something.** D-219 put the panel away on any change of desktop. Bringing an
+application forward for a run VANS carries out is itself a change of desktop
+under Stage Manager, so the panel vanished while it was working out the plan
+it was about to ask to have confirmed. The shell now tells the panel, and the
+panel stays while it is working, confirming or asking a question.
+
+Still slow, and not addressed: the six to nine seconds the model takes on a
+large window. That is the next thing to measure.
 

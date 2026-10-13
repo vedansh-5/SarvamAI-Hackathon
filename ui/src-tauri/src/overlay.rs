@@ -687,7 +687,11 @@ fn leave_when_the_desktop_changes(app: &AppHandle) {
         }
         let Some(win) = window(&handle) else { return };
         if win.is_visible().unwrap_or(false) {
-            hide_because(&handle, "moved to another desktop");
+            // The panel decides. While it is working on a request or waiting to
+            // be confirmed, a change of desktop is usually VANS itself bringing
+            // the application forward, and hiding then took away the very
+            // thing the person was waiting for.
+            let _ = win.emit("overlay://desktop-changed", ());
         }
     });
 

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <rect width="1200" height="630" fill="#10110E"/>
+  <!-- Subtle dot pattern -->
+  <g fill="#F3F4EE" opacity="0.06">
+    <circle cx="100" cy="100" r="1.5"/><circle cx="140" cy="100" r="1.5"/><circle cx="180" cy="100" r="1.5"/>
+    <circle cx="100" cy="140" r="1.5"/><circle cx="140" cy="140" r="1.5"/><circle cx="180" cy="140" r="1.5"/>
+    <circle cx="100" cy="180" r="1.5"/><circle cx="140" cy="180" r="1.5"/><circle cx="180" cy="180" r="1.5"/>
+  </g>
+  <!-- Kicker -->
+  <g transform="translate(120, 160)">
+    <circle cx="6" cy="6" r="4" fill="#FFD23F"/>
+    <text x="22" y="10" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" font-size="14" font-weight="600" fill="#FFD23F" letter-spacing="2">VANS · FOR MAC</text>
+  </g>
+  <!-- Headline -->
+  <text x="120" y="270" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif" font-size="64" font-weight="650" fill="#F3F4EE" letter-spacing="-1">
+    Ask how. It shows you,
+  </text>
+  <text x="120" y="348" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif" font-size="64" font-weight="650" fill="#F3F4EE" letter-spacing="-1">
+    right on your screen.
+  </text>
+  <!-- Sub -->
+  <text x="120" y="430" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" font-size="20" font-weight="400" fill="#F3F4EE" opacity="0.65">
+    A guide you summon with ⌥Space. It points at the next thing to click and waits while you do it.
+  </text>
+  <!-- Right side graphic: volt ring + pointer -->
+  <g transform="translate(860, 260)">
+    <circle cx="100" cy="100" r="44" fill="none" stroke="#FFD23F" stroke-width="2.5" stroke-dasharray="3 3" opacity="0.4"/>
+    <circle cx="100" cy="100" r="32" fill="none" stroke="#FFD23F" stroke-width="2"/>
+    <circle cx="100" cy="100" r="6" fill="#FFD23F"/>
+    <!-- Pointer -->
+    <path d="M100 100 L128 165 L114 167 L109 180 L97 176 L102 163 L88 158 Z" fill="#FFD23F"/>
+    <rect x="135" y="160" width="46" height="20" rx="4" fill="#10110E" stroke="#FFD23F" stroke-width="1"/>
+    <text x="144" y="174" font-family="ui-monospace, monospace" font-size="10" font-weight="700" fill="#FFD23F">VANS</text>
+  </g>
+</svg>

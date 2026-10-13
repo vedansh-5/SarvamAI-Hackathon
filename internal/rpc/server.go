@@ -871,6 +871,7 @@ func (s *Server) guide(ctx context.Context, req Request) (GuideResult, error) {
 	eng.Log = func(format string, args ...any) { s.notify(req.ID, format, args...) }
 	eng.Question = s.asker(req.ID)
 	eng.Reply = reply
+	eng.Noticed = func() { s.push(req.ID, "guide_noticed", struct{}{}) }
 
 	work, err := eng.RunGuideCounted(guideCtx, plan, func(g engine.GuideStep) {
 		s.push(req.ID, "guide", GuideStepParams{

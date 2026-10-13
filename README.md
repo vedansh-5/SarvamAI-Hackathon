@@ -1,6 +1,6 @@
 # VANS
 
-**Vedansh's Agent Navigation System** — a macOS runtime that does things on your
+**Visual Agent Navigation System** — a macOS runtime that does things on your
 machine when you ask it to, in your own words.
 
 Press **Alt+Space**, say what you want, and it happens: on the web, inside an

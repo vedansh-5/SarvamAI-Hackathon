@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Privacy — VANS</title>
+    <meta name="description" content="Privacy policy for VANS. Plain about what leaves your Mac, what is kept, and what VANS never does." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:title" content="Privacy — VANS" />
+    <meta property="og:description" content="Privacy policy for VANS. Plain about what leaves your Mac, what is kept, and what VANS never does." />
+    <meta property="og:image" content="/og-image.svg" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem("vans-theme") || "light";
+          document.documentElement.setAttribute("data-theme", t);
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
+  </head>
+  <body class="privacy-body">
+    <header class="site-header">
+      <div class="site-header-inner">
+        <a href="/" class="header-brand" aria-label="VANS home">VANS</a>
+        <div class="header-right">
+          <a href="/" class="text-link header-nav-link">Home</a>
+          <button type="button" id="header-theme-toggle" class="theme-toggle btn-ghost" aria-label="Toggle light or dark theme">
+            <span class="theme-icon" aria-hidden="true"></span>
+            <span class="theme-label">Dark mode</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="privacy-container">
+      <article class="privacy-article">
+        <h1>Privacy</h1>
+<p><strong>First draft, 13 October 2026.</strong> VANS is in private testing and this page will change as VANS does. Every change is listed at the bottom.</p>
+<h2>The short version</h2>
+<ul>
+<li>VANS has no account, no sign-up and no server of its own. There is nothing of yours on a VANS computer, because there isn't one.</li>
+<li>VANS looks at your screen only when you ask it something, and only at what the question is about.</li>
+<li>To answer, it sends your request and the relevant text to a model provider, straight from your Mac. The panel tells you when it has done so.</li>
+<li>What VANS remembers is kept in one folder on your Mac. You can delete it at any time.</li>
+<li>This website uses no cookies, no analytics and no trackers.</li>
+</ul>
+<h2>Who is behind VANS</h2>
+<p>VANS (Visual Agent Navigation System) is made by Vedansh Saini, an individual developer in Roorkee, India. It is not yet a registered company. You can reach me at <a href="mailto:vedansh@summonvans.in" class="text-link">vedansh@summonvans.in</a>.</p>
+<h2>This website</h2>
+<ul>
+<li><strong>No cookies and no tracking.</strong> The site sets no cookies and loads nothing from other companies. Fonts are served from the site itself. Your choice of light or dark is saved in your own browser and never sent anywhere.</li>
+<li><strong>Hosting.</strong> The site is served by Cloudflare. Like any host, Cloudflare processes technical details of each visit, such as your IP address and browser type, in order to deliver the page and keep it secure. I do not use these to identify you.</li>
+<li><strong>Email.</strong> If you write to an address at summonvans.in, I receive your email address and whatever you choose to tell me. I use it to reply and to arrange testing. I do not add you to a mailing list. Ask me to delete your emails and I will.</li>
+</ul>
+<h2>The VANS app</h2>
+<h3>What VANS reads on your Mac</h3>
+<p>VANS reads only when you ask, and only what the request needs:</p>
+<ul>
+<li><strong>The window you are asking about:</strong> the names, values and positions of its buttons, fields and menus, so it can point at them or act on them.</li>
+<li><strong>The page in front, or the text you have selected,</strong> when you ask about it.</li>
+<li><strong>The names of files</strong> in a folder your request is about. VANS does not open your files or read their contents.</li>
+<li><strong>The names of the applications</strong> you have installed and which are open, so it can tell where a task is done.</li>
+<li><strong>A picture of one window,</strong> only for the few applications that do not describe their own controls. VANS tells you before a run that it will look at the window.</li>
+</ul>
+<p>VANS does not watch your screen in the background, record your keystrokes, or read anything between requests.</p>
+<h3>What leaves your Mac</h3>
+<p>To understand a request and plan the steps, VANS sends these to a model provider over an encrypted connection:</p>
+<ul>
+<li>the words of your request;</li>
+<li>the part of what it read that the request needs: the window's controls, the page text, the selected text, the file names, or the picture of the window.</li>
+</ul>
+<p>This goes directly from your Mac to the model provider. It does not pass through any server run by VANS. When the text a window was showing has been sent to answer you, the panel says so in the answer.</p>
+<p>In the current build the model provider is Google, through the Gemini API. The provider processes what it receives under its own terms and privacy policy. If the provider changes, this page will say so before the change reaches you.</p>
+<p>Nothing is sold, and nothing is used for advertising.</p>
+<h3>What VANS keeps, and where</h3>
+<p>Everything VANS remembers is in one folder on your Mac, <code>~/.vans</code>. It holds:</p>
+<ul>
+<li><strong>Your last three finished requests,</strong> so you can run them again. Older ones are not kept.</li>
+<li><strong>A record of what VANS changed,</strong> such as files it moved, so that each change can be undone.</li>
+<li><strong>What you asked it to keep:</strong> routines, facts, schedules, and your rules about what it must never touch.</li>
+<li><strong>How a kind of request was handled,</strong> so the same kind is faster next time. These are stored as patterns with your own words, names and numbers taken out.</li>
+<li><strong>What it has learned about where things are in an application,</strong> so a guide does not have to work it out twice.</li>
+</ul>
+<p>The key that lets VANS call the model provider is kept in the macOS Keychain, not in that folder.</p>
+<h3>Removing it</h3>
+<ul>
+<li>A remembered request, a routine or a fact can each be removed from the panel.</li>
+<li>Deleting the folder <code>~/.vans</code> removes everything VANS has kept. Nothing remains anywhere else, because nothing was stored anywhere else.</li>
+</ul>
+<h3>Permissions VANS asks macOS for</h3>
+<ul>
+<li><strong>Accessibility,</strong> to read a window's controls and, when you confirm, to click and type.</li>
+<li><strong>Automation,</strong> to work with applications that support it, such as Notes and Reminders.</li>
+<li><strong>Screen Recording,</strong> only if you want VANS to be able to look at windows that do not describe their own controls.</li>
+</ul>
+<p>You can withdraw any of these in System Settings, under Privacy & Security.</p>
+<h2>What VANS will not do</h2>
+<ul>
+<li>Change a file, a setting or an application without you holding the key to confirm.</li>
+<li>Open or switch applications on its own.</li>
+<li>Run anything in the background that you did not ask for.</li>
+<li>Collect usage statistics. The app contains no analytics.</li>
+</ul>
+<h2>Children</h2>
+<p>VANS is not directed at children under 13, and I do not knowingly collect information from them.</p>
+<h2>Your rights</h2>
+<p>What VANS keeps is on your own Mac and under your control. For anything I hold myself, which is only email you have sent me, you can ask to see it, correct it or have it deleted by writing to <a href="mailto:vedansh@summonvans.in" class="text-link">vedansh@summonvans.in</a>. I will answer within 14 days.</p>
+<h2>Changes to this page</h2>
+<p>When what VANS reads, sends or keeps changes, this page changes with it, and the change is listed here with its date.</p>
+<ul>
+<li><strong>13 October 2026.</strong> First draft.</li>
+</ul>
+<h2>Contact</h2>
+<p><a href="mailto:vedansh@summonvans.in" class="text-link">vedansh@summonvans.in</a></p>
+      </article>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer-inner">
+        <div class="footer-top">
+          <div class="footer-brand">
+            <span class="brand-wordmark">VANS</span>
+          </div>
+          <div class="footer-controls">
+            <button type="button" id="footer-theme-toggle" class="theme-toggle btn-ghost" aria-label="Toggle light or dark theme">
+              <span class="theme-icon" aria-hidden="true"></span>
+              <span class="theme-label">Dark mode</span>
+            </button>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <div class="footer-copy">© 2026 Vedansh Saini · <a href="/privacy" class="text-link">Privacy</a></div>
+          <div class="footer-disclaimer">VANS is not affiliated with any clothing or footwear brand.</div>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

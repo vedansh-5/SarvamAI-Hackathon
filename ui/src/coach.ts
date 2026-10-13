@@ -147,6 +147,7 @@ function captionFor(pointer: Pointer, verb: string): string {
 let captionWidth = 0;
 let captionAbove = false;
 let captionLift = 40;
+let captionAt: { x: number; y: number } | null = null;
 
 function setCaption(text: string, hint: string) {
   const caption = elementById<HTMLElement>("caption");
@@ -158,12 +159,14 @@ function setCaption(text: string, hint: string) {
   }
   caption.classList.add("on");
   captionWidth = caption.offsetWidth;
+  if (captionAt) moveCaption(captionAt.x, captionAt.y);
 }
 
 const CAPTION_UNDER_TAG = 38;
 
 function moveCaption(x: number, y: number) {
   const caption = elementById<HTMLElement>("caption");
+  captionAt = { x, y };
   if (keepClearOf) {
     // Beside the menu, level with the row. Anywhere on the menu covers a row.
     let beside = keepClearOf.x + keepClearOf.w + 10;
@@ -174,6 +177,7 @@ function moveCaption(x: number, y: number) {
   }
   let left = x + 14;
   if (left + captionWidth > window.innerWidth - 8) left = x - 18 - captionWidth;
+  left = Math.max(8, Math.min(left, window.innerWidth - 8 - captionWidth));
   const top = captionAbove
     ? Math.max(8, y - captionLift)
     : Math.min(y + CAPTION_UNDER_TAG, window.innerHeight - 34);
@@ -182,6 +186,7 @@ function moveCaption(x: number, y: number) {
 
 function hideCaption() {
   elementById<HTMLElement>("caption").classList.remove("on");
+  captionAt = null;
 }
 
 function elementById<T extends HTMLElement | SVGElement>(id: string): T {
@@ -716,6 +721,20 @@ function markItDone() {
   setCaption("Done", "");
 }
 
+function markItNoticed() {
+  if (!currentBounds || runMode !== "coach") return;
+
+  elementById<HTMLElement>("ring").classList.add("done");
+  elementById<HTMLElement>("badge").textContent = "\u2713";
+  elementById<SVGGElement>("tap").setAttribute("opacity", "0");
+
+  const detail = elementById<HTMLElement>("detail");
+  detail.hidden = false;
+  detail.textContent = "Got it. Next step coming\u2026";
+  setHint([["esc", "Stop"]]);
+  if (elementById<HTMLElement>("caption").classList.contains("on")) setCaption("Got it", "");
+}
+
 function dismissCoach() {
   if (animationFrameId !== null) {
     cancelAnimationFrame(animationFrameId);
@@ -739,6 +758,7 @@ void Promise.all([
   listen<Pointer>("coach:point", (event) => renderCoachStep(event.payload)),
   listen("coach:clear", () => dismissCoach()),
   listen("coach:done", () => markItDone()),
+  listen("engine://guide_noticed", () => markItNoticed()),
   listen<{ ask?: string; label?: string } | null>("coach:paused", (event) => showPaused(event.payload)),
 ]).then(() => {
   note("listening");

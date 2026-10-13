@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -706,6 +707,9 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 				case more.Done:
 					e.logf("finished after %d step(s): %s", len(done), more.Why)
 					return finished(more.Why), nil
+				case w.pointing && len(did) > 0 && reflect.DeepEqual(more.Steps[0].Target, did[len(did)-1].Target):
+					e.logf("finished after %d step(s): asked where it is, and the next step would point at the same thing again", len(done))
+					return finished("what was asked about has been pointed at"), nil
 				case len(more.Steps) > 0:
 					trace = append(append([]uiact.Step{}, trace[:i-1]...), more.Steps...)
 					whole = more.Whole

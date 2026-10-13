@@ -2209,6 +2209,13 @@ listen<{ params: DueTask }>("engine://schedule_due", (event) => {
   }
 });
 
+const STAYS_THROUGH_A_DESKTOP_CHANGE = new Set(["working", "confirm", "question"]);
+
+listen("overlay://desktop-changed", () => {
+  if (STAYS_THROUGH_A_DESKTOP_CHANGE.has(showing)) return;
+  invoke("dismiss").catch(console.error);
+});
+
 listen("overlay://hidden", () => {
   const offersAWayOn = showing === "failure" && $("failure-detail").querySelector("button") !== null;
   openFresh = FINISHED.has(showing) && !offersAWayOn;

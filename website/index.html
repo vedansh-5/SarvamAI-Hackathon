@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VANS — Ask how. It shows you, right on your screen.</title>
+    <meta
+      name="description"
+      content="VANS is a guide for Mac you summon with ⌥Space. Ask how to do something and it points at the next thing to click and waits while you do it."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:title" content="VANS — Ask how. It shows you, right on your screen." />
+    <meta
+      property="og:description"
+      content="A guide for Mac you summon with ⌥Space. It points at the next thing to click and waits while you do it, or does the job for you."
+    />
+    <meta property="og:image" content="/og-image.svg" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem("vans-theme") || "light";
+          document.documentElement.setAttribute("data-theme", t);
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+    <!-- Header with visible theme switch -->
+    <header class="site-header">
+      <div class="site-header-inner">
+        <a href="/" class="header-brand" aria-label="VANS home">VANS</a>
+        <div class="header-right">
+          <a href="/privacy" class="header-link text-link">Privacy</a>
+          <button type="button" id="header-theme-toggle" class="theme-toggle btn-ghost" aria-label="Toggle light or dark theme">
+            <span class="theme-icon" aria-hidden="true"></span>
+            <span class="theme-label">Dark mode</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="site">
+      <!-- Section 1: Hero -->
+      <section id="hero" class="hero-section">
+        <div class="hero-copy">
+          <div class="kicker"><span class="kicker-dot" aria-hidden="true"></span>VANS · FOR MAC</div>
+          <h1 class="headline">Ask how. It shows you, right on your screen.</h1>
+          <p class="subhead">
+            VANS is a guide you summon with <kbd>⌥</kbd><kbd>Space</kbd>. Ask how to do something and it points at the next thing to click, in the app you are already in, and waits while you do it. When you would rather not, it can do the job for you.
+          </p>
+          <div class="hero-actions">
+            <a href="mailto:vedansh@summonvans.in?subject=VANS%20tester&body=Mac%20model%3A%0D%0AmacOS%20version%3A" class="vans-pill">
+              <span class="vans-pill-icon" aria-hidden="true"></span>
+              <span class="vans-pill-text">
+                <span class="vans-pill-label">Join the testers</span>
+                <span class="vans-pill-halo" aria-hidden="true">Join the testers</span>
+              </span>
+            </a>
+            <a href="mailto:vedansh@summonvans.in?subject=VANS%20on%20Windows&body=Windows%20version%3A" class="text-link">Windows? Tell me.</a>
+          </div>
+        </div>
+
+        <div id="guide-demo-root" class="guide-demo-container"></div>
+        <div class="demo-hint mono-line">Click the ringed control, or press <kbd>⌥</kbd><kbd>Space</kbd> for the next step</div>
+      </section>
+
+      <!-- Section 2: Two Ways -->
+      <section id="two-ways" class="two-ways-section">
+        <div class="section-header">
+          <div class="kicker"><span class="kicker-dot" aria-hidden="true"></span>TWO WAYS</div>
+          <h2 class="section-head">Learn it once. Or hand it over.</h2>
+        </div>
+        <div class="two-ways-grid">
+          <div class="way-card primary">
+            <h3>Show me how.</h3>
+            <p>
+              VANS puts a ring on the next control and waits. You do the clicking, so the next time you know where it is. It moves on when the window shows you did the step. Leave the app and the guide waits for you; come back and it is on the same step.
+            </p>
+          </div>
+          <div class="way-card secondary">
+            <h3>Do it for me.</h3>
+            <p>
+              The same steps, carried out by VANS where you can watch. It shows the plan first, and anything that changes something waits for you to confirm.
+            </p>
+          </div>
+        </div>
+        <div class="bridge-note">
+          <strong>Part way through being shown, you can hand a step over.</strong> When a step is typing something in, the guide offers <kbd>⌘</kbd><kbd>↵</kbd> Do it for me, and <kbd>⇧</kbd><kbd>⌘</kbd><kbd>↵</kbd> for the rest like it.
+        </div>
+        <div id="panel-demo-root" class="panel-demo-container"></div>
+      </section>
+
+      <!-- Section 3: What you can ask -->
+      <section id="ask" class="ask-section">
+        <div class="section-header">
+          <div class="kicker"><span class="kicker-dot" aria-hidden="true"></span>ASK</div>
+          <h2 class="section-head">Start with "how do I".</h2>
+        </div>
+        <div class="requests-grid" id="requests-grid">
+          <div class="request-card" data-category="teach" data-request="how do I change my wallpaper">
+            <div class="request-head">
+              <span class="request-mark mark-blue" aria-hidden="true"></span>
+              <span class="request-query">how do I change my wallpaper</span>
+            </div>
+            <div class="request-action">Tells you which app it lives in, then points at each control in turn</div>
+          </div>
+          <div class="request-card" data-category="teach" data-request="show me where the search box is">
+            <div class="request-head">
+              <span class="request-mark mark-teal" aria-hidden="true"></span>
+              <span class="request-query">show me where the search box is</span>
+            </div>
+            <div class="request-action">Points at it on your screen and waits for you</div>
+          </div>
+          <div class="request-card" data-category="teach" data-request="how do I add a reminder for tomorrow">
+            <div class="request-head">
+              <span class="request-mark mark-violet" aria-hidden="true"></span>
+              <span class="request-query">how do I add a reminder for tomorrow</span>
+            </div>
+            <div class="request-action">Walks you through it in Reminders, and offers to type the text for you</div>
+          </div>
+          <div class="request-card" data-category="panel" data-request="what does this error say">
+            <div class="request-head">
+              <span class="request-mark mark-green" aria-hidden="true"></span>
+              <span class="request-query">what does this error say</span>
+            </div>
+            <div class="request-action">Reads what is on screen and explains it in plain words</div>
+          </div>
+          <div class="request-card" data-category="panel" data-request="what is this page about">
+            <div class="request-head">
+              <span class="request-mark mark-blue" aria-hidden="true"></span>
+              <span class="request-query">what is this page about</span>
+            </div>
+            <div class="request-action">Reads the page in front and answers in the panel</div>
+          </div>
+          <div class="request-card" data-category="panel" data-request="translate &quot;good morning, see you at three&quot; to Hindi">
+            <div class="request-head">
+              <span class="request-mark mark-violet" aria-hidden="true"></span>
+              <span class="request-query">translate "good morning, see you at three" to Hindi</span>
+            </div>
+            <div class="request-action">Works on the quoted or selected text and hands it back to copy</div>
+          </div>
+          <div class="request-card" data-category="panel" data-request="move the screenshots on my Desktop into a folder called Screenshots">
+            <div class="request-head">
+              <span class="request-mark mark-teal" aria-hidden="true"></span>
+              <span class="request-query">move the screenshots on my Desktop into a folder called Screenshots</span>
+            </div>
+            <div class="request-action">Shows what it will move, waits for you, and can put every file back</div>
+          </div>
+          <div class="request-card" data-category="panel" data-request="in 1 minute remind me to stretch">
+            <div class="request-head">
+              <span class="request-mark mark-green" aria-hidden="true"></span>
+              <span class="request-query">in 1 minute remind me to stretch</span>
+            </div>
+            <div class="request-action">Brings it back at the time. It does not run things behind your back</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 4: Control -->
+      <section id="control" class="control-section">
+        <div class="section-header">
+          <div class="kicker"><span class="kicker-dot" aria-hidden="true"></span>CONTROL</div>
+          <h2 class="section-head">Nothing changes until you hold the key.</h2>
+        </div>
+        <div class="control-split">
+          <div class="control-list">
+            <div class="control-item">
+              <h3>It asks first.</h3>
+              <p>Anything that changes a file, a setting or an app waits for you to hold Return. A press is not enough.</p>
+            </div>
+            <div class="control-item">
+              <h3>It can be undone.</h3>
+              <p>File moves and typed text go into a record, and each can be put back.</p>
+            </div>
+            <div class="control-item">
+              <h3>It does not open or switch apps on its own.</h3>
+              <p>If a step needs another app, opening it is a step it shows you.</p>
+            </div>
+            <div class="control-item">
+              <h3>You set the limits.</h3>
+              <p>Places it must never touch, things it must always ask about.</p>
+            </div>
+          </div>
+          <div id="confirm-demo-root" class="confirm-demo-container"></div>
+        </div>
+      </section>
+
+      <!-- Section 5: Privacy -->
+      <section id="privacy" class="privacy-section">
+        <div class="section-header">
+          <div class="kicker"><span class="kicker-dot" aria-hidden="true"></span>PRIVACY</div>
+          <h2 class="section-head">Plain about what leaves your Mac.</h2>
+        </div>
+        <div class="privacy-content">
+          <ul class="privacy-bullets">
+            <li>VANS looks at your screen only when you ask it something, and only at what the question is about.</li>
+            <li>To answer, it sends your request and the relevant text to a model provider, straight from your Mac. The panel tells you when it has done so.</li>
+            <li>What VANS remembers is kept in one folder on your Mac. You can delete it at any time.</li>
+          </ul>
+          <div class="privacy-more">
+            <a href="/privacy" class="text-link">Read the full privacy page</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 6: Why & Ask -->
+      <section id="why" class="why-section">
+        <div class="section-header">
+          <div class="kicker"><span class="kicker-dot" aria-hidden="true"></span>WHY</div>
+        </div>
+        <blockquote class="founder-note">
+          <p>
+            I built VANS because I was tired of looking up how to do small things on my own Mac: where a setting lives, which menu has the thing I need. A video shows you someone else's screen. I wanted something that would point at mine and wait while I did it, so that the next time I would just know. It can also do the job for you when you do not care to learn it, and it shows you exactly what it is about to do first. VANS is early. A few people are testing it, and I would like you to be one of them.
+          </p>
+          <footer>— Vedansh</footer>
+        </blockquote>
+        <div class="final-ask">
+          <a href="mailto:vedansh@summonvans.in?subject=VANS%20tester&body=Mac%20model%3A%0D%0AmacOS%20version%3A" class="vans-pill">
+            <span class="vans-pill-icon" aria-hidden="true"></span>
+            <span class="vans-pill-text">
+              <span class="vans-pill-label">Join the testers</span>
+              <span class="vans-pill-halo" aria-hidden="true">Join the testers</span>
+            </span>
+          </a>
+          <div class="mono-line">vedansh@summonvans.in</div>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="site-footer">
+        <div class="footer-top">
+          <div class="footer-brand">
+            <span class="brand-wordmark">VANS</span>
+          </div>
+          <div class="footer-theme">
+            <button id="footer-theme-toggle" class="theme-toggle btn-ghost" type="button" aria-label="Toggle light or dark theme">
+              <span class="theme-icon" aria-hidden="true"></span>
+              <span class="theme-label">Dark mode</span>
+            </button>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <div class="footer-copy">© 2026 Vedansh Saini · <a href="/privacy" class="text-link">Privacy</a></div>
+          <div class="footer-disclaimer">VANS is not affiliated with any clothing or footwear brand.</div>
+        </div>
+      </footer>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

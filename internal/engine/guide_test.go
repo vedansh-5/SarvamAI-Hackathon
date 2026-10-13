@@ -803,3 +803,57 @@ func TestPlanningAGuideDoesNotBringAHiddenApplicationForward(t *testing.T) {
 		t.Errorf("brought %v to the front while planning", screen.raised)
 	}
 }
+
+func TestTheGuideSaysAtOnceThatAStepWasNoticed(t *testing.T) {
+	quickGuide(t)
+
+	moved := editorTree()
+	moved.Elements[0].Value = "hello"
+	screen := &fakeScreen{tree: editorTree(), afterwards: &moved, changesAfter: 1}
+	noticed := 0
+	e := &Engine{UIScreen: screen, Noticed: func() { noticed++ }, Steps: &scriptedSteps{
+		answers: []synth.StepAnswer{{Step: typeIntoMessage()}, {Done: true, Why: "that is all"}},
+	}}
+
+	if _, err := e.RunGuide(context.Background(), guidePlan(), func(GuideStep) {}, nil); err != nil {
+		t.Fatalf("RunGuide: %v", err)
+	}
+	if noticed != 1 {
+		t.Errorf("said a step was noticed %d time(s), want once for the one step done", noticed)
+	}
+}
+
+type pointsAgain struct{ calls int }
+
+func (p *pointsAgain) WritePlan(_ context.Context, req synth.PlanRequest) (synth.PlanAnswer, error) {
+	p.calls++
+	return synth.PlanAnswer{Steps: []uiact.Step{clickMessage()}}, nil
+}
+
+func TestAskedWhereSomethingIsTheGuideStopsOnceItHasPointedAtIt(t *testing.T) {
+	quickGuide(t)
+
+	planner := &pointsAgain{}
+	advance := make(chan struct{}, 4)
+	advance <- struct{}{}
+	e := &Engine{UIScreen: &movingScreen{}, Plans: planner, Steps: &countingSteps{}}
+
+	var shown []GuideStep
+	plan := &Plan{Guide: &GuidePlan{App: "Editor", Task: "show me where the message box is"}}
+	_, err := e.RunGuide(context.Background(), plan, func(g GuideStep) {
+		shown = append(shown, g)
+		select {
+		case advance <- struct{}{}:
+		default:
+		}
+	}, advance)
+	if err != nil {
+		t.Fatalf("RunGuide: %v", err)
+	}
+	if len(shown) != 1 {
+		t.Errorf("pointed %d time(s), want once: the second plan named the same control", len(shown))
+	}
+	if planner.calls != 2 {
+		t.Errorf("the planner was asked %d time(s), want 2", planner.calls)
+	}
+}

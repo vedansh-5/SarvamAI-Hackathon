@@ -192,6 +192,8 @@ type Engine struct {
 
 	Reply <-chan OfferReply
 
+	Noticed func()
+
 	Question func(ctx context.Context, question string, options []string) (string, error)
 
 	Map   AppMap
