@@ -1794,8 +1794,10 @@ Status on 2026-10-13. Nothing here is code in this repository yet.
 - **Site:** live since 2026-10-13 at `https://summonvans.in` and
   `https://www.summonvans.in`. Source in `website/`. Cloudflare builds it from
   `main` (project `vans`, root directory `/website`, `npm run build`, then
-  `npx wrangler deploy`), so merging to `main` publishes it. The plan and its
-  work list are `docs/plans/2026-10-13-website.md`.
+  `npx wrangler deploy`), so merging to `main` publishes it. The standing
+  rules are `website/RULES.md`; the plan and its work list are
+  `docs/plans/2026-10-13-website.md`. A new rule is added to the rules file in
+  the pull request that made it necessary.
 
 Next, in order:
 
