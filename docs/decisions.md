@@ -5120,3 +5120,34 @@ Vedansh's. The client already speaks to any provider with this interface.
 Not done: fewer calls per guide. Each "what is left" question is a call that a
 plan marked whole would not need, and that is worth its own look.
 
+## D-225 — A key or a click carries only the modifiers it was given
+
+Handing a path to a file window failed every time, and whatever was typed next
+went astray too (D-221 left it open). Watched step by step in a test window:
+Command-Shift-G opened the go-to box as it should, and the moment the path was
+typed the box closed and the file window jumped to Applications.
+
+Command-Shift-A is the file window's shortcut for Applications. The path was
+being typed with Command and Shift still on it.
+
+A synthetic key event made without a source takes its modifier flags from the
+session's current state, and that state still held the Command and Shift of
+the shortcut posted a moment before. The events for typed text never set
+flags, and a plain key press only set them when it had some to set, so both
+inherited whatever the last shortcut left behind. Every character became a
+shortcut: the first went to Applications, and the Returns that followed were
+Command-Shift-Return.
+
+Every event VANS posts now states its flags outright, zero included: typed
+text, key presses, clicks, double and right clicks, moves, drags and scrolls.
+The mouse was changed with the keys because the same inheritance would make a
+click after a shortcut a Command-click, which selects or opens in a new tab.
+
+With that, the hands-on run passes all fifteen checks in one go for the first
+time: typing, a slider, a checkbox, a pop-up menu, double-click, right-click
+and choose, the file window, three steps in one request, undo of typing,
+reading a window, and the guide entering values and taking them back.
+
+This cannot be covered by a unit test, since the fault is in what the system
+does with a posted event. The hands-on run is the test.
+

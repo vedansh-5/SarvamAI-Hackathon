@@ -1725,6 +1725,8 @@ every change unless a later instruction says otherwise.
 - **A run the planner cannot start is turned down, not offered (D-218).**
 - **What is typed keeps the capitals it was asked with (D-217).** A request is
   lowercased only to recognise its shape; names and text go out as written.
+- **Every key and click VANS posts states its modifiers outright (D-225).**
+  Left unset they inherit the last shortcut's, and typed text becomes shortcuts.
 - **Slow steps are the model provider being overloaded (D-224).** Retries are
   logged as `[model]`, and the guide says when the model is slow. The fix is a
   provider that is not overloaded, which is a cost decision.

@@ -10,17 +10,18 @@ package uiact
 static void cgClick(double x, double y) {
     CGPoint pt = CGPointMake(x, y);
     CGEventRef move = CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, pt, kCGMouseButtonLeft);
-    if (move) { CGEventPost(kCGHIDEventTap, move); CFRelease(move); }
+    if (move) { CGEventSetFlags(move, 0); CGEventPost(kCGHIDEventTap, move); CFRelease(move); }
     CGEventRef down = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDown, pt, kCGMouseButtonLeft);
-    if (down) { CGEventPost(kCGHIDEventTap, down); CFRelease(down); }
+    if (down) { CGEventSetFlags(down, 0); CGEventPost(kCGHIDEventTap, down); CFRelease(down); }
     CGEventRef up = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseUp, pt, kCGMouseButtonLeft);
-    if (up) { CGEventPost(kCGHIDEventTap, up); CFRelease(up); }
+    if (up) { CGEventSetFlags(up, 0); CGEventPost(kCGHIDEventTap, up); CFRelease(up); }
 }
 
 static void cgPost(CGEventType type, CGPoint pt, CGMouseButton button, int clicks) {
     CGEventRef e = CGEventCreateMouseEvent(NULL, type, pt, button);
     if (!e) return;
     if (clicks > 0) CGEventSetIntegerValueField(e, kCGMouseEventClickState, clicks);
+    CGEventSetFlags(e, 0);
     CGEventPost(kCGHIDEventTap, e);
     CFRelease(e);
 }
@@ -50,6 +51,7 @@ static void cgScroll(double x, double y, int down, int right) {
     usleep(40000);
     CGEventRef e = CGEventCreateScrollWheelEvent(NULL, kCGScrollEventUnitLine, 2, -down, -right);
     if (!e) return;
+    CGEventSetFlags(e, 0);
     CGEventPost(kCGHIDEventTap, e);
     CFRelease(e);
 }
@@ -74,12 +76,14 @@ static void cgTypeChunk(UniChar *chars, int n) {
     CGEventRef down = CGEventCreateKeyboardEvent(NULL, 0, true);
     if (down) {
         CGEventKeyboardSetUnicodeString(down, n, chars);
+        CGEventSetFlags(down, 0);
         CGEventPost(kCGHIDEventTap, down);
         CFRelease(down);
     }
     CGEventRef up = CGEventCreateKeyboardEvent(NULL, 0, false);
     if (up) {
         CGEventKeyboardSetUnicodeString(up, n, chars);
+        CGEventSetFlags(up, 0);
         CGEventPost(kCGHIDEventTap, up);
         CFRelease(up);
     }
@@ -88,13 +92,13 @@ static void cgTypeChunk(UniChar *chars, int n) {
 static void cgKey(int code, unsigned long long flags) {
     CGEventRef down = CGEventCreateKeyboardEvent(NULL, (CGKeyCode)code, true);
     if (down) {
-        if (flags) CGEventSetFlags(down, (CGEventFlags)flags);
+        CGEventSetFlags(down, (CGEventFlags)flags);
         CGEventPost(kCGHIDEventTap, down);
         CFRelease(down);
     }
     CGEventRef up = CGEventCreateKeyboardEvent(NULL, (CGKeyCode)code, false);
     if (up) {
-        if (flags) CGEventSetFlags(up, (CGEventFlags)flags);
+        CGEventSetFlags(up, (CGEventFlags)flags);
         CGEventPost(kCGHIDEventTap, up);
         CFRelease(up);
     }
