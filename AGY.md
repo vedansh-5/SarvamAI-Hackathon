@@ -1775,26 +1775,20 @@ Status on 2026-10-13. Nothing here is code in this repository yet.
 
 - **Domain:** `summonvans.in`, registered at GoDaddy on 2026-10-13. First year
   paid; it renews in October 2027 at the full price. No add-ons were taken.
-- **DNS:** being moved to Cloudflare (free plan). The two Cloudflare
-  nameservers were given to GoDaddy on 2026-10-13. Cloudflare sends a mail when
-  the domain is active; until then nothing below can be done.
-- **Parked page:** the two `A` records and the `www` record GoDaddy created
-  were to be deleted in Cloudflare, so the domain shows nothing until the site
-  is attached.
+- **DNS:** on Cloudflare (free plan) since 2026-10-13. GoDaddy only holds
+  the registration and the renewal.
+- **Mail:** `vedansh@summonvans.in` is forwarded by Cloudflare Email Routing
+  to Vedansh's personal inbox, where a filter files it under a `VANS` label
+  and keeps it out of the inbox. Receiving only; sending as the address is a
+  separate setup, not needed yet. A second address for the site
+  (`hello@summonvans.in`) can be added as another rule when the site wants one.
 
 Next, in order:
 
-1. Wait for Cloudflare to mark the domain active.
-2. Turn on Email Routing in Cloudflare and forward `hello@summonvans.in` to
-   Vedansh's personal inbox. Receiving only; sending as the address is a
-   separate setup, not needed yet.
-3. A mail filter on the personal inbox: anything to `hello@summonvans.in`
-   skips the inbox and gets a `VANS` label.
-4. The website. Built with AGY, in its own public repository (this one stays
+1. The website. Built with AGY, in its own public repository (this one stays
    private), hosted on Cloudflare Pages, attached to `summonvans.in` from the
    project's custom-domains tab.
-5. The startup-program application, once the site is live and the address
-   receives mail.
+2. The startup-program application, once the site is live.
 
 Decided for the site so far: one page, in the panel's own look (ink, paper,
 volt; D-212), no download button until there is a tester build.
