@@ -1791,6 +1791,15 @@ Next, in order:
    custom-domains tab. The plan is `docs/plans/2026-10-13-website.md`.
 2. The startup-program application, once the site is live.
 
+Owed, not started:
+
+- **A privacy policy page, and terms.** Raised 2026-10-13; the details are
+  still to be talked through. It has to say what VANS reads, what it sends to
+  a model, what it keeps and for how long, and how to remove it. It is a
+  living page: any change to what VANS reads, sends or keeps changes the page
+  in the same pull request. It is needed before testers are invited, and the
+  site's privacy section should link to it.
+
 Decided for the site so far: one page, in the panel's own look (ink, paper,
 volt; D-212), no download button until there is a tester build.
 
