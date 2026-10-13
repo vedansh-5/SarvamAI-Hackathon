@@ -587,6 +587,7 @@ function showPaused(why: { ask?: string; label?: string } | null) {
 }
 
 function renderCoachStep(pointer: Pointer) {
+  window.clearTimeout(slowNote);
   elementById<SVGGElement>("ghost").classList.remove("waiting");
   elementById<HTMLElement>("caption").classList.remove("asking");
   runMode = pointer.mode === "drive" ? "drive" : "coach";
@@ -707,6 +708,7 @@ function renderCoachStep(pointer: Pointer) {
 /// a run is stopped or gives up. Those are different outcomes and should not
 /// look alike.
 function markItDone() {
+  window.clearTimeout(slowNote);
   if (!currentBounds) return;
 
   const ring = elementById<HTMLElement>("ring");
@@ -721,8 +723,15 @@ function markItDone() {
   setCaption("Done", "");
 }
 
+let slowNote = 0;
+
 function markItNoticed() {
   if (!currentBounds || runMode !== "coach") return;
+
+  window.clearTimeout(slowNote);
+  slowNote = window.setTimeout(() => {
+    elementById<HTMLElement>("detail").textContent = "Got it. The model is slow to answer right now\u2026";
+  }, 4000);
 
   elementById<HTMLElement>("ring").classList.add("done");
   elementById<HTMLElement>("badge").textContent = "\u2713";
@@ -736,6 +745,7 @@ function markItNoticed() {
 }
 
 function dismissCoach() {
+  window.clearTimeout(slowNote);
   if (animationFrameId !== null) {
     cancelAnimationFrame(animationFrameId);
     animationFrameId = null;

@@ -73,6 +73,8 @@ type OpenAICompatible struct {
 	Usage *Usage
 }
 
+var Notice = func(format string, args ...any) {}
+
 // Retry defaults for the transient-failure path.
 const (
 	DefaultRetries   = 3
@@ -400,6 +402,8 @@ func (c *OpenAICompatible) postRetrying(ctx context.Context, body chatRequest) (
 		if delay <= 0 {
 			delay = wait << attempt
 		}
+		Notice("%s could not answer (status %d); asking again in %s, attempt %d of %d",
+			body.Model, tr.status, readableWait(delay), attempt+2, retries+1)
 		select {
 		case <-ctx.Done():
 			return "", fmt.Errorf("synth: %w while backing off from: %v", ctx.Err(), last)

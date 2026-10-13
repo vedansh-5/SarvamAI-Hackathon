@@ -5085,3 +5085,38 @@ panel stays while it is working, confirming or asking a question.
 Still slow, and not addressed: the six to nine seconds the model takes on a
 large window. That is the next thing to measure.
 
+## D-224 — The wait between steps is the provider, and VANS now says so
+
+D-223 left the six to nine seconds between guide steps unexplained. Measured
+on 2026-10-13 with the planner's own prompt and a window of 260 controls
+(about 7,400 tokens in):
+
+- Left alone, the model answers in 1.4 to 2.0 seconds. It is not thinking: the
+  reply carries no reasoning tokens, and asking for less reasoning changes
+  nothing.
+- After a few dozen requests in a few minutes, the same request took 10 to 35
+  seconds. The provider was answering 503, "overloaded", and each of those was
+  itself slow to arrive. VANS waited and asked again, as it is built to
+  (two seconds, then four, then eight), and said nothing about it anywhere.
+- The second model was no quicker at the same moment. Both are on the same
+  free tier of the same provider, so racing one against the other would not
+  help.
+
+So the slow steps are not the prompt, the window's size or the planner. They
+are a free tier under load, hidden by silent retries.
+
+Two changes, neither of which makes the provider faster:
+
+- Every retry is written to the log with the status and the wait, as
+  `[model] ...`. A slow run can now be read instead of guessed at.
+- When a guide step has been acknowledged and the next has not arrived in four
+  seconds, the card says the model is slow to answer. It is true, and it is
+  better than a tick that sits there.
+
+What would actually fix it is a provider that is not overloaded: a paid tier,
+or a different one. That is a decision about cost, not code, and it is
+Vedansh's. The client already speaks to any provider with this interface.
+
+Not done: fewer calls per guide. Each "what is left" question is a call that a
+plan marked whole would not need, and that is worth its own look.
+

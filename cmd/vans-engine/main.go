@@ -121,6 +121,9 @@ func run() error {
 		model       *setup.Model
 		meter       *synth.Usage
 	)
+	synth.Notice = func(format string, args ...any) {
+		fmt.Fprintf(os.Stderr, "[model] "+format+"\n", args...)
+	}
 	if os.Getenv(synth.EnvProvider) == "anthropic" {
 		synthesizer, synthErr = synth.FromEnv()
 		if synthErr != nil {

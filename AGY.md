@@ -1725,6 +1725,9 @@ every change unless a later instruction says otherwise.
 - **A run the planner cannot start is turned down, not offered (D-218).**
 - **What is typed keeps the capitals it was asked with (D-217).** A request is
   lowercased only to recognise its shape; names and text go out as written.
+- **Slow steps are the model provider being overloaded (D-224).** Retries are
+  logged as `[model]`, and the guide says when the model is slow. The fix is a
+  provider that is not overloaded, which is a cost decision.
 - **A step is acknowledged the moment it is noticed (D-223).** The ring ticks
   at once; the wait for the next step comes after, not before.
 - **Name:** VANS. The full form is Visual Agent Navigation System, and it is
