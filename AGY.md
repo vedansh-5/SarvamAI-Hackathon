@@ -1769,6 +1769,37 @@ every change unless a later instruction says otherwise.
   B-002).
 
 
+## G9. The domain and the website
+
+Status on 2026-10-13. Nothing here is code in this repository yet.
+
+- **Domain:** `summonvans.in`, registered at GoDaddy on 2026-10-13. First year
+  paid; it renews in October 2027 at the full price. No add-ons were taken.
+- **DNS:** being moved to Cloudflare (free plan). The two Cloudflare
+  nameservers were given to GoDaddy on 2026-10-13. Cloudflare sends a mail when
+  the domain is active; until then nothing below can be done.
+- **Parked page:** the two `A` records and the `www` record GoDaddy created
+  were to be deleted in Cloudflare, so the domain shows nothing until the site
+  is attached.
+
+Next, in order:
+
+1. Wait for Cloudflare to mark the domain active.
+2. Turn on Email Routing in Cloudflare and forward `hello@summonvans.in` to
+   Vedansh's personal inbox. Receiving only; sending as the address is a
+   separate setup, not needed yet.
+3. A mail filter on the personal inbox: anything to `hello@summonvans.in`
+   skips the inbox and gets a `VANS` label.
+4. The website. Built with AGY, in its own public repository (this one stays
+   private), hosted on Cloudflare Pages, attached to `summonvans.in` from the
+   project's custom-domains tab.
+5. The startup-program application, once the site is live and the address
+   receives mail.
+
+Decided for the site so far: one page, in the panel's own look (ink, paper,
+volt; D-212), no download button until there is a tester build.
+
+
 i encountered this - two steps open at a time even though the previous step was already completed. 
 Also it has a delay in reading whether the step is complete or not. 
 Also it has another problem as well - If I change the screens like actually move to other apps by 3 finger slides it should close the window actively - more like hide the things (actions, multi step coach etc) and multi step coach should resume from that point itself when we move back to the window- option space should open the window in other apps as well
