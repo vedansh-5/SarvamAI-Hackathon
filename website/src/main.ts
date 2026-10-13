@@ -3,6 +3,7 @@ import { initGuideDemo } from "./guide-demo.ts";
 import { initLivePanel } from "./panel-demo.ts";
 import { initConfirmDemo } from "./confirm-demo.ts";
 import { initHeroDotBackground } from "./bg-dots.ts";
+import { initSheets } from "./sheets.ts";
 
 function initTheme() {
   const toggles = document.querySelectorAll<HTMLElement>(".theme-toggle");
@@ -142,4 +143,5 @@ document.addEventListener("DOMContentLoaded", () => {
   if (confirmRoot) initConfirmDemo(confirmRoot);
 
   initRequestCardClicks();
+  initSheets();
 });

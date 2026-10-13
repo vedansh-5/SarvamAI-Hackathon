@@ -56,14 +56,14 @@
             VANS is a guide you summon with <kbd>⌥</kbd><kbd>Space</kbd>. Ask how to do something and it points at the next thing to click, in the app you are already in, and waits while you do it. When you would rather not, it can do the job for you.
           </p>
           <div class="hero-actions">
-            <a href="mailto:vedansh@summonvans.in?subject=VANS%20tester&body=Mac%20model%3A%0D%0AmacOS%20version%3A" class="vans-pill">
+            <a href="#why" class="vans-pill" data-open="get-sheet">
               <span class="vans-pill-icon" aria-hidden="true"></span>
               <span class="vans-pill-text">
                 <span class="vans-pill-label">Join the testers</span>
                 <span class="vans-pill-halo" aria-hidden="true">Join the testers</span>
               </span>
             </a>
-            <a href="mailto:vedansh@summonvans.in?subject=VANS%20on%20Windows&body=Windows%20version%3A" class="text-link">Windows? Tell me.</a>
+            <a href="#why" class="text-link" data-open="windows-sheet">On Windows? Join the list.</a>
           </div>
         </div>
 
@@ -77,22 +77,21 @@
           <div class="kicker"><span class="kicker-dot" aria-hidden="true"></span>TWO WAYS</div>
           <h2 class="section-head">Learn it once. Or hand it over.</h2>
         </div>
-        <div class="two-ways-grid">
-          <div class="way-card primary">
-            <h3>Show me how.</h3>
-            <p>
-              VANS puts a ring on the next control and waits. You do the clicking, so the next time you know where it is. It moves on when the window shows you did the step. Leave the app and the guide waits for you; come back and it is on the same step.
-            </p>
+        <div class="ways" id="ways">
+          <div class="ways-switch" role="tablist" aria-label="Two ways to use VANS">
+            <button type="button" class="ways-tab on" role="tab" id="ways-tab-show" aria-controls="ways-show" aria-selected="true" data-way="show">Show me how.</button>
+            <button type="button" class="ways-tab" role="tab" id="ways-tab-do" aria-controls="ways-do" aria-selected="false" data-way="do">Do it for me.</button>
+            <span class="ways-mark" aria-hidden="true"></span>
           </div>
-          <div class="way-card secondary">
-            <h3>Do it for me.</h3>
-            <p>
-              The same steps, carried out by VANS where you can watch. It shows the plan first, and anything that changes something waits for you to confirm.
-            </p>
-          </div>
-        </div>
-        <div class="bridge-note">
-          <strong>Part way through being shown, you can hand a step over.</strong> When a step is typing something in, the guide offers <kbd>⌘</kbd><kbd>↵</kbd> Do it for me, and <kbd>⇧</kbd><kbd>⌘</kbd><kbd>↵</kbd> for the rest like it.
+          <p class="ways-text" id="ways-show" role="tabpanel" aria-labelledby="ways-tab-show" data-way="show">
+            VANS puts a ring on the next control and waits. You do the clicking, so the next time you know where it is. It moves on when the window shows you did the step. Leave the app and the guide waits for you; come back and it is on the same step.
+          </p>
+          <p class="ways-text" id="ways-do" role="tabpanel" aria-labelledby="ways-tab-do" data-way="do">
+            The same steps, carried out by VANS where you can watch. It shows the plan first, and anything that changes something waits for you to confirm.
+          </p>
+          <p class="ways-bridge">
+            <strong>Part way through being shown, you can hand a step over.</strong> When a step is typing something in, the guide offers <kbd>⌘</kbd><kbd>↵</kbd> Do it for me, and <kbd>⇧</kbd><kbd>⌘</kbd><kbd>↵</kbd> for the rest like it.
+          </p>
         </div>
         <div id="panel-demo-root" class="panel-demo-container"></div>
       </section>
@@ -103,64 +102,72 @@
           <div class="kicker"><span class="kicker-dot" aria-hidden="true"></span>ASK</div>
           <h2 class="section-head">Start with "how do I".</h2>
         </div>
-        <div class="requests-grid" id="requests-grid">
-          <div class="request-card" data-category="teach" data-request="how do I change my wallpaper">
-            <div class="request-head">
-              <span class="request-mark mark-blue" aria-hidden="true"></span>
-              <span class="request-query">how do I change my wallpaper</span>
-            </div>
-            <div class="request-action">Tells you which app it lives in, then points at each control in turn</div>
-          </div>
-          <div class="request-card" data-category="teach" data-request="show me where the search box is">
-            <div class="request-head">
-              <span class="request-mark mark-teal" aria-hidden="true"></span>
-              <span class="request-query">show me where the search box is</span>
-            </div>
-            <div class="request-action">Points at it on your screen and waits for you</div>
-          </div>
-          <div class="request-card" data-category="teach" data-request="how do I add a reminder for tomorrow">
-            <div class="request-head">
-              <span class="request-mark mark-violet" aria-hidden="true"></span>
-              <span class="request-query">how do I add a reminder for tomorrow</span>
-            </div>
-            <div class="request-action">Walks you through it in Reminders, and offers to type the text for you</div>
-          </div>
-          <div class="request-card" data-category="panel" data-request="what does this error say">
-            <div class="request-head">
-              <span class="request-mark mark-green" aria-hidden="true"></span>
-              <span class="request-query">what does this error say</span>
-            </div>
-            <div class="request-action">Reads what is on screen and explains it in plain words</div>
-          </div>
-          <div class="request-card" data-category="panel" data-request="what is this page about">
-            <div class="request-head">
-              <span class="request-mark mark-blue" aria-hidden="true"></span>
-              <span class="request-query">what is this page about</span>
-            </div>
-            <div class="request-action">Reads the page in front and answers in the panel</div>
-          </div>
-          <div class="request-card" data-category="panel" data-request="translate &quot;good morning, see you at three&quot; to Hindi">
-            <div class="request-head">
-              <span class="request-mark mark-violet" aria-hidden="true"></span>
-              <span class="request-query">translate "good morning, see you at three" to Hindi</span>
-            </div>
-            <div class="request-action">Works on the quoted or selected text and hands it back to copy</div>
-          </div>
-          <div class="request-card" data-category="panel" data-request="move the screenshots on my Desktop into a folder called Screenshots">
-            <div class="request-head">
-              <span class="request-mark mark-teal" aria-hidden="true"></span>
-              <span class="request-query">move the screenshots on my Desktop into a folder called Screenshots</span>
-            </div>
-            <div class="request-action">Shows what it will move, waits for you, and can put every file back</div>
-          </div>
-          <div class="request-card" data-category="panel" data-request="in 1 minute remind me to stretch">
-            <div class="request-head">
-              <span class="request-mark mark-green" aria-hidden="true"></span>
-              <span class="request-query">in 1 minute remind me to stretch</span>
-            </div>
-            <div class="request-action">Brings it back at the time. It does not run things behind your back</div>
-          </div>
-        </div>
+        <ol class="asks" id="requests-grid">
+          <li>
+            <button type="button" class="ask-row request-card" data-category="teach" data-request="how do I change my wallpaper">
+              <span class="ask-ring mark-blue" aria-hidden="true"></span>
+              <span class="ask-query">how do I change my wallpaper</span>
+              <span class="ask-what">Tells you which app it lives in, then points at each control in turn</span>
+              <span class="ask-try" aria-hidden="true">Try it <kbd>↵</kbd></span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="ask-row request-card" data-category="teach" data-request="show me where the search box is">
+              <span class="ask-ring mark-teal" aria-hidden="true"></span>
+              <span class="ask-query">show me where the search box is</span>
+              <span class="ask-what">Points at it on your screen and waits for you</span>
+              <span class="ask-try" aria-hidden="true">Try it <kbd>↵</kbd></span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="ask-row request-card" data-category="teach" data-request="how do I add a reminder for tomorrow">
+              <span class="ask-ring mark-violet" aria-hidden="true"></span>
+              <span class="ask-query">how do I add a reminder for tomorrow</span>
+              <span class="ask-what">Walks you through it in Reminders, and offers to type the text for you</span>
+              <span class="ask-try" aria-hidden="true">Try it <kbd>↵</kbd></span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="ask-row request-card" data-category="panel" data-request="what does this error say">
+              <span class="ask-ring mark-green" aria-hidden="true"></span>
+              <span class="ask-query">what does this error say</span>
+              <span class="ask-what">Reads what is on screen and explains it in plain words</span>
+              <span class="ask-try" aria-hidden="true">Try it <kbd>↵</kbd></span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="ask-row request-card" data-category="panel" data-request="what is this page about">
+              <span class="ask-ring mark-blue" aria-hidden="true"></span>
+              <span class="ask-query">what is this page about</span>
+              <span class="ask-what">Reads the page in front and answers in the panel</span>
+              <span class="ask-try" aria-hidden="true">Try it <kbd>↵</kbd></span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="ask-row request-card" data-category="panel" data-request="translate &quot;good morning, see you at three&quot; to Hindi">
+              <span class="ask-ring mark-violet" aria-hidden="true"></span>
+              <span class="ask-query">translate "good morning, see you at three" to Hindi</span>
+              <span class="ask-what">Works on the quoted or selected text and hands it back to copy</span>
+              <span class="ask-try" aria-hidden="true">Try it <kbd>↵</kbd></span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="ask-row request-card" data-category="panel" data-request="move the screenshots on my Desktop into a folder called Screenshots">
+              <span class="ask-ring mark-teal" aria-hidden="true"></span>
+              <span class="ask-query">move the screenshots on my Desktop into a folder called Screenshots</span>
+              <span class="ask-what">Shows what it will move, waits for you, and can put every file back</span>
+              <span class="ask-try" aria-hidden="true">Try it <kbd>↵</kbd></span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="ask-row request-card" data-category="panel" data-request="in 1 minute remind me to stretch">
+              <span class="ask-ring mark-green" aria-hidden="true"></span>
+              <span class="ask-query">in 1 minute remind me to stretch</span>
+              <span class="ask-what">Brings it back at the time. It does not run things behind your back</span>
+              <span class="ask-try" aria-hidden="true">Try it <kbd>↵</kbd></span>
+            </button>
+          </li>
+        </ol>
       </section>
 
       <!-- Section 4: Control -->
@@ -222,7 +229,7 @@
           <footer>— Vedansh</footer>
         </blockquote>
         <div class="final-ask">
-          <a href="mailto:vedansh@summonvans.in?subject=VANS%20tester&body=Mac%20model%3A%0D%0AmacOS%20version%3A" class="vans-pill">
+          <a href="#why" class="vans-pill" data-open="get-sheet">
             <span class="vans-pill-icon" aria-hidden="true"></span>
             <span class="vans-pill-text">
               <span class="vans-pill-label">Join the testers</span>
@@ -252,6 +259,48 @@
         </div>
       </footer>
     </div>
+
+    <dialog id="get-sheet" class="sheet" aria-labelledby="get-title">
+      <button type="button" class="sheet-close" data-close aria-label="Close"><kbd>esc</kbd></button>
+      <div class="kicker"><span class="kicker-dot" aria-hidden="true"></span>GET VANS</div>
+      <h2 id="get-title" class="sheet-title">The download lands here soon.</h2>
+      <p class="sheet-body">VANS is in private testing, so there is no public download yet. For early, hands-on access, email me and I will send you a build.</p>
+      <div class="sheet-address">
+        <span class="sheet-address-text">vedansh@summonvans.in</span>
+        <button type="button" class="sheet-copy" data-copy="vedansh@summonvans.in">Copy address</button>
+      </div>
+      <p class="sheet-quiet">Tell me which Mac you have and which macOS it runs.</p>
+      <div class="sheet-soon" aria-disabled="true">Download for Mac <span>coming soon</span></div>
+    </dialog>
+
+    <dialog id="windows-sheet" class="sheet" aria-labelledby="windows-title">
+      <button type="button" class="sheet-close" data-close aria-label="Close"><kbd>esc</kbd></button>
+      <div class="kicker"><span class="kicker-dot" aria-hidden="true"></span>VANS ON WINDOWS</div>
+      <h2 id="windows-title" class="sheet-title">VANS is Mac-only for now.</h2>
+      <form id="windows-form" class="sheet-form" novalidate>
+        <p class="sheet-body">Leave your email and I will write once, when there is a Windows version to try.</p>
+        <label class="sheet-field">
+          <span>Email</span>
+          <input type="email" name="email" autocomplete="email" required maxlength="254" placeholder="you@example.com" />
+        </label>
+        <label class="sheet-field">
+          <span>Anything you want it to do? <em>optional</em></span>
+          <textarea name="note" rows="3" maxlength="500"></textarea>
+        </label>
+        <label class="sheet-trap" aria-hidden="true">
+          <span>Leave this empty</span>
+          <input type="text" name="company" tabindex="-1" autocomplete="off" />
+        </label>
+        <div class="sheet-actions">
+          <button type="submit" class="sheet-submit">Add me</button>
+          <span class="sheet-status" role="status" aria-live="polite"></span>
+        </div>
+        <p class="sheet-quiet">Only used to tell you about VANS on Windows. <a href="/privacy" class="text-link">Privacy</a></p>
+      </form>
+      <div class="sheet-done" hidden>
+        <p class="sheet-body">You are on the list. One email, when it is ready.</p>
+      </div>
+    </dialog>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

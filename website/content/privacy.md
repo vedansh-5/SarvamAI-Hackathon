@@ -1,6 +1,6 @@
 # Privacy
 
-**First draft, 13 October 2026.** VANS is in private testing and this page will change as VANS does. Every change is listed at the bottom.
+VANS is in private testing, and this page changes as VANS does.
 
 ## The short version
 
@@ -12,13 +12,14 @@
 
 ## Who is behind VANS
 
-VANS (Visual Agent Navigation System) is made by Vedansh Saini, an individual developer in Roorkee, India. It is not yet a registered company. You can reach me at vedansh@summonvans.in.
+VANS (Visual Agent Navigation System) is made by an independent developer. It is not yet a registered company.
 
 ## This website
 
 - **No cookies and no tracking.** The site sets no cookies and loads nothing from other companies. Fonts are served from the site itself. Your choice of light or dark is saved in your own browser and never sent anywhere.
 - **Hosting.** The site is served by Cloudflare. Like any host, Cloudflare processes technical details of each visit, such as your IP address and browser type, in order to deliver the page and keep it secure. I do not use these to identify you.
 - **Email.** If you write to an address at summonvans.in, I receive your email address and whatever you choose to tell me. I use it to reply and to arrange testing. I do not add you to a mailing list. Ask me to delete your emails and I will.
+- **The Windows list.** If you leave your email in the Windows form, it is sent to me as an email and kept in my inbox. I use it once, to tell you when there is a Windows version to try. It is not stored anywhere else and not shared. Ask me to remove it and I will.
 
 ## The VANS app
 
@@ -85,14 +86,8 @@ VANS is not directed at children under 13, and I do not knowingly collect inform
 
 ## Your rights
 
-What VANS keeps is on your own Mac and under your control. For anything I hold myself, which is only email you have sent me, you can ask to see it, correct it or have it deleted by writing to vedansh@summonvans.in. I will answer within 14 days.
+What VANS keeps is on your own Mac and under your control. For anything I hold myself, which is only email you have sent me and your address if you joined the Windows list, you can ask to see it, correct it or have it deleted by writing to the address on the main page.
 
 ## Changes to this page
 
-When what VANS reads, sends or keeps changes, this page changes with it, and the change is listed here with its date.
-
-- **13 October 2026.** First draft.
-
-## Contact
-
-vedansh@summonvans.in
+When what VANS reads, sends or keeps changes, this page changes with it.

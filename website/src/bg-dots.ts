@@ -13,7 +13,7 @@ export function initHeroDotBackground(canvasId: string = "bg-canvas") {
   let height = 0;
 
   const GAP = 28;
-  const BASE_R = 1.2;
+  const BASE_R = 1.1;
 
   function resize() {
     const dpr = window.devicePixelRatio || 1;
@@ -30,7 +30,7 @@ export function initHeroDotBackground(canvasId: string = "bg-canvas") {
 
     const isLight = document.documentElement.getAttribute("data-theme") === "light";
     const baseRgb = isLight ? "16, 17, 14" : "243, 244, 238";
-    const voltRgb = "255, 210, 63";
+    const voltRgb = isLight ? "214, 160, 0" : "255, 210, 63";
 
     const cols = Math.ceil(width / GAP) + 1;
     const rows = Math.ceil(height / GAP) + 1;
@@ -45,8 +45,10 @@ export function initHeroDotBackground(canvasId: string = "bg-canvas") {
         const dist = Math.hypot(x - mouse.x, y - mouse.y);
         const near = Math.max(0, 1 - dist / 220);
 
-        let alpha = 0.035 + wave * 0.035 + near * 0.25;
-        let radius = BASE_R + near * 1.5;
+        const rest = isLight ? 0.085 : 0.04;
+        const lift = isLight ? 0.05 : 0.04;
+        const alpha = rest + wave * lift + near * (isLight ? 0.45 : 0.25);
+        const radius = BASE_R + near * 1.3;
 
         ctx.fillStyle = near > 0.15 ? `rgba(${voltRgb}, ${alpha})` : `rgba(${baseRgb}, ${alpha})`;
         ctx.beginPath();

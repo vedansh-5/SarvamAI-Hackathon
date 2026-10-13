@@ -326,6 +326,12 @@ export function initGuideDemo(container: HTMLElement) {
     const target = container.querySelector<HTMLElement>(`#${step.targetId}`);
     if (!target || !windowEl) return;
 
+    const strip = container.querySelector<HTMLElement>("#guide-mac-sidebar");
+    if (strip && strip.contains(target) && strip.scrollWidth > strip.clientWidth) {
+      const hidden = target.offsetLeft + target.offsetWidth > strip.scrollLeft + strip.clientWidth || target.offsetLeft < strip.scrollLeft;
+      if (hidden) strip.scrollLeft = Math.max(0, target.offsetLeft - 12);
+    }
+
     const winRect = windowEl.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
 
@@ -377,9 +383,10 @@ export function initGuideDemo(container: HTMLElement) {
     } else {
       // On desktop:
       if (step.targetId === "guide-sidebar-wallpaper") {
-        // Step 1: Sidebar is left; place card in the open content space to the right
-        tipX = 224;
-        tipY = Math.max(70, relY - 10);
+        const last = target.parentElement?.lastElementChild;
+        const listBottom = last ? last.getBoundingClientRect().bottom - winRect.top : relY + ringH;
+        tipX = 10;
+        tipY = listBottom + 22;
       } else if (step.targetId === "guide-tile-horizon") {
         // Step 2: Below the wallpaper grid so all 6 tiles remain visible
         if (gridRect) {

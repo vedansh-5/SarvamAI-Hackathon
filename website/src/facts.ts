@@ -1,11 +1,5 @@
 export const CONTACT_EMAIL = "vedansh@summonvans.in";
 
-export const MAIL_LINKS = {
-  tester: "mailto:vedansh@summonvans.in?subject=VANS%20tester&body=Mac%20model%3A%0D%0AmacOS%20version%3A",
-  windows: "mailto:vedansh@summonvans.in?subject=VANS%20on%20Windows&body=Windows%20version%3A",
-  privacy: "mailto:vedansh@summonvans.in",
-} as const;
-
 export const KEYS = {
   SUMMON: "⌥Space",
   ESC: "esc",

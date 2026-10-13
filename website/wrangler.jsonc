@@ -1,5 +1,11 @@
 {
   "name": "vans",
   "compatibility_date": "2026-10-01",
-  "assets": { "directory": "./dist" }
+  "main": "worker/index.ts",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "send_email": [{ "name": "LIST_MAIL" }]
 }
