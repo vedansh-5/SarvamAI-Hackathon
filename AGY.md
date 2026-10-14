@@ -1904,8 +1904,31 @@ and cost is in `docs/infrastructure.md`. This section is the short record.
 are in Cloudflare (2026-10-14); mail flows once SES finishes checking them.
 The hands-on suite through the live server passed fifteen of fifteen.
 
-**Next, in order:** every permission asked for at first launch, then start at login and the notch, watching and learning, the
-tester kit, and the privacy page with each.
+**Console:** `https://console.summonvans.in`, signed in with
+`VANS_CONSOLE_KEY` from `.env` (D-236). The function's own address shows no
+console.
+
+**Open pull requests (2026-10-14):** #190, the privacy page for testers, for
+Vedansh to read; merge it when the first tester build goes out. #191, the
+console's own address, already deployed; merge when Vedansh says.
+
+**Next, in order:**
+
+1. Every permission asked for at first launch, on one screen, never in the
+   middle of a step. About a day.
+2. Start at login, and the notch pill. About a day.
+3. Watching and learning, off until the tester turns it on. The largest piece:
+   about four to five days.
+4. The tester kit: the packaged app, a first run that takes the invite code,
+   updates from S3, and the "Open Anyway" page. About a day.
+5. Install from zero on a fresh macOS user, then the hands-on suite. About a
+   day, on Vedansh's timing.
+6. Merge the privacy page (#190) with the first build.
+
+**When testers can start (estimate, 2026-10-14):** one to two weeks at this
+pace; about five working days without watching and learning. The hands-on
+runs need Vedansh's timing and are where it slips. Offered: ship the first
+build without watching and learning and add it in an update; not decided.
 
 
 i encountered this - two steps open at a time even though the previous step was already completed. 
