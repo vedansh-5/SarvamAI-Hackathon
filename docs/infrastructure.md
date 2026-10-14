@@ -79,10 +79,13 @@ Mumbai with an 8 GB disk (about $0.70 a month, from credits).
 |---|---|---|---|
 | Google Gemini | First | `gemini-flash-lite-latest`, then `models/gemini-3.1-flash-lite` | `.env` as `VANS_LLM_API_KEY` |
 | Groq | Backup when the first is overloaded (D-227) | `openai/gpt-oss-120b` | `.env` as `VANS_LLM_BACKUP_API_KEY` |
+| Cloudflare Workers AI | Next in the provider list, once the server has one | `@cf/openai/gpt-oss-120b` | `.env` as `CLOUDFLARE_AI_TOKEN` (a token limited to Workers AI on this account) |
 
-Both are free plans with limits per minute and per day that change without
+All are free plans that need no card, with limits per minute and per day that change without
 notice. Measured 2026-10-14: Groq answered a small step request in about one
-second; Gemini on the free plan takes one to thirty-five seconds when busy.
+second, Workers AI in about two, and Gemini on the free plan takes one to
+thirty-five seconds when busy. The plan for using them together is in
+`docs/plans/2026-10-14-testers.md`.
 
 ## Where every secret is kept
 
@@ -90,6 +93,7 @@ second; Gemini on the free plan takes one to thirty-five seconds when busy.
 |---|---|---|
 | Gemini key | `.env` at the repository root (never committed) | the engine on this Mac |
 | Groq key | `.env` | the engine on this Mac |
+| Cloudflare Workers AI token | `.env` | testing only, until the server uses it |
 | A key typed into Setup | the macOS Keychain, service `dev.vedansh.vans` | the engine |
 | `vans-deploy` access key | `~/.aws/credentials`, profile `vans-deploy` | the AWS command line |
 | Root access key | `~/.aws/credentials`, profile `default` | the AWS command line |
