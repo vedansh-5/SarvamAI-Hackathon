@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vedansh/vans/internal/capability"
 	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
 )
@@ -190,7 +189,7 @@ func TestAFileNamedOnlyByItsNameIsFoundAtThePathTheModelGives(t *testing.T) {
 }
 
 func TestARequestNamingTwoApplicationsIsSeenAsGoingAcross(t *testing.T) {
-	e := &Engine{Apps: capability.New()}
+	e := &Engine{Apps: aMac(t)}
 
 	if got := e.appsNamedIn("copy this from Notes into Safari"); len(got) != 2 {
 		t.Errorf("named = %q, want Notes and Safari", got)

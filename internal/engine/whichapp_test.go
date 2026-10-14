@@ -5,7 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/vedansh/vans/internal/capability"
 	"github.com/vedansh/vans/internal/screen"
 	"github.com/vedansh/vans/internal/synth"
 )
@@ -35,7 +34,7 @@ func (r *runningScreen) Running() []string { return r.open }
 func chooserEngine(t *testing.T, c *saysApp, open []string) *Engine {
 	t.Helper()
 	return &Engine{
-		Apps:     capability.New(),
+		Apps:     aMac(t),
 		Chooser:  c,
 		UIScreen: &runningScreen{fakeScreen: fakeScreen{front: "Antigravity IDE"}, open: open},
 		Log:      func(string, ...any) {},

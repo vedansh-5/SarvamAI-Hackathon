@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vedansh/vans/internal/capability"
 	"github.com/vedansh/vans/internal/screen"
 	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
@@ -541,7 +540,7 @@ func (c *closedThenOpen) Capture(ctx context.Context, app string) (uiact.Tree, e
 func TestPlanGuideAsksForTheAppToBeOpened(t *testing.T) {
 	chooser := &saysApp{choice: synth.AppChoice{App: "System Settings", Why: "appearance lives there"}}
 	e := &Engine{
-		Apps:     capability.New(),
+		Apps:     aMac(t),
 		Chooser:  chooser,
 		Steps:    &alwaysStep{step: typeIntoMessage()},
 		UIScreen: &runningScreen{fakeScreen: fakeScreen{front: "Antigravity IDE"}, open: []string{"Antigravity IDE"}},
@@ -765,7 +764,7 @@ func TestTimeSpentInAnotherApplicationDoesNotUseUpTheStep(t *testing.T) {
 	guideStepTimeout = 30 * time.Millisecond
 	awayAtMost = 5 * time.Second
 
-	screen := &awayForAWhile{awayFrom: 4, awayUntil: 400, typedFrom: 420}
+	screen := &awayForAWhile{awayFrom: 4, awayUntil: 400, typedFrom: 401}
 	e := &Engine{UIScreen: screen, Steps: &scriptedSteps{
 		answers: []synth.StepAnswer{{Step: typeIntoMessage()}, {Done: true, Why: "that is all"}},
 	}}

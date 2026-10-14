@@ -776,10 +776,7 @@ func displayBounds() (box, bool) {
 	return box{int(x), int(y), int(x + w), int(y + h)}, true
 }
 
-const (
-	MenuBarRoot  = -1
-	mostMenuRows = 60
-)
+const mostMenuRows = 60
 
 func walkMenuBar(app C.AXUIElementRef, out *[]Element) {
 	bar := C.axMenuBar(app)

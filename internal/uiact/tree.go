@@ -25,6 +25,8 @@ type Element struct {
 	High   float64 `json:"high,omitempty"`
 }
 
+const MenuBarRoot = -1
+
 var adjustable = map[string]bool{"slider": true, "incrementor": true, "valueindicator": true, "stepper": true}
 
 func (e Element) Adjustable() bool { return adjustable[role(e.Role)] }
