@@ -5315,3 +5315,64 @@ It is an exception, not a change of rule: it is part of macOS, not a model VANS
 ships or runs, and it is used only to find text and where it is. Icons without
 words still need a picture-reading model, used last.
 
+## D-232 — Each question goes to the provider best placed for it, by measured accuracy and live speed
+
+One model on one provider meant every question waited on that provider's worst
+minute: on 2026-10-14 Gemini took eleven to eighteen seconds to name an
+application. The VANS server now holds a pool of seats, each a provider and a
+model (`synth.Pool`), and sends each question to the best one free.
+
+**Three classes of question.** Quick ones (routing, which application) want the
+fastest seat that is accurate enough. Writing ones (plans, steps, programs,
+answers, text) want the most accurate seat that is free, with speed only
+breaking a tie within a tier. Looking at a picture goes only to seats whose
+model takes pictures.
+
+**Accuracy is measured.** `cmd/vans-eval` asks every seat the same twenty
+"which application does this?" questions with known answers. Spaced under each
+provider's per-minute limit, on 2026-10-14:
+
+| Seat | Right | Median |
+|---|---|---|
+| Groq `openai/gpt-oss-20b` | 20/20 | 0.8 s |
+| Groq `openai/gpt-oss-120b` | 19/20 | 1.0 s |
+| Gemini `gemini-3.1-flash-lite` | 20/20 | 1.3 s |
+| Gemini `gemini-flash-lite-latest` | 20/20 | 2.6 s |
+| Groq `qwen/qwen3.8-27b` | 18/20, and one unreadable answer | 0.3 s |
+| Workers AI `@cf/openai/gpt-oss-120b` | 18/20 (sent an email to Notes) | 2.8 s |
+
+The floor for quick questions is nineteen of twenty. Qwen is left out;
+Workers AI takes no quick questions. Twenty questions is a small set, and the
+set grows as testers show what they ask.
+
+Writing is not scored by this set; the hands-on suite is what has shown it to
+be right, and it has only been run on Gemini. So writing stays Gemini first
+(tier 1), Groq's 120b second (tier 2), Workers AI last (tier 3), until the
+hands-on suite has been run with each.
+
+**Speed is learned as it runs.** Each seat's answer time per class is kept as
+a running average, and among seats that are accurate enough the faster goes
+first.
+
+**Busy is skipped, not waited on.** A seat that is overloaded rests for
+whatever its provider said, or thirty seconds; one that did not answer rests a
+minute; one that does not have the model rests an hour; one whose allowance for
+the day is spent rests until midnight UTC. Within the pool a seat is not
+retried: another seat answering now beats the same one answering after a
+backoff. A request a provider refused as wrong is not sent to another, which
+would refuse it the same way.
+
+**The first measurement mostly measured limits.** Asked back to back, Gemini
+refused after about fifteen requests a minute and each Groq model after about
+eight of these questions a minute (8,000 tokens a minute each). Those limits,
+not accuracy, are what a tester's burst will meet, and they are why there are
+several seats.
+
+Measured through the server on this Mac afterwards: "which application" in
+0.8 to 1.0 seconds, answered by Groq's 20b.
+
+Providers are listed in `VANS_PROVIDERS`, each with `VANS_PROVIDER_<NAME>_URL`,
+`_KEY`, `_MODELS`, `_SCHEMA`, `_TAKES` and `_TIER`; a value starting with `$`
+names another setting, so a key lives in one place. Without `VANS_PROVIDERS`
+the server keeps the single model and backup of D-227.
+

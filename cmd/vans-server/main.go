@@ -36,9 +36,16 @@ func main() {
 }
 
 func run(addr string) error {
-	base, err := modelFromEnv()
+	wait, _ := synth.WaitAndModeFromEnv()
+	pool, err := synth.PoolFrom(os.Getenv, wait)
 	if err != nil {
 		return err
+	}
+	var base *synth.OpenAICompatible
+	if pool == nil {
+		if base, err = modelFromEnv(); err != nil {
+			return err
+		}
 	}
 	testers, err := server.ParseTesters(os.Getenv(EnvTesters))
 	if err != nil {
@@ -59,6 +66,9 @@ func run(addr string) error {
 
 	srv := &server.Server{
 		Model: func(used *synth.Usage) synth.Model {
+			if pool != nil {
+				return pool.With(used)
+			}
 			c := *base
 			c.Usage = used
 			return &c
@@ -78,11 +88,19 @@ func run(addr string) error {
 		_ = httpServer.Shutdown(shutdown)
 	}()
 
-	backup := "none"
-	if base.Backup != nil {
-		backup = base.Backup.Model
+	if pool != nil {
+		var seats []string
+		for _, s := range pool.Seats {
+			seats = append(seats, s.Name())
+		}
+		logger.Printf("listening on %s for %d tester(s); models %s", addr, len(testers), strings.Join(seats, ", "))
+	} else {
+		backup := "none"
+		if base.Backup != nil {
+			backup = base.Backup.Model
+		}
+		logger.Printf("listening on %s for %d tester(s); model %s, backup %s", addr, len(testers), base.Model, backup)
 	}
-	logger.Printf("listening on %s for %d tester(s); model %s, backup %s", addr, len(testers), base.Model, backup)
 	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}

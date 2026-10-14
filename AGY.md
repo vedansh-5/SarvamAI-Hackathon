@@ -1893,9 +1893,11 @@ and cost is in `docs/infrastructure.md`. This section is the short record.
 | The tester plan; provider choice and unreadable apps; the console | #178, #179, #182 |
 | The VANS server and the app's side of it, tested end to end here | #180, D-229 |
 | CI on every pull request | #181, D-230 |
+| Each question to the provider best placed for it; `cmd/vans-eval` scores them | D-232 |
 | AWS: budget alert, `vans-deploy` user fenced to VANS, $143.49 credit | `docs/infrastructure.md` |
 
-**Next, in order:** the provider choice, then the database and Lambda in
+**Next, in order:** the hands-on suite with Groq writing (needs Vedansh's
+timing), the database and Lambda in
 Mumbai, then the console, then start at login and the notch, watching and
 learning, the tester kit, and the privacy page with each.
 
