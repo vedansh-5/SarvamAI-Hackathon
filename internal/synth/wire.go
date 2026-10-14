@@ -47,7 +47,19 @@ const (
 	KindSee       = "see"
 	KindRead      = "read"
 	KindPing      = "ping"
+	KindFeedback  = "feedback"
 )
+
+const (
+	FeedbackFailedGuide = "failed_guide"
+	FeedbackNote        = "note"
+	MostFeedbackBytes   = 64 << 10
+)
+
+type Feedback struct {
+	Kind string `json:"kind"`
+	Text string `json:"text"`
+}
 
 type Asking struct {
 	Kind    string          `json:"kind"`

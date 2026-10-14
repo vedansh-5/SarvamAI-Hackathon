@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -19,10 +18,7 @@ import (
 	"github.com/vedansh/vans/internal/synth"
 )
 
-const (
-	EnvTesters = "VANS_TESTERS"
-	EnvTotal   = "VANS_TOTAL_DAILY"
-)
+const EnvTesters = "VANS_TESTERS"
 
 func main() {
 	addr := flag.String("addr", "127.0.0.1:8787", "where to listen")
@@ -36,50 +32,42 @@ func main() {
 }
 
 func run(addr string) error {
-	wait, _ := synth.WaitAndModeFromEnv()
-	pool, err := synth.PoolFrom(os.Getenv, wait)
+	models, described, err := server.ModelsFromEnv()
 	if err != nil {
 		return err
 	}
-	var base *synth.OpenAICompatible
-	if pool == nil {
-		if base, err = modelFromEnv(); err != nil {
-			return err
-		}
-	}
-	testers, err := server.ParseTesters(os.Getenv(EnvTesters))
+	total, err := server.TotalFromEnv()
 	if err != nil {
 		return err
-	}
-	if len(testers) == 0 {
-		return fmt.Errorf("no testers: set %s to name:code:daily entries separated by ;", EnvTesters)
-	}
-	total := 0
-	if spelled := strings.TrimSpace(os.Getenv(EnvTotal)); spelled != "" {
-		if total, err = strconv.Atoi(spelled); err != nil || total < 0 {
-			return fmt.Errorf("%s must be a whole number", EnvTotal)
-		}
 	}
 
 	logger := log.New(os.Stderr, "[server] ", log.LstdFlags)
 	synth.Notice = func(format string, args ...any) { logger.Printf("[model] "+format, args...) }
 
-	srv := &server.Server{
-		Model: func(used *synth.Usage) synth.Model {
-			if pool != nil {
-				return pool.With(used)
-			}
-			c := *base
-			c.Usage = used
-			return &c
-		},
-		Ledger: server.NewMemory(testers),
-		Total:  total,
-		Log:    logger.Printf,
-	}
-
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	srv := &server.Server{Model: models, Total: total, Log: logger.Printf}
+	who := ""
+	if table := strings.TrimSpace(os.Getenv(server.EnvTable)); table != "" {
+		ledger, mail, err := server.OnAWS(ctx, table)
+		if err != nil {
+			return err
+		}
+		srv.Ledger, srv.Mail = ledger, mail
+		who = "testers in " + table
+	} else {
+		testers, err := server.ParseTesters(os.Getenv(EnvTesters))
+		if err != nil {
+			return err
+		}
+		if len(testers) == 0 {
+			return fmt.Errorf("no testers: set %s, or %s to name:code:daily entries separated by ;", server.EnvTable, EnvTesters)
+		}
+		srv.Ledger = server.NewMemory(testers)
+		who = fmt.Sprintf("%d tester(s)", len(testers))
+	}
+
 	httpServer := &http.Server{Addr: addr, Handler: srv, ReadHeaderTimeout: 10 * time.Second}
 	go func() {
 		<-ctx.Done()
@@ -88,36 +76,9 @@ func run(addr string) error {
 		_ = httpServer.Shutdown(shutdown)
 	}()
 
-	if pool != nil {
-		var seats []string
-		for _, s := range pool.Seats {
-			seats = append(seats, s.Name())
-		}
-		logger.Printf("listening on %s for %d tester(s); models %s", addr, len(testers), strings.Join(seats, ", "))
-	} else {
-		backup := "none"
-		if base.Backup != nil {
-			backup = base.Backup.Model
-		}
-		logger.Printf("listening on %s for %d tester(s); model %s, backup %s", addr, len(testers), base.Model, backup)
-	}
+	logger.Printf("listening on %s for %s; %s", addr, who, described)
 	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil
-}
-
-func modelFromEnv() (*synth.OpenAICompatible, error) {
-	key := strings.TrimSpace(os.Getenv(synth.EnvAPIKey))
-	if key == "" {
-		return nil, fmt.Errorf("%s is not set", synth.EnvAPIKey)
-	}
-	wait, mode := synth.WaitAndModeFromEnv()
-	return synth.FromSettings(synth.WithBackupFrom(os.Getenv, synth.Settings{
-		APIKey:   key,
-		BaseURL:  os.Getenv(synth.EnvBaseURL),
-		Model:    os.Getenv(synth.EnvModel),
-		Fast:     os.Getenv(synth.EnvFastModel),
-		Fallback: os.Getenv(synth.EnvFallbackModel),
-	}), wait, mode), nil
 }

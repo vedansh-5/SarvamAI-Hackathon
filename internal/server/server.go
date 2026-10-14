@@ -28,11 +28,24 @@ type Tester struct {
 type Ledger interface {
 	Tester(ctx context.Context, code string) (Tester, bool, error)
 	Spend(ctx context.Context, code, day string) (mine, all int, err error)
+	Keep(ctx context.Context, f Feedback) error
+}
+
+type Feedback struct {
+	From string
+	Kind string
+	Text string
+	At   time.Time
+}
+
+type Mailer interface {
+	Mail(ctx context.Context, subject, body string) error
 }
 
 type Server struct {
 	Model  func(used *synth.Usage) synth.Model
 	Ledger Ledger
+	Mail   Mailer
 	Total  int
 	Now    func() time.Time
 	Log    func(format string, args ...any)
@@ -122,7 +135,7 @@ func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	answerer, known := kinds[asked.Kind]
-	if !known {
+	if !known && asked.Kind != synth.KindFeedback {
 		refuse(w, http.StatusBadRequest, fmt.Sprintf("%q is not a kind of question VANS asks", asked.Kind))
 		return
 	}
@@ -148,6 +161,11 @@ func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if asked.Kind == synth.KindFeedback {
+		s.feedback(w, r, who, asked.Request)
+		return
+	}
+
 	used := &synth.Usage{}
 	started := time.Now()
 	answered, err := answerer(r.Context(), s.Model(used), asked.Request)
@@ -170,6 +188,37 @@ func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
 	}
 	s.logf("%s asked %s: answered in %s with %d call(s)", who.Name, asked.Kind, time.Since(started).Round(10*time.Millisecond), spent.Calls)
 	reply(w, http.StatusOK, synth.Answered{Answer: encoded, Used: spent})
+}
+
+func (s *Server) feedback(w http.ResponseWriter, r *http.Request, who Tester, raw json.RawMessage) {
+	var f synth.Feedback
+	if err := json.Unmarshal(raw, &f); err != nil {
+		refuse(w, http.StatusBadRequest, "the feedback is not readable")
+		return
+	}
+	f.Text = strings.TrimSpace(f.Text)
+	if f.Kind != synth.FeedbackFailedGuide && f.Kind != synth.FeedbackNote {
+		refuse(w, http.StatusBadRequest, fmt.Sprintf("%q is not a kind of feedback VANS sends", f.Kind))
+		return
+	}
+	if f.Text == "" || len(f.Text) > synth.MostFeedbackBytes {
+		refuse(w, http.StatusBadRequest, "the feedback is empty or too long")
+		return
+	}
+	kept := Feedback{From: who.Name, Kind: f.Kind, Text: f.Text, At: s.now()}
+	if err := s.Ledger.Keep(r.Context(), kept); err != nil {
+		s.logf("could not keep feedback from %s: %v", who.Name, err)
+		reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the VANS server could not keep the feedback"}})
+		return
+	}
+	s.logf("%s sent %s feedback", who.Name, f.Kind)
+	if s.Mail != nil {
+		subject := fmt.Sprintf("VANS: %s from %s", strings.ReplaceAll(f.Kind, "_", " "), who.Name)
+		if err := s.Mail.Mail(r.Context(), subject, f.Text); err != nil {
+			s.logf("feedback from %s was kept but not mailed: %v", who.Name, err)
+		}
+	}
+	reply(w, http.StatusOK, synth.Answered{})
 }
 
 type badRequest struct{ kind string }

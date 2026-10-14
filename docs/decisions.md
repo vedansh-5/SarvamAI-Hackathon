@@ -5408,3 +5408,55 @@ are now separate providers in `VANS_PROVIDERS`: `gemini` (latest) at tier 1,
 `gemininew` (3.1) at tier 2 beside Groq's 120b, and Workers AI at tier 3.
 "Which application" stays quick: every seat that takes it scored nineteen or
 twenty of twenty there.
+
+---
+
+## D-234 — The VANS server runs on Lambda in Mumbai, with one table, settings from Parameter Store, and feedback by mail
+
+D-229 built the server and ran it on this Mac with testers and counts held in
+memory, so a restart forgot the day's counts and adding a tester meant editing
+`.env`. It now runs as the Lambda function `vans-server` in Mumbai, reached at a
+function URL; `docs/infrastructure.md` has the names and commands.
+
+**One function, one handler.** `cmd/vans-lambda` turns a function-URL request
+into an ordinary HTTP request and hands it to the same `server.Server` that
+`cmd/vans-server` runs on this Mac (`server.FunctionURL`). There is no API
+Gateway: a function URL is free, and the server already answers every path.
+The URL takes no AWS sign-in; an invite code is the only way to an answer, as
+on this Mac. The function's limit is 140 seconds, under the app's 150, so the
+app hears a fault instead of a dropped connection.
+
+**One table, three kinds of row.** `vans-server` holds testers
+(`pk = tester`, `sk = code`), a count per tester and one for everyone per UTC
+day (`pk = use#<day>`), and feedback (`pk = feedback`, `sk = time#random`).
+Each is read with one key or one query; a count is one atomic `ADD`. The table
+is provisioned at five reads and five writes a second, inside DynamoDB's
+always-free allowance, rather than paying per request. A question costs two
+writes, so the table holds about two questions a second with bursts above.
+Testers are read on every question, not cached, so switching a code off
+takes effect on the next request.
+
+**Settings from Parameter Store.** When the function starts it reads every
+parameter under `/vans/server/` into its environment and then configures
+itself exactly as the server on this Mac does from `.env`
+(`server.ModelsFromEnv`). The keys never sit in the function's own settings,
+where anyone who can read the function would see them. The built function was
+checked to hold no key.
+
+**Feedback is one more kind of question.** It goes to `/v1/ask` with the kind
+`feedback`, so it is checked against the invite code and counted against the
+day's allowance like anything else, which also stops one tester flooding the
+mailbox. It is kept in the table first and mailed second: a mail that fails is
+logged and the feedback is still there for `vans-testers feedback`. Mail goes
+through SES from `feedback@summonvans.in`; while the account is in SES's
+sandbox it can only send to verified addresses, which suits mail that only
+ever goes to Vedansh.
+
+**Codes are made with `cmd/vans-testers`** until the console exists: `add`,
+`list`, `off`, `on`, `feedback`, run with the `vans-deploy` profile. A code is
+`vans-` and twenty random hex characters.
+
+Measured on 2026-10-14 from this Mac: a health check in 0.12 to 0.17 seconds
+including a fresh connection; "which application" in 0.65 to 1.0 seconds
+including the model; a cold start of about half a second; 41 MB used of 256.
+The $20 Lambda credit was not counted by deploying from the command line.

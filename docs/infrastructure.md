@@ -56,7 +56,7 @@ Workers Logs and Traces are off.
 | Set up a budget | $20 | earned |
 | Create an Aurora or RDS database | $20 | earned; the database was deleted the same day |
 | Use a model in the Bedrock playground | $20 | not yet; only the console tour counts, a call from the command line did not |
-| Create a web app with Lambda | $20 | not yet; expected when the VANS server is deployed |
+| Create a web app with Lambda | $20 | not yet; deploying the VANS server from the command line did not count it, so it likely needs the console tour, like Bedrock |
 
 **Who can do what**
 
@@ -101,14 +101,18 @@ measured accuracy of each, is D-232; the lineup is `VANS_PROVIDERS` in `.env`.
 |---|---|---|
 | Gemini key | `.env` at the repository root (never committed) | the engine on this Mac |
 | Groq key | `.env` | the engine on this Mac |
-| Cloudflare Workers AI token | `.env` | the VANS server |
+| Cloudflare Workers AI token | `.env` | the VANS server on this Mac |
+| Every model key and provider setting the server uses | AWS Parameter Store, Mumbai, under `/vans/server/`, encrypted (`SecureString`) | the VANS server on Lambda, once when it starts |
+| Tester invite codes | the `vans-server` table | the VANS server; `vans-testers` |
 | A key typed into Setup | the macOS Keychain, service `dev.vedansh.vans` | the engine |
 | `vans-deploy` access key | `~/.aws/credentials`, profile `vans-deploy` | the AWS command line |
 | Root access key | `~/.aws/credentials`, profile `default` | the AWS command line |
 | `LIST_TO` | Cloudflare → Workers → `vans` → Settings → Variables and Secrets | the site's form |
 
-Once the VANS server exists, the model keys move into it and the app carries
-none.
+The keys reach Parameter Store from `.env`: each `VANS_*` setting except
+`VANS_TESTERS`, and `CLOUDFLARE_AI_TOKEN`, under the same name. When a key in
+`.env` changes, it is changed there too (`aws ssm put-parameter --overwrite`),
+and the server picks it up when it next starts (redeploying forces that).
 
 ## Checking on things
 
@@ -127,11 +131,49 @@ aws ses get-send-quota --region us-east-1 --profile vans-deploy
 curl -sI https://summonvans.in | head -1
 ```
 
+## The VANS server on AWS (live since 2026-10-14)
+
+| Piece | Name | Notes |
+|---|---|---|
+| Function | `vans-server`, Lambda, Mumbai, arm64, 256 MB, 140 s limit | built from `cmd/vans-lambda`; runs as `vans-server-runtime` |
+| Its address | `https://dcebecm6rhedpylmqas2q3hxyq0holhl.lambda-url.ap-south-1.on.aws/` | a Lambda function URL; anyone can reach it, only an invite code gets an answer |
+| Table | `vans-server`, DynamoDB, Mumbai, 5 reads and 5 writes a second, deletion protection on | testers (`pk = tester`), counts per day (`pk = use#<day>`), feedback (`pk = feedback`) |
+| Settings | Parameter Store, `/vans/server/*` | read into the environment when the function starts |
+| Mail | SES, Mumbai, sandbox (200 a day, only to verified addresses) | sends feedback from `feedback@summonvans.in` to Vedansh's Gmail |
+| Logs | `/aws/lambda/vans-server`, kept 14 days | the tester's name and the kind of question; never what was asked |
+
+```bash
+./infra/aws/deploy-server.sh            # build and deploy the server, then check it answers
+go run ./cmd/vans-testers add Riya      # a new tester and their code (200 a day unless -daily)
+go run ./cmd/vans-testers list          # every tester and what each used today
+go run ./cmd/vans-testers off Riya      # switch a code off at once; "on" puts it back
+go run ./cmd/vans-testers feedback      # what testers sent, newest first
+```
+
+Measured 2026-10-14 from this Mac: a health check in 0.12 to 0.17 seconds,
+most of it opening the connection; "which application" answered in 0.65 to
+1.0 seconds with the model; the function starts cold in about half a second
+and uses 41 MB.
+
+**Mail is not delivered until two things are done** (the feedback is kept in
+the table either way):
+
+1. Click the link in the "Amazon Web Services – Email Address Verification
+   Request" mail sent to the Gmail address.
+2. In Cloudflare → summonvans.in → DNS, add three CNAME records, proxy off
+   (DNS only):
+
+   | Name | Target |
+   |---|---|
+   | `4igl4kajkflafkc4yssc6dtt4xkmucg3._domainkey` | `4igl4kajkflafkc4yssc6dtt4xkmucg3.dkim.amazonses.com` |
+   | `mra6pnyjyc7wyay2bpiotezm4cqikkaf._domainkey` | `mra6pnyjyc7wyay2bpiotezm4cqikkaf.dkim.amazonses.com` |
+   | `5fcyche54qiasw4tlzyzzuu52wbnzfvh._domainkey` | `5fcyche54qiasw4tlzyzzuu52wbnzfvh.dkim.amazonses.com` |
+
+Check with `aws sesv2 get-email-identity --profile vans-deploy --email-identity summonvans.in --query VerifiedForSendingStatus`.
+
 ## Planned
 
 | Piece | Where | Free allowance (check before relying on it) |
 |---|---|---|
-| VANS server: holds the model instructions and keys, checks invite codes, caps use per tester | Lambda, Mumbai | about 1 million requests a month |
-| Database: invite codes, daily caps, failed-guide reports, usage counts | DynamoDB, Mumbai | 25 GB stored |
 | App downloads and the update feed | S3, Mumbai | data out to the internet is free up to about 100 GB a month across the account |
 | Dashboard of failures over time | read from the database, behind a login only Vedansh has | |

@@ -1895,12 +1895,17 @@ and cost is in `docs/infrastructure.md`. This section is the short record.
 | CI on every pull request | #181, D-230 |
 | Each question to the provider best placed for it; `cmd/vans-eval` scores them | D-232 |
 | Routing chosen for accuracy; Gemini latest first, 21/21 | D-233 |
+| The server live on Lambda in Mumbai; testers, counts and feedback in DynamoDB; keys in Parameter Store; feedback mailed; `vans-testers` makes codes | D-234, `docs/infrastructure.md` |
 | AWS: budget alert, `vans-deploy` user fenced to VANS, $143.49 credit | `docs/infrastructure.md` |
 
-**Next, in order:** the hands-on suite with Groq writing (needs Vedansh's
-timing), the database and Lambda in
-Mumbai, then the console, then start at login and the notch, watching and
-learning, the tester kit, and the privacy page with each.
+**Waiting on Vedansh:** click the AWS verification mail in Gmail, and add the
+three DKIM records in Cloudflare DNS (`docs/infrastructure.md`), so feedback
+mail is delivered.
+
+**Next, in order:** the panel's "send this failed guide" and "tell Vedansh"
+buttons, the hands-on suite through the live server (needs Vedansh's timing),
+then the console, start at login and the notch, watching and learning, the
+tester kit, and the privacy page with each.
 
 
 i encountered this - two steps open at a time even though the previous step was already completed. 

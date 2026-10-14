@@ -159,6 +159,11 @@ func (r *Remote) ReadScreen(ctx context.Context, req ReadRequest) (ReadAnswer, e
 	return ask[ReadRequest, ReadAnswer](ctx, r, KindRead, req)
 }
 
+func (r *Remote) SendFeedback(ctx context.Context, f Feedback) error {
+	_, err := ask[Feedback, struct{}](ctx, r, KindFeedback, f)
+	return err
+}
+
 func (r *Remote) Ping(ctx context.Context) error {
 	_, err := ask[struct{}, struct{}](ctx, r, KindPing, struct{}{})
 	return err

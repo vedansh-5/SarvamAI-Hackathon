@@ -9,10 +9,11 @@ import (
 )
 
 type Memory struct {
-	mu      sync.Mutex
-	testers map[string]Tester
-	counts  map[string]int
-	day     string
+	mu       sync.Mutex
+	testers  map[string]Tester
+	counts   map[string]int
+	day      string
+	feedback []Feedback
 }
 
 func NewMemory(testers []Tester) *Memory {
@@ -39,6 +40,19 @@ func (m *Memory) Spend(_ context.Context, code, day string) (int, int, error) {
 	m.counts[code]++
 	m.counts[""]++
 	return m.counts[code], m.counts[""], nil
+}
+
+func (m *Memory) Keep(_ context.Context, f Feedback) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.feedback = append(m.feedback, f)
+	return nil
+}
+
+func (m *Memory) Kept() []Feedback {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return append([]Feedback(nil), m.feedback...)
 }
 
 func ParseTesters(spelled string) ([]Tester, error) {
