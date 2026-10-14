@@ -176,3 +176,43 @@ func TestOnlyTheTypedWordsAndTheApplicationAreKept(t *testing.T) {
 		t.Errorf("a long request kept %d characters", len([]rune(words)))
 	}
 }
+
+func TestBehindAGateTheConsoleIsInvisibleWithoutIt(t *testing.T) {
+	ledger := NewMemory([]Tester{{Name: "Riya", Code: riya, Daily: 10}})
+	console := &Console{Books: ledger, Key: consoleKey, Gate: "gate-secret"}
+
+	for _, header := range []string{"", "wrong"} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/console", nil)
+		if header != "" {
+			req.Header.Set(GateHeader, header)
+		}
+		console.ServeHTTP(rec, req)
+		if rec.Code != http.StatusNotFound || strings.Contains(rec.Body.String(), "Console key") {
+			t.Errorf("gate %q: answered %d", header, rec.Code)
+		}
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/console/login", strings.NewReader(url.Values{"key": {consoleKey}}.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(GateHeader, "gate-secret")
+	console.ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/" {
+		t.Fatalf("signing in through the gate answered %d to %q", rec.Code, rec.Header().Get("Location"))
+	}
+	cookie := rec.Result().Cookies()[0]
+	if cookie.Path != "/" {
+		t.Errorf("cookie path = %q", cookie.Path)
+	}
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/console/testers", nil)
+	req.Header.Set(GateHeader, "gate-secret")
+	req.AddCookie(cookie)
+	console.ServeHTTP(rec, req)
+	body := rec.Body.String()
+	if rec.Code != http.StatusOK || !strings.Contains(body, `href="/activity"`) || strings.Contains(body, "/console/") {
+		t.Errorf("through the gate the links should be plain: %d", rec.Code)
+	}
+}

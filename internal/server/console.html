@@ -66,7 +66,7 @@ svg rect { fill: var(--bar); }
 <main><div class="card login">
   <h1>VANS console</h1>
   {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
-  <form method="post" action="/console/login">
+  <form method="post" action="{{$.Base}}/login">
     <input type="password" name="key" placeholder="Console key" autocomplete="current-password" autofocus>
     <button type="submit">Open</button>
   </form>
@@ -75,18 +75,18 @@ svg rect { fill: var(--bar); }
 <header>
   <b>VANS</b>
   <nav>
-    <a href="/console" {{if eq .Page "overview"}}class="on"{{end}}>Overview</a>
-    <a href="/console/testers" {{if eq .Page "testers"}}class="on"{{end}}>Testers</a>
-    <a href="/console/activity" {{if eq .Page "activity"}}class="on"{{end}}>Activity</a>
-    <a href="/console/feedback" {{if eq .Page "feedback"}}class="on"{{end}}>Feedback</a>
+    <a href="{{$.Base}}/" {{if eq .Page "overview"}}class="on"{{end}}>Overview</a>
+    <a href="{{$.Base}}/testers" {{if eq .Page "testers"}}class="on"{{end}}>Testers</a>
+    <a href="{{$.Base}}/activity" {{if eq .Page "activity"}}class="on"{{end}}>Activity</a>
+    <a href="{{$.Base}}/feedback" {{if eq .Page "feedback"}}class="on"{{end}}>Feedback</a>
   </nav>
-  <form method="post" action="/console/logout"><button class="plain" type="submit">Sign out</button></form>
+  <form method="post" action="{{$.Base}}/logout"><button class="plain" type="submit">Sign out</button></form>
 </header>
 <main>
 {{if eq .Page "error"}}
   <h1>That did not work</h1>
   <p class="error">{{.Error}}</p>
-  <p><a href="/console">Back to the overview</a></p>
+  <p><a href="{{$.Base}}/">Back to the overview</a></p>
 
 {{else if eq .Page "overview"}}
   <h1>Overview</h1>
@@ -137,7 +137,7 @@ svg rect { fill: var(--bar); }
   {{end}}
   <div class="card" style="margin-bottom:16px">
     <h2>Add a tester</h2>
-    <form method="post" action="/console/testers/add" class="row">
+    <form method="post" action="{{$.Base}}/testers/add" class="row">
       <input name="name" placeholder="Name" required>
       <input name="daily" type="number" min="0" value="200" title="Requests a day">
       <button type="submit">Make a code</button>
@@ -150,12 +150,12 @@ svg rect { fill: var(--bar); }
       <tr {{if .Off}}class="done"{{end}}>
         <td>{{.Name}}</td><td><code>{{.Code}}</code></td>
         <td>{{.Today}}{{if .Daily}} <span class="mute">({{pct .Today .Daily}}%)</span>{{end}}</td>
-        <td><form method="post" action="/console/testers/daily" class="row">
+        <td><form method="post" action="{{$.Base}}/testers/daily" class="row">
           <input type="hidden" name="code" value="{{.Code}}">
           <input name="daily" type="number" min="0" value="{{.Daily}}"><button class="plain" type="submit">Save</button>
         </form></td>
         <td>{{when .LastSeen}}</td><td>{{.Week}}</td>
-        <td><form method="post" action="/console/testers/{{if .Off}}on{{else}}off{{end}}">
+        <td><form method="post" action="{{$.Base}}/testers/{{if .Off}}on{{else}}off{{end}}">
           <input type="hidden" name="code" value="{{.Code}}">
           <button class="plain" type="submit">{{if .Off}}Switch on{{else}}Switch off{{end}}</button>
         </form></td>
@@ -167,7 +167,7 @@ svg rect { fill: var(--bar); }
 {{else if eq .Page "activity"}}
   <h1>Activity</h1>
   <div class="card" style="margin-bottom:16px">
-    <form method="get" action="/console/activity" class="row">
+    <form method="get" action="{{$.Base}}/activity" class="row">
       <select name="tester"><option value="">Every tester</option>
         {{$t := .Filter.Tester}}{{range .Names}}<option {{if eq . $t}}selected{{end}}>{{.}}</option>{{end}}
       </select>
@@ -202,7 +202,7 @@ svg rect { fill: var(--bar); }
     <div class="row">
       <b>{{.From}}</b><span class="mute">{{words .Kind}} · {{when .At}}</span>
       {{if not .Handled}}
-      <form method="post" action="/console/feedback/handled" style="margin-left:auto">
+      <form method="post" action="{{$.Base}}/feedback/handled" style="margin-left:auto">
         <input type="hidden" name="id" value="{{.ID}}"><button class="plain" type="submit">Mark handled</button>
       </form>
       {{else}}<span class="mute" style="margin-left:auto">handled</span>{{end}}
