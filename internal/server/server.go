@@ -1,0 +1,211 @@
+package server
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/vedansh/vans/internal/synth"
+)
+
+const (
+	MostRequestBytes = 12 << 20
+	HealthPath       = "/v1/health"
+)
+
+type Tester struct {
+	Name  string
+	Code  string
+	Daily int
+	Off   bool
+}
+
+type Ledger interface {
+	Tester(ctx context.Context, code string) (Tester, bool, error)
+	Spend(ctx context.Context, code, day string) (mine, all int, err error)
+}
+
+type Server struct {
+	Model  func(used *synth.Usage) synth.Model
+	Ledger Ledger
+	Total  int
+	Now    func() time.Time
+	Log    func(format string, args ...any)
+}
+
+func (s *Server) logf(format string, args ...any) {
+	if s.Log != nil {
+		s.Log(format, args...)
+	}
+}
+
+func (s *Server) now() time.Time {
+	if s.Now != nil {
+		return s.Now()
+	}
+	return time.Now()
+}
+
+func Day(t time.Time) string { return t.UTC().Format("2006-01-02") }
+
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	switch {
+	case r.URL.Path == HealthPath && r.Method == http.MethodGet:
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"ok":true}`)
+	case r.URL.Path == synth.AskPath && r.Method == http.MethodPost:
+		s.ask(w, r)
+	case r.URL.Path == synth.AskPath:
+		reply(w, http.StatusMethodNotAllowed, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultRefused, Message: "post only"}})
+	default:
+		reply(w, http.StatusNotFound, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultRefused, Message: "not found"}})
+	}
+}
+
+func reply(w http.ResponseWriter, status int, out synth.Answered) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(out)
+}
+
+func refuse(w http.ResponseWriter, status int, message string) {
+	reply(w, status, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultRefused, Message: message}})
+}
+
+func codeOf(r *http.Request) string {
+	header := strings.TrimSpace(r.Header.Get("Authorization"))
+	if !strings.HasPrefix(header, "Bearer ") {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(header, "Bearer "))
+}
+
+func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
+	code := codeOf(r)
+	if code == "" {
+		refuse(w, http.StatusUnauthorized, "this copy of VANS has no invite code")
+		return
+	}
+	who, found, err := s.Ledger.Tester(r.Context(), code)
+	if err != nil {
+		s.logf("could not look up an invite code: %v", err)
+		reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the VANS server could not check the invite code"}})
+		return
+	}
+	if !found {
+		refuse(w, http.StatusUnauthorized, "this invite code is not one VANS knows")
+		return
+	}
+	if who.Off {
+		refuse(w, http.StatusForbidden, "this invite code has been switched off")
+		return
+	}
+
+	data, err := io.ReadAll(io.LimitReader(r.Body, MostRequestBytes+1))
+	if err != nil {
+		refuse(w, http.StatusBadRequest, "the request could not be read")
+		return
+	}
+	if len(data) > MostRequestBytes {
+		refuse(w, http.StatusRequestEntityTooLarge, "the request is too large")
+		return
+	}
+	var asked synth.Asking
+	if err := json.Unmarshal(data, &asked); err != nil {
+		refuse(w, http.StatusBadRequest, "the request is not readable")
+		return
+	}
+	answerer, known := kinds[asked.Kind]
+	if !known {
+		refuse(w, http.StatusBadRequest, fmt.Sprintf("%q is not a kind of question VANS asks", asked.Kind))
+		return
+	}
+
+	if asked.Kind != synth.KindPing {
+		mine, all, err := s.Ledger.Spend(r.Context(), code, Day(s.now()))
+		if err != nil {
+			s.logf("could not count a request for %s: %v", who.Name, err)
+			reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the VANS server could not count the request"}})
+			return
+		}
+		if who.Daily > 0 && mine > who.Daily {
+			s.logf("%s is over their %d for today", who.Name, who.Daily)
+			reply(w, http.StatusTooManyRequests, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultOverCap,
+				Message: "You have used today's allowance. It starts again at 5:30 in the morning, India time."}})
+			return
+		}
+		if s.Total > 0 && all > s.Total {
+			s.logf("every tester together is over %d for today", s.Total)
+			reply(w, http.StatusTooManyRequests, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultOverCap,
+				Message: "VANS has used today's allowance for everyone. It starts again at 5:30 in the morning, India time."}})
+			return
+		}
+	}
+
+	used := &synth.Usage{}
+	started := time.Now()
+	answered, err := answerer(r.Context(), s.Model(used), asked.Request)
+	spent := used.Now()
+	if err != nil {
+		var bad *badRequest
+		if errors.As(err, &bad) {
+			refuse(w, http.StatusBadRequest, bad.Error())
+			return
+		}
+		s.logf("%s asked %s: failed after %s and %d call(s): %v", who.Name, asked.Kind, time.Since(started).Round(10*time.Millisecond), spent.Calls, err)
+		reply(w, http.StatusOK, synth.Answered{Fault: synth.FaultOf(err), Used: spent})
+		return
+	}
+	encoded, err := json.Marshal(answered)
+	if err != nil {
+		s.logf("%s asked %s: the answer could not be encoded: %v", who.Name, asked.Kind, err)
+		reply(w, http.StatusInternalServerError, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the answer could not be sent"}, Used: spent})
+		return
+	}
+	s.logf("%s asked %s: answered in %s with %d call(s)", who.Name, asked.Kind, time.Since(started).Round(10*time.Millisecond), spent.Calls)
+	reply(w, http.StatusOK, synth.Answered{Answer: encoded, Used: spent})
+}
+
+type badRequest struct{ kind string }
+
+func (e *badRequest) Error() string { return fmt.Sprintf("the %s request is not readable", e.kind) }
+
+type answerer func(ctx context.Context, m synth.Model, raw json.RawMessage) (any, error)
+
+func answering[Q, A any](kind string, f func(m synth.Model, ctx context.Context, req Q) (A, error)) answerer {
+	return func(ctx context.Context, m synth.Model, raw json.RawMessage) (any, error) {
+		var req Q
+		if len(raw) > 0 {
+			if err := json.Unmarshal(raw, &req); err != nil {
+				return nil, &badRequest{kind: kind}
+			}
+		}
+		return f(m, ctx, req)
+	}
+}
+
+var kinds = map[string]answerer{
+	synth.KindProgram:   answering(synth.KindProgram, synth.Model.Synthesize),
+	synth.KindRoute:     answering(synth.KindRoute, synth.Model.Decide),
+	synth.KindAnswer:    answering(synth.KindAnswer, synth.Model.Answer),
+	synth.KindAppAction: answering(synth.KindAppAction, synth.Model.WriteAction),
+	synth.KindWebAction: answering(synth.KindWebAction, synth.Model.WriteWebAction),
+	synth.KindUIAction:  answering(synth.KindUIAction, synth.Model.WriteUIAction),
+	synth.KindStep:      answering(synth.KindStep, synth.Model.WriteStep),
+	synth.KindPlan:      answering(synth.KindPlan, synth.Model.WritePlan),
+	synth.KindStyle:     answering(synth.KindStyle, synth.Model.WriteStyle),
+	synth.KindWhichApp:  answering(synth.KindWhichApp, synth.Model.WhichApp),
+	synth.KindText:      answering(synth.KindText, synth.Model.WorkOnText),
+	synth.KindFiles:     answering(synth.KindFiles, synth.Model.WriteFileOps),
+	synth.KindSee:       answering(synth.KindSee, synth.Model.SeeScreen),
+	synth.KindRead:      answering(synth.KindRead, synth.Model.ReadScreen),
+	synth.KindPing: func(ctx context.Context, m synth.Model, _ json.RawMessage) (any, error) {
+		return struct{}{}, m.Ping(ctx)
+	},
+}

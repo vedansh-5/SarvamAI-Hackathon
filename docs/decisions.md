@@ -5238,3 +5238,39 @@ the hour once credits are gone.
 `docs/infrastructure.md` is where each account, secret and cost is written
 down.
 
+## D-229 — The model is asked through the VANS server, which holds the instructions and the keys
+
+A tester's copy of VANS must not carry Vedansh's keys or the instructions given
+to the model; either can be read out of an application, and the instructions
+are how VANS works. Every question the engine asks the model already goes
+through one doorway, `synth.Model`, the fourteen kinds of question plus a ping.
+
+`synth.Remote` is that doorway answered over HTTP. Each question is sent to the
+VANS server (`cmd/vans-server`) as its kind and its request, and the server asks
+the model with the same code the engine runs today, then returns only the
+answer and what it used. Nothing that builds a prompt runs in the app when
+`VANS_SERVER_URL` is set. Remembered plans, places and steps stay on the Mac,
+so a repeat guide asks the server nothing.
+
+**Every question arrives as it was sent.** A test fills every field of every
+request and answer and checks it survives the trip. It found three markers on
+a window's elements (filled, noticed, unreadable) that were kept out of JSON
+and change what the model is told; they now travel.
+
+**Failures keep their meaning, not their text.** The engine acts on a few kinds
+of failure: the model not answering, an application that cannot be asked, a
+step that was neither a step nor a reason to stop. Those cross as their kind
+and fields. Any other failure crosses as "the model could not answer", because
+its text can quote the provider's reply, and the server logs the detail
+instead.
+
+**Invite codes and allowances.** Every request carries the tester's code. An
+unknown or switched-off code is turned away before the model is asked. Each
+code has a daily allowance and all testers together have a total, counted per
+day in UTC (5:30 in the morning in India). A ping is not counted. For now the
+codes come from `VANS_TESTERS` and the counts are kept in memory; on Lambda
+they move to the database.
+
+Measured on this Mac on 2026-10-14: the server added no measurable time; the
+eleven to eighteen seconds each answer took were the model.
+

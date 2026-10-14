@@ -23,9 +23,9 @@ type Usage struct {
 }
 
 type Used struct {
-	Calls int64
-	In    int64
-	Out   int64
+	Calls int64 `json:"calls"`
+	In    int64 `json:"in"`
+	Out   int64 `json:"out"`
 }
 
 func (u *Usage) add(in, out int64) {
@@ -35,6 +35,15 @@ func (u *Usage) add(in, out int64) {
 	u.calls.Add(1)
 	u.in.Add(in)
 	u.out.Add(out)
+}
+
+func (u *Usage) addUsed(d Used) {
+	if u == nil {
+		return
+	}
+	u.calls.Add(d.Calls)
+	u.in.Add(d.In)
+	u.out.Add(d.Out)
 }
 
 func (u *Usage) Now() Used {
@@ -254,4 +263,12 @@ func (l *Live) ReadScreen(ctx context.Context, req ReadRequest) (ReadAnswer, err
 		return ReadAnswer{}, err
 	}
 	return c.ReadScreen(ctx, req)
+}
+
+func (l *Live) Ping(ctx context.Context) error {
+	c, err := l.use()
+	if err != nil {
+		return err
+	}
+	return c.Ping(ctx)
 }

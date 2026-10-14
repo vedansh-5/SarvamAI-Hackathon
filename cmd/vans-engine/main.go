@@ -14,6 +14,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/vedansh/vans/internal/envfile"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -47,7 +48,7 @@ func main() {
 }
 
 func run() error {
-	loadEnvFile()
+	envfile.Load(".env", "../.env")
 	var (
 		hostPort = flag.String("cdp", "127.0.0.1:9222", "debugging endpoint of an already-running Chromium")
 		dbPath   = flag.String("db", defaultDB(), "program cache")
@@ -124,7 +125,11 @@ func run() error {
 	synth.Notice = func(format string, args ...any) {
 		fmt.Fprintf(os.Stderr, "[model] "+format+"\n", args...)
 	}
-	if os.Getenv(synth.EnvProvider) == "anthropic" {
+	if url := strings.TrimSpace(os.Getenv(synth.EnvServerURL)); url != "" {
+		remote := synth.NewRemote(url, os.Getenv(synth.EnvInvite))
+		synthesizer, meter = remote, remote.Usage
+		fmt.Fprintf(os.Stderr, "[model] asking the VANS server at %s\n", url)
+	} else if os.Getenv(synth.EnvProvider) == "anthropic" {
 		synthesizer, synthErr = synth.FromEnv()
 		if synthErr != nil {
 			synthesizer = unconfigured{err: synthErr}
@@ -362,32 +367,6 @@ func defaultDB() string {
 		return "vans.db"
 	}
 	return filepath.Join(home, ".vans", "programs.db")
-}
-
-func loadEnvFile() {
-	paths := []string{".env", "../.env"}
-	for _, p := range paths {
-		data, err := os.ReadFile(p)
-		if err != nil {
-			continue
-		}
-		for _, line := range strings.Split(string(data), "\n") {
-			line = strings.TrimSpace(line)
-			if line == "" || strings.HasPrefix(line, "#") {
-				continue
-			}
-			parts := strings.SplitN(line, "=", 2)
-			if len(parts) == 2 {
-				k := strings.TrimSpace(parts[0])
-				v := strings.TrimSpace(parts[1])
-				v = strings.Trim(v, `"'`)
-				if os.Getenv(k) == "" {
-					_ = os.Setenv(k, v)
-				}
-			}
-		}
-		break
-	}
 }
 
 func looking(model any, desktop uiact.System) uiact.Screen {

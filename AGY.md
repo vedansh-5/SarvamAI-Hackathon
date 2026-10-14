@@ -1733,6 +1733,9 @@ every change unless a later instruction says otherwise.
 - **Slow steps are the model provider being overloaded (D-224).** Retries are
   logged as `[model]`, and the guide says when the model is slow. The fix is a
   provider that is not overloaded, which is a cost decision.
+- **The model is asked through the VANS server (D-229).** With
+  `VANS_SERVER_URL` and `VANS_INVITE` set, the app carries no key and builds
+  no prompt; `cmd/vans-server` does, behind invite codes and daily allowances.
 - **A second provider is asked when the first is overloaded (D-227).** Set by
   four `VANS_LLM_BACKUP_*` settings; with one set, the first provider gets one
   retry per model instead of three before the backup is asked.

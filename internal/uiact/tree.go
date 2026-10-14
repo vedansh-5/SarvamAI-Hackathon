@@ -16,9 +16,9 @@ type Element struct {
 	Actions  []string `json:"actions,omitempty"`
 	Path     []int    `json:"path"`
 
-	Filled bool `json:"-"`
-	Notice bool `json:"-"`
-	Blind  bool `json:"-"`
+	Filled bool `json:"filled,omitempty"`
+	Notice bool `json:"notice,omitempty"`
+	Blind  bool `json:"blind,omitempty"`
 
 	Ranged bool    `json:"ranged,omitempty"`
 	Low    float64 `json:"low,omitempty"`
