@@ -5460,3 +5460,7 @@ Measured on 2026-10-14 from this Mac: a health check in 0.12 to 0.17 seconds
 including a fresh connection; "which application" in 0.65 to 1.0 seconds
 including the model; a cold start of about half a second; 41 MB used of 256.
 The $20 Lambda credit was not counted by deploying from the command line.
+
+The hands-on suite was then run with the engine pointed at the live server
+(`VANS_SERVER_URL`, `VANS_INVITE`): fifteen of fifteen, including the window
+reading that D-233 was about.

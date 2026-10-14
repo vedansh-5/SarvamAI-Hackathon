@@ -155,7 +155,7 @@ most of it opening the connection; "which application" answered in 0.65 to
 1.0 seconds with the model; the function starts cold in about half a second
 and uses 41 MB.
 
-**Mail is not delivered until two things are done** (the feedback is kept in
+**Mail needed two things, both done on 2026-10-14** (the feedback is kept in
 the table either way):
 
 1. Click the link in the "Amazon Web Services – Email Address Verification
