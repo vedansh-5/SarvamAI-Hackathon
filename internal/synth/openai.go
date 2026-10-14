@@ -63,6 +63,8 @@ type OpenAICompatible struct {
 
 	Fast string
 
+	Backup *OpenAICompatible
+
 	// AnswerWait bounds a single request. Defaults to DefaultAnswerWait.
 	AnswerWait time.Duration
 
@@ -79,6 +81,8 @@ var Notice = func(format string, args ...any) {}
 const (
 	DefaultRetries   = 3
 	DefaultRetryWait = 2 * time.Second
+
+	RetriesWithBackup = 1
 )
 
 // DefaultAnswerWait bounds one request to the provider.
@@ -312,7 +316,8 @@ func (c *OpenAICompatible) responseFormat(name string, schema func() map[string]
 func (c *OpenAICompatible) post(ctx context.Context, body chatRequest) (string, error) {
 	var failures []error
 
-	for _, model := range c.ladder(body.Model) {
+	tried := c.ladder(body.Model)
+	for _, model := range tried {
 		body.Model = model
 
 		text, err := c.postRetrying(ctx, body)
@@ -322,10 +327,52 @@ func (c *OpenAICompatible) post(ctx context.Context, body chatRequest) (string, 
 		failures = append(failures, err)
 
 		if !anotherModelMightAnswer(err) {
-			break
+			return "", errors.Join(failures...)
 		}
 	}
+
+	if c.Backup != nil {
+		backup := *c.Backup
+		backup.Usage = c.Usage
+		Notice("%s could not answer; asking %s instead", strings.Join(tried, " and "), backup.Model)
+		text, err := backup.post(ctx, backup.reshape(body))
+		if err == nil {
+			return text, nil
+		}
+		failures = append(failures, err)
+	}
 	return "", errors.Join(failures...)
+}
+
+func (c *OpenAICompatible) reshape(body chatRequest) chatRequest {
+	body.Model = c.Model
+	if c.SchemaMode == SchemaJSON {
+		return body
+	}
+	var format struct {
+		Type       string `json:"type"`
+		JSONSchema struct {
+			Schema json.RawMessage `json:"schema"`
+		} `json:"json_schema"`
+	}
+	if len(body.ResponseFormat) > 0 && json.Unmarshal(body.ResponseFormat, &format) == nil &&
+		format.Type == "json_schema" && len(format.JSONSchema.Schema) > 0 {
+		var schema bytes.Buffer
+		if json.Indent(&schema, format.JSONSchema.Schema, "", "  ") == nil {
+			body.Messages = withSchema(body.Messages, schema.String())
+		}
+	}
+	body.ResponseFormat = c.responseFormat("", nil, false)
+	return body
+}
+
+func withSchema(messages []chatMessage, schema string) []chatMessage {
+	out := append([]chatMessage(nil), messages...)
+	if len(out) > 0 && out[0].Role == "system" {
+		out[0].Content += schemaPreamble + schema
+		return out
+	}
+	return append([]chatMessage{{Role: "system", Content: strings.TrimLeft(schemaPreamble, "\n") + schema}}, out...)
 }
 
 func (c *OpenAICompatible) ladder(first string) []string {
@@ -376,6 +423,9 @@ func (c *OpenAICompatible) postRetrying(ctx context.Context, body chatRequest) (
 	retries := c.Retries
 	if retries == 0 {
 		retries = DefaultRetries
+		if c.Backup != nil {
+			retries = RetriesWithBackup
+		}
 	}
 	wait := c.RetryWait
 	if wait == 0 {

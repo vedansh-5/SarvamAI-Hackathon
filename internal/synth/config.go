@@ -21,6 +21,11 @@ const (
 
 	EnvFastModel = "VANS_LLM_FAST_MODEL"
 
+	EnvBackupBaseURL    = "VANS_LLM_BACKUP_BASE_URL"
+	EnvBackupAPIKey     = "VANS_LLM_BACKUP_API_KEY"
+	EnvBackupModel      = "VANS_LLM_BACKUP_MODEL"
+	EnvBackupSchemaMode = "VANS_LLM_BACKUP_SCHEMA_MODE"
+
 	// EnvTimeout is how long one request has to answer, as a Go duration.
 	// Defaults to DefaultAnswerWait.
 	EnvTimeout = "VANS_LLM_TIMEOUT"
@@ -118,13 +123,13 @@ func FromEnv() (Synthesizer, error) {
 			return nil, err
 		}
 
-		return FromSettings(Settings{
+		return FromSettings(WithBackupFrom(os.Getenv, Settings{
 			APIKey:   key,
 			BaseURL:  base,
 			Model:    model,
 			Fallback: os.Getenv(EnvFallbackModel),
 			Fast:     os.Getenv(EnvFastModel),
-		}, wait, mode), nil
+		}), wait, mode), nil
 
 	default:
 		return nil, fmt.Errorf("synth: unknown %s=%q, want \"openai\" or \"anthropic\"",

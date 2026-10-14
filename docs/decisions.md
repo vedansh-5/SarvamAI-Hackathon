@@ -5180,3 +5180,33 @@ once per stretch of steps the planner can see, and once at the end, because
 only the screen says whether "how do I" worked (D-195). Skipping the closing
 question when every step was seen to happen would save one more call and is a
 trade of certainty for speed; it is left for Vedansh to decide.
+
+## D-227 — A second provider, asked when the first is overloaded
+
+The free plan the guide runs on is overloaded often enough to add ten to
+thirty-five seconds to a step (D-224). The existing fallback is a second model
+on the same provider, and an overloaded provider is usually overloaded for
+both, so the fallback waited out the same trouble twice.
+
+A backup is a different provider with its own address, key and model, set by
+`VANS_LLM_BACKUP_BASE_URL`, `VANS_LLM_BACKUP_API_KEY` and
+`VANS_LLM_BACKUP_MODEL`. All three are needed; with any missing there is no
+backup. It is asked only when the first provider could not answer at all: it
+was overloaded past its retries, it went silent, or it does not know the model.
+A request the first provider refused as wrong is not sent on, because the
+second would refuse it the same way.
+
+With a backup set, the first provider is retried once per model instead of
+three times. The long backoff existed because there was nowhere else to go;
+with somewhere else, waiting is the slower choice.
+
+Providers differ on how strictly they take a response shape, so the backup has
+its own `VANS_LLM_BACKUP_SCHEMA_MODE`, defaulting to `json_object`, which most
+accept. A request written for a strict schema is reshaped for it: the schema
+moves into the instructions and the looser format is asked for.
+
+A backup model may plan less well than the first. It is a way to keep a guide
+moving through a busy minute, not a replacement, and the hands-on suite should
+be run against it before it is relied on. It is read from the environment only;
+the Setup panel does not offer it yet.
+

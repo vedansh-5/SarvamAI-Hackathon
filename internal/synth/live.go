@@ -54,6 +54,11 @@ type Settings struct {
 	Model    string
 	Fast     string
 	Fallback string
+
+	BackupBaseURL string
+	BackupKey     string
+	BackupModel   string
+	BackupMode    SchemaMode
 }
 
 func FromSettings(s Settings, wait time.Duration, mode SchemaMode) *OpenAICompatible {
@@ -65,7 +70,7 @@ func FromSettings(s Settings, wait time.Duration, mode SchemaMode) *OpenAICompat
 	if model == "" {
 		model = DefaultOSModel
 	}
-	return &OpenAICompatible{
+	c := &OpenAICompatible{
 		BaseURL:    base,
 		APIKey:     strings.TrimSpace(s.APIKey),
 		Model:      model,
@@ -74,6 +79,30 @@ func FromSettings(s Settings, wait time.Duration, mode SchemaMode) *OpenAICompat
 		AnswerWait: wait,
 		SchemaMode: mode,
 	}
+	backupBase, backupKey, backupModel := strings.TrimSpace(s.BackupBaseURL), strings.TrimSpace(s.BackupKey), strings.TrimSpace(s.BackupModel)
+	if backupBase != "" && backupKey != "" && backupModel != "" {
+		c.Backup = &OpenAICompatible{
+			BaseURL:    strings.TrimSuffix(backupBase, "/"),
+			APIKey:     backupKey,
+			Model:      backupModel,
+			AnswerWait: wait,
+			SchemaMode: s.BackupMode,
+		}
+	}
+	return c
+}
+
+func WithBackupFrom(env func(string) string, s Settings) Settings {
+	s.BackupBaseURL = strings.TrimSpace(env(EnvBackupBaseURL))
+	s.BackupKey = strings.TrimSpace(env(EnvBackupAPIKey))
+	s.BackupModel = strings.TrimSpace(env(EnvBackupModel))
+	s.BackupMode = SchemaObject
+	if spelled := strings.TrimSpace(env(EnvBackupSchemaMode)); spelled != "" {
+		if mode, err := ParseSchemaMode(spelled); err == nil {
+			s.BackupMode = mode
+		}
+	}
+	return s
 }
 
 var ErrNotSetUp = errors.New("synth: no model is set up yet; add a key in Setup")

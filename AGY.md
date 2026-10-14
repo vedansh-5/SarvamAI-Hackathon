@@ -1733,6 +1733,9 @@ every change unless a later instruction says otherwise.
 - **Slow steps are the model provider being overloaded (D-224).** Retries are
   logged as `[model]`, and the guide says when the model is slow. The fix is a
   provider that is not overloaded, which is a cost decision.
+- **A second provider is asked when the first is overloaded (D-227).** Set by
+  four `VANS_LLM_BACKUP_*` settings; with one set, the first provider gets one
+  retry per model instead of three before the backup is asked.
 - **A step is acknowledged the moment it is noticed (D-223).** The ring ticks
   at once; the wait for the next step comes after, not before.
 - **Name:** VANS. The full form is Visual Agent Navigation System, and it is

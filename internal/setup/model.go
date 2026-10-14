@@ -133,18 +133,18 @@ func (m *Model) fromSaved(ctx context.Context) synth.Settings {
 
 func (m *Model) Load(ctx context.Context) {
 	if key := m.env(synth.EnvAPIKey); key != "" {
-		m.Live.Set(synth.FromSettings(synth.Settings{
+		m.Live.Set(synth.FromSettings(synth.WithBackupFrom(m.env, synth.Settings{
 			APIKey:   key,
 			BaseURL:  m.env(synth.EnvBaseURL),
 			Model:    m.env(synth.EnvModel),
 			Fast:     m.env(synth.EnvFastModel),
 			Fallback: m.env(synth.EnvFallbackModel),
-		}, m.Wait, m.Mode))
+		}), m.Wait, m.Mode))
 		m.source = FromEnvironment
 		return
 	}
 	if s := m.fromSaved(ctx); s.APIKey != "" {
-		m.Live.Set(synth.FromSettings(s, m.Wait, m.Mode))
+		m.Live.Set(synth.FromSettings(synth.WithBackupFrom(m.env, s), m.Wait, m.Mode))
 		m.source = FromSaved
 	}
 }
@@ -199,9 +199,9 @@ func (m *Model) Save(ctx context.Context, change Change) (Status, error) {
 	}
 
 	change.BaseURL, change.Model = whereTheKeyGoes(key, change.BaseURL, change.Model)
-	client := synth.FromSettings(synth.Settings{
+	client := synth.FromSettings(synth.WithBackupFrom(m.env, synth.Settings{
 		APIKey: key, BaseURL: change.BaseURL, Model: change.Model, Fast: change.Fast, Fallback: change.Fallback,
-	}, m.Wait, m.Mode)
+	}), m.Wait, m.Mode)
 
 	test := m.Test
 	if test == nil {
