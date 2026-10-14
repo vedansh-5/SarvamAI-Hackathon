@@ -6,6 +6,15 @@ where V1 finished and the product shape changed.
 Companion to [`decisions.md`](decisions.md), which holds the *why* for
 everything already built. This file holds the *what next*.
 
+> **Status on 2026-10-14.** The phases below are the history up to the coach.
+> The work now is getting VANS to its first testers: the VANS server that holds
+> the keys and the model instructions (D-229), the provider choice, AWS in
+> Mumbai, the console, start at login and the notch, opt-in watching and
+> learning, and the tester kit. The plan and its order are
+> [`plans/2026-10-14-testers.md`](plans/2026-10-14-testers.md); the short
+> record is `AGY.md` G10; accounts and costs are
+> [`infrastructure.md`](infrastructure.md).
+
 ---
 
 ## Where we are

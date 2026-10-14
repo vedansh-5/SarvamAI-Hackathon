@@ -19,7 +19,8 @@ permissions · 8. Known problems · 9. What happens next · 10. Running it ·
 
 G1. Code · G2. Git, branches and PRs · G3. Testing and verification ·
 G4. Documentation · G5. Communication · G6. Product rules · G7. UI and design ·
-G8. Decided, and parked for later
+G8. Decided, and parked for later · G9. The domain and the website ·
+G10. Testers, the server and the accounts
 
 ---
 
@@ -1538,7 +1539,9 @@ cd ui && npx tsc --noEmit
    send as little as the request actually needs.
 3. **Speed is a feature.** The warm path is zero model calls; when a call does
    happen it should be a fast hosted model.
-4. **No local model runtimes.** Hosted only.
+4. **No local model runtimes.** Hosted only. One exception, decided
+   2026-10-14: macOS's own text recognition may run on the Mac to find words
+   and their exact places in applications that publish nothing (D-231).
 5. **VANS never launches applications.** It acts on what is already open
    (D-032).
 6. **Every side effect passes a gate.** Reading changes nothing and needs no
@@ -1618,6 +1621,18 @@ every change unless a later instruction says otherwise.
   ```
   The no-cgo build is checked explicitly — it broke for two PRs once because
   `go build ./...` does not cover it.
+- **CI checks every pull request and every push to `main`** (D-230):
+  formatting, vet, vet of the Mac build and every Go test; the panel's types
+  and build; the site's build and form tests. A pull request is merged only
+  after all three jobs pass. Watch for "no checks reported" straight after a
+  push: the checks have not started yet, and merging then skips them. The
+  Rust shell is not built in CI; it still needs `cargo build` here when it
+  changes. "Workers Builds: vans" is Cloudflare's preview of the site for the
+  branch and has failed on every pull request since at least #175; the live
+  site builds from `main` and is unaffected.
+- **Tests do not read the machine they run on.** CI runs on Linux, which has no
+  Applications folder and no window in front. A test that needs installed
+  applications gets a pretend folder (`aMac` in the engine's tests).
 - **Hermetic tests for everything; live tests behind build tags.** Anything
   that touches a real window, browser or application runs only under
   `-tags integration` with an explicit opt-in (`VANS_LIVE=1`), and anything
@@ -1816,10 +1831,15 @@ is in `docs/infrastructure.md` (D-228).
   `docs/plans/2026-10-13-website.md`. A new rule is added to the rules file in
   the pull request that made it necessary.
 
-Next, in order:
+Next, in order (updated 2026-10-14):
 
 1. Vedansh reads the privacy page and rewrites the founder note.
-2. The startup-program application.
+2. The privacy page grows with the tester work; what it owes is listed in
+   `docs/plans/2026-10-14-testers.md`. Terms are still owed.
+
+The startup-program application was submitted and not accepted (2026-10-14).
+The Windows form delivers: `LIST_TO` is the verified personal address, since
+Cloudflare only sends to verified destinations.
 
 Owed, not started:
 
@@ -1832,6 +1852,52 @@ Owed, not started:
 
 Decided for the site so far: one page, in the panel's own look (ink, paper,
 volt; D-212), no download button until there is a tester build.
+
+## G10. Testers, the server and the accounts
+
+Status on 2026-10-14. The plan, its order and what each step owes the privacy
+page are in `docs/plans/2026-10-14-testers.md`; every account, key location
+and cost is in `docs/infrastructure.md`. This section is the short record.
+
+**Decided**
+
+- **VANS stays closed source.** It is being built as a company. Testers get a
+  built app, never the code. A hackathon that required a public repository and
+  an open-source licence was turned down for this reason.
+- **Testers use Vedansh's keys, through the VANS server** (D-229). The app
+  carries no key and builds no prompt when `VANS_SERVER_URL` and `VANS_INVITE`
+  are set. Each tester has an invite code with a daily allowance; all testers
+  together have a total.
+- **Only model providers that need no card:** Gemini, Groq (D-227) and
+  Cloudflare Workers AI, each request going to the one best placed for it by
+  measured accuracy and live speed. Mistral, NVIDIA, Cerebras and OpenRouter
+  were looked at and left out (see the plan).
+- **Cloudflare is the public face; AWS in Mumbai is what the app talks to**
+  (D-228): the server on Lambda, DynamoDB, downloads on S3.
+- **In the first tester build:** start at login, a pill in the notch, and
+  watching and learning, which is off until the tester turns it on, keeps its
+  notes on the Mac, never records typed text or pictures, and asks the model
+  only about a repeat it has already found.
+- **Applications that publish nothing** (DaVinci, Adobe) are guided through
+  their menus and shortcuts first, then macOS's text recognition for exact
+  places (D-231), then a picture-reading model for icons without words.
+- **A console** on the VANS server for Vedansh alone: testers and codes,
+  activity, feedback, an overview.
+
+**Done**
+
+| What | Where |
+|---|---|
+| A second provider when the first is overloaded | #176, D-227 |
+| Where everything lives, written down | #177, `docs/infrastructure.md`, D-228 |
+| The tester plan; provider choice and unreadable apps; the console | #178, #179, #182 |
+| The VANS server and the app's side of it, tested end to end here | #180, D-229 |
+| CI on every pull request | #181, D-230 |
+| AWS: budget alert, `vans-deploy` user fenced to VANS, $143.49 credit | `docs/infrastructure.md` |
+
+**Next, in order:** the provider choice, then the database and Lambda in
+Mumbai, then the console, then start at login and the notch, watching and
+learning, the tester kit, and the privacy page with each.
 
 
 i encountered this - two steps open at a time even though the previous step was already completed. 

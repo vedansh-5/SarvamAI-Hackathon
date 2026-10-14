@@ -6,6 +6,15 @@ A durable record of implementation progress, completed milestones, and immediate
 
 ## Current Status Overview
 
+> **Status on 2026-10-14.** The milestones below are the history up to the coach.
+> The work now is getting VANS to its first testers: the VANS server that holds
+> the keys and the model instructions (D-229), the provider choice, AWS in
+> Mumbai, the console, start at login and the notch, opt-in watching and
+> learning, and the tester kit. The plan and its order are
+> [`plans/2026-10-14-testers.md`](plans/2026-10-14-testers.md); the short
+> record is `AGY.md` G10; accounts and costs are
+> [`infrastructure.md`](infrastructure.md).
+
 * **Current Phase:** Phase 3 (Acting on the machine & On-Screen Coach) — **Infrastructure Merged, Live Verification Pending**
 * **Active Branch:** `main`
 * **Next Phase / Milestones:** Live Click Loop Proof, Live Multi-Step Coaching, Phase 4 (Vision Tier)

@@ -5274,3 +5274,44 @@ they move to the database.
 Measured on this Mac on 2026-10-14: the server added no measurable time; the
 eleven to eighteen seconds each answer took were the model.
 
+## D-230 — Every change is checked before it is merged, on Linux
+
+Merging was gated by running the checks by hand, which is a step that gets
+skipped. CI now runs on every pull request and every push to `main`
+(`.github/workflows/checks.yml`): the engine (formatting, vet, vet of the Mac
+build without cgo, every Go test), the panel (types and a build) and the site
+(a build and the form's tests).
+
+It runs on Linux. On a private repository a Mac runner costs ten times a Linux
+one against the free monthly minutes, and almost all of the Go code builds and
+tests the same on both. What only builds on a Mac is the cgo layer that reads
+windows and posts input; vetting the Mac build without cgo covers everything
+else that is Mac-only, and the Rust shell is still built here when it changes.
+
+Running there found tests that read the machine they ran on: ten engine tests
+took the installed applications from the real Applications folder and passed
+only on a Mac that had System Settings, Notes and Safari. They now get a pretend
+folder. One timing test needed twenty screen reads inside 30 milliseconds and
+failed on a slower machine; it no longer depends on how fast the machine is.
+The menu-bar constant moved out of the Mac-only file so its tests build
+everywhere.
+
+## D-231 — macOS's own text recognition may run on the Mac
+
+The standing constraint is no local processing: no model runtimes on the Mac.
+Applications that draw their own interface (DaVinci Resolve, Adobe's) publish
+almost nothing to accessibility, and looking at a picture of them with a model
+(D-169) is slow and points at the wrong place, which the first constraint,
+accuracy, does not allow.
+
+macOS can find every piece of text in a picture with its exact place, as part
+of the system, in a fraction of a second, free. With that, the model only has
+to choose which label, which any fast provider can do, and the pointer lands
+exactly on the words. Vedansh chose it over sending the picture to a cloud text
+reader (AWS Rekognition) on 2026-10-14, because it is fast enough and keeps the
+picture on the Mac.
+
+It is an exception, not a change of rule: it is part of macOS, not a model VANS
+ships or runs, and it is used only to find text and where it is. Icons without
+words still need a picture-reading model, used last.
+
