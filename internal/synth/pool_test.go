@@ -153,7 +153,7 @@ func TestLookingGoesOnlyToSeatsThatTakePictures(t *testing.T) {
 
 func TestTheKindsOfQuestionAreSorted(t *testing.T) {
 	for kind, want := range map[string]Class{
-		KindRoute: Quick, KindWhichApp: Quick, KindSee: See,
+		KindRoute: Write, KindWhichApp: Quick, KindSee: See,
 		KindPlan: Write, KindStep: Write, KindText: Write, KindRead: Write, KindAnswer: Write,
 	} {
 		if got := ClassOf(kind); got != want {

@@ -29,7 +29,7 @@ const (
 
 func ClassOf(kind string) Class {
 	switch kind {
-	case KindRoute, KindWhichApp, KindPing:
+	case KindWhichApp, KindPing:
 		return Quick
 	case KindSee:
 		return See

@@ -16,6 +16,22 @@
       "Condition": { "StringEquals": { "iam:PassedToService": "lambda.amazonaws.com" } } },
     { "Sid": "VansLogs", "Effect": "Allow",
       "Action": ["logs:DescribeLogGroups", "logs:DescribeLogStreams", "logs:GetLogEvents", "logs:FilterLogEvents", "logs:PutRetentionPolicy", "logs:CreateLogGroup"],
-      "Resource": "*" }
+      "Resource": "*" },
+    { "Sid": "VansTables", "Effect": "Allow", "Action": "dynamodb:*",
+      "Resource": [
+        "arn:aws:dynamodb:ap-south-1:866923470948:table/vans-*",
+        "arn:aws:dynamodb:ap-south-1:866923470948:table/vans-*/index/*"
+      ] },
+    { "Sid": "SeeTables", "Effect": "Allow",
+      "Action": ["dynamodb:ListTables", "dynamodb:DescribeLimits"], "Resource": "*" },
+    { "Sid": "VansBuckets", "Effect": "Allow", "Action": "s3:*",
+      "Resource": ["arn:aws:s3:::vans-*", "arn:aws:s3:::vans-*/*"] },
+    { "Sid": "SeeBuckets", "Effect": "Allow", "Action": "s3:ListAllMyBuckets", "Resource": "*" },
+    { "Sid": "VansMailInMumbai", "Effect": "Allow", "Action": "ses:*", "Resource": "*",
+      "Condition": { "StringEquals": { "aws:RequestedRegion": "ap-south-1" } } },
+    { "Sid": "VansSettings", "Effect": "Allow",
+      "Action": ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath", "ssm:PutParameter", "ssm:DeleteParameter", "ssm:AddTagsToResource"],
+      "Resource": "arn:aws:ssm:ap-south-1:866923470948:parameter/vans/*" },
+    { "Sid": "SeeSettings", "Effect": "Allow", "Action": "ssm:DescribeParameters", "Resource": "*" }
   ]
 }

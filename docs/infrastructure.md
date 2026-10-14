@@ -63,12 +63,20 @@ Workers Logs and Traces are off.
 | Identity | Can do | Used for |
 |---|---|---|
 | Root user | Everything | Signing in to the console. It also has an access key; the safer setup is none |
-| `vans-deploy` (IAM user) | Only `infra/aws/vans-deploy-only.json`: functions named `vans-*` in Mumbai, the one role they run as (allowed nothing but writing logs), and reading their logs | Deploying the VANS server from this Mac |
+| `vans-deploy` (IAM user) | Only `infra/aws/vans-deploy-only.json`: in Mumbai, functions, tables, settings under `/vans/` and mail; buckets named `vans-*`; creating roles named `vans-*` that may do nothing but write logs; handing a `vans-*` role to Lambda; reading logs | Deploying the VANS server from this Mac |
+| `vans-server-runtime` (IAM role) | `infra/aws/vans-server-runtime.json` plus writing logs: read and write `vans-*` tables, read settings under `/vans/`, send mail from Mumbai, read and write files in `vans-*` buckets. Only Lambda can take it on (`infra/aws/lambda-trust.json`) | What the VANS server runs as |
 | `visdom-dev-backup` (IAM user) | Belongs to another project | Not used by VANS |
 
 If `vans-deploy`'s permissions change, `infra/aws/vans-deploy-only.json` changes
-with them, and the policy in the console is updated from the file. Its next
-additions are the database table and the downloads bucket, both named `vans-*`.
+with them, and a new version of the `vans-deploy-only` policy is made from the
+file with the root profile (`aws iam create-policy-version ... --set-as-default`;
+AWS keeps five versions, so delete the oldest first once there are five). The
+runtime role's own policy is changed with `aws iam put-role-policy`, by the root
+profile only: `vans-deploy` can hand the role to Lambda but cannot widen it.
+
+Checked on 2026-10-14 with `vans-deploy`: tables, settings, mail and buckets
+allowed; a table or setting not named for VANS, mail outside Mumbai, servers
+(EC2) and adding a policy to the runtime role all refused.
 
 **Also in the account, not VANS:** a stopped EC2 instance `visdom-loadgen` in
 Mumbai with an 8 GB disk (about $0.70 a month, from credits).
@@ -77,7 +85,7 @@ Mumbai with an 8 GB disk (about $0.70 a month, from credits).
 
 | Provider | Role | Model | Key kept in |
 |---|---|---|---|
-| Google Gemini | Writing first, pictures only (D-232) | `models/gemini-3.1-flash-lite`, then `gemini-flash-lite-latest` | `.env` as `VANS_LLM_API_KEY` |
+| Google Gemini | Writing and routing first, pictures only (D-232, D-233) | `gemini-flash-lite-latest`, then `models/gemini-3.1-flash-lite` | `.env` as `VANS_LLM_API_KEY` |
 | Groq | Quick questions first (`openai/gpt-oss-20b`), writing second (`openai/gpt-oss-120b`) (D-232) | as named | `.env` as `VANS_LLM_BACKUP_API_KEY` |
 | Cloudflare Workers AI | Last resort for writing (D-232) | `@cf/openai/gpt-oss-120b` | `.env` as `CLOUDFLARE_AI_TOKEN` (a token limited to Workers AI on this account) |
 
@@ -109,9 +117,11 @@ none.
 aws freetier get-account-plan-state --query accountPlanRemainingCredits
 aws freetier list-account-activities --query 'activities[].[status,title]' --output text
 
-# The deploy user works and is fenced in (the second one should be refused)
+# The deploy user works and is fenced in (the last two should be refused)
 aws sts get-caller-identity --profile vans-deploy
+aws dynamodb list-tables --profile vans-deploy
 aws ec2 describe-instances --profile vans-deploy
+aws ses get-send-quota --region us-east-1 --profile vans-deploy
 
 # The site and its form
 curl -sI https://summonvans.in | head -1

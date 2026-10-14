@@ -5376,3 +5376,35 @@ Providers are listed in `VANS_PROVIDERS`, each with `VANS_PROVIDER_<NAME>_URL`,
 names another setting, so a key lives in one place. Without `VANS_PROVIDERS`
 the server keeps the single model and backup of D-227.
 
+
+---
+
+## D-233 — Routing a request is chosen for accuracy, not speed
+
+D-232 treated routing as a quick question. The hands-on suite through the
+server then failed one check of fifteen: "what does the build line in
+VansBench say" was routed to reading the browser page instead of reading the
+window. A route is saved per shape of instruction, so a wrong one is repeated
+every time that shape comes back, and a right one is paid for once. Routing is
+now a writing question: the most accurate seat that is free, with speed only
+breaking a tie.
+
+`cmd/vans-eval -set route` asks every seat twenty-one instructions with known
+kinds, including applications named with capitals the model cannot know
+(VansBench, Xcode). On 2026-10-14, twenty seconds apart:
+
+| Seat | Right | Median |
+|---|---|---|
+| Gemini `gemini-flash-lite-latest` | 21/21 | 1.25 s |
+| Groq `openai/gpt-oss-20b` | 20/21 | 0.92 s |
+| Groq `openai/gpt-oss-120b` | 20/21 | 1.1 s |
+| Workers AI `@cf/openai/gpt-oss-120b` | 20/21 | 5.4 s |
+| Gemini `models/gemini-3.1-flash-lite` | 18/21, two overloaded | 2.3 s |
+
+Every seat but one missed the VansBench case; asked it four times,
+`gemini-3.1-flash-lite` answered page reading four times and
+`gemini-flash-lite-latest` window reading four times. So the two Gemini models
+are now separate providers in `VANS_PROVIDERS`: `gemini` (latest) at tier 1,
+`gemininew` (3.1) at tier 2 beside Groq's 120b, and Workers AI at tier 3.
+"Which application" stays quick: every seat that takes it scored nineteen or
+twenty of twenty there.
