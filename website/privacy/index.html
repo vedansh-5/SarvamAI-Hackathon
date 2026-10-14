@@ -43,9 +43,10 @@
 <p>VANS is in private testing, and this page changes as VANS does.</p>
 <h2>The short version</h2>
 <ul>
-<li>VANS has no account, no sign-up and no server of its own. There is nothing of yours on a VANS computer, because there isn't one.</li>
+<li>VANS has no account and no sign-up. Testers get an invite code instead.</li>
+<li>In the test builds, your requests go through the VANS server, which passes them to a model provider. The server keeps a short record of each request for 30 days, and nothing from your screen.</li>
 <li>VANS looks at your screen only when you ask it something, and only at what the question is about.</li>
-<li>To answer, it sends your request and the relevant text to a model provider, straight from your Mac. The panel tells you when it has done so.</li>
+<li>To answer, it sends your request and the relevant text to the model provider. The panel tells you when it has done so.</li>
 <li>What VANS remembers is kept in one folder on your Mac. You can delete it at any time.</li>
 <li>This website uses no cookies, no analytics and no trackers.</li>
 </ul>
@@ -75,8 +76,8 @@
 <li>the words of your request;</li>
 <li>the part of what it read that the request needs: the window's controls, the page text, the selected text, the file names, or the picture of the window.</li>
 </ul>
-<p>This goes directly from your Mac to the model provider. It does not pass through any server run by VANS. When the text a window was showing has been sent to answer you, the panel says so in the answer.</p>
-<p>In the current build the model provider is Google, through the Gemini API. The provider processes what it receives under its own terms and privacy policy. If the provider changes, this page will say so before the change reaches you.</p>
+<p>In the test builds this goes from your Mac to the VANS server, and from there to a model provider. The server holds the keys and the instructions for the model, so your Mac does not need them. It passes what you sent to the model and the answer back to you; it does not keep the window's controls, the page text, the selected text, the file names or the picture. When the text a window was showing has been sent to answer you, the panel says so in the answer.</p>
+<p>The VANS server runs on Amazon Web Services in Mumbai, India. The model providers are Google (the Gemini API), Groq and Cloudflare (Workers AI); each request goes to whichever is quickest and most accurate for it at that moment. Each provider processes what it receives under its own terms and privacy policy. If the providers change, this page will say so before the change reaches you.</p>
 <p>Nothing is sold, and nothing is used for advertising.</p>
 <h3>What VANS keeps, and where</h3>
 <p>Everything VANS remembers is in one folder on your Mac, <code>~/.vans</code>. It holds:</p>
@@ -87,11 +88,21 @@
 <li><strong>How a kind of request was handled,</strong> so the same kind is faster next time. These are stored as patterns with your own words, names and numbers taken out.</li>
 <li><strong>What it has learned about where things are in an application,</strong> so a guide does not have to work it out twice.</li>
 </ul>
-<p>The key that lets VANS call the model provider is kept in the macOS Keychain, not in that folder.</p>
+<p>The key that lets VANS call the model provider is kept in the macOS Keychain, not in that folder. In the test builds there is no such key on your Mac; there is your invite code instead.</p>
+<h3>What the VANS server keeps</h3>
+<p>In the test builds the VANS server keeps:</p>
+<ul>
+<li><strong>Your name and your invite code,</strong> and how many requests the code may make in a day.</li>
+<li><strong>How many requests you made each day,</strong> so one tester cannot use up everyone's share.</li>
+<li><strong>A short record of each request:</strong> when, the words you typed (at most 500 characters), which application it was for, whether it worked, how long it took and which model provider answered. It never includes what was on your screen, text you selected, file names or a picture. These records are deleted automatically after 30 days.</li>
+<li><strong>Feedback you choose to send</strong> from the panel, exactly as shown to you before you press Send. It is also emailed to me.</li>
+</ul>
+<p>The server's own logs hold your name and the kind of request, not its words, and are deleted after 14 days. Only I can see any of this. It is used to make VANS work better and to keep within the providers' limits; it is not sold or shared.</p>
 <h3>Removing it</h3>
 <ul>
 <li>A remembered request, a routine or a fact can each be removed from the panel.</li>
-<li>Deleting the folder <code>~/.vans</code> removes everything VANS has kept. Nothing remains anywhere else, because nothing was stored anywhere else.</li>
+<li>Deleting the folder <code>~/.vans</code> removes everything VANS has kept on your Mac.</li>
+<li>What the VANS server keeps is deleted on its own after 30 days, or sooner if you ask me.</li>
 </ul>
 <h3>Permissions VANS asks macOS for</h3>
 <ul>
@@ -105,12 +116,12 @@
 <li>Change a file, a setting or an application without you holding the key to confirm.</li>
 <li>Open or switch applications on its own.</li>
 <li>Run anything in the background that you did not ask for.</li>
-<li>Collect usage statistics. The app contains no analytics.</li>
+<li>Collect usage statistics on your Mac. The app contains no analytics. The only record of use is the one the VANS server keeps, described above.</li>
 </ul>
 <h2>Children</h2>
 <p>VANS is not directed at children under 13, and I do not knowingly collect information from them.</p>
 <h2>Your rights</h2>
-<p>What VANS keeps is on your own Mac and under your control. For anything I hold myself, which is only email you have sent me and your address if you joined the Windows list, you can ask to see it, correct it or have it deleted by writing to the address on the main page.</p>
+<p>What VANS keeps on your Mac is under your control. For anything I hold myself, which is email you have sent me, your address if you joined the Windows list, and, if you are a tester, what the VANS server keeps, you can ask to see it, correct it or have it deleted by writing to the address on the main page.</p>
 <h2>Changes to this page</h2>
 <p>When what VANS reads, sends or keeps changes, this page changes with it.</p>
       </article>
