@@ -104,6 +104,7 @@ measured accuracy of each, is D-232; the lineup is `VANS_PROVIDERS` in `.env`.
 | Cloudflare Workers AI token | `.env` | the VANS server on this Mac |
 | Every model key and provider setting the server uses | AWS Parameter Store, Mumbai, under `/vans/server/`, encrypted (`SecureString`) | the VANS server on Lambda, once when it starts |
 | Tester invite codes | the `vans-server` table | the VANS server; `vans-testers` |
+| Console key (`VANS_CONSOLE_KEY`) | `.env`, and Parameter Store under `/vans/server/` | the VANS server; Vedansh, to sign in to the console |
 | A key typed into Setup | the macOS Keychain, service `dev.vedansh.vans` | the engine |
 | `vans-deploy` access key | `~/.aws/credentials`, profile `vans-deploy` | the AWS command line |
 | Root access key | `~/.aws/credentials`, profile `default` | the AWS command line |
@@ -137,10 +138,11 @@ curl -sI https://summonvans.in | head -1
 |---|---|---|
 | Function | `vans-server`, Lambda, Mumbai, arm64, 256 MB, 140 s limit | built from `cmd/vans-lambda`; runs as `vans-server-runtime` |
 | Its address | `https://dcebecm6rhedpylmqas2q3hxyq0holhl.lambda-url.ap-south-1.on.aws/` | a Lambda function URL; anyone can reach it, only an invite code gets an answer |
-| Table | `vans-server`, DynamoDB, Mumbai, 5 reads and 5 writes a second, deletion protection on | testers (`pk = tester`), counts per day (`pk = use#<day>`), feedback (`pk = feedback`) |
+| Table | `vans-server`, DynamoDB, Mumbai, 10 reads and 10 writes a second, deletion protection on | testers (`pk = tester`), counts per day (`pk = use#<day>`), feedback (`pk = feedback`), one row per request (`pk = act#<day>`, deleted after 30 days by the `gone` time-to-live) |
+| Console | `<address>/console` | sign in with `VANS_CONSOLE_KEY`, kept in `.env` and in Parameter Store (D-236) |
 | Settings | Parameter Store, `/vans/server/*` | read into the environment when the function starts |
 | Mail | SES, Mumbai, sandbox (200 a day, only to verified addresses) | sends feedback from `feedback@summonvans.in` to Vedansh's Gmail |
-| Logs | `/aws/lambda/vans-server`, kept 14 days | the tester's name and the kind of question; never what was asked |
+| Logs | `/aws/lambda/vans-server`, kept 14 days | the tester's name and the kind of question; never what was asked (that is in the table, for the console) |
 
 ```bash
 ./infra/aws/deploy-server.sh            # build and deploy the server, then check it answers

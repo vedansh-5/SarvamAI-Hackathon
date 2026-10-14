@@ -52,6 +52,6 @@ func run() error {
 	synth.Notice = func(format string, args ...any) { logger.Printf("[model] "+format, args...) }
 	logger.Printf("ready for testers in %s; %s", table, described)
 
-	lambda.Start(server.FunctionURL(&server.Server{Model: models, Ledger: ledger, Mail: mail, Total: total, Log: logger.Printf}))
+	lambda.Start(server.FunctionURL(&server.Server{Model: models, Ledger: ledger, Mail: mail, Total: total, Log: logger.Printf, Console: server.ConsoleFor(ledger)}))
 	return nil
 }

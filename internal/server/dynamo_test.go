@@ -54,8 +54,8 @@ func (t *table) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, _ ..
 	switch *in.UpdateExpression {
 	case "ADD n :one":
 		item["n"] = &types.AttributeValueMemberN{Value: strconv.Itoa(num(item, "n") + 1)}
-	case "SET #off = :off":
-		item["off"] = in.ExpressionAttributeValues[":off"]
+	case "SET #f = :v":
+		item[in.ExpressionAttributeNames["#f"]] = in.ExpressionAttributeValues[":v"]
 	default:
 		return nil, errors.New("the stand-in table does not know " + *in.UpdateExpression)
 	}

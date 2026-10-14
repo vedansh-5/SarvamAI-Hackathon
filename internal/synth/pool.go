@@ -197,6 +197,7 @@ func through[A any](ctx context.Context, v *poolView, kind string, ask func(c *O
 		if err == nil {
 			took := time.Since(started)
 			v.pool.answered(s, class, took)
+			v.used.answeredBy(s.Name())
 			Notice("%s answered %s in %s", s.Name(), kind, readableWait(took))
 			return got, nil
 		}

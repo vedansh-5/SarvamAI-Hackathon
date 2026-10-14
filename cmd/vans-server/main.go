@@ -68,6 +68,11 @@ func run(addr string) error {
 		who = fmt.Sprintf("%d tester(s)", len(testers))
 	}
 
+	srv.Console = server.ConsoleFor(srv.Ledger)
+	if srv.Console != nil {
+		logger.Printf("console at http://%s%s", addr, server.ConsolePath)
+	}
+
 	httpServer := &http.Server{Addr: addr, Handler: srv, ReadHeaderTimeout: 10 * time.Second}
 	go func() {
 		<-ctx.Done()

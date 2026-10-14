@@ -28,6 +28,10 @@ func (s *standIn) WritePlan(_ context.Context, req synth.PlanRequest) (synth.Pla
 
 func (s *standIn) Ping(context.Context) error { return nil }
 
+func (s *standIn) WhichApp(context.Context, synth.AppChoiceRequest) (synth.AppChoice, error) {
+	return synth.AppChoice{App: "System Settings"}, nil
+}
+
 const riya = "riya-code-0123456789"
 
 func serving(t *testing.T, model *standIn, testers []Tester, total int) *httptest.Server {

@@ -200,3 +200,15 @@ func TestProvidersAreReadFromTheEnvironment(t *testing.T) {
 		t.Errorf("no providers = %v, %v; want nothing", p, err)
 	}
 }
+
+func TestTheSeatThatAnsweredIsRecorded(t *testing.T) {
+	fast := &provider{answer: settingsChoice}
+	pool := &Pool{Seats: []Seat{seat(t, "fast", fast, 1, Quick)}}
+	used := &Usage{}
+	if _, err := pool.With(used).WhichApp(context.Background(), AppChoiceRequest{Task: "dark mode", Installed: []string{"System Settings"}}); err != nil {
+		t.Fatal(err)
+	}
+	if used.By() != "fast/fast-model" {
+		t.Errorf("by = %q", used.By())
+	}
+}

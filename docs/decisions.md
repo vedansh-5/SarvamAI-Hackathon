@@ -5481,3 +5481,40 @@ feedback, and a button that can only fail is worse than none. The engine
 passes the text to `synth.Remote.SendFeedback`, which is D-234's path:
 checked against the invite code, counted against the day's allowance, kept,
 then mailed.
+
+---
+
+## D-236 — The console, and the one row kept per request
+
+The console is the page at `/console` on the VANS server that runs the tester
+programme: **Overview** (requests a day for fourteen days, the share that
+finished, typical answer time, each model's use against its free allowance,
+the applications used most, the commonest failures), **Testers** (make a
+code, change an allowance, switch a code off or on, today's use, last seen),
+**Activity** (each request, filtered by tester, application, days or failed
+only) and **Feedback** (newest first, mark handled). It is drawn by the
+server, with no script, no outside font and no chart library; the bars are
+SVG and HTML widths. It exists only when `VANS_CONSOLE_KEY` is set.
+
+**One key, one cookie.** Signing in compares the typed key with
+`VANS_CONSOLE_KEY` in constant time and sets a cookie holding a hash of it,
+`HttpOnly`, `Secure`, `SameSite=Strict`, scoped to `/console`, for thirty
+days. Every change is a form post, which the strict cookie keeps to pages the
+console itself served. The page forbids framing and sends no referrer. A new
+code is shown once in the page that made it, never put in an address.
+
+**What is kept per request**, for Activity and the Overview: when, who, the
+kind of question, the words the tester typed (the `Instruction`, `Task`,
+`Question` or `Ask` field, cut at 500 characters), the application, whether it
+was answered or which fault, how long it took, and which model answered
+(`Usage.By`, set by the pool). For "which application" the application kept
+is the one chosen, not the one in front. Never the window's contents, the
+text a tester selected, a picture, or the tree of controls: the fields that
+carry those are not read. Rows live under `act#<day>` and DynamoDB deletes
+them thirty days later (`gone`, the table's time-to-live). Pings and feedback
+are not rows; feedback is kept on its own.
+
+The table went from five to ten writes a second (still inside the free
+allowance), since a request is now three writes. A model's free daily
+allowance is shown when `VANS_PROVIDER_<NAME>_DAILY` is set; it is set to
+1,000 for both Groq seats, which is what Groq's own refusal names.
