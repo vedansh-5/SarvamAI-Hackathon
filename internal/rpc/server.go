@@ -77,6 +77,8 @@ type Server struct {
 
 	Model *setup.Model
 
+	Feedback FeedbackSender
+
 	out   *json.Encoder
 	outMu sync.Mutex
 
@@ -201,6 +203,10 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.setModelSettings(ctx, req)
 	case "forget_model_key":
 		result, err = s.forgetModelKey(ctx)
+	case "can_send_feedback":
+		result = map[string]bool{"ready": s.Feedback != nil}
+	case "send_feedback":
+		result, err = s.sendFeedback(ctx, req)
 	default:
 		err = &Error{Code: CodeBadRequest, Message: fmt.Sprintf("unknown method %q", req.Method)}
 	}
@@ -1225,4 +1231,26 @@ func (s *Server) watchTheClock(ctx context.Context) {
 		case <-tick.C:
 		}
 	}
+}
+
+type FeedbackSender interface {
+	SendFeedback(ctx context.Context, f synth.Feedback) error
+}
+
+func (s *Server) sendFeedback(ctx context.Context, req Request) (map[string]bool, error) {
+	if s.Feedback == nil {
+		return nil, &Error{Code: CodeBadRequest, Message: "feedback goes through the VANS server, and this copy asks a model directly"}
+	}
+	var f synth.Feedback
+	if err := json.Unmarshal(req.Params, &f); err != nil {
+		return nil, &Error{Code: CodeBadRequest, Message: err.Error()}
+	}
+	f.Text = strings.TrimSpace(f.Text)
+	if f.Text == "" {
+		return nil, &Error{Code: CodeBadRequest, Message: "there is nothing to send"}
+	}
+	if err := s.Feedback.SendFeedback(ctx, f); err != nil {
+		return nil, asError(err)
+	}
+	return map[string]bool{"sent": true}, nil
 }

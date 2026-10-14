@@ -5464,3 +5464,20 @@ The $20 Lambda credit was not counted by deploying from the command line.
 The hands-on suite was then run with the engine pointed at the live server
 (`VANS_SERVER_URL`, `VANS_INVITE`): fifteen of fifteen, including the window
 reading that D-233 was about.
+
+---
+
+## D-235 — Feedback from the panel: shown before it is sent, and only where there is a server
+
+Two ways in, as the tester plan says. On the failure screen, **Send this to
+Vedansh** opens a box showing exactly the text that will go: what was asked,
+what VANS said, and the detail under it, with room to add a line. In Setup,
+**Tell Vedansh** sends exactly what was typed. Nothing from the screen goes
+with either; the tester reads every word before pressing Send.
+
+Both appear only when the engine talks to the VANS server
+(`can_send_feedback`). A copy that asks a model directly has nowhere to send
+feedback, and a button that can only fail is worse than none. The engine
+passes the text to `synth.Remote.SendFeedback`, which is D-234's path:
+checked against the invite code, counted against the day's allowance, kept,
+then mailed.

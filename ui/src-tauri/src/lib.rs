@@ -144,6 +144,22 @@ async fn answer_question(engine: State<'_, Engine>, answer: String) -> Result<Va
 }
 
 #[tauri::command]
+async fn can_send_feedback(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("can_send_feedback", None).await
+}
+
+#[tauri::command]
+async fn send_feedback(
+    engine: State<'_, Engine>,
+    kind: String,
+    text: String,
+) -> Result<Value, RpcError> {
+    engine
+        .call("send_feedback", Some(json!({ "kind": kind, "text": text })))
+        .await
+}
+
+#[tauri::command]
 async fn rules(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("rules", None).await
 }
@@ -445,6 +461,8 @@ pub fn run() {
             answer_question,
             rules,
             set_rules,
+            can_send_feedback,
+            send_feedback,
             model_settings,
             set_model_settings,
             forget_model_key,

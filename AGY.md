@@ -1896,14 +1896,15 @@ and cost is in `docs/infrastructure.md`. This section is the short record.
 | Each question to the provider best placed for it; `cmd/vans-eval` scores them | D-232 |
 | Routing chosen for accuracy; Gemini latest first, 21/21 | D-233 |
 | The server live on Lambda in Mumbai; testers, counts and feedback in DynamoDB; keys in Parameter Store; feedback mailed; `vans-testers` makes codes | D-234, `docs/infrastructure.md` |
+| "Send this to Vedansh" on a failure and "Tell Vedansh" in Setup | D-235 |
 | AWS: budget alert, `vans-deploy` user fenced to VANS, $143.49 credit | `docs/infrastructure.md` |
 
 **Feedback mail:** the Gmail address is verified and the three DKIM records
 are in Cloudflare (2026-10-14); mail flows once SES finishes checking them.
 The hands-on suite through the live server passed fifteen of fifteen.
 
-**Next, in order:** the panel's "send this failed guide" and "tell Vedansh"
-buttons, then the console, start at login and the notch, watching and learning, the
+**Next, in order:** the console, then every permission asked for at first
+launch, then start at login and the notch, watching and learning, the
 tester kit, and the privacy page with each.
 
 

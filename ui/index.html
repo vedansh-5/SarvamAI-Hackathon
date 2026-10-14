@@ -175,6 +175,19 @@
               </div>
               <p id="failure-message" class="plain-text mute"></p>
               <div id="failure-detail"></div>
+              <div id="report" hidden>
+                <button id="report-open" class="btn secondary" type="button">Send this to Vedansh</button>
+                <div id="report-form" class="feedback-form" hidden>
+                  <p class="note">This, and anything you add, is exactly what is sent. Nothing from your screen goes with it.</p>
+                  <pre id="report-text" class="feedback-text"></pre>
+                  <textarea id="report-note" class="line-input feedback-box" rows="2" placeholder="Anything to add? (optional)"></textarea>
+                  <div class="row">
+                    <button id="report-send" class="btn" type="button">Send</button>
+                    <button id="report-cancel" class="btn quiet" type="button">Cancel</button>
+                    <span id="report-state" class="note inline"></span>
+                  </div>
+                </div>
+              </div>
               <button id="back" class="btn quiet" type="button">Back</button>
             </div>
           </section>
@@ -243,6 +256,16 @@
               <div class="row">
                 <button id="rules-save" class="btn" type="button">Save rules</button>
                 <span id="rules-saved" class="note inline"></span>
+              </div>
+
+              <div id="tell" hidden>
+                <div class="kicker spaced">Tell Vedansh</div>
+                <p class="note">What worked, what didn't, what you wish it did. Exactly what you type is sent.</p>
+                <textarea id="tell-text" class="line-input feedback-box" rows="3" placeholder="Write here"></textarea>
+                <div class="row">
+                  <button id="tell-send" class="btn" type="button">Send</button>
+                  <span id="tell-state" class="note inline"></span>
+                </div>
               </div>
 
               <div class="kicker spaced">Record</div>

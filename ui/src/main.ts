@@ -1402,6 +1402,7 @@ const PLAIN: Record<string, { title: string; message: string }> = {
 function renderFailure(e: unknown) {
   const detail = $("failure-detail");
   clear(detail);
+  resetReport();
 
   if (!isRpcError(e)) {
     $("failure-title").textContent = "That didn't work";
@@ -2415,6 +2416,80 @@ $("rules-save").addEventListener("click", async () => {
   }
 });
 void loadRules();
+
+let canSendFeedback = false;
+
+async function checkFeedback() {
+  try {
+    canSendFeedback = Boolean((await invoke<{ ready?: boolean }>("can_send_feedback"))?.ready);
+  } catch {
+    canSendFeedback = false;
+  }
+  $("tell").hidden = !canSendFeedback;
+}
+
+void checkFeedback();
+
+function resetReport() {
+  $("report").hidden = !canSendFeedback;
+  $("report-open").hidden = false;
+  $("report-form").hidden = true;
+  ($("report-note") as HTMLTextAreaElement).value = "";
+  $("report-state").textContent = "";
+}
+
+function failedGuideReport(): string {
+  const lines = [`Asked: ${lastInstruction.trim() || "(nothing typed)"}`, `VANS said: ${$("failure-title").textContent ?? ""}`];
+  const message = $("failure-message").textContent?.trim();
+  if (message) lines.push(message);
+  const detail = ($("failure-detail") as HTMLElement).innerText.trim();
+  if (detail) lines.push("", detail.slice(0, 4000));
+  return lines.join("\n");
+}
+
+async function sendFeedback(kind: "failed_guide" | "note", text: string, state: HTMLElement): Promise<boolean> {
+  state.textContent = "Sending\u2026";
+  try {
+    await invoke("send_feedback", { kind, text });
+    state.textContent = "Sent. Thank you.";
+    return true;
+  } catch (e) {
+    state.textContent = isRpcError(e) ? `Not sent: ${withoutThePrefix(e.message)}` : "Not sent. Try again in a moment.";
+    console.error(e);
+    return false;
+  }
+}
+
+$("report-open").addEventListener("click", () => {
+  $("report-text").textContent = failedGuideReport();
+  $("report-open").hidden = true;
+  $("report-form").hidden = false;
+  ($("report-note") as HTMLTextAreaElement).focus();
+});
+
+$("report-cancel").addEventListener("click", resetReport);
+
+$("report-send").addEventListener("click", async () => {
+  const note = ($("report-note") as HTMLTextAreaElement).value.trim();
+  const text = $("report-text").textContent + (note ? `\n\nThey added: ${note}` : "");
+  const button = $("report-send") as HTMLButtonElement;
+  button.disabled = true;
+  if (await sendFeedback("failed_guide", text, $("report-state"))) {
+    $("report-form").hidden = true;
+    toast("Sent to Vedansh");
+  }
+  button.disabled = false;
+});
+
+$("tell-send").addEventListener("click", async () => {
+  const box = $("tell-text") as HTMLTextAreaElement;
+  const text = box.value.trim();
+  if (!text) return;
+  const button = $("tell-send") as HTMLButtonElement;
+  button.disabled = true;
+  if (await sendFeedback("note", text, $("tell-state"))) box.value = "";
+  button.disabled = false;
+});
 void loadModel();
 
 $("show-history").addEventListener("click", showHistory);

@@ -263,9 +263,10 @@ func run() error {
 			PageScreen: page,
 			Eyes:       looking(synthesizer, desktop),
 		},
-		Deeds: st,
-		Rules: st,
-		Model: model,
+		Deeds:    st,
+		Rules:    st,
+		Model:    model,
+		Feedback: feedbackTo(synthesizer),
 		Probe: probe{
 			model:    model,
 			hostPort: *hostPort,
@@ -382,4 +383,11 @@ func looking(model any, desktop uiact.System) uiact.Screen {
 			fmt.Fprintf(os.Stderr, "[eyes] "+format+"\n", args...)
 		},
 	}
+}
+
+func feedbackTo(s synth.Synthesizer) rpc.FeedbackSender {
+	if remote, ok := s.(*synth.Remote); ok {
+		return remote
+	}
+	return nil
 }
