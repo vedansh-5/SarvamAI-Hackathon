@@ -5210,3 +5210,31 @@ moving through a busy minute, not a replacement, and the hands-on suite should
 be run against it before it is relied on. It is read from the environment only;
 the Setup panel does not offer it yet.
 
+## D-228 — Cloudflare is the public face; AWS is what the app talks to
+
+Two accounts were set up for different reasons: Cloudflare because the domain's
+DNS and mail moved there and the site followed, AWS because it runs the
+server's language and has credits. A database could go in either, and so could
+the app's downloads. Splitting each new piece by whichever is cheapest that
+week would leave every piece of the runtime in a different place.
+
+The line is drawn by who is on the other end. What a visitor to the site
+touches stays on Cloudflare: the domain, mail, the site and its form, which
+already work there. What the installed app talks to goes to AWS in Mumbai: the
+server, its database and the files the app downloads and updates from. The
+server, its data and its files then share one account, one region near the
+people using it, one set of permissions and one bill, and a call from the
+server to its database never leaves the region.
+
+The server is Go on Lambda rather than a Cloudflare Worker because the
+instructions to the model are Go code in `internal/synth`. A Worker would mean
+writing them a second time in another language and keeping the two in step.
+
+The database is DynamoDB rather than Aurora or RDS. What it holds is small and
+looked up by key (an invite code, a day's count, a report), and DynamoDB has a
+free allowance that does not run out, where a relational database is billed by
+the hour once credits are gone.
+
+`docs/infrastructure.md` is where each account, secret and cost is written
+down.
+

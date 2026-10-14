@@ -1792,6 +1792,9 @@ every change unless a later instruction says otherwise.
 
 Status on 2026-10-13. Nothing here is code in this repository yet.
 
+Every account, where each secret is kept, what is planned and what it costs
+is in `docs/infrastructure.md` (D-228).
+
 - **Domain:** `summonvans.in`, registered at GoDaddy on 2026-10-13. First year
   paid; it renews in October 2027 at the full price. No add-ons were taken.
 - **DNS:** on Cloudflare (free plan) since 2026-10-13. GoDaddy only holds
