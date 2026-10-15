@@ -154,3 +154,25 @@ func (m *Multi) ReadText(ctx context.Context, app string) (uiact.ScreenText, err
 	}
 	return s.ReadText(ctx, app)
 }
+
+func (m *Multi) FrontBrowser(ctx context.Context) (string, bool) {
+	if m.Front == nil {
+		return "", false
+	}
+	front, err := m.Front(ctx)
+	if err != nil {
+		return "", false
+	}
+	if s := m.named(front); s != nil {
+		return s.browser(), true
+	}
+	return "", false
+}
+
+func (m *Multi) AskPage(ctx context.Context, app, script string, out any) error {
+	s := m.named(app)
+	if s == nil {
+		return errNoBrowser
+	}
+	return s.Page.AskFront(ctx, script, out)
+}

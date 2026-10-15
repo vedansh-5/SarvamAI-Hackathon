@@ -1,5 +1,8 @@
 import { listen, emit } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import { followTheme } from "./theme";
+
+followTheme();
 
 interface Offer {
   key: string;

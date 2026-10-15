@@ -290,6 +290,11 @@ async fn set_rules(
 }
 
 #[tauri::command]
+async fn set_accent(engine: State<'_, Engine>, accent: String) -> Result<Value, RpcError> {
+    engine.call("set_accent", Some(json!({ "accent": accent }))).await
+}
+
+#[tauri::command]
 async fn invite(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("invite", None).await
 }
@@ -603,6 +608,7 @@ pub fn run() {
             set_rules,
             can_send_feedback,
             send_feedback,
+            set_accent,
             invite,
             set_invite,
             restart_app,

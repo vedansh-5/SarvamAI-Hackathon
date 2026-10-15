@@ -13,7 +13,6 @@
         --paper: #f3f4ee;
         --paper-dim: rgba(243, 244, 238, 0.62);
         --paper-fill: rgba(243, 244, 238, 0.1);
-        --volt: #ffd23f;
         --mono: ui-monospace, "SF Mono", Menlo, monospace;
         --spring: cubic-bezier(0.2, 0.8, 0.2, 1);
       }
@@ -38,10 +37,10 @@
         pointer-events: none;
       }
       #ring[hidden] { display: none; }
-      #ring.done { animation: none; border-width: 1.5px; border-color: rgba(255, 210, 63, 0.55); }
+      #ring.done { animation: none; border-width: 1.5px; border-color: rgb(var(--volt-rgb) / 0.55); }
       @keyframes ring {
-        from { box-shadow: 0 0 0 0 rgba(255, 210, 63, 0.7); }
-        to   { box-shadow: 0 0 0 14px rgba(255, 210, 63, 0); }
+        from { box-shadow: 0 0 0 0 rgb(var(--volt-rgb) / 0.7); }
+        to   { box-shadow: 0 0 0 14px rgb(var(--volt-rgb) / 0); }
       }
       #badge {
         position: absolute;
@@ -92,7 +91,7 @@
       #dots span {
         width: 6px; height: 6px;
         border-radius: 3px;
-        background: rgba(255, 210, 63, 0.45);
+        background: rgb(var(--volt-rgb) / 0.45);
         transition: width 300ms;
       }
       #dots span:last-child { width: 16px; background: var(--volt); }
@@ -201,7 +200,7 @@
       }
 
       #trail-line { stroke: var(--volt); }
-      .trail-dot circle { fill: var(--ink); stroke: rgba(255, 210, 63, 0.55); }
+      .trail-dot circle { fill: var(--ink); stroke: rgb(var(--volt-rgb) / 0.55); }
       .trail-dot text {
         fill: var(--volt);
         font: 800 10px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;

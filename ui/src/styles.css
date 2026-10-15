@@ -11,8 +11,6 @@
   --sel: rgba(16, 17, 14, 0.065);
   --write: #e8203f;
   --up: #10110e;
-  --volt: #ffd23f;
-  --on-volt: #10110e;
   --dark-ink: #10110e;
   --dark-paper: #f3f4ee;
 
@@ -53,8 +51,8 @@
   --pill-a: var(--volt);
   --pill-b: #fff4c2;
   --pill-c: var(--dark-paper);
-  --pill-glow: rgba(255, 210, 63, 0.28);
-  --pill-ring: rgba(255, 210, 63, 0.55);
+  --pill-glow: rgb(var(--volt-rgb) / 0.28);
+  --pill-ring: rgb(var(--volt-rgb) / 0.55);
 
   --edge:
     inset 0 0 0 0.5px rgba(255, 255, 255, 0.1),
@@ -66,7 +64,7 @@
 }
 
 ::selection {
-  background: rgba(255, 210, 63, 0.5);
+  background: rgb(var(--volt-rgb) / 0.5);
 }
 
 [hidden] {
@@ -1539,6 +1537,42 @@ details > summary.note {
   width: 5rem;
   flex: none;
   font-size: 13.5px;
+}
+
+.setting-row .setting-label {
+  width: 5rem;
+  flex: none;
+  font-size: 13.5px;
+}
+
+.accents {
+  display: flex;
+  gap: 10px;
+}
+
+.accent-swatch {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--swatch);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.accent-swatch:hover {
+  transform: scale(1.08);
+}
+
+.accent-swatch[aria-checked="true"] {
+  box-shadow: 0 0 0 2px rgb(var(--panel-rgb)), 0 0 0 4px var(--swatch);
+}
+
+.accent-swatch:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
 }
 
 .setting-row output {

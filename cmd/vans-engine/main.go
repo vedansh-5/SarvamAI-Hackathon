@@ -229,6 +229,7 @@ func run() error {
 			Memory:     st,
 			Routines:   st,
 			Clicks:     st,
+			Prefs:      st,
 			Learner:    learner,
 			UIScreen:   desktop,
 			PageScreen: page,

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <title>VANS</title>
     <style>
-      :root { --volt: #ffd23f; --ink: #f3f4ee; --mute: #a5a79c; --glass: rgba(20, 21, 18, 0.92); }
+      :root { --ink: #f3f4ee; --mute: #a5a79c; --glass: rgba(20, 21, 18, 0.92); }
       html, body {
         margin: 0; padding: 0; width: 100%; height: 100%;
         background: transparent; overflow: hidden;
@@ -36,7 +36,7 @@
         padding: 4px 10px; color: var(--ink); background: rgba(255, 255, 255, 0.1); cursor: default;
       }
       button:hover { background: rgba(255, 255, 255, 0.18); }
-      button.go { background: var(--volt); color: #10110e; }
+      button.go { background: var(--volt); color: var(--on-volt); }
       button.go:hover { filter: brightness(1.08); }
       button[hidden] { display: none; }
     </style>
