@@ -89,19 +89,62 @@ func (s *Server) offerByTheClock(ctx context.Context) {
 	}
 }
 
+const holdOfflineFor = 2 * time.Hour
+
+type heldOffer struct {
+	offer engine.Offer
+	since time.Time
+}
+
+func (s *Server) online(ctx context.Context) bool {
+	return s.Online == nil || s.Online(ctx)
+}
+
 func (s *Server) offer(ctx context.Context, cause engine.Cause) {
 	if s.busyOnScreen() {
 		return
 	}
-	offers, err := s.Engine.OffersFor(ctx, cause, time.Now())
+	now := time.Now()
+	offers, err := s.Engine.OffersFor(ctx, cause, now)
 	if err != nil {
 		s.notify(0, "could not work out what to offer: %v", err)
 		return
 	}
+	s.mu.Lock()
+	waiting := s.stillHeld(now)
+	s.mu.Unlock()
 	for _, o := range offers {
-		s.notify(0, "offering: %s", o)
-		s.push(0, "offer", o)
+		waiting = append(waiting, heldOffer{offer: o, since: now})
 	}
+	needs := false
+	for _, w := range waiting {
+		needs = needs || w.offer.NeedsInternet
+	}
+	up := !needs || s.online(ctx)
+	for _, w := range waiting {
+		if w.offer.NeedsInternet && !up {
+			s.mu.Lock()
+			s.held = append(s.held, w)
+			s.mu.Unlock()
+			if w.since.Equal(now) {
+				s.notify(0, "holding until the internet is back: %s", w.offer.Line)
+			}
+			continue
+		}
+		s.notify(0, "offering: %s", w.offer)
+		s.push(0, "offer", w.offer)
+	}
+}
+
+func (s *Server) stillHeld(now time.Time) []heldOffer {
+	var out []heldOffer
+	for _, h := range s.held {
+		if now.Sub(h.since) < holdOfflineFor {
+			out = append(out, h)
+		}
+	}
+	s.held = nil
+	return out
 }
 
 func (s *Server) answerOffer(ctx context.Context, req Request) (engine.OfferAnswer, error) {

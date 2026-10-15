@@ -37,7 +37,7 @@ func chooseModel(ctx context.Context, st *store.Store) brain {
 	}
 	model.Load(ctx)
 	return brain{
-		synthesizer: llm, model: model, meter: llm.Meter,
+		synthesizer: llm, model: model, meter: llm.Meter, reaches: modelAddress(),
 		ready: func() error {
 			if !llm.Configured() {
 				return synth.ErrNotSetUp
@@ -47,12 +47,19 @@ func chooseModel(ctx context.Context, st *store.Store) brain {
 	}
 }
 
+func modelAddress() string {
+	if base := strings.TrimSpace(os.Getenv(synth.EnvBaseURL)); base != "" {
+		return base
+	}
+	return synth.DefaultBaseURL
+}
+
 func fromServer(url string) brain {
 	remote := synth.NewRemote(url, os.Getenv(synth.EnvInvite))
 	invite := &setup.Invite{Remote: remote, Keys: keychain.System{}}
 	invite.Load()
 	fmt.Fprintf(os.Stderr, "[model] asking the VANS server at %s\n", url)
-	return brain{synthesizer: remote, meter: remote.Usage, learner: remote, invite: invite, ready: invite.Ready}
+	return brain{synthesizer: remote, meter: remote.Usage, learner: remote, invite: invite, ready: invite.Ready, reaches: url}
 }
 
 type unconfigured struct{ err error }

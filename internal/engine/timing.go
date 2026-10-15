@@ -13,12 +13,15 @@ const (
 	AtATime     = "time"
 	WhenOpened  = "opened"
 	AfterAnApp  = "after"
+	BeforeDone  = "finish"
 	daysToCount = 3
 	nearTheTime = 20
 	afterOpened = 10 * time.Minute
 	afterTheApp = 5 * time.Minute
 	mostOften   = 0.6
 	mostTimed   = 5
+	beforeDone  = 15 * time.Minute
+	offerEarly  = 10
 )
 
 type Trigger struct {
@@ -72,14 +75,19 @@ func FindTimed(events []store.Click) []Timed {
 	sort.Strings(days)
 
 	firstOf := map[string]firsts{}
+	lastOf := map[string]firsts{}
 	actions := map[string]store.Click{}
 	opened := map[string]time.Time{}
+	closed := map[string]time.Time{}
 	appFirst := map[string]firsts{}
 	for _, d := range days {
 		for _, e := range byDay[d] {
 			if e.Role == store.RoleMoment {
 				if (e.Title == "unlock" || e.Title == "wake") && opened[d].IsZero() {
 					opened[d] = e.At
+				}
+				if (e.Title == "lock" || e.Title == "sleep") && e.At.After(closed[d]) {
+					closed[d] = e.At
 				}
 				continue
 			}
@@ -90,6 +98,12 @@ func FindTimed(events []store.Click) []Timed {
 			}
 			if _, ok := firstOf[k][d]; !ok {
 				firstOf[k][d] = e.At
+			}
+			if lastOf[k] == nil {
+				lastOf[k] = firsts{}
+			}
+			if e.At.After(lastOf[k][d]) {
+				lastOf[k][d] = e.At
 			}
 			if e.Role == store.RoleFront {
 				if appFirst[e.App] == nil {
@@ -105,7 +119,7 @@ func FindTimed(events []store.Click) []Timed {
 	best := map[string]Timed{}
 	consider := func(t Timed) {
 		k := actionKey(t.Action)
-		if old, ok := best[k]; ok && old.Days >= t.Days {
+		if old, ok := best[k]; ok && (old.Days > t.Days || old.Days == t.Days && t.Trigger.Kind != BeforeDone) {
 			return
 		}
 		best[k] = t
@@ -129,6 +143,24 @@ func FindTimed(events []store.Click) []Timed {
 		}
 		if n >= daysToCount {
 			consider(Timed{Trigger: Trigger{Kind: WhenOpened}, Action: action, Days: n})
+		}
+
+		var ends []time.Time
+		var endDays []string
+		for d, at := range lastOf[k] {
+			c := closed[d]
+			if !c.IsZero() && !at.After(c) && c.Sub(at) <= beforeDone && lastActivity(byDay[d], c) {
+				ends = append(ends, at)
+				endDays = append(endDays, d)
+			}
+		}
+		if len(ends) >= daysToCount {
+			sort.Slice(ends, func(i, j int) bool { return minuteOf(ends[i]) < minuteOf(ends[j]) })
+			weekdays := true
+			for _, d := range endDays {
+				weekdays = weekdays && isWeekday(d)
+			}
+			consider(Timed{Trigger: Trigger{Kind: BeforeDone, Minute: minuteOf(ends[len(ends)/2]), Weekdays: weekdays}, Action: action, Days: len(ends)})
 		}
 
 		for app, cameForward := range appFirst {
@@ -162,6 +194,15 @@ func FindTimed(events []store.Click) []Timed {
 		out = out[:mostTimed]
 	}
 	return out
+}
+
+func lastActivity(day []store.Click, closed time.Time) bool {
+	for _, e := range day {
+		if e.At.After(closed) && e.Role != store.RoleMoment {
+			return false
+		}
+	}
+	return true
 }
 
 func atATime(seen map[string]time.Time) (Timed, bool) {
@@ -216,6 +257,12 @@ func (t Timed) When() string {
 			return "around " + at + " on weekdays"
 		}
 		return "around " + at
+	case BeforeDone:
+		at := time.Date(2000, 1, 1, t.Trigger.Minute/60, t.Trigger.Minute%60, 0, 0, time.Local).Format("15:04")
+		if t.Trigger.Weekdays {
+			return "before you finish for the day, around " + at + " on weekdays"
+		}
+		return "before you finish for the day, around " + at
 	case WhenOpened:
 		return "after you open your Mac"
 	case AfterAnApp:
@@ -233,5 +280,8 @@ func (t Timed) Instruction() string {
 
 func (t Timed) Line() string {
 	doing := t.Doing()
+	if t.Trigger.Kind == BeforeDone {
+		return "Before you finish, " + strings.ToLower(doing[:1]) + doing[1:] + ", like usual?"
+	}
 	return strings.ToUpper(doing[:1]) + doing[1:] + ", like usual?"
 }

@@ -190,3 +190,30 @@ func TestWhatWasLearnedIsSentOnlyWhenItChanges(t *testing.T) {
 		t.Errorf("sent %+v, want it sent again once it was taken up", box.sent)
 	}
 }
+
+func TestBeforeYouFinishIsOfferedJustBeforeTheUsualTimeEvenIfDoneThisMorning(t *testing.T) {
+	ctx := context.Background()
+	e, st, _ := timedOffer(t, Trigger{Kind: BeforeDone, Minute: 18 * 60}, click(time.Time{}, "Clockify", "Stop"))
+	morning := time.Date(2026, 10, 15, 11, 0, 0, 0, time.Local)
+	_ = st.NoteClick(ctx, click(morning, "Clockify", "Stop"))
+	_ = st.SetSetting(ctx, greetedKey, dayOf(morning))
+
+	if got, _ := e.OffersFor(ctx, Cause{Kind: ByTheClock}, morning.Add(6*time.Hour+40*time.Minute)); len(got) != 0 {
+		t.Errorf("offered at 17:40, too early: %+v", got)
+	}
+	got, _ := e.OffersFor(ctx, Cause{Kind: ByTheClock}, morning.Add(6*time.Hour+52*time.Minute))
+	if len(got) != 1 || got[0].Line != "Before you finish, stop in Clockify, like usual?" {
+		t.Fatalf("at 17:52 offered %+v", got)
+	}
+}
+
+func TestBeforeYouFinishIsNotOfferedIfJustDone(t *testing.T) {
+	ctx := context.Background()
+	e, st, _ := timedOffer(t, Trigger{Kind: BeforeDone, Minute: 18 * 60}, click(time.Time{}, "Clockify", "Stop"))
+	now := time.Date(2026, 10, 15, 17, 55, 0, 0, time.Local)
+	_ = st.NoteClick(ctx, click(now.Add(-10*time.Minute), "Clockify", "Stop"))
+	_ = st.SetSetting(ctx, greetedKey, dayOf(now))
+	if got, _ := e.OffersFor(ctx, Cause{Kind: ByTheClock}, now); len(got) != 0 {
+		t.Errorf("offered what was done ten minutes ago: %+v", got)
+	}
+}

@@ -239,6 +239,7 @@ func run() error {
 		Rules:    st,
 		Model:    model,
 		Invite:   b.invite,
+		Online:   reachable(b.reaches),
 		Feedback: feedbackTo(synthesizer),
 		Probe: probe{
 			ready:    b.ready,

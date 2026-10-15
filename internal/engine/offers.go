@@ -46,6 +46,8 @@ type Offer struct {
 	Countdown bool     `json:"countdown,omitempty"`
 	Morning   bool     `json:"morning,omitempty"`
 	Usual     []string `json:"usual,omitempty"`
+
+	NeedsInternet bool `json:"needs_internet,omitempty"`
 }
 
 type OfferAnswer struct {
@@ -87,6 +89,15 @@ func doneToday(today []store.Click, action store.Click) bool {
 	return false
 }
 
+func doneSince(today []store.Click, action store.Click, since time.Time) bool {
+	for _, c := range today {
+		if c.At.After(since) && actionKey(c) == actionKey(action) {
+			return true
+		}
+	}
+	return false
+}
+
 func firstTimeToday(today []store.Click, app string) bool {
 	n := 0
 	for _, c := range today {
@@ -105,6 +116,12 @@ func due(t Timed, cause Cause, now time.Time, today []store.Click) bool {
 		}
 		m := minuteOf(now)
 		return m >= t.Trigger.Minute && m <= t.Trigger.Minute+stillDueFor
+	case BeforeDone:
+		if cause.Kind != ByTheClock || (t.Trigger.Weekdays && !isWeekday(dayOf(now))) {
+			return false
+		}
+		m := minuteOf(now)
+		return m >= t.Trigger.Minute-offerEarly && m <= t.Trigger.Minute
 	case WhenOpened:
 		return cause.Kind == MacOpened
 	case AfterAnApp:
@@ -163,7 +180,11 @@ func (e *Engine) OffersFor(ctx context.Context, cause Cause, now time.Time) ([]O
 		case r.OfferedOn == dayOf(now) || !due(t, cause, now, today):
 			continue
 		}
-		if doneToday(today, t.Action) {
+		if t.Trigger.Kind == BeforeDone {
+			if doneSince(today, t.Action, now.Add(-2*time.Hour)) {
+				continue
+			}
+		} else if doneToday(today, t.Action) {
 			continue
 		}
 		r.OfferedOn, r.LaterUntil = dayOf(now), time.Time{}
@@ -176,6 +197,8 @@ func (e *Engine) OffersFor(ctx context.Context, cause Cause, now time.Time) ([]O
 			When:      t.When(),
 			Always:    !r.Always && r.Yes >= yesesToTrust,
 			Countdown: r.Always,
+
+			NeedsInternet: t.Action.Role != store.RoleFront,
 		})
 	}
 	return offers, nil
@@ -261,4 +284,9 @@ func (o Offer) String() string {
 		return o.Line + ": " + strings.Join(o.Usual, ", ")
 	}
 	return o.Line
+}
+
+func (e *Engine) KeepTimed(ctx context.Context, t Timed) error {
+	t.Key = t.key()
+	return e.keepTimed(ctx, t)
 }
