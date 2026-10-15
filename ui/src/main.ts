@@ -461,6 +461,7 @@ async function runPreflight(advance = true) {
   const checks = $("checks");
   clear(checks);
   checks.appendChild(el("p", "meta", "Checking…"));
+  loadWatching().catch(console.error);
 
   let result: Preflight;
   let perms: Permission[];
@@ -523,6 +524,59 @@ async function loadLogin() {
     } catch {}
   }
   showLogin(item);
+}
+
+interface Watching {
+  on: boolean;
+  clicks: number;
+}
+
+interface NotedClick {
+  at: string;
+  app: string;
+  title: string;
+}
+
+function showWatching(w: Watching) {
+  ($("watching") as HTMLInputElement).checked = w.on;
+  $("watching-note").textContent = w.on
+    ? "VANS notes the names of the buttons and menu items you click, so it can offer to teach or do what you repeat. Never what you type, and nothing on a web page. It stays on this Mac for seven days."
+    : "Off. Nothing new is noted. What was noted goes after seven days, or now with Clear.";
+  const see = $("watching-see") as HTMLButtonElement;
+  see.textContent = w.clicks ? `See what VANS noted (${w.clicks})` : "Nothing noted yet";
+  see.disabled = w.clicks === 0;
+  ($("watching-clear") as HTMLButtonElement).disabled = w.clicks === 0;
+  if (w.clicks === 0) $("watching-list").hidden = true;
+}
+
+async function loadWatching() {
+  showWatching(await invoke<Watching>("watching"));
+}
+
+async function seeNoted() {
+  const list = $("watching-list");
+  if (!list.hidden) {
+    list.hidden = true;
+    return;
+  }
+  const clicks = await invoke<NotedClick[]>("noted_clicks");
+  list.replaceChildren(
+    ...clicks
+      .slice(-200)
+      .reverse()
+      .map((c) => {
+        const li = document.createElement("li");
+        const when = document.createElement("time");
+        when.textContent = new Date(c.at).toLocaleString([], {
+          weekday: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        li.append(when, `${c.app} · ${c.title}`);
+        return li;
+      }),
+  );
+  list.hidden = false;
 }
 
 const PERMS_KEY = "vans.permissions";
@@ -2807,6 +2861,21 @@ $("login-item").addEventListener("change", async (e) => {
     $("login-note").textContent = String(err);
   }
 });
+$("watching").addEventListener("change", async (e) => {
+  const box = e.target as HTMLInputElement;
+  try {
+    showWatching(await invoke<Watching>("set_watching", { on: box.checked }));
+  } catch (err) {
+    box.checked = !box.checked;
+    $("watching-note").textContent = String(err);
+  }
+});
+$("watching-see").addEventListener("click", () => {
+  seeNoted().catch(console.error);
+});
+$("watching-clear").addEventListener("click", async () => {
+  showWatching(await invoke<Watching>("clear_clicks"));
+});
 $("show-read").addEventListener("click", showRead);
 $("perms-ask").addEventListener("click", askPermissions);
 $("perms-reopen").addEventListener("click", () => {
@@ -2837,5 +2906,6 @@ void loadSuggestions();
 show("preflight");
 runPreflight();
 loadLogin().catch(console.error);
+loadWatching().catch(console.error);
 refreshActiveContext();
 loadDestinations();

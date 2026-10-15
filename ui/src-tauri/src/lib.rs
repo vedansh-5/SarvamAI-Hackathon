@@ -4,6 +4,7 @@ mod login;
 mod notch;
 mod overlay;
 mod permissions;
+mod watching;
 pub mod screen;
 
 use std::path::PathBuf;
@@ -111,6 +112,28 @@ async fn guide(engine: State<'_, Engine>, plan_id: String) -> Result<Value, RpcE
 #[tauri::command]
 async fn stop_guide(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("stop_guide", None).await
+}
+
+#[tauri::command]
+async fn watching(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("watching", None).await
+}
+
+#[tauri::command]
+async fn set_watching(app: tauri::AppHandle, engine: State<'_, Engine>, on: bool) -> Result<Value, RpcError> {
+    let now = engine.call("set_watching", Some(json!({ "on": on }))).await?;
+    let _ = tauri::Emitter::emit(&app, "pill://watching", &now);
+    Ok(now)
+}
+
+#[tauri::command]
+async fn noted_clicks(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("noted_clicks", None).await
+}
+
+#[tauri::command]
+async fn clear_clicks(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("clear_clicks", None).await
 }
 
 #[tauri::command]
@@ -479,6 +502,7 @@ pub fn run() {
 
             overlay::install(&handle_for_overlay)?;
             notch::install(&handle_for_overlay)?;
+            watching::install(&handle_for_overlay);
             Ok(())
         })
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
@@ -492,6 +516,10 @@ pub fn run() {
             guide,
             stop_guide,
             advance_guide,
+            watching,
+            set_watching,
+            noted_clicks,
+            clear_clicks,
             resume_drive,
             answer_guide,
             answer_question,

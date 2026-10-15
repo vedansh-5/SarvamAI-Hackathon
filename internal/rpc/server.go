@@ -203,6 +203,16 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.setModelSettings(ctx, req)
 	case "forget_model_key":
 		result, err = s.forgetModelKey(ctx)
+	case "noticed":
+		result, err = s.noticed(ctx, req)
+	case "watching":
+		result, err = s.watching(ctx)
+	case "set_watching":
+		result, err = s.setWatching(ctx, req)
+	case "noted_clicks":
+		result, err = s.notedClicks(ctx)
+	case "clear_clicks":
+		result, err = s.clearClicks(ctx)
 	case "can_send_feedback":
 		result = map[string]bool{"ready": s.Feedback != nil}
 	case "send_feedback":
