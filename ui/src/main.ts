@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import { DotField, type DotMode } from "./dots";
 import { livingPill } from "./pill";
 
@@ -301,6 +301,24 @@ const FINISHED = new Set(["results", "failure", "notunderstood", "history"]);
 const WITH_FIELD = new Set(["ask", "working", "results", "notunderstood", "failure"]);
 const WITHOUT_FOOT = new Set(["guiding", "question"]);
 let showing = "ask";
+let pillStep = "";
+
+function tellPill() {
+  const state =
+    showing === "working"
+      ? "working"
+      : showing === "guiding"
+        ? "guiding"
+        : showing === "question"
+          ? "asking"
+          : "idle";
+  const stepping = state === "guiding" || actingIn !== null;
+  if (state === "idle" && actingIn === null) pillStep = "";
+  emit("pill://state", {
+    state,
+    text: stepping && pillStep ? pillStep : state === "asking" ? "Question" : undefined,
+  }).catch(() => {});
+}
 let openFresh = false;
 
 const HINTS: Record<string, [string, string][]> = {
@@ -400,6 +418,7 @@ function show(id: string) {
   renderFoot();
   paintPresence();
   if (id !== "confirm") releaseHold();
+  tellPill();
 }
 
 /// Every value that reaches the DOM goes through a text node.
@@ -465,6 +484,44 @@ async function runPreflight(advance = true) {
   if (result.ready && !mustAsk(perms) && advance) {
     show("ask");
   }
+}
+
+interface LoginItem {
+  on: boolean;
+  works: boolean;
+  approve: boolean;
+}
+
+const LOGIN_KEY = "vans.login.decided";
+
+function showLogin(item: LoginItem) {
+  const box = $("login-item") as HTMLInputElement;
+  box.checked = item.on;
+  box.disabled = !item.works;
+  const note = $("login-note");
+  note.hidden = item.works && !item.approve;
+  note.textContent = !item.works
+    ? "Works in the installed app."
+    : "macOS wants you to allow it in System Settings › General › Login Items.";
+}
+
+async function loadLogin() {
+  let item = await invoke<LoginItem>("login_item");
+  let decided = true;
+  try {
+    decided = localStorage.getItem(LOGIN_KEY) !== null;
+  } catch {}
+  if (item.works && !decided) {
+    try {
+      item = await invoke<LoginItem>("set_login_item", { on: true });
+    } catch (e) {
+      console.error(e);
+    }
+    try {
+      localStorage.setItem(LOGIN_KEY, "1");
+    } catch {}
+  }
+  showLogin(item);
 }
 
 const PERMS_KEY = "vans.permissions";
@@ -860,6 +917,8 @@ listen<{
 }>("engine://drive_step", (event) => {
   if (actingIn === null) return;
   const s = event.payload.params;
+  pillStep = `Step ${s.number}`;
+  tellPill();
   invoke("point_at", {
     x: s.x,
     y: s.y,
@@ -985,6 +1044,8 @@ listen<{
   (event) => {
     const s = event.payload.params;
     $("guiding-step").textContent = `${s.number}. ${s.label}`;
+    pillStep = `Step ${s.number}`;
+    tellPill();
 
     // The step is on the screen now, so the panel can leave. Every step after
     // the first finds it already gone.
@@ -2671,6 +2732,16 @@ $("model-more").addEventListener("toggle", () => fitWindow());
 $("history-back").addEventListener("click", () => show("preflight"));
 
 $("recheck").addEventListener("click", () => runPreflight(false));
+$("login-item").addEventListener("change", async (e) => {
+  const box = e.target as HTMLInputElement;
+  try {
+    showLogin(await invoke<LoginItem>("set_login_item", { on: box.checked }));
+  } catch (err) {
+    box.checked = !box.checked;
+    $("login-note").hidden = false;
+    $("login-note").textContent = String(err);
+  }
+});
 $("perms-ask").addEventListener("click", askPermissions);
 $("perms-reopen").addEventListener("click", () => {
   invoke("reopen").catch(console.error);
@@ -2699,5 +2770,6 @@ void loadSuggestions();
 
 show("preflight");
 runPreflight();
+loadLogin().catch(console.error);
 refreshActiveContext();
 loadDestinations();

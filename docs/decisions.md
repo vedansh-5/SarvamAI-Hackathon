@@ -5574,3 +5574,37 @@ the process that reads windows, but the panel shows the shell's row only. The
 `check_notes` command and the Screen Recording buttons are gone; the engine
 method stays. `Info.plist` gives macOS the line shown in the control prompts.
 
+## D-238 — VANS starts at login, and sits in the notch
+
+**Status:** Accepted, 2026-10-15
+
+**Starting at login.** VANS registers itself with macOS as a login item
+(`SMAppService.mainAppService`, `ui/src-tauri/src/login.rs`), the same list a
+person sees in System Settings › General › Login Items, so it can be turned
+off there as well as in Setup (Start › Open VANS when you log in). It is on by
+default: the first time the installed app runs it turns itself on once and
+remembers that it decided, so switching it off stays off. Run from the code it
+does nothing and the switch says it works in the installed app; a login item
+pointing at a build folder would outlive the build. If macOS wants the person
+to approve it, Setup says where.
+
+**The pill.** A small black window, `notch` (`ui/src-tauri/src/notch.rs`,
+`ui/notch.html`, `ui/src/notch.ts`), drawn over the menu bar. On a Mac with a
+notch it is as tall as the notch and 56 points wider on each side, so the
+notch looks wider: the VANS dot on the left, words on the right. Without a
+notch it is a 120-point pill in the middle of the menu bar that says VANS. It
+goes on the screen with the notch, or the main screen, and moves when screens
+change.
+
+| What VANS is doing | The pill shows |
+|---|---|
+| Nothing | the dot |
+| Working on a request | the dot breathing |
+| Guiding, or doing the steps | "Step 2" |
+| Asking a question | "Question" |
+
+The panel tells it (`pill://state`) whenever its screen changes and at each
+step. Clicking the pill opens the panel, the same as ⌥Space. It joins every
+desktop but not full-screen apps, so it never sits over a film or a
+presentation. The learning dot comes with watching and learning.
+
