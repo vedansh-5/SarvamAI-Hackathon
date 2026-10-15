@@ -123,15 +123,26 @@ func TestGuideAdvancesOnChannel(t *testing.T) {
 	}}
 
 	advance := make(chan struct{}, 1)
+	finished := make(chan struct{})
 	go func() {
-		time.Sleep(20 * time.Millisecond)
-		advance <- struct{}{}
+		for {
+			select {
+			case <-finished:
+				return
+			case <-time.After(5 * time.Millisecond):
+				select {
+				case advance <- struct{}{}:
+				default:
+				}
+			}
+		}
 	}()
 
 	var shown []GuideStep
 	steps, err := e.RunGuide(context.Background(), guidePlan(), func(s GuideStep) {
 		shown = append(shown, s)
 	}, advance)
+	close(finished)
 	if err != nil {
 		t.Fatalf("runGuide with advance: %v", err)
 	}
