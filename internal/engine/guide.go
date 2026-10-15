@@ -292,7 +292,7 @@ func (e *Engine) planGuideIn(ctx context.Context, task, shape string, literals m
 				Guide: &GuidePlan{
 					App: app, Task: task, Shape: shape, Literals: literals, Vision: true,
 					Preview: fmt.Sprintf("Show you how to do this in %s, a step at a time, by looking at its window:\n\n  %s\n\n"+
-						"%s does not publish its controls, so each step takes a moment longer and the pointer is a best estimate.",
+						"%s does not publish its controls, so VANS reads the words on its window: labelled controls are found exactly, and icons with no words are a best estimate.",
 						app, task, app),
 				},
 			}, nil

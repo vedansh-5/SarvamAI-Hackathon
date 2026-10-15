@@ -317,13 +317,28 @@ func defaultDB() string {
 }
 
 func looking(model any, desktop uiact.System) uiact.Screen {
-	reader, ok := model.(eyes.Reader)
-	if !ok {
-		return nil
-	}
+	reader, _ := model.(eyes.Reader)
 	return &eyes.Screen{
 		Camera: desktop,
 		Reader: reader,
+		Words:  uiact.ReadWords,
+		Menus: func(ctx context.Context, app string) ([]uiact.Element, error) {
+			tree, err := desktop.Capture(ctx, app)
+			if err != nil {
+				return nil, err
+			}
+			var menus []uiact.Element
+			for _, el := range tree.Elements {
+				if uiact.InMenuBar(el) {
+					menus = append(menus, el)
+				}
+			}
+			return menus, nil
+		},
+		Hands: func(ctx context.Context, p uiact.Program, t uiact.Tree) error {
+			return uiact.RunByPointer(ctx, desktop.Runner, p, t)
+		},
+		Typist: desktop.Type,
 		Raise:  desktop.BringToFront,
 		Log: func(format string, args ...any) {
 			fmt.Fprintf(os.Stderr, "[eyes] "+format+"\n", args...)

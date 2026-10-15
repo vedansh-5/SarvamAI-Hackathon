@@ -5934,3 +5934,50 @@ follows it. It is offered by the clock from ten minutes before its usual time
 the last two hours, so something also done in the morning is still offered in
 the evening. When the same thing is also found by time of day on as many days,
 "before you finish" wins, since that is what it is.
+
+## D-246 — The words on a window are read on the Mac, exactly
+
+Decided by Vedansh on 2026-10-15: VANS may read the text on screen on the Mac,
+for applications that publish nothing. This is the one exception to "no
+processing on the Mac": the recognition is macOS's own (the Vision framework),
+nothing is downloaded or shipped, and it runs only on a window VANS is already
+looking at under D-169.
+
+**What changed.** A window that cannot be read through accessibility used to be
+a picture sent to the model, which guessed a box for each control: about four
+seconds a screen, and pointing only. Now the window is read three ways, most
+exact first:
+
+1. **What the application publishes.** Its menu bar is usually readable even
+   when its window is not, and menus are exact. They join the tree.
+2. **The words on screen.** `uiact.ReadWords` runs text recognition on the
+   full-size picture (the model still gets the smaller one) and returns each
+   label with its exact place. Words on one line are split into separate labels
+   where the gap is wider than about one and a half letters, so a toolbar's
+   "Cut", "Copy", "Paste" stay three and "Render Queue" stays one. English only,
+   because letting it guess the language read "Copy" with a Cyrillic C; look-alike
+   letters in an otherwise Latin word are turned back to Latin as well.
+3. **The model's look,** for icons that carry no words. When the words alone are
+   enough to go on (five or more), the look happens in the background and its
+   icons join the tree a moment later; nobody waits for it. When there are fewer
+   words, it is waited for as before. A control the model names that matches a
+   word nearby takes the word's exact place; anything left is marked
+   `Estimated` and says "[place estimated]" in what the model reads.
+
+**Doing, not only pointing.** `uiact.RunByPointer` carries out steps on such a
+window with the real pointer and keyboard. It refuses any step whose target is
+estimated, so VANS clicks only what it can place exactly and points at the rest.
+The do-it path now switches to the looked-at window too (`DrivePlan.Vision`),
+and its preview says so.
+
+**Measured.** Twelve rendered windows (light, dark and coloured, five fonts,
+10 to 16 px, normal and Retina scale, labels plain and boxed): 307 of 312 labels
+found (98.4%), and every one found landed inside its own label (100%). Each read
+took 31 to 67 ms. The misses were small text at normal scale and a boxed "OK";
+at Retina scale one label in 156 was missed. `vans-probe -words app …` measures
+the same thing against the controls a real application publishes; it needs the
+applications in front, so it waits for a moment Vedansh chooses.
+
+**What leaves the Mac.** The recognised words go to the model as part of the
+window description, like the names of controls in any other window. The picture
+is still sent for the icon look, as D-169 said.

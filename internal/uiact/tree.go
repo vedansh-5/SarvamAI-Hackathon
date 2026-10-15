@@ -20,6 +20,8 @@ type Element struct {
 	Notice bool `json:"notice,omitempty"`
 	Blind  bool `json:"blind,omitempty"`
 
+	Estimated bool `json:"estimated,omitempty"`
+
 	Ranged bool    `json:"ranged,omitempty"`
 	Low    float64 `json:"low,omitempty"`
 	High   float64 `json:"high,omitempty"`
@@ -186,6 +188,9 @@ func (t Tree) TextWithin(budget int) string {
 		}
 		if hidden {
 			line += " [out of view]"
+		}
+		if el.Estimated {
+			line += " [place estimated]"
 		}
 		line += "\n"
 
