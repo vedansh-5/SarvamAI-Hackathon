@@ -303,6 +303,20 @@ pub fn ask_all() -> Vec<Permission> {
     check_with(&seen)
 }
 
+pub fn ask_again(identifier: &str) -> Result<Vec<Permission>, String> {
+    if !crate::login::installed() {
+        return Err("Asking again works in the installed app.".into());
+    }
+    let reset = Command::new("tccutil")
+        .args(["reset", "AppleEvents", identifier])
+        .status()
+        .map_err(|e| e.to_string())?;
+    if !reset.success() {
+        return Err("macOS would not clear the old answers.".into());
+    }
+    Ok(ask_all())
+}
+
 #[cfg(not(target_os = "macos"))]
 pub fn check() -> Vec<Permission> {
     Vec::new()

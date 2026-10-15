@@ -5588,23 +5588,24 @@ does nothing and the switch says it works in the installed app; a login item
 pointing at a build folder would outlive the build. If macOS wants the person
 to approve it, Setup says where.
 
-**The pill.** A small black window, `notch` (`ui/src-tauri/src/notch.rs`,
-`ui/notch.html`, `ui/src/notch.ts`), drawn over the menu bar. On a Mac with a
-notch it is as tall as the notch and 56 points wider on each side, so the
-notch looks wider: the VANS dot on the left, words on the right. Without a
-notch it is a 120-point pill in the middle of the menu bar that says VANS. It
-goes on the screen with the notch, or the main screen, and moves when screens
-change.
+**The pill.** A yellow dot, `notch` (`ui/src-tauri/src/notch.rs`,
+`ui/notch.html`, `ui/src/notch.ts`), in a 24-point window over the menu bar
+just left of the notch, or in the middle of the menu bar without one. It goes
+on the screen with the notch, or the main screen, and moves when screens
+change. It started as a black shape 56 points wider than the notch on each
+side, with words; Vedansh found it too big, so it is only the dot.
 
-| What VANS is doing | The pill shows |
+| What VANS is doing | The dot |
 |---|---|
-| Nothing | the dot |
-| Working on a request | the dot breathing |
-| Guiding, or doing the steps | "Step 2" |
-| Asking a question | "Question" |
+| Nothing | still |
+| Working on a request | breathing |
+| Guiding, doing the steps, or asking | a soft ring |
 
 The panel tells it (`pill://state`) whenever its screen changes and at each
-step. Clicking the pill opens the panel, the same as ⌥Space. It joins every
-desktop but not full-screen apps, so it never sits over a film or a
-presentation. The learning dot comes with watching and learning.
+step. Clicking the dot opens the panel, and so does resting on it for 0.3 s; a
+panel opened by resting closes itself 1.2 s after the pointer leaves the dot
+and the panel, unless it was clicked or typed in. Resting only counts when the
+dot is on the current desktop, so moving to the top of a full-screen app to
+bring the menu bar down never opens VANS. The dot joins every desktop but not
+full-screen apps. The learning dot comes with watching and learning.
 

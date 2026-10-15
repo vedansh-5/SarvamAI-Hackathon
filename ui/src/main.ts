@@ -418,6 +418,7 @@ function show(id: string) {
   renderFoot();
   paintPresence();
   if (id !== "confirm") releaseHold();
+  if (id === "confirm") invoke("take_keyboard").catch(console.error);
   tellPill();
 }
 
@@ -573,6 +574,10 @@ async function loadPermissions(): Promise<Permission[]> {
   const perms = withMemory(await invoke<Permission[]>("permissions"));
   rememberPerms(perms, false);
   renderPermissions(perms);
+  if (waitingFor && perms.find((p) => p.name === waitingFor)?.state === "granted") {
+    waitingFor = null;
+    invoke("summon").catch(console.error);
+  }
   return perms;
 }
 
@@ -588,13 +593,15 @@ function renderPermissions(perms: Permission[]) {
     text.appendChild(el("div", "check-label", p.label));
     text.appendChild(el("div", "check-detail", p.why));
     box.appendChild(text);
-    const denied = p.state === "needed" && p.name !== "accessibility" && p.name !== "screen";
+    const control = p.name !== "accessibility" && p.name !== "screen";
+    const denied = p.state === "needed" && control;
     if (!ok && (denied || (asked && p.state !== "not_asked"))) {
-      const open = el("button", "btn quiet", "Open Settings") as HTMLButtonElement;
-      open.addEventListener("click", () => {
-        invoke("open_permission_settings", { name: p.name }).catch(console.error);
+      const fix = el("button", "btn quiet", control ? "Ask again" : "Turn on") as HTMLButtonElement;
+      fix.addEventListener("click", () => {
+        if (control) void askAgain(p);
+        else openSettingsFor(p);
       });
-      box.appendChild(open);
+      box.appendChild(fix);
     } else {
       box.appendChild(el("span", "check-tag", ok ? "Granted" : "Needed"));
     }
@@ -607,10 +614,32 @@ function renderPermissions(perms: Permission[]) {
     $("perms-state").textContent = perms.every((p) => p.state === "granted")
       ? "All granted."
       : asked
-        ? "Turn the rest on in Settings. Screen Recording works after VANS reopens."
+        ? "Accessibility and Screen Recording can only be switched on by you, in Settings. Turn on takes you there and VANS comes back when it is on."
         : "";
   }
   fitWindow();
+}
+
+let waitingFor: string | null = null;
+
+function openSettingsFor(p: Permission) {
+  waitingFor = p.name;
+  invoke("open_permission_settings", { name: p.name }).catch(console.error);
+  invoke("dismiss").catch(console.error);
+}
+
+async function askAgain(p: Permission) {
+  permsAsking = true;
+  $("perms-state").textContent = "Answer the macOS prompts as they come up.";
+  try {
+    const perms = withMemory(await invoke<Permission[]>("ask_permissions_again"));
+    rememberPerms(perms, true);
+    permsAsking = false;
+    renderPermissions(perms);
+  } catch {
+    permsAsking = false;
+    openSettingsFor(p);
+  }
 }
 
 async function askPermissions() {
@@ -802,6 +831,10 @@ async function extract(sendAs?: string, text?: string) {
     lastInstruction = instruction;
     setProgress(100);
     currentPlan = plan;
+    invoke("note", {
+      from: "timing",
+      what: `${plan.elapsed_ms} ms, ${plan.synthesis_calls + plan.decision_calls} calls, ${plan.app || hostOf(plan.page_url) || "?"}: ${instruction}`,
+    }).catch(() => {});
     if (plan.say) {
       renderSay(plan);
       show("results");
@@ -1277,9 +1310,19 @@ function renderResults(plan: Plan) {
 
   const n = plan.rows.length;
   const source = hostOf(plan.page_url) || plan.page_url;
-  $("results-kicker").textContent =
-    `${n} result${n === 1 ? "" : "s"} from ${source}${plan.decision_calls + plan.synthesis_calls === 0 ? " · remembered" : ""}`;
+  const remembered = plan.decision_calls + plan.synthesis_calls === 0 ? " · remembered" : "";
+  const answered = !!plan.answer;
+  $("results-kicker").textContent = answered
+    ? `${plan.app || source}${remembered}`
+    : `${n} result${n === 1 ? "" : "s"} from ${source}${remembered}`;
   $("results-kicker").title = timing(plan);
+  $("show-read").textContent = `Show what VANS read (${n})`;
+  $("show-read").hidden = !answered || n === 0;
+  if (answered) {
+    $("view-switch").hidden = true;
+    $("cards").hidden = true;
+    $("table-wrap").hidden = true;
+  }
 
   renderCards($("cards"), plan.fields, plan.rows);
 
@@ -1319,11 +1362,13 @@ function renderAnswer(plan: Plan) {
     const row = plan.rows[n - 1];
     if (!row) continue;
 
-    const label = hostOf(firstLink(row, plan.fields)) || String(n);
+    const label = hostOf(firstLink(row, plan.fields));
+    if (!label) continue;
     const chip = el("button", "cite", label) as HTMLButtonElement;
     chip.type = "button";
     chip.title = row[plan.fields[0]] ?? "";
     chip.addEventListener("click", () => {
+      showRead();
       const card = $("cards").children[n - 1] as HTMLElement | undefined;
       card?.scrollIntoView({ behavior: "smooth", block: "center" });
       card?.classList.add("lit");
@@ -1331,6 +1376,14 @@ function renderAnswer(plan: Plan) {
     });
     cites.appendChild(chip);
   }
+}
+
+function showRead() {
+  if ($("show-read").hidden) return;
+  $("show-read").hidden = true;
+  $("view-switch").hidden = false;
+  applyView(tableView(), false);
+  fitWindow();
 }
 
 function firstLink(row: Record<string, string>, fields: string[]): string {
@@ -2179,7 +2232,19 @@ function humanise(message: string): string {
   return message;
 }
 
+let kept = false;
+
+function keepPanel() {
+  if (kept) return;
+  kept = true;
+  invoke("keep_panel").catch(() => {});
+}
+
+document.addEventListener("mousedown", keepPanel, true);
+document.addEventListener("keydown", keepPanel, true);
+
 listen<ScreenContext | undefined>("overlay://shown", (event) => {
+  kept = false;
   if (event.payload) {
     updateActiveContext(event.payload);
   } else {
@@ -2742,6 +2807,7 @@ $("login-item").addEventListener("change", async (e) => {
     $("login-note").textContent = String(err);
   }
 });
+$("show-read").addEventListener("click", showRead);
 $("perms-ask").addEventListener("click", askPermissions);
 $("perms-reopen").addEventListener("click", () => {
   invoke("reopen").catch(console.error);

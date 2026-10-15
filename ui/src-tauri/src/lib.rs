@@ -34,6 +34,14 @@ async fn ask_permissions() -> Result<Vec<permissions::Permission>, String> {
 }
 
 #[tauri::command]
+async fn ask_permissions_again(app: tauri::AppHandle) -> Result<Vec<permissions::Permission>, String> {
+    let identifier = app.config().identifier.clone();
+    tauri::async_runtime::spawn_blocking(move || permissions::ask_again(&identifier))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 fn open_permission_settings(name: String) {
     permissions::open_settings(&name);
 }
@@ -44,8 +52,13 @@ fn reopen(app: tauri::AppHandle) {
 }
 
 #[tauri::command]
-fn notch_place() -> Option<notch::Place> {
-    notch::place()
+fn keep_panel() {
+    notch::keep();
+}
+
+#[tauri::command]
+fn take_keyboard(app: tauri::AppHandle) {
+    overlay::take_keyboard(&app);
 }
 
 #[tauri::command]
@@ -511,9 +524,11 @@ pub fn run() {
             get_screen_context,
             permissions,
             ask_permissions,
+            ask_permissions_again,
             open_permission_settings,
             reopen,
-            notch_place,
+            take_keyboard,
+            keep_panel,
             login_item,
             set_login_item
         ])

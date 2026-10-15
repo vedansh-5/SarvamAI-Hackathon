@@ -7,7 +7,7 @@ pub struct LoginItem {
     pub approve: bool,
 }
 
-fn installed() -> bool {
+pub fn installed() -> bool {
     std::env::current_exe()
         .map(|p| p.to_string_lossy().contains(".app/Contents/MacOS/"))
         .unwrap_or(false)

@@ -39,10 +39,6 @@ const CORNER_RADIUS: f64 = 20.0;
 /// How close to the edge of the display the panel is allowed to sit.
 const EDGE_MARGIN: f64 = 12.0;
 
-/// Whether the panel has been given a position yet. It is centred once, on the
-/// first summon; after that where it sits is wherever the user dragged it to.
-static PLACED: AtomicBool = AtomicBool::new(false);
-
 /// The summoning shortcut.
 ///
 /// Option-Space rather than Command-Space, which is Spotlight's and cannot be
@@ -75,8 +71,8 @@ pub fn show(app: &AppHandle) {
     // Capture context before VANS seizes the active focus
     let context = crate::screen::capture_active_context(false);
 
-    if !PLACED.swap(true, Ordering::Relaxed) {
-        let _ = win.center();
+    if !win.is_visible().unwrap_or(false) {
+        put_at_home(app, &win);
     }
 
     // Every time, not only on resize: a panel that was left off screen must
@@ -352,12 +348,11 @@ pub fn resize(app: &AppHandle, content_height: f64) {
     keep_on_screen(&win, height);
 }
 
-/// Where the panel sits is the user's, not the runtime's.
-///
-/// It is centred once, the first time it is summoned, and never moved again —
-/// growing content pushes the bottom edge down rather than recentring, because
-/// recentring on every resize walked the panel out from under a drag and made
-/// it look as though it could not be moved at all. The only exception is
+/// It opens in the same place each time it is summoned, like Spotlight, and is
+/// not moved while it is up: growing content pushes the bottom edge down
+/// rather than recentring, because recentring on every resize walked the panel
+/// out from under a drag and made it look as though it could not be moved at
+/// all. The only exception is
 /// falling off the display, which is corrected by the smallest shift that
 /// puts it back.
 // A window that has drifted entirely off screen reports no current monitor, so
@@ -367,6 +362,26 @@ fn monitor_for(win: &WebviewWindow) -> Option<tauri::Monitor> {
         return Some(m);
     }
     win.primary_monitor().ok().flatten()
+}
+
+const HOME_FROM_TOP: f64 = 0.18;
+
+fn put_at_home(app: &AppHandle, win: &WebviewWindow) {
+    let monitor = app
+        .cursor_position()
+        .ok()
+        .and_then(|at| app.monitor_from_point(at.x, at.y).ok().flatten())
+        .or_else(|| monitor_for(win));
+    let Some(monitor) = monitor else {
+        let _ = win.center();
+        return;
+    };
+    let scale = monitor.scale_factor();
+    let area = monitor.size().to_logical::<f64>(scale);
+    let origin = monitor.position().to_logical::<f64>(scale);
+    let x = origin.x + (area.width - panel_width()) / 2.0;
+    let y = origin.y + area.height * HOME_FROM_TOP;
+    let _ = win.set_position(LogicalPosition::new(x, y));
 }
 
 fn keep_on_screen(win: &WebviewWindow, height: f64) {
@@ -412,6 +427,29 @@ fn holds_keyboard(win: &WebviewWindow) -> bool {
     }
     let ns: &NSWindow = unsafe { &*(ptr as *const NSWindow) };
     ns.isKeyWindow()
+}
+
+#[cfg(target_os = "macos")]
+pub fn take_keyboard(app: &AppHandle) {
+    use objc2_app_kit::NSWindow;
+
+    let Some(win) = window(app) else { return };
+    if !win.is_visible().unwrap_or(false) || holds_keyboard(&win) {
+        return;
+    }
+    let Ok(ptr) = win.ns_window() else { return };
+    if ptr.is_null() {
+        return;
+    }
+    let ns: &NSWindow = unsafe { &*(ptr as *const NSWindow) };
+    ns.makeKeyAndOrderFront(None);
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn take_keyboard(app: &AppHandle) {
+    if let Some(win) = window(app) {
+        let _ = win.set_focus();
+    }
 }
 
 #[cfg(not(target_os = "macos"))]
