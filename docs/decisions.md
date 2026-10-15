@@ -5796,3 +5796,22 @@ one list per tester, replaced each time it changes (`synth.KindLearned`, a
 A copy that asks a model directly sends nothing. Setup says so on the copies
 that send it. It may become Mac-only later. The privacy page wording is
 drafted in the tester plan and waits for Vedansh.
+## D-242 — The mark is a spotlight that opens for the pointer
+
+Chosen by Vedansh on 2026-10-15 from four directions explored in Gemini and
+three vector drafts: a yellow ring, opening where a pointer comes in, with its
+tip on the centre. It says what VANS does, "this is where to look", and it
+still reads at 16 pixels, where the tiny pointer in the image model's version
+vanished and a closed ring with a pointer outside read as a search icon.
+
+The sources are `ui/brand/mark.svg` (the square mark, for favicons and small
+places) and `ui/brand/app-icon.svg` (the macOS icon on Apple's grid, with its
+shadow). Every size the app bundle lists is made from them with `rsvg-convert`,
+`iconutil` and `magick`; the Tauri placeholder icon is gone.
+
+The ghost cursor the coach draws is now the mark's pointer, the rounded
+triangle D-138 described, where it had been drawn as an arrow with a tail. The
+logo and the thing on screen are the same shape.
+
+The dot in the notch stays a plain dot (D-238). The website's favicon changes
+in its own pull request, since the site waits for Vedansh's read.
