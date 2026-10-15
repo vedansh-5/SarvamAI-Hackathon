@@ -116,6 +116,9 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 
 	watching, stopWatching := context.WithCancel(ctx)
 	defer stopWatching()
+	if s.Engine != nil {
+		go s.Engine.TakeMarksOff(watching)
+	}
 	go s.watchTheClock(watching)
 	go s.offerByTheClock(watching)
 
@@ -213,6 +216,8 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.invite()
 	case "set_invite":
 		result, err = s.setInvite(ctx, req)
+	case "set_accent":
+		result, err = s.setAccent(ctx, req)
 	case "update_source":
 		result, err = s.updateSource()
 	case "noticed":
@@ -566,6 +571,7 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 		ModeWhy:        plan.ModeWhy,
 		Say:            plan.Say,
 		SayTitle:       plan.SayTitle,
+		Marked:         plan.Marked,
 		Copy:           plan.Copy,
 		App:            app,
 		DecisionCalls:  plan.DecisionCalls,
@@ -1266,6 +1272,22 @@ func (s *Server) setInvite(ctx context.Context, req Request) (InviteState, error
 		return InviteState{Tester: true, Has: status.Has}, &Error{Code: CodeModelNotSaved, Message: inviteRefusal(err)}
 	}
 	return InviteState{Tester: true, Has: status.Has}, nil
+}
+
+func (s *Server) setAccent(ctx context.Context, req Request) (map[string]string, error) {
+	var p struct {
+		Accent string `json:"accent"`
+	}
+	if err := json.Unmarshal(req.Params, &p); err != nil {
+		return nil, &Error{Code: CodeBadRequest, Message: err.Error()}
+	}
+	if s.Engine == nil {
+		return nil, &Error{Code: CodeBadRequest, Message: "no engine"}
+	}
+	if err := s.Engine.SetTheme(ctx, p.Accent); err != nil {
+		return nil, &Error{Code: CodeBadRequest, Message: err.Error()}
+	}
+	return map[string]string{"accent": s.Engine.Theme(ctx).ID}, nil
 }
 
 type UpdateSource struct {

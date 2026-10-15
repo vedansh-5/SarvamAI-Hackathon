@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { DotField, type DotMode } from "./dots";
 import { livingPill } from "./pill";
+import { THEMES, chooseTheme, followTheme, type Theme } from "./theme";
 
 // --- shapes mirrored from internal/rpc/protocol.go ---
 
@@ -47,6 +48,7 @@ interface Plan {
   mode_why?: string;
   say?: string;
   say_title?: string;
+  marked?: boolean;
   copy?: string;
   decision_calls: number;
   action: string;
@@ -909,6 +911,7 @@ async function extract(sendAs?: string, text?: string) {
       what: `${plan.elapsed_ms} ms, ${plan.synthesis_calls + plan.decision_calls} calls, ${plan.app || hostOf(plan.page_url) || "?"}: ${instruction}`,
     }).catch(() => {});
     if (plan.say) {
+      if (plan.marked) showClearStyle(true);
       renderSay(plan);
       show("results");
       if (plan.decision_calls + plan.synthesis_calls === 0) setStatus("", "Instant");
@@ -2231,6 +2234,29 @@ function paintPresence() {
 
 presence.start();
 guidePresence.start();
+
+function showAccents(current: Theme) {
+  const box = $("accents");
+  box.replaceChildren(
+    ...THEMES.map((t) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "accent-swatch";
+      b.title = t.name;
+      b.setAttribute("role", "radio");
+      b.setAttribute("aria-label", t.name);
+      b.setAttribute("aria-checked", String(t.id === current.id));
+      b.style.setProperty("--swatch", t.accent);
+      b.addEventListener("click", async () => showAccents(await chooseTheme(t.id)));
+      return b;
+    }),
+  );
+  paintPresence();
+}
+
+const startingTheme = followTheme(showAccents);
+showAccents(startingTheme);
+invoke("set_accent", { accent: startingTheme.id }).catch(() => {});
 
 /// Tells the shell how tall the panel wants to be.
 ///

@@ -21,12 +21,12 @@ function rgbOf(color: string): [number, number, number] {
   if (parts && parts.length >= 3) {
     return [Number(parts[0]), Number(parts[1]), Number(parts[2])];
   }
-  return [255, 210, 63];
+  return [128, 128, 128];
 }
 
 export class DotField {
   mode: DotMode = "idle";
-  private accent: [number, number, number] = [255, 210, 63];
+  private accent: [number, number, number] = [128, 128, 128];
   private base: [number, number, number] = [128, 128, 128];
   private level = 0;
   private columns: number[] = [];

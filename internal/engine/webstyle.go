@@ -123,7 +123,7 @@ func (e *Engine) stylePage(ctx context.Context, r route.Route) (*Plan, int, erro
 		}
 
 		program := webstyle.Program{Rules: answer.Rules}
-		script, err := webstyle.Render(program, doc)
+		script, err := webstyle.Render(program, doc, e.Theme(ctx))
 		if err != nil {
 			var invalid *webstyle.InvalidError
 			if !errors.As(err, &invalid) {

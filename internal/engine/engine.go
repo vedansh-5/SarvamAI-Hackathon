@@ -143,6 +143,7 @@ type Engine struct {
 	Runner    appact.Runner
 
 	Styler   StyleWriter
+	Prefs    PrefStore
 	UIWriter UIActionWriter
 	UIScreen uiact.Screen
 
@@ -356,6 +357,8 @@ type Plan struct {
 
 	// Style is set when this plan changes how the page in front looks.
 	Style *StylePlan
+
+	Marked bool
 
 	Guide *GuidePlan
 

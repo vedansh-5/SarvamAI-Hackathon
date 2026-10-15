@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"golang.org/x/net/html"
+
+	"github.com/vedansh/vans/internal/theme"
 )
 
 const shopHTML = `<div class="results">
@@ -129,15 +131,16 @@ func TestSheetUsesTokensRatherThanColours(t *testing.T) {
 }
 
 func TestBothPalettesReachTheScript(t *testing.T) {
-	script, err := Render(highlight(), page(t, shopHTML))
+	blue := theme.Named("blue")
+	script, err := Render(highlight(), page(t, shopHTML), blue)
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
-	if !strings.Contains(script, "--vans-tint:rgba(250,204,21,.28)") {
-		t.Errorf("the light palette is missing:\n%s", script)
+	if !strings.Contains(script, "--vans-tint:"+blue.Soft) {
+		t.Errorf("the light palette does not use the theme's soft colour:\n%s", script)
 	}
-	if !strings.Contains(script, "--vans-tint:rgba(250,204,21,.20)") {
-		t.Errorf("the dark palette is missing:\n%s", script)
+	if !strings.Contains(script, "--vans-tint:"+theme.Alpha(blue.Accent, .24)) {
+		t.Errorf("the dark palette does not use the theme's accent:\n%s", script)
 	}
 	if !strings.Contains(script, "pageIsDark") {
 		t.Errorf("the page is never measured:\n%s", script)
@@ -145,12 +148,12 @@ func TestBothPalettesReachTheScript(t *testing.T) {
 }
 
 func TestRenderCarriesTheSheetAsAString(t *testing.T) {
-	script, err := Render(highlight(), page(t, shopHTML))
+	script, err := Render(highlight(), page(t, shopHTML), theme.Default())
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
-	if !strings.Contains(script, "el.textContent =") {
-		t.Errorf("the sheet did not reach textContent:\n%s", script)
+	if !strings.Contains(script, "adoptedStyleSheets") {
+		t.Errorf("the sheet is not adopted, so a strict page would block it:\n%s", script)
 	}
 	if !strings.Contains(script, `"vans-style"`) {
 		t.Errorf("the style element has no stable id:\n%s", script)
@@ -164,14 +167,30 @@ func TestRenderRefusesWhatValidateRefuses(t *testing.T) {
 	p := highlight()
 	p.Rules[0].Selector = "span.nothing"
 
-	if _, err := Render(p, page(t, shopHTML)); err == nil {
+	if _, err := Render(p, page(t, shopHTML), theme.Default()); err == nil {
 		t.Fatal("a restyle that matches nothing was rendered anyway")
 	}
 }
 
 func TestClearRemovesTheElement(t *testing.T) {
-	if !strings.Contains(Clear(), "removeChild") {
-		t.Error("clearing does not remove the style element")
+	for _, want := range []string{"removeChild", "__vansStyle", "__vansMarks"} {
+		if !strings.Contains(Clear(), want) {
+			t.Errorf("clearing does not reach %s", want)
+		}
+	}
+}
+
+func TestWholeRowsAndSectionsAreRefused(t *testing.T) {
+	doc := page(t, `<table><tr><td>2321</td><td>Present</td></tr></table><ul><li>a</li></ul>`)
+	for _, sel := range []string{"tr", "table", "ul", "body"} {
+		p := Program{Rules: []Rule{{Selector: sel, Emphasis: "highlight"}}}
+		if rs := reasons(t, Validate(p, doc)); !mentions(rs, "whole rows") {
+			t.Errorf("%s was allowed: %v", sel, rs)
+		}
+	}
+	p := Program{Rules: []Rule{{Selector: "td", Emphasis: "highlight"}}}
+	if err := Validate(p, doc); err != nil {
+		t.Errorf("cells were refused: %v", err)
 	}
 }
 

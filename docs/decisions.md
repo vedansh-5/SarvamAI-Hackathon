@@ -5865,3 +5865,50 @@ the dot offers Restart. One universal build serves Apple silicon and Intel.
 signature and the bundle, and uploads it; `infra/mac/tester-link.sh` prints a
 seven-day download link for a new tester. Setup gained Quit VANS, since an app
 in the notch had no way to be quit.
+
+## D-244 — Marking text on a page, and VANS in more than one colour
+
+**What was wrong.** "Highlight the ones that start with 2321" on a page of 60
+roll numbers marked all 60. The restyle path (D-068) gives the model selectors
+and counts, never the words, so it cannot pick items by what they say; it
+answered `li` or `td`, the rule matched everything, and the run reported
+success. On a page with a strict content security policy the style element was
+blocked, nothing changed, and the commit still said verified. Every restyle
+was a model call, cold or repeated, and "clear the highlighting" cost a
+routing call although D-068 said it did not.
+
+**Marking by text needs no model.** `internal/pagemark` recognises "start
+with", "end with", "contain", "called" and a quoted or numeric value in Go, and
+a script in the page does the matching. It reads the page's text a block at a
+time, so a value split across inline tags is still one value; it looks inside
+open shadow roots and same-origin frames; it counts only what is drawn. It
+marks the matching words with the CSS Custom Highlight API: the page's own
+elements are not touched or recoloured, nothing moves, and the mark is the
+value itself, never its row. When a longer value matched, an exact short one
+("23" in a row-number column) is dropped. It says "10 of 60 that start with
+2321", where 60 counts values shaped like the matches, and scrolls to the
+first one when none are in view. Measured on a 60-row list, a table and a long
+page: exact every time, 0 model calls, 0.16 to 0.5 seconds. The text never
+leaves the page, so D-068's rule holds.
+
+**Marks go away on their own.** Esc in the page takes them off; so does the next
+request, the panel's clear button, "clear the highlighting" (now recognised in
+Go, no call) and undo. Which browser carries marks is saved, so an engine that
+crashed takes them off when it next starts. A page that would not show them is
+a failure, not a success.
+
+**Restyles from the model.** The sheet is now adopted by script
+(`adoptedStyleSheets`), which a strict page does not block, and a rule whose
+every match is a row, list, table or section is refused, so the model marks the
+cell or the label instead.
+
+**Colours.** `internal/theme/themes.json` is the one place VANS's colours live:
+yellow, blue, purple, green and pink, each with its accent, the ink that sits on
+it, a light highlight and the ink on that. The engine embeds it for page marks
+and restyles; the panel, the dot, the line below it and the coach import it
+through `ui/src/theme.ts`, which sets `--volt`, `--on-volt` and `--volt-rgb`.
+No window names a colour of its own any more. Setup › Appearance › Colour
+chooses one; the choice is kept, sent to every window and to the engine
+(`set_accent`). A highlight is always light: pale yellow, light blue,
+lavender, mint or pink, with dark ink on it, on light and dark pages alike.
+A test holds every theme to a light highlight with text on it at 7:1 or more.
