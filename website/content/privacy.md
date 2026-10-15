@@ -7,6 +7,7 @@ VANS is in private testing, and this page changes as VANS does.
 - VANS has no account and no sign-up. Testers get an invite code instead.
 - In the test builds, your requests go through the VANS server, which passes them to a model provider. The server keeps a short record of each request for 30 days, and nothing from your screen.
 - VANS looks at your screen only when you ask it something, and only at what the question is about.
+- VANS learns what you do often, so it can offer it at the right moment. It is on from the start, and you can switch it off in Setup. It notes the names of buttons you click, never what you type.
 - To answer, it sends your request and the relevant text to the model provider. The panel tells you when it has done so.
 - What VANS remembers is kept in one folder on your Mac. You can delete it at any time.
 - This website uses no cookies, no analytics and no trackers.
@@ -34,7 +35,23 @@ VANS reads only when you ask, and only what the request needs:
 - **The names of the applications** you have installed and which are open, so it can tell where a task is done.
 - **A picture of one window,** only for the few applications that do not describe their own controls. VANS tells you before a run that it will look at the window.
 
-VANS does not watch your screen in the background, record your keystrokes, or read anything between requests.
+Apart from learning, described next, VANS does not read anything between requests, and it never records your keystrokes.
+
+### Watching and learning
+
+VANS learns what you do again and again, so it can offer to teach it or do it at the moment you usually do it. It is on when you install VANS, Setup says so, and one switch in Setup › Learning turns it off.
+
+While it is on, VANS notes:
+
+- the name of each button or menu item you click, and the application it is in, such as "Mail · Archive";
+- which application comes to the front, and when;
+- when your Mac wakes, unlocks, locks and goes to sleep.
+
+It never notes what you type, keystrokes, window titles, the contents of a window, anything inside a web page, or anything in a password manager, and it takes no pictures. Nothing is noted while VANS itself is guiding you or doing steps.
+
+These notes stay on your Mac, in `~/.vans`, and anything older than seven days is deleted. Setup › Learning shows every note, and Clear deletes them.
+
+From the notes, VANS finds habits by counting, on your Mac, with no model involved: clicks you make in the same order, and things you do at the same time of day, after your Mac is opened, or after a particular application comes forward. It offers one with a short line below its dot. Nothing runs unless you choose Run, or you choose Always and do not press Cancel in the five seconds it gives you.
 
 ### What leaves your Mac
 
@@ -68,6 +85,7 @@ In the test builds the VANS server keeps:
 - **Your name and your invite code,** and how many requests the code may make in a day.
 - **How many requests you made each day,** so one tester cannot use up everyone's share.
 - **A short record of each request:** when, the words you typed (at most 500 characters), which application it was for, whether it worked, how long it took and which model provider answered. It never includes what was on your screen, text you selected, file names or a picture. These records are deleted automatically after 30 days.
+- **The habits VANS found, and how you answered them:** for example "Start in Clockify, after you open Mail, seen on 4 days, run 3 times". It is sent when the list changes, and replaces the last one. The notes it was found from are never sent. It is deleted when you ask me, or when testing ends.
 - **Feedback you choose to send** from the panel, exactly as shown to you before you press Send. It is also emailed to me.
 
 The server's own logs hold your name and the kind of request, not its words, and are deleted after 14 days. Only I can see any of this. It is used to make VANS work better and to keep within the providers' limits; it is not sold or shared.
@@ -75,8 +93,9 @@ The server's own logs hold your name and the kind of request, not its words, and
 ### Removing it
 
 - A remembered request, a routine or a fact can each be removed from the panel.
+- Switching off Setup › Learning stops new notes at once; Clear deletes the notes and any habit you have not answered.
 - Deleting the folder `~/.vans` removes everything VANS has kept on your Mac.
-- What the VANS server keeps is deleted on its own after 30 days, or sooner if you ask me.
+- The records of your requests on the VANS server are deleted on their own after 30 days. Anything the server keeps is deleted sooner if you ask me.
 
 ### Permissions VANS asks macOS for
 
@@ -89,8 +108,8 @@ You can withdraw any of these in System Settings, under Privacy & Security.
 ## What VANS will not do
 
 - Change a file, a setting or an application without you holding the key to confirm.
-- Open or switch applications on its own.
-- Run anything in the background that you did not ask for.
+- Open or switch applications on its own. The one exception is a habit you chose Always for: VANS says what it is about to do and gives you five seconds to cancel.
+- Run anything in the background that you did not ask for, other than the learning described above, which you can switch off.
 - Collect usage statistics on your Mac. The app contains no analytics. The only record of use is the one the VANS server keeps, described above.
 
 ## Children
