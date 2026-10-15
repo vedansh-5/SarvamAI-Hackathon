@@ -36,6 +36,10 @@ func (e *Engine) stepsFromLastTime(ctx context.Context, app, shape string, liter
 	if !found || len(stored.Steps) == 0 {
 		return nil
 	}
+	if why := wentInCircles(stored.Steps); why != "" {
+		e.logf("not using the steps kept for %s: they went in circles (%s)", app, why)
+		return nil
+	}
 
 	filled := stored.Fill(func(v string) string { return route.Fill(v, literals) })
 	return filled.Steps
@@ -123,6 +127,10 @@ func (e *Engine) rememberTheRun(ctx context.Context, d *DrivePlan, run taskRun) 
 	}
 	if run.Asked > 0 {
 		e.logf("not keeping these steps: they depend on an answer that was asked for, and the next time may want a different one")
+		return
+	}
+	if why := wentInCircles(run.Did); why != "" {
+		e.logf("not keeping these steps: they went in circles (%s)", why)
 		return
 	}
 

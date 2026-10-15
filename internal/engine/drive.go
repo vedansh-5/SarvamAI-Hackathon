@@ -794,8 +794,12 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 			answer.Step = typedAsAsked(answer.Step, task)
 			program := uiact.Program{App: tree.App, Steps: []uiact.Step{answer.Step}}
 
+			check := uiact.Validate
+			if !acting {
+				check = uiact.ValidateToPoint
+			}
 			var refused *uiact.InvalidError
-			if err := uiact.Validate(program, tree); err != nil {
+			if err := check(program, tree); err != nil {
 				if !errors.As(err, &refused) {
 					return state(), err
 				}

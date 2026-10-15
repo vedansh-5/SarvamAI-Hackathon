@@ -53,7 +53,11 @@ func (t Tree) resolve(sel Selector) (Element, string) {
 
 func (t Tree) Resolve(sel Selector) (Element, string) { return t.resolve(sel) }
 
-func Validate(p Program, t Tree) error {
+func Validate(p Program, t Tree) error { return validate(p, t, false) }
+
+func ValidateToPoint(p Program, t Tree) error { return validate(p, t, true) }
+
+func validate(p Program, t Tree, pointing bool) error {
 	var reasons []string
 	add := func(format string, args ...any) {
 		reasons = append(reasons, fmt.Sprintf(format, args...))
@@ -105,7 +109,7 @@ func Validate(p Program, t Tree) error {
 
 		switch verb(s.Do) {
 		case "type":
-			if !el.Typeable() {
+			if !el.Typeable() && !pointing {
 				add("%s: a %s cannot hold typed text", where, el.Role)
 			}
 			if strings.TrimSpace(s.Text) == "" {

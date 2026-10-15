@@ -127,7 +127,7 @@ func TestInAPlaceMarkedAskFirstEveryStepWaits(t *testing.T) {
 		UIScreen: &movingScreen{},
 		Rulebook: rulebook{AskFirst: []string{"editor"}},
 		Steps: &scriptedSteps{answers: []synth.StepAnswer{
-			{Step: clickMessage()}, {Step: clickMessage()}, {Done: true},
+			{Step: clickMessage()}, {Step: pressEnter()}, {Done: true},
 		}},
 	}
 	e.ShowStep = func(GuideStep) {}

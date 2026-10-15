@@ -5609,3 +5609,61 @@ dot is on the current desktop, so moving to the top of a full-screen app to
 bring the menu bar down never opens VANS. The dot joins every desktop but not
 full-screen apps. The learning dot comes with watching and learning.
 
+
+## D-239 — A guide never gives the step it just gave, types instead of clicking to type, and keeps no run that looped
+
+Asked "how do I set the baseUrl" in Postman, the guide pointed at the Variable
+row six times, said "click the Variable row to type baseUrl" each time, never
+asked for the typing, and then kept all eight steps as the recipe for next
+time. Read from the log:
+
+- The row is an `AXRow`, and a row cannot hold typed text, so every `type`
+  step aimed at it was refused. Clicking it was the only step left that passed.
+- `goingInCircles` stopped a step only after it changed nothing twice, or after
+  the same click eight times. Every click on the row moved the focus a little,
+  so it counted as a change, and six was under eight.
+- `rememberTheRun` checked that the run finished and that every step changed
+  the window. Both were true.
+
+Four changes:
+
+- **The step just done, done again, is circling.** A step that worked is
+  refused if it comes straight back, and the model is told to give what comes
+  after it, a `type` step if that is typing. A step that changed nothing still
+  gets its one retry. Steps that are meant to repeat are left alone: pressed
+  keys, scrolls, waits, sliders, steppers, and buttons whose name says they move
+  on (Next, Continue, Back, More, Add, Zoom and the like). Any other click is
+  refused after its third time (`mostSameClicks`, 8 to 3); those that move on
+  keep eight.
+- **A guide may point at a row to type in it.** The person does the typing, so
+  the guide checks a step with `uiact.ValidateToPoint`, which does not ask
+  whether the control can hold text. Doing it for them still checks, and is not
+  offered on a control that cannot hold text. The guide's own instructions now
+  say a typing step is `type` with the text, never a click "to type". A click on
+  the field no longer ends a typing step (`coach.rs`); the text appearing does,
+  or Next.
+- **A looped run is not kept, and one already kept is not used.**
+  `wentInCircles` calls a run circling when a step that is not meant to repeat
+  comes twice in a row or three times in all. `rememberTheRun` keeps no such
+  run, and `stepsFromLastTime` ignores one stored before this, which clears the
+  Postman recipe.
+- **Every model call logs its time and size**, as `[model] <model> answered in
+  <time>, <n> tokens in, <n> out`.
+
+**Speed.** In that run every plan took 5.1 to 6.0 s and the first step 11.7 s
+from the hotkey. Measured on 2026-10-15 with the same model
+(`gemini-flash-lite-latest`) on a made-up window the size of Postman's,
+spaced five seconds apart (`TestSpeedOfPlanAndStepLive`, integration tag):
+
+| Window | Plan | Step |
+|---|---|---|
+| 100 controls | 1.9–2.4 s | 1.8–2.4 s |
+| 376 controls | 1.8–3.3 s | 1.8–2.1 s |
+
+So the model alone is about half what the run saw. The rest is either Postman's
+real window carrying far more text than the made-up one, or the free tier
+slowing under a burst, as in D-224. The new `[model]` line says which on the
+next run. Not changed yet: in a guide, each step after the planned ones asks
+the planner again, after the person acts, so every step waits for a whole call.
+Asking for the next step while the person is still doing this one would hide
+most of that wait.

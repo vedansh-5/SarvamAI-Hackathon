@@ -252,3 +252,26 @@ func TestARunWithNoTraceStoreIsFine(t *testing.T) {
 		t.Fatalf("runDrive: %v", err)
 	}
 }
+
+func TestARunThatWentInCirclesIsNotKept(t *testing.T) {
+	traces := &traceRecorder{}
+	e := &Engine{Traces: traces}
+	d := &DrivePlan{App: "Editor", Task: "say hello", Shape: "say hello"}
+
+	e.rememberTheRun(context.Background(), d, taskRun{
+		Did:      []uiact.Step{clickMessage(), clickMessage(), typeIntoMessage()},
+		Finished: true, Landed: true,
+	})
+	if len(traces.saved) != 0 {
+		t.Errorf("kept %d run(s) that clicked the same control twice in a row", len(traces.saved))
+	}
+}
+
+func TestStepsKeptFromALoopedRunAreNotReplayed(t *testing.T) {
+	traces := &traceRecorder{stored: uiact.Program{App: "Editor", Steps: []uiact.Step{clickMessage(), clickMessage()}}}
+	e := &Engine{Traces: traces}
+
+	if got := e.stepsFromLastTime(context.Background(), "Editor", "say hello", nil); got != nil {
+		t.Errorf("replayed %d step(s) kept from a run that went in circles", len(got))
+	}
+}

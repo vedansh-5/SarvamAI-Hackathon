@@ -440,7 +440,8 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 		// first step because someone was slow is the behaviour being avoided.
 		offering, all := false, false
 		if on.Reply != nil && !declined && !step.Chooses() {
-			if el, why := tree.Resolve(step.Target); why == "" && uiact.EntersAValue(step, el) {
+			if el, why := tree.Resolve(step.Target); why == "" && uiact.EntersAValue(step, el) &&
+				(step.Verb() != "type" || el.Typeable()) {
 				offering, all = on.mayEnterValues(ctx, here, g.Browser)
 			}
 		}
@@ -767,7 +768,9 @@ func asTask(question string) string {
 			"Describe it as you would to someone who cannot find it. "+
 			"They are performing every action themselves, and are learning as they go. "+
 			"Give one small action per step: one click, one thing to type, or one key to press. Never fold two into one step, "+
-			"and do not leave out a step because it seems obvious, such as clicking a field before typing in it or opening a menu before choosing from it. "+
+			"and do not leave out a step because it seems obvious, such as opening a menu before choosing from it. "+
+			"When text has to go in, the step is to type it: do is type, the target is where it goes, and text is what to type, even when that place is listed as a row or a cell. "+
+			"Never give a click on a field as the step for typing in it, and never give the step that was just done again. "+
 			"Say what the step is for in a few words when it is not plain from the control's name. "+
 			"Pointing at a control is the only way you can answer: describing where something is in words reaches nobody. "+
 			"Never mark done on the first turn — the control has not been pointed at yet. "+
