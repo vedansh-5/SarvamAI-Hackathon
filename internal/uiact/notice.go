@@ -34,9 +34,14 @@ var neverNoticed = regexp.MustCompile(`(?i)^(1password.*|bitwarden|keychain acce
 
 const longestNoticedTitle = 60
 
+func Watched(app string) bool {
+	app = names.Clean(app)
+	return app != "" && !neverNoticed.MatchString(app)
+}
+
 func Pick(app string, layers []Layer, inWeb bool) (Noticed, bool) {
 	app = names.Clean(app)
-	if app == "" || inWeb || neverNoticed.MatchString(app) {
+	if !Watched(app) || inWeb {
 		return Noticed{}, false
 	}
 	for i, l := range layers {

@@ -43,6 +43,21 @@ func (s *Server) noticed(ctx context.Context, req Request) (map[string]bool, err
 	return map[string]bool{"kept": kept}, err
 }
 
+func (s *Server) moment(ctx context.Context, req Request) (map[string]bool, error) {
+	var p struct {
+		Kind string `json:"kind"`
+		App  string `json:"app"`
+	}
+	if err := json.Unmarshal(req.Params, &p); err != nil {
+		return nil, &Error{Code: CodeBadRequest, Message: err.Error()}
+	}
+	if s.busyOnScreen() {
+		return map[string]bool{"kept": false}, nil
+	}
+	kept, err := s.Engine.NoteMoment(ctx, p.Kind, p.App)
+	return map[string]bool{"kept": kept}, err
+}
+
 func (s *Server) timeToLook() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()

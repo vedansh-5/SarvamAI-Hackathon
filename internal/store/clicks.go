@@ -19,6 +19,14 @@ type Click struct {
 
 const watchingKey = "watching"
 
+const (
+	RoleFront  = "front"
+	RoleMoment = "moment"
+	MacApp     = "Mac"
+)
+
+func (c Click) Clicked() bool { return c.Role != RoleFront && c.Role != RoleMoment }
+
 func (s *Store) Watching(ctx context.Context) (bool, error) {
 	v, err := s.Setting(ctx, watchingKey)
 	if err != nil || v == "" {

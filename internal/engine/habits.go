@@ -73,7 +73,13 @@ func FindHabits(clicks []store.Click) []Habit {
 		where map[int]bool
 		ends  map[int]int
 	}
-	stretches := occasions(clicks)
+	var only []store.Click
+	for _, c := range clicks {
+		if c.Clicked() {
+			only = append(only, c)
+		}
+	}
+	stretches := occasions(only)
 	found := map[string]*tally{}
 	for n := longestHabit; n >= shortestHabit; n-- {
 		for s, stretch := range stretches {

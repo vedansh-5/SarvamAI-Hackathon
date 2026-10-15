@@ -51,6 +51,31 @@ func (e *Engine) NoteClick(ctx context.Context, x, y int) (bool, error) {
 	return true, nil
 }
 
+var macMoments = map[string]bool{"wake": true, "sleep": true, "lock": true, "unlock": true}
+
+func (e *Engine) NoteMoment(ctx context.Context, kind, app string) (bool, error) {
+	if e.Clicks == nil {
+		return false, nil
+	}
+	note := store.Click{At: time.Now()}
+	switch {
+	case kind == store.RoleFront && uiact.Watched(app):
+		note.App, note.Role = strings.TrimSpace(app), store.RoleFront
+	case macMoments[kind]:
+		note.App, note.Role, note.Title = store.MacApp, store.RoleMoment, kind
+	default:
+		return false, nil
+	}
+	on, err := e.Clicks.Watching(ctx)
+	if err != nil || !on {
+		return false, err
+	}
+	if err := e.Clicks.NoteClick(ctx, note); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func (e *Engine) NotedClicks(ctx context.Context) ([]store.Click, error) {
 	if e.Clicks == nil {
 		return nil, nil

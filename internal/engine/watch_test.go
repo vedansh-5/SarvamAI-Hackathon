@@ -97,3 +97,28 @@ func TestAFoundHabitCanBeSavedAsARoutine(t *testing.T) {
 		t.Errorf("a saved habit is still offered: %+v", offers)
 	}
 }
+
+func TestAppsComingForwardAndTheMacsMomentsAreNotedButNotAsClicks(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(filepath.Join(t.TempDir(), "vans.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	e := &Engine{Clicks: st}
+
+	for _, m := range []struct{ kind, app string }{
+		{"unlock", ""}, {"front", "Mail"}, {"front", "1Password 7"}, {"front", "VANS"}, {"lock", ""}, {"dance", ""},
+	} {
+		if _, err := e.NoteMoment(ctx, m.kind, m.app); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, _ := e.NotedClicks(ctx)
+	if len(got) != 3 || got[0].Title != "unlock" || got[1].App != "Mail" || got[2].Title != "lock" {
+		t.Fatalf("noted %+v, want unlock, Mail in front, lock; and nothing for a password manager, VANS or an unknown kind", got)
+	}
+	if got[1].Clicked() || got[0].Clicked() {
+		t.Error("an app coming forward or the Mac unlocking was counted as a click")
+	}
+}
