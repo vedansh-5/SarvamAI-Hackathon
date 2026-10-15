@@ -5815,3 +5815,53 @@ logo and the thing on screen are the same shape.
 
 The dot in the notch stays a plain dot (D-238). The website's favicon changes
 in its own pull request, since the site waits for Vedansh's read.
+
+## D-243 — The tester kit: a tester build with no instructions, signed once, updated through the server
+
+The tester build is the same app built with the Go tag `tester`. Its engine has
+one way to think: the VANS server, whose address is set when it is built
+(`-X main.serverURL`). `cmd/vans-engine/model_local.go` and `model_tester.go`
+hold the two choices; the local one, with the model clients and their
+instructions, is not compiled into a tester build at all. The three prompts
+that were built at start-up (`driveSystemPrompt`, `planSystemPrompt`,
+`uiActSystemPrompt`) became functions, so the linker drops them with the rest.
+`infra/mac/check-bundle.py` looks through every file of a built app for a line
+of any instruction in `internal/synth`, for the value of any key, token or
+secret in `.env`, and for anything shaped like a cloud or model key; the
+release stops on a hit, and CI runs it on a tester engine for every change.
+What stays in the app is the engine's own loop: the short notes it adds when a
+step is refused or goes in circles (`NoStepNote`, the circling messages). The
+loop runs on the Mac, so they have to.
+
+The invite code is typed into Setup, checked by asking the server (a ping),
+and kept in the Keychain beside the model key (`setup.Invite`). A wrong code is
+neither kept nor sent again. On a tester copy Setup shows the code box where
+the model box was.
+
+**Signed once, for good.** The app is signed with a self-signed certificate,
+"VANS Developer", made once on Vedansh's Mac by `infra/mac/signing-setup.sh`.
+Apple's notarization needs the paid developer programme; a certificate of our
+own costs nothing and gives the one thing that matters for testers: macOS ties
+Accessibility and the other permissions to the signer, so they survive every
+update. An ad-hoc signature changes with every build and would ask testers to
+grant everything again. The cost is the first launch: macOS stops an app it
+has not checked, and the tester allows it once in Privacy & Security, which
+the site's install page walks through. The engine ships beside the app's own
+binary (`Contents/MacOS/vans-engine`) so the bundle signs it too, with the
+hardened runtime and only the Apple Events entitlement.
+
+**Updates go through the server.** Releases sit in a private bucket,
+`vans-releases`: `latest.json` names the version and the signed archive for
+each kind of Mac. The app asks `GET /v1/update/{target}/{arch}/{version}` with
+its invite code, every six hours and 90 seconds after starting; the server
+answers "nothing new" or with an hour-long download link (`server.S3Releases`).
+Only testers can download, and a code switched off stops updates too. The
+archive carries a signature from the update key, also made by
+`signing-setup.sh` and kept in `~/.tauri`, which the app checks before
+installing. A new version is installed in the background and the line below
+the dot offers Restart. One universal build serves Apple silicon and Intel.
+
+`infra/mac/release.sh` builds a release from what is committed, checks the
+signature and the bundle, and uploads it; `infra/mac/tester-link.sh` prints a
+seven-day download link for a new tester. Setup gained Quit VANS, since an app
+in the notch had no way to be quit.

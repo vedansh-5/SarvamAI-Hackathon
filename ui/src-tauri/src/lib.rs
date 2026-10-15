@@ -5,6 +5,7 @@ mod notch;
 mod nudge;
 mod overlay;
 mod permissions;
+mod update;
 mod watching;
 pub mod screen;
 
@@ -160,6 +161,16 @@ fn hide_nudge(app: tauri::AppHandle) {
 }
 
 #[tauri::command]
+fn restart_app(app: tauri::AppHandle) {
+    app.restart();
+}
+
+#[tauri::command]
+fn quit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
+#[tauri::command]
 fn open_app(name: String) -> Result<(), String> {
     nudge::open_app(&name)
 }
@@ -276,6 +287,16 @@ async fn set_rules(
             Some(json!({ "never": never, "spend_limit": spend_limit, "ask_first": ask_first })),
         )
         .await
+}
+
+#[tauri::command]
+async fn invite(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("invite", None).await
+}
+
+#[tauri::command]
+async fn set_invite(engine: State<'_, Engine>, code: String) -> Result<Value, RpcError> {
+    engine.call("set_invite", Some(json!({ "code": code }))).await
 }
 
 #[tauri::command]
@@ -514,6 +535,12 @@ fn engine_path(app: &tauri::AppHandle) -> PathBuf {
             return p;
         }
     }
+    if let Some(dir) = std::env::current_exe().ok().and_then(|exe| exe.parent().map(PathBuf::from)) {
+        let beside = dir.join("vans-engine");
+        if beside.exists() {
+            return beside;
+        }
+    }
     if let Ok(dir) = app.path().resource_dir() {
         let bundled = dir.join("vans-engine");
         if bundled.exists() {
@@ -544,9 +571,11 @@ pub fn run() {
             notch::install(&handle_for_overlay)?;
             nudge::install(&handle_for_overlay)?;
             watching::install(&handle_for_overlay);
+            update::install(&handle_for_overlay);
             Ok(())
         })
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             preflight,
             prepare,
@@ -574,6 +603,10 @@ pub fn run() {
             set_rules,
             can_send_feedback,
             send_feedback,
+            invite,
+            set_invite,
+            restart_app,
+            quit_app,
             model_settings,
             set_model_settings,
             forget_model_key,

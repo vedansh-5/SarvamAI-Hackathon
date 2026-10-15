@@ -77,6 +77,8 @@ type Server struct {
 
 	Model *setup.Model
 
+	Invite *setup.Invite
+
 	Feedback FeedbackSender
 
 	out   *json.Encoder
@@ -207,6 +209,12 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.setModelSettings(ctx, req)
 	case "forget_model_key":
 		result, err = s.forgetModelKey(ctx)
+	case "invite":
+		result, err = s.invite()
+	case "set_invite":
+		result, err = s.setInvite(ctx, req)
+	case "update_source":
+		result, err = s.updateSource()
 	case "noticed":
 		result, err = s.noticed(ctx, req)
 	case "moment":
@@ -306,9 +314,17 @@ func (s *Server) preflight(ctx context.Context) (PreflightResult, error) {
 		},
 	}
 
-	if err := s.Probe.LLMConfigured(); err != nil {
+	if err := s.Probe.LLMConfigured(); err != nil && s.Invite != nil {
+		checks[0].Label = "Invite code"
+		checks[0].Detail = "This copy of VANS needs the invite code Vedansh sent you."
+		checks[0].Fix = "Paste it under \u201CInvite code\u201D below and press Save and check."
+	} else if err != nil {
 		checks[0].Detail = "VANS has no model to think with yet."
 		checks[0].Fix = "Paste a model key under \u201Cmodel\u201D below and press Save and test."
+	} else if s.Invite != nil {
+		checks[0].OK = true
+		checks[0].Label = "Invite code"
+		checks[0].Detail = "Saved."
 	} else {
 		checks[0].OK = true
 		checks[0].Detail = "Configured."
@@ -1221,6 +1237,54 @@ func (s *Server) forgetModelKey(ctx context.Context) (setup.Status, error) {
 		return setup.Status{}, &Error{Code: CodeBadRequest, Message: "this build takes its model from the environment only"}
 	}
 	return s.Model.Forget(ctx)
+}
+
+type InviteState struct {
+	Tester bool `json:"tester"`
+	Has    bool `json:"has"`
+}
+
+func (s *Server) invite() (InviteState, error) {
+	if s.Invite == nil {
+		return InviteState{}, nil
+	}
+	return InviteState{Tester: true, Has: s.Invite.Status().Has}, nil
+}
+
+func (s *Server) setInvite(ctx context.Context, req Request) (InviteState, error) {
+	if s.Invite == nil {
+		return InviteState{}, &Error{Code: CodeBadRequest, Message: "this copy of VANS does not use an invite code"}
+	}
+	var p struct {
+		Code string `json:"code"`
+	}
+	if err := json.Unmarshal(req.Params, &p); err != nil {
+		return InviteState{}, &Error{Code: CodeBadRequest, Message: err.Error()}
+	}
+	status, err := s.Invite.Save(ctx, p.Code)
+	if err != nil {
+		return InviteState{Tester: true, Has: status.Has}, &Error{Code: CodeModelNotSaved, Message: inviteRefusal(err)}
+	}
+	return InviteState{Tester: true, Has: status.Has}, nil
+}
+
+type UpdateSource struct {
+	Server string `json:"server"`
+	Code   string `json:"code"`
+}
+
+func (s *Server) updateSource() (UpdateSource, error) {
+	if s.Invite == nil {
+		return UpdateSource{}, nil
+	}
+	return UpdateSource{Server: s.Invite.Remote.URL, Code: s.Invite.Remote.InviteCode()}, nil
+}
+
+func inviteRefusal(err error) string {
+	if errors.Is(err, synth.ErrRefused) {
+		return err.Error()
+	}
+	return "VANS could not reach its server to check the code. Check the internet connection and try again."
 }
 
 var ScheduleTick = 20 * time.Second

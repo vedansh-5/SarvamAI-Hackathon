@@ -9,6 +9,7 @@ interface Offer {
   countdown?: boolean;
   morning?: boolean;
   usual?: string[];
+  update?: boolean;
 }
 
 interface Answer {
@@ -54,6 +55,11 @@ async function answer(what: string) {
   current = null;
   card.classList.remove("shown");
   await invoke("hide_nudge").catch(() => {});
+  if (offer.update) {
+    if (what === "run") await invoke("restart_app").catch(console.error);
+    void next();
+    return;
+  }
   try {
     const got = await invoke<Answer>("answer_offer", { key: offer.key, answer: what });
     if (what === "run" || what === "always" || what === "ran") await act(got);
@@ -64,11 +70,12 @@ async function answer(what: string) {
 }
 
 function buttons(offer: Offer, counting: boolean) {
+  $("run").textContent = offer.update ? "Restart" : "Run";
   const shown: Record<string, boolean> = {
     run: !offer.morning && !counting,
     always: !offer.morning && !counting && !!offer.always,
     later: !offer.morning && !counting,
-    skip: !offer.morning && !counting,
+    skip: !offer.morning && !counting && !offer.update,
     cancel: counting,
     ok: !!offer.morning,
   };
@@ -134,5 +141,10 @@ listen<{ params?: Offer }>("engine://offer", (e) => {
   const offer = e.payload?.params;
   if (!offer?.key) return;
   queue.push(offer);
+  void next();
+});
+
+listen<string>("vans://updated", (e) => {
+  queue.push({ key: "update", line: `VANS ${e.payload} is ready`, update: true });
   void next();
 });

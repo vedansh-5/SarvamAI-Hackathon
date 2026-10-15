@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vedansh/vans/internal/answer"
@@ -34,6 +35,8 @@ type Remote struct {
 	Code  string
 	HTTP  *http.Client
 	Usage *Usage
+
+	mu sync.RWMutex
 }
 
 func NewRemote(url, code string) *Remote {
@@ -41,6 +44,20 @@ func NewRemote(url, code string) *Remote {
 }
 
 var _ Model = (*Remote)(nil)
+
+func (r *Remote) SetCode(code string) {
+	r.mu.Lock()
+	r.Code = strings.TrimSpace(code)
+	r.mu.Unlock()
+}
+
+func (r *Remote) HasCode() bool { return r.InviteCode() != "" }
+
+func (r *Remote) InviteCode() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.Code
+}
 
 func (r *Remote) client() *http.Client {
 	if r.HTTP != nil {
@@ -66,7 +83,7 @@ func ask[Q, A any](ctx context.Context, r *Remote, kind string, req Q) (A, error
 		return none, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+r.Code)
+	httpReq.Header.Set("Authorization", "Bearer "+r.InviteCode())
 
 	start := time.Now()
 	resp, err := r.client().Do(httpReq)
