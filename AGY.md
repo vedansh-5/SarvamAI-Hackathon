@@ -1935,3 +1935,106 @@ i encountered this - two steps open at a time even though the previous step was 
 Also it has a delay in reading whether the step is complete or not. 
 Also it has another problem as well - If I change the screens like actually move to other apps by 3 finger slides it should close the window actively - more like hide the things (actions, multi step coach etc) and multi step coach should resume from that point itself when we move back to the window- option space should open the window in other apps as well
 Also it automatically opens the apps that contains the steps. It shall not do that, it must instruct the user to open the required App as a part of the multi step guide.
+## G11. Non-negotiables: check these before calling any change done
+
+Vedansh should never be the one who finds these. Every change to the panel,
+the dot, the coach, a guide or anything that puts a window on screen is
+checked against this list before it is called done. Each check is a look or
+one command, not a test suite: it costs seconds.
+
+| # | Rule | How to check, cheaply |
+|---|---|---|
+| 1 | The panel opens in the same place every time: centred, about a fifth of the way down, on the screen with the pointer. Like Spotlight | Open it three times from different apps; it lands in the same spot |
+| 2 | Nothing VANS puts on screen may stop the menu bar, the clock, Control Center or the Dock from appearing, in any app, full screen included | List VANS's windows (command below): only the panel, the coach and the 24-point dot, and nothing wider than the dot in the top strip. Then move to the top in a full-screen app |
+| 3 | Normal pointer movement never opens anything. Only a deliberate rest on the dot (0.3 s), the hotkey or a click | Move to the top edge and the corners in a full-screen app and on the desktop; nothing opens |
+| 4 | A screen that wants a key (hold Return, typing, a question) has the keyboard when it appears. No click first | Run a task to the confirm screen and hold Return without touching the mouse |
+| 5 | VANS never covers what it sent the person to (System Settings, another app). It steps aside and comes back when the thing is done | Press every "Turn on" or "Open" button and look |
+| 6 | A panel opened by hovering closes itself about a second after the pointer leaves it untouched; one opened by the hotkey or used never does | Hover, leave; hover, click, leave |
+| 7 | The person sees only what a person needs. Never raw accessibility names (`AXMenuBarItem`), counts of what was read, internal numbers or citation numbers. An answer is the answer; the raw list hides behind "Show what VANS read" | Ask "what is this page about" in two apps |
+| 8 | A guide never repeats the step it just gave, never goes back and forth, and never says "click X to type". If it would, it asks or says it is stuck | Read the step lines in the log (`[n] step k:`); no two the same in a row |
+| 9 | A run that repeated or went in circles is never kept as a recipe | The log says "not keeping these steps" for such a run |
+| 10 | Nothing shows in a full-screen app unless the person asked for VANS there | Open a full-screen app; only what was summoned appears |
+| 11 | The first sign of an answer within 3 seconds; a whole step within 6. Slower than that is a bug to log, not a fact | `[vans] timing:` lines in the log |
+| 12 | Say what was checked and what was not. "Builds" is not "works" | The PR body names each rule above that the change touched and how it was checked |
+
+List VANS's windows on screen, with size and layer:
+
+```bash
+cat > /tmp/wins.swift <<'S'
+import CoreGraphics
+for w in CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as! [[String: Any]]
+where (w[kCGWindowOwnerName as String] as? String ?? "").lowercased().contains("vans") {
+  print(w[kCGWindowLayer as String] ?? "", w[kCGWindowBounds as String] ?? "")
+}
+S
+swift /tmp/wins.swift
+```
+
+## G12. Handoff, 2026-10-15
+
+**Merged today.** #191 (the console at `console.summonvans.in`). #192, every
+permission asked for at once in Setup (D-237). #193, start at login and the
+notch pill (D-238).
+
+**In the pull request with this log, tried by Vedansh on his Mac unless said:**
+
+- The pill is now only the yellow dot, in a 24-point window just left of the
+  notch (centre of the menu bar without one). No black shape: the wide one
+  looked wrong. Breathes while working, a soft ring while guiding.
+- Resting on the dot for 0.3 s opens the panel; a panel opened that way closes
+  itself 1.2 s after the pointer leaves the dot and the panel, unless it was
+  clicked or typed in (`notch::keep`, `keep_panel`). Hover only counts when the
+  dot is on the current desktop (`dot_in_view`), never in a full-screen app.
+- The confirm screen takes the keyboard (`take_keyboard`), so holding Return
+  works without clicking the panel first. Not yet tried by Vedansh.
+- An answer shows alone: the app's name, the answer, and a "Show what VANS read
+  (n)" link for the raw list. Citation chips only for real links.
+- The panel opens in the same place every time (`put_at_home`), on the screen
+  with the pointer. Not yet tried by Vedansh.
+- Setup: a refused app is asked again after its old answer is cleared (`tccutil
+  reset AppleEvents`, installed app only; run from the code it opens Settings).
+  Accessibility and Screen Recording can only be switched on by the person:
+  "Turn on" opens the pane, the panel steps aside and comes back when it is on.
+  Vedansh parked the rest of Accessibility for later.
+- Each request writes `[vans] timing: <ms>, <calls>, <app>: <what was asked>`
+  to the shell's log, for the speed table.
+
+**The menu bar glitch.** In full-screen apps the menu bar stopped coming down.
+It was macOS: it stayed broken with VANS quit and cleared after switching
+desktops. Rule 2 above stands anyway, because the first wide pill sat inside
+the menu bar strip.
+
+**Postman, "how do I set the baseUrl" (coach), what went wrong:**
+
+1. "Click the Variable row" was given five times in a row, and "the
+   Environment combobox" twice. `goingInCircles` (`internal/engine/circles.go`)
+   only stops a step after it changed nothing twice, or after the same click 8
+   times (`mostSameClicks`). Each click changed something small (focus), so
+   nothing stopped it.
+2. The step said "click the Variable row to type baseUrl" and never asked the
+   person to type.
+3. The run was kept as the recipe for next time (`rememberTheRun`,
+   `internal/engine/trace.go`), loops included.
+4. Each replan took 5 to 6 s, and the first answer 11.7 s (one call to route,
+   then planning).
+
+**Fixes, in order (for AGY):**
+
+1. `circles.go`: the same step as the one just given is circling, unless it is
+   a button that moves a wizard on (Next, Continue). `mostSameClicks` from 8 to
+   3. A test with a Postman-shaped run where every click changes the focus.
+2. The step prompt: when what is next is typing into a field, the step is
+   `type` with the text, or a coach step that says "Type baseUrl here". Never
+   "click X to type". A test on the parsed step.
+3. `rememberTheRun`: do not keep a run in which any step repeats back to back
+   or the same step appears more than twice; log "not keeping these steps:
+   they went in circles".
+4. Speed: find where the 11.7 s and the 5 to 6 s per replan go (route, plan,
+   reading 376 elements). Rule 11 is the bar.
+5. Then a timed run across apps, with Vedansh: Postman, AutoCAD
+   (`/Applications/Autodesk/AutoCAD 2027`), Figma and Canva in the browser,
+   Finder, Notes, Mail, Calendar, Numbers, Chrome, WhatsApp, VS Code,
+   DaVinci. One table: app, task, time to first step, right or wrong.
+
+**After that, the plan's order:** watching and learning (4 to 5 days), the
+tester kit (a day), install from zero (a day), then the privacy page (#190).

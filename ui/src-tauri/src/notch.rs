@@ -1,10 +1,24 @@
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 pub const LABEL: &str = "notch";
-const WING: f64 = 56.0;
-const BARE_WIDTH: f64 = 120.0;
+const DOT_BOX: f64 = 24.0;
 const BAR_HEIGHT: f64 = 24.0;
+
+const HOVER: Duration = Duration::from_millis(300);
+const LOOK: Duration = Duration::from_millis(50);
+const LEFT_ALONE: Duration = Duration::from_millis(1200);
+
+static ON_TRIAL: AtomicBool = AtomicBool::new(false);
+
+pub fn keep() {
+    ON_TRIAL.store(false, Ordering::Relaxed);
+}
+
+static FRAME: Mutex<Option<(f64, f64, f64, f64)>> = Mutex::new(None);
 
 #[derive(Debug, Clone, Copy, Serialize)]
 pub struct Place {
@@ -32,19 +46,21 @@ pub fn place() -> Option<Place> {
     let frame = screen.frame();
     let top = frame.origin.y + frame.size.height;
     let inset = screen.safeAreaInsets().top;
-    let (notch, height) = if inset > 0.0 {
+    let (notch, height, left) = if inset > 0.0 {
         let left = screen.auxiliaryTopLeftArea().size.width;
         let right = screen.auxiliaryTopRightArea().size.width;
-        ((frame.size.width - left - right).max(0.0), inset)
+        let notch = (frame.size.width - left - right).max(0.0);
+        (notch, inset, frame.origin.x + left - DOT_BOX)
     } else {
         let bar = top - (screen.visibleFrame().origin.y + screen.visibleFrame().size.height);
-        (0.0, if bar > 0.0 { bar } else { BAR_HEIGHT })
+        let height = if bar > 0.0 { bar } else { BAR_HEIGHT };
+        (0.0, height, frame.origin.x + (frame.size.width - DOT_BOX) / 2.0)
     };
-    let width = if notch > 0.0 { notch + 2.0 * WING } else { BARE_WIDTH };
+    *FRAME.lock().unwrap() = Some((left, top - height, DOT_BOX, height));
     Some(Place {
-        x: frame.origin.x + (frame.size.width - width) / 2.0,
+        x: left,
         y: primary_top - top,
-        width,
+        width: DOT_BOX,
         height,
         notch,
     })
@@ -64,7 +80,6 @@ pub fn put(app: &AppHandle) {
     let Some(at) = place() else { return };
     let _ = win.set_size(LogicalSize::new(at.width, at.height));
     let _ = win.set_position(LogicalPosition::new(at.x, at.y));
-    let _ = win.emit("notch://place", at);
 }
 
 #[cfg(target_os = "macos")]
@@ -114,6 +129,99 @@ fn follow_the_screens(app: &AppHandle) {
 #[cfg(not(target_os = "macos"))]
 fn follow_the_screens(_app: &AppHandle) {}
 
+#[cfg(target_os = "macos")]
+fn pointer_on_pill() -> bool {
+    use objc2_app_kit::NSEvent;
+    let Some((x, y, w, h)) = *FRAME.lock().unwrap() else { return false };
+    let at = NSEvent::mouseLocation();
+    at.x >= x && at.x <= x + w && at.y >= y - 1.0 && at.y <= y + h + 1.0
+}
+
+#[cfg(not(target_os = "macos"))]
+fn pointer_on_pill() -> bool {
+    false
+}
+
+#[cfg(target_os = "macos")]
+fn dot_in_view(app: &AppHandle) -> bool {
+    use objc2_app_kit::NSWindow;
+
+    let Some(win) = window(app) else { return false };
+    let Ok(ptr) = win.ns_window() else { return false };
+    if ptr.is_null() {
+        return false;
+    }
+    let ns: &NSWindow = unsafe { &*(ptr as *const NSWindow) };
+    ns.isVisible() && ns.isOnActiveSpace()
+}
+
+#[cfg(not(target_os = "macos"))]
+fn dot_in_view(_app: &AppHandle) -> bool {
+    false
+}
+
+fn pointer_on_panel(app: &AppHandle, win: &WebviewWindow) -> bool {
+    let (Ok(at), Ok(pos), Ok(size)) = (app.cursor_position(), win.outer_position(), win.outer_size()) else {
+        return true;
+    };
+    at.x >= pos.x as f64
+        && at.x <= pos.x as f64 + size.width as f64
+        && at.y >= pos.y as f64
+        && at.y <= pos.y as f64 + size.height as f64
+}
+
+fn open_on_hover(app: &AppHandle) {
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        let mut since: Option<Instant> = None;
+        let mut away: Option<Instant> = None;
+        let mut opened = false;
+        loop {
+            std::thread::sleep(LOOK);
+            let Some(panel) = crate::overlay::window(&handle) else { continue };
+            let showing = panel.is_visible().unwrap_or(false);
+            let on_pill = pointer_on_pill();
+
+            if !showing {
+                ON_TRIAL.store(false, Ordering::Relaxed);
+            }
+            if ON_TRIAL.load(Ordering::Relaxed) {
+                if on_pill || pointer_on_panel(&handle, &panel) {
+                    away = None;
+                } else if away.get_or_insert_with(Instant::now).elapsed() >= LEFT_ALONE {
+                    ON_TRIAL.store(false, Ordering::Relaxed);
+                    away = None;
+                    let main = handle.clone();
+                    let _ = handle.run_on_main_thread(move || {
+                        crate::overlay::hide_because(&main, "opened by hovering and then left alone")
+                    });
+                }
+            }
+
+            if !on_pill {
+                since = None;
+                opened = false;
+                continue;
+            }
+            let entered = *since.get_or_insert_with(Instant::now);
+            if opened || entered.elapsed() < HOVER {
+                continue;
+            }
+            opened = true;
+            if !showing {
+                away = None;
+                let main = handle.clone();
+                let _ = handle.run_on_main_thread(move || {
+                    if dot_in_view(&main) {
+                        ON_TRIAL.store(true, Ordering::Relaxed);
+                        crate::overlay::show(&main);
+                    }
+                });
+            }
+        }
+    });
+}
+
 pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let Some(at) = place() else { return Ok(()) };
     let win = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("notch.html".into()))
@@ -134,5 +242,6 @@ pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let _ = win.show();
     sit_in_the_menu_bar(&win);
     follow_the_screens(app);
+    open_on_hover(app);
     Ok(())
 }
