@@ -5518,3 +5518,15 @@ The table went from five to ten writes a second (still inside the free
 allowance), since a request is now three writes. A model's free daily
 allowance is shown when `VANS_PROVIDER_<NAME>_DAILY` is set; it is set to
 1,000 for both Groq seats, which is what Groq's own refusal names.
+
+**On its own address (same day).** Vedansh asked for the console at
+`console.summonvans.in` and nowhere else. A Cloudflare Worker,
+`vans-console`, owns that name, sends every request on to the function with
+`/console` in front of the path and a secret header, `X-Vans-Console-Gate`,
+and marks the answers not to be indexed. When `VANS_CONSOLE_GATE` is set the
+server answers "not found" to any console request without the matching
+header, so the function's long address shows no console, not even its
+sign-in page; through the gate the console's links and cookie use plain
+paths (`/testers`). Redeploy the Worker with `npx wrangler deploy` in
+`infra/cloudflare/console`; change the secret on both sides together.
+

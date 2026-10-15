@@ -19,11 +19,13 @@ import (
 )
 
 const (
-	EnvConsoleKey = "VANS_CONSOLE_KEY"
-	ConsolePath   = "/console"
-	consoleCookie = "vans_console"
-	consoleDays   = 14
-	activityDays  = 7
+	EnvConsoleKey  = "VANS_CONSOLE_KEY"
+	EnvConsoleGate = "VANS_CONSOLE_GATE"
+	GateHeader     = "X-Vans-Console-Gate"
+	ConsolePath    = "/console"
+	consoleCookie  = "vans_console"
+	consoleDays    = 14
+	activityDays   = 7
 )
 
 type Books interface {
@@ -40,6 +42,7 @@ type Books interface {
 type Console struct {
 	Books  Books
 	Key    string
+	Gate   string
 	Limits map[string]int
 	Now    func() time.Time
 }
@@ -103,6 +106,20 @@ func (c *Console) token() string {
 	return hex.EncodeToString(sum[:])
 }
 
+func (c *Console) base() string {
+	if c.Gate != "" {
+		return ""
+	}
+	return ConsolePath
+}
+
+func (c *Console) cookiePath() string {
+	if c.Gate != "" {
+		return "/"
+	}
+	return ConsolePath
+}
+
 func (c *Console) signedIn(r *http.Request) bool {
 	cookie, err := r.Cookie(consoleCookie)
 	return err == nil && subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(c.token())) == 1
@@ -114,6 +131,10 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'")
 
+	if c.Gate != "" && subtle.ConstantTimeCompare([]byte(r.Header.Get(GateHeader)), []byte(c.Gate)) != 1 {
+		http.NotFound(w, r)
+		return
+	}
 	page := strings.TrimPrefix(strings.TrimPrefix(r.URL.Path, ConsolePath), "/")
 	if page == "login" && r.Method == http.MethodPost {
 		c.login(w, r)
@@ -152,20 +173,20 @@ func (c *Console) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name: consoleCookie, Value: c.token(), Path: ConsolePath, MaxAge: 30 * 24 * 3600,
+		Name: consoleCookie, Value: c.token(), Path: c.cookiePath(), MaxAge: 30 * 24 * 3600,
 		HttpOnly: true, Secure: true, SameSite: http.SameSiteStrictMode,
 	})
-	http.Redirect(w, r, ConsolePath, http.StatusSeeOther)
+	http.Redirect(w, r, c.base()+"/", http.StatusSeeOther)
 }
 
 func (c *Console) act(w http.ResponseWriter, r *http.Request, page string) {
 	ctx := r.Context()
-	back := ConsolePath + "/testers"
+	back := c.base() + "/testers"
 	var err error
 	switch page {
 	case "logout":
-		http.SetCookie(w, &http.Cookie{Name: consoleCookie, Value: "", Path: ConsolePath, MaxAge: -1, HttpOnly: true, Secure: true, SameSite: http.SameSiteStrictMode})
-		http.Redirect(w, r, ConsolePath, http.StatusSeeOther)
+		http.SetCookie(w, &http.Cookie{Name: consoleCookie, Value: "", Path: c.cookiePath(), MaxAge: -1, HttpOnly: true, Secure: true, SameSite: http.SameSiteStrictMode})
+		http.Redirect(w, r, c.base()+"/", http.StatusSeeOther)
 		return
 	case "testers/add":
 		name := strings.TrimSpace(r.PostFormValue("name"))
@@ -193,7 +214,7 @@ func (c *Console) act(w http.ResponseWriter, r *http.Request, page string) {
 	case "testers/off", "testers/on":
 		err = c.Books.SetOff(ctx, r.PostFormValue("code"), page == "testers/off")
 	case "feedback/handled":
-		back = ConsolePath + "/feedback"
+		back = c.base() + "/feedback"
 		err = c.Books.Handled(ctx, r.PostFormValue("id"))
 	default:
 		http.NotFound(w, r)
@@ -207,6 +228,7 @@ func (c *Console) act(w http.ResponseWriter, r *http.Request, page string) {
 }
 
 type view struct {
+	Base  string
 	Page  string
 	Error string
 	Made  *Tester
@@ -282,6 +304,7 @@ func (c *Console) show(w http.ResponseWriter, r *http.Request, fill func(ctx con
 }
 
 func (c *Console) render(w http.ResponseWriter, status int, v view) {
+	v.Base = c.base()
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	_ = consoleTemplate.Execute(w, v)
@@ -479,5 +502,5 @@ func ConsoleFor(ledger Ledger) http.Handler {
 	if key == "" || !ok {
 		return nil
 	}
-	return &Console{Books: books, Key: key, Limits: LimitsFromEnv()}
+	return &Console{Books: books, Key: key, Gate: strings.TrimSpace(os.Getenv(EnvConsoleGate)), Limits: LimitsFromEnv()}
 }
