@@ -5667,3 +5667,43 @@ next run. Not changed yet: in a guide, each step after the planned ones asks
 the planner again, after the person acts, so every step waits for a whole call.
 Asking for the next step while the person is still doing this one would hide
 most of that wait.
+
+## D-240 — Watching and learning: on by default, clicks on controls only, nothing sent
+
+VANS notices what a person does again and again and offers to teach it or do
+it. Vedansh decided on 2026-10-15 that it is on by default and can be switched
+off (the plan had it off by default). The plan is in
+`docs/plans/2026-10-14-testers.md`, "Watching and learning"; this records
+the first part, noting.
+
+**What is noted.** A click, and only the app and the name of the control
+clicked: "Mail · Archive". The shell already watches clicks for the coach; a
+second global monitor (`ui/src-tauri/src/watching.rs`) passes each one's
+position to the engine (`noticed`), which reads what is there through
+accessibility (`uiact.NoticeAt`). It is kept only if `uiact.Pick` allows it:
+
+- a control (button, menu item, menu bar item, checkbox, radio button, pop-up
+  button, menu button, disclosure triangle), or the text or picture on one;
+  never a row, a cell, a text area or a link, whose names are people's
+  content, such as an email's subject;
+- with a name of sixty characters or fewer;
+- not inside a web page, whose buttons can say anything;
+- not in a password manager, the login window, or VANS;
+- not while VANS is guiding or doing steps, since those clicks are VANS's own
+  lesson, not a habit.
+
+Never typed text, keystrokes, window contents or pictures, so no new
+permission is asked for. Notes are in `clicks` in the Mac's own database and
+anything older than seven days is dropped as each new one is written. Reading
+a click takes about 30 ms.
+
+**What the person sees.** Setup › Learning: the switch, a line saying what is
+noted and that it stays on the Mac for seven days, "See what VANS noted (n)"
+listing the day, time, app and control, and Clear. The dot is filled while
+watching is on and hollow while it is off.
+
+**Nothing is sent to a model.** A found repeat will be named from its own
+labels ("In Mail: Archive, then Next") rather than by a model, and saving it
+makes an ordinary routine. Watching costs no calls.
+
+Still to build: finding repeats, the suggestion, and the privacy page text.

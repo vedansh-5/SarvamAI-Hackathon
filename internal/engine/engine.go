@@ -196,6 +196,9 @@ type Engine struct {
 
 	Places PlaceStore
 
+	Clicks  ClickLog
+	ClickAt func(x, y int) (uiact.Noticed, bool)
+
 	Question func(ctx context.Context, question string, options []string) (string, error)
 
 	Map   AppMap

@@ -259,6 +259,7 @@ func run() error {
 			Rulebook:   st,
 			Memory:     st,
 			Routines:   st,
+			Clicks:     st,
 			UIScreen:   desktop,
 			PageScreen: page,
 			Eyes:       looking(synthesizer, desktop),
