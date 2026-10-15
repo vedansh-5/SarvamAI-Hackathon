@@ -20,6 +20,7 @@ const (
 	EnvTable     = "VANS_TABLE"
 	testersKey   = "tester"
 	feedbackKey  = "feedback"
+	learnedKey   = "learned"
 	everyoneKey  = "all"
 	dayKeyPrefix = "use#"
 	actKeyPrefix = "act#"
@@ -162,6 +163,19 @@ func (d *Dynamo) Keep(ctx context.Context, f Feedback) error {
 			"from": &types.AttributeValueMemberS{Value: f.From},
 			"kind": &types.AttributeValueMemberS{Value: f.Kind},
 			"text": &types.AttributeValueMemberS{Value: f.Text},
+		},
+	})
+	return err
+}
+
+func (d *Dynamo) KeepLearned(ctx context.Context, from string, at time.Time, habits string) error {
+	_, err := d.Client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: &d.Table,
+		Item: map[string]types.AttributeValue{
+			"pk":     &types.AttributeValueMemberS{Value: learnedKey},
+			"sk":     &types.AttributeValueMemberS{Value: from},
+			"at":     &types.AttributeValueMemberS{Value: at.UTC().Format(time.RFC3339)},
+			"habits": &types.AttributeValueMemberS{Value: habits},
 		},
 	})
 	return err

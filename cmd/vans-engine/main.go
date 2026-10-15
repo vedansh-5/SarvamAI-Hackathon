@@ -116,6 +116,7 @@ func run() error {
 	// A missing key is reported by preflight rather than refused at startup.
 	// The shell needs to open and explain what to fix; exiting here would give
 	// it nothing to show.
+	var learner engine.LearnedSender
 	var (
 		synthesizer synth.Synthesizer
 		synthErr    error
@@ -127,6 +128,7 @@ func run() error {
 	}
 	if url := strings.TrimSpace(os.Getenv(synth.EnvServerURL)); url != "" {
 		remote := synth.NewRemote(url, os.Getenv(synth.EnvInvite))
+		learner = remote
 		synthesizer, meter = remote, remote.Usage
 		fmt.Fprintf(os.Stderr, "[model] asking the VANS server at %s\n", url)
 	} else if os.Getenv(synth.EnvProvider) == "anthropic" {
@@ -260,6 +262,7 @@ func run() error {
 			Memory:     st,
 			Routines:   st,
 			Clicks:     st,
+			Learner:    learner,
 			UIScreen:   desktop,
 			PageScreen: page,
 			Eyes:       looking(synthesizer, desktop),

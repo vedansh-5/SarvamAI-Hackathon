@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 pub const LABEL: &str = "notch";
-const DOT_BOX: f64 = 24.0;
+pub const DOT_BOX: f64 = 24.0;
 const BAR_HEIGHT: f64 = 24.0;
 
 const HOVER: Duration = Duration::from_millis(300);

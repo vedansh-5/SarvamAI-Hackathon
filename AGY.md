@@ -2049,3 +2049,91 @@ window, half what the run saw; every model call now logs its time and tokens
 (`[model] ... answered in`), so the next run shows where the rest goes. Not yet
 seen on Vedansh's Mac: the Postman question again, which is the first thing to
 try in fix 5.
+
+## G13. Watching and learning, and timing: where it stands, 2026-10-15
+
+**Merged.** #196 noting clicks on controls (D-240); #197 finding repeated
+clicks and offering them on the ask screen (Save as a routine, Show me, Not
+now). On by default, switchable in Setup › Learning. Not yet seen running on
+Vedansh's Mac: the switch, the noted list, the hollow dot when off, the white
+centre and the habit card. Rebuild the engine and restart the app to try it; a
+card needs a habit done three times across two sittings.
+
+**In progress on the branch `watching-timing`: learning when.** Asked for by
+Vedansh: notice what he does at the start of the day, after work, or right
+after opening an app, and offer it at that moment ("Start your timer, like
+usual?"). The plan is in `docs/plans/2026-10-14-testers.md`, "Timing: learning
+when". His answers on 2026-10-15:
+
+- The offer is a small line on its own background, just below the dot, so the
+  notch cannot hide it. It never opens the panel.
+- Note app switches, Mac wake / sleep / lock / unlock, and click times.
+- Trust grows: Run / Skip the first three times it is taken up, then Always
+  too. With Always on: "Starting … in 5 s · Cancel", then run it. Cancel turns
+  Always off until it is chosen again.
+- How Clicky does it (HeyClicky 1.0.53, reinstalled by Vedansh; read from its
+  Info.plist and the labels in its binary only, nothing run or taken):
+  - "Fresh task suggestions every 24 hours, announced through the morning
+    notch", with a good-morning greeting there.
+  - A suggestion is held while the person is focused, can be snoozed, and
+    rests for a while after repeated dismissals ("ignored-suggestions break").
+  - Routines run on a schedule; due ones are held until the Mac has settled
+    after waking, and wait for the internet.
+  - Its memory of the person is kept on its server (`/me/memory`), not on the
+    Mac. Its Accessibility line says it is for focus tracking "not background
+    watching".
+  Worth taking: hold an offer while someone is busy typing or clicking, and
+  show it at the next pause; rest after repeated dismissals rather than only
+  stopping; hold offers until a few seconds after a wake. Different on
+  purpose: VANS keeps what it learns on the Mac.
+
+Done on the branch, with tests:
+
+- The shell reports app switches and Mac moments (`ui/src-tauri/src/watching.rs`,
+  `moment` RPC); the engine keeps them in `clicks` with role `front` or
+  `moment` (`NoteMoment`), never for password managers or VANS, never while
+  guiding. The click-habit finder ignores them.
+- "See what VANS noted" reads them plainly ("Switched to Mail", "Mac unlocked").
+- `FindTimed` (`internal/engine/timing.go`): at a time of day (same thing
+  within twenty minutes on three days, weekdays told apart), after the Mac is
+  opened (within ten minutes of the first unlock or wake, three days), after an
+  app (within five minutes of its first coming forward that day, three days and
+  at least 60% of the days it came forward). Lines like "Start in Clockify,
+  like usual?".
+
+**Built since (D-241), on the same branch:** the `timed` table and answers,
+what is due and when, the line below the dot (`nudge`), trust that grows, good
+morning, holding while busy and after a wake, quiet after three dismissals,
+running a habit, and sending what was learned to the server for testers.
+Setup says what is sent. The privacy wording is drafted in the tester plan for
+Vedansh. Not yet seen running on his Mac; the server change is not deployed.
+
+Was next, in order (all done above):
+
+1. Keep timed habits and their answers in a `timed` table: yes count, skips in
+   a row (three stops it), Always, the day last offered.
+2. Decide what is due: a minute tick for times; the first unlock or wake of
+   the day; the first time an app comes forward that day. Not if the action
+   was already done today. Push `offer` to the shell.
+3. The line below the dot: a new window `nudge` (needs its own capability file,
+   D-086), non-activating, fades after eight seconds unless pointed at; Run,
+   Skip, Always after three yeses; the countdown with Cancel.
+4. Running: a click action goes through as a "do" request with every
+   confirmation; opening an app is done by the shell on Run (record it as a
+   decision, since D-032 and D-131 say VANS never opens an app by itself; here
+   the person asked).
+5. Decision record (D-241), privacy page text for Vedansh, non-negotiables 3
+   and 10 checked (nothing opens by accident; nothing in full-screen apps).
+
+**Decided by Vedansh after the Clicky look (2026-10-15):**
+
+- Take all of it: good morning through the notch with what is usual today,
+  hold offers while busy, Later (snooze), rest after repeated dismissals, wait
+  after a wake and for the internet. Details in the tester plan.
+- For testers, what VANS learned goes to the VANS server: each habit found and
+  how it was answered. The raw click and app log stays on the Mac. May become
+  Mac-only later. This changes D-240 ("nothing sent"): Setup's wording and the
+  privacy page must say it before it ships.
+- Logo: draft B, the spotlight ring opening for the pointer, which lands on the
+  centre. Next: the final vector files (app icon set, favicon, the in-app
+  mark) and redrawing the on-screen ghost cursor to the logo's pointer.
