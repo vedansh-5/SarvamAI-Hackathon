@@ -2150,6 +2150,7 @@ Everything in G13 is merged, and so is what followed it:
 | #203 | Marking text on a page with no model call; five colours from `internal/theme/themes.json` | D-244 |
 | #204 | Offers wait for the internet; "before you finish" habits | D-245 |
 | #205 | The flaky guide test steadied | — |
+| #207 | Apps that publish nothing: menus, words read on the Mac (exact, clicked), the model only for icons | D-246 |
 
 Deployed: the server with `learned` and the update route; the private bucket
 `vans-releases` exists and the server reads it.
@@ -2166,9 +2167,18 @@ Deployed: the server with `learned` and the update route; the private bucket
    retry, the multi-app timed run, and the hands-on suite with Groq and Workers
    AI writing.
 4. Install from zero on a fresh macOS user (VANS cannot create the user).
-5. Decide on reading on-screen text on the Mac for applications that publish
-   nothing (tester plan, "Applications that publish nothing").
-6. Cloudflare: PR preview builds fail in 0 seconds with no reason on GitHub, and
-   the Wrangler sign-in may not read build logs. Production deploys work. Open
-   the build link on any PR, or turn preview builds off, in the dashboard.
-7. SES DKIM records in Cloudflare DNS, when mail matters.
+5. Measure the words against real applications when convenient:
+   `go run ./cmd/vans-probe -words Finder Notes "System Settings"` (brings each
+   to the front for a moment). Rendered windows measured 98.4% found, 100% on
+   target (D-246).
+6. Cloudflare PR previews: the site, `wrangler.jsonc` and the account are fine —
+   `npx wrangler versions upload` from this Mac made a working preview on
+   2026-10-15. What fails is the dashboard's build for non-production branches.
+   In Workers & Pages → vans → Settings → Build: either set the non-production
+   deploy command to `npx wrangler versions upload` (root `/website`, build
+   `npm run build`), or turn off builds for non-production branches. The GitHub
+   `site` job already builds the site on every pull request.
+
+Done and checked: SES DKIM (verified, signing on, DMARC passes on DKIM). SES is
+still in the sandbox, which only matters for mail to addresses other than
+Vedansh's own.
