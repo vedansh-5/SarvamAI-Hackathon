@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Installing VANS — VANS</title>
+    <meta name="description" content="How to install a VANS test build on your Mac, and how to open it the first time." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:title" content="Installing VANS — VANS" />
+    <meta property="og:description" content="How to install a VANS test build on your Mac, and how to open it the first time." />
+    <meta property="og:image" content="/og-image.svg" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem("vans-theme") || "light";
+          document.documentElement.setAttribute("data-theme", t);
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
+  </head>
+  <body class="privacy-body">
+    <header class="site-header">
+      <div class="site-header-inner">
+        <a href="/" class="header-brand" aria-label="VANS home">VANS</a>
+        <div class="header-right">
+          <a href="/" class="text-link header-nav-link">Home</a>
+          <button type="button" id="header-theme-toggle" class="theme-toggle btn-ghost" aria-label="Toggle light or dark theme">
+            <span class="theme-icon" aria-hidden="true"></span>
+            <span class="theme-label">Dark mode</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="privacy-container">
+      <article class="privacy-article">
+        <h1>Installing VANS</h1>
+<p>VANS is in private testing. If you have a download link and an invite code from Vedansh, this page takes you from the download to your first question.</p>
+<h2>What you need</h2>
+<ul>
+<li>A Mac. The test build runs on Apple silicon and on Intel.</li>
+<li>The download link and the invite code. The link works for seven days; ask for a new one if it has run out.</li>
+</ul>
+<h2>Install it</h2>
+<ol>
+<li>Open the link. It downloads a file called <code>VANS_</code> followed by the version, ending in <code>.dmg</code>.</li>
+<li>Open that file and drag VANS into Applications.</li>
+<li>Eject the VANS disk in the Finder sidebar.</li>
+</ol>
+<h2>Open it the first time</h2>
+<p>The test build is signed by its developer but not yet checked by Apple, so the first time you open it macOS stops it. You allow it once.</p>
+<ol>
+<li>Open VANS from Applications. macOS says it could not verify VANS. Press Done.</li>
+<li>Open System Settings, go to Privacy & Security, and scroll down to Security. Next to the line saying VANS was blocked, press Open Anyway and confirm with your password or Touch ID.</li>
+<li>Open VANS again, and press Open Anyway.</li>
+</ol>
+<p>On macOS 14 or earlier you can instead Control-click VANS in Applications, choose Open, and press Open.</p>
+<p>From then on VANS opens like any other app.</p>
+<h2>Set it up</h2>
+<p>VANS opens its Setup screen the first time.</p>
+<ol>
+<li><strong>Permissions.</strong> Press Allow all and answer each macOS prompt as it comes up. Accessibility and Screen Recording can only be switched on by you, in System Settings: VANS takes you there and comes back when they are on.</li>
+<li><strong>Invite code.</strong> Paste the code under Invite code and press Save and check.</li>
+</ol>
+<p>VANS sits at the top of your screen, as a small dot in the middle of the menu bar. Click the dot, or press <code>⌥Space</code>, and ask how to do something.</p>
+<h2>Updates</h2>
+<p>VANS checks for a new test build a few times a day and installs it in the background. When one is ready, a line below the dot says so: press Restart, or Later to keep working.</p>
+<h2>Learning</h2>
+<p>VANS learns what you do often, so it can offer it at the moment you usually do it. It is on from the start; one switch in Setup, under Learning, turns it off. The <a href="/privacy" class="text-link">privacy page</a> says what it notes and what it never does.</p>
+<h2>Removing VANS</h2>
+<ol>
+<li>Press Quit VANS in Setup, under Start.</li>
+<li>Drag VANS from Applications to the Bin.</li>
+<li>Delete the folder <code>.vans</code> in your home folder, which holds everything VANS kept on your Mac. In Finder, press <code>⇧⌘G</code>, enter <code>~</code> and press Return; press <code>⇧⌘.</code> to show hidden folders, and drag <code>.vans</code> to the Bin.</li>
+<li>Your invite code stays in the Keychain until you delete it: open Keychain Access and search for <code>dev.vedansh.vans</code>.</li>
+</ol>
+<p>Tell Vedansh when you stop testing, and your invite code is switched off.</p>
+      </article>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer-inner">
+        <div class="footer-top">
+          <div class="footer-brand">
+            <span class="brand-wordmark">VANS</span>
+          </div>
+          <div class="footer-controls">
+            <button type="button" id="footer-theme-toggle" class="theme-toggle btn-ghost" aria-label="Toggle light or dark theme">
+              <span class="theme-icon" aria-hidden="true"></span>
+              <span class="theme-label">Dark mode</span>
+            </button>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <div class="footer-copy">© 2026 Vedansh Saini · <a href="/privacy" class="text-link">Privacy</a></div>
+          <div class="footer-disclaimer">VANS is not affiliated with any clothing or footwear brand.</div>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
