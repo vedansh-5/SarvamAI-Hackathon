@@ -8,6 +8,7 @@ import (
 
 	"github.com/vedansh/vans/internal/store"
 	"github.com/vedansh/vans/internal/synth"
+	"github.com/vedansh/vans/internal/uiact"
 )
 
 type routineBook struct{ saved map[string]string }
@@ -99,7 +100,9 @@ func TestALongRunStopsToCheckInEverySoManySteps(t *testing.T) {
 
 	var answers []synth.StepAnswer
 	for i := 0; i < 5; i++ {
-		answers = append(answers, synth.StepAnswer{Step: clickMessage()})
+		answers = append(answers, synth.StepAnswer{Step: uiact.Step{
+			Do: "press", Key: "Down", Target: uiact.Selector{Role: "AXTextArea", Title: "Message"}, Describe: "Press Down",
+		}})
 	}
 	answers = append(answers, synth.StepAnswer{Done: true})
 

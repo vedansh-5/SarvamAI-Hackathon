@@ -518,6 +518,8 @@ func (c *OpenAICompatible) postOnce(ctx context.Context, body chatRequest) (stri
 		return "", fmt.Errorf("synth: provider error: %s", out.Error.Message)
 	}
 	c.Usage.add(out.Usage.PromptTokens, out.Usage.CompletionTokens)
+	Notice("%s answered in %s, %d tokens in, %d out",
+		body.Model, time.Since(start).Round(10*time.Millisecond), out.Usage.PromptTokens, out.Usage.CompletionTokens)
 	if len(out.Choices) == 0 {
 		return "", fmt.Errorf("synth: response had no choices")
 	}

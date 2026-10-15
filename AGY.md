@@ -2038,3 +2038,14 @@ the menu bar strip.
 
 **After that, the plan's order:** watching and learning (4 to 5 days), the
 tester kit (a day), install from zero (a day), then the privacy page (#190).
+
+**Done, same day (D-239).** Fixes 1 to 3 are in, with tests: the same step
+straight after it worked is refused, clicks stop after three unless the button
+moves on, a guide can point at a row to type in it and is told to type rather
+than "click to type", a click on the field no longer ends a typing step, and a
+looped run is neither kept nor replayed (the Postman recipe is ignored). Fix 4
+is measured, not fixed: the model alone takes about 2 to 3 s on a Postman-sized
+window, half what the run saw; every model call now logs its time and tokens
+(`[model] ... answered in`), so the next run shows where the rest goes. Not yet
+seen on Vedansh's Mac: the Postman question again, which is the first thing to
+try in fix 5.
