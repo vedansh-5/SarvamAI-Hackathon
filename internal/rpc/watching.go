@@ -17,6 +17,7 @@ const (
 type WatchingData struct {
 	On     bool `json:"on"`
 	Clicks int  `json:"clicks"`
+	Shared bool `json:"shared"`
 }
 
 func (s *Server) busyOnScreen() bool {
@@ -55,7 +56,68 @@ func (s *Server) moment(ctx context.Context, req Request) (map[string]bool, erro
 		return map[string]bool{"kept": false}, nil
 	}
 	kept, err := s.Engine.NoteMoment(ctx, p.Kind, p.App)
-	return map[string]bool{"kept": kept}, err
+	if err != nil || !kept {
+		return map[string]bool{"kept": kept}, err
+	}
+	if s.timeToLook() {
+		s.lookForHabits(context.WithoutCancel(ctx))
+	}
+	switch p.Kind {
+	case store.RoleFront:
+		s.offer(ctx, engine.Cause{Kind: engine.AppForward, App: p.App})
+	case "unlock", "wake":
+		s.offer(ctx, engine.Cause{Kind: engine.MacOpened})
+	}
+	return map[string]bool{"kept": kept}, nil
+}
+
+const offerTick = time.Minute
+
+func (s *Server) offerByTheClock(ctx context.Context) {
+	if s.Engine == nil || s.Engine.Clicks == nil {
+		return
+	}
+	tick := time.NewTicker(offerTick)
+	defer tick.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tick.C:
+			s.offer(ctx, engine.Cause{Kind: engine.ByTheClock})
+		}
+	}
+}
+
+func (s *Server) offer(ctx context.Context, cause engine.Cause) {
+	if s.busyOnScreen() {
+		return
+	}
+	offers, err := s.Engine.OffersFor(ctx, cause, time.Now())
+	if err != nil {
+		s.notify(0, "could not work out what to offer: %v", err)
+		return
+	}
+	for _, o := range offers {
+		s.notify(0, "offering: %s", o)
+		s.push(0, "offer", o)
+	}
+}
+
+func (s *Server) answerOffer(ctx context.Context, req Request) (engine.OfferAnswer, error) {
+	var p struct {
+		Key    string `json:"key"`
+		Answer string `json:"answer"`
+	}
+	if err := json.Unmarshal(req.Params, &p); err != nil {
+		return engine.OfferAnswer{}, &Error{Code: CodeBadRequest, Message: err.Error()}
+	}
+	got, err := s.Engine.AnswerOffer(ctx, p.Key, p.Answer, time.Now())
+	if err != nil {
+		return engine.OfferAnswer{}, &Error{Code: CodeBadRequest, Message: err.Error()}
+	}
+	go s.share(context.WithoutCancel(ctx))
+	return got, nil
 }
 
 func (s *Server) timeToLook() bool {
@@ -75,6 +137,13 @@ func (s *Server) lookForHabits(ctx context.Context) {
 		return
 	}
 	s.tellHabits(ctx)
+	go s.share(ctx)
+}
+
+func (s *Server) share(ctx context.Context) {
+	if err := s.Engine.ShareWhatWasLearned(ctx); err != nil {
+		s.notify(0, "could not send what was learned: %v", err)
+	}
 }
 
 func (s *Server) tellHabits(ctx context.Context) {
@@ -107,6 +176,7 @@ func (s *Server) settleHabit(ctx context.Context, req Request) (map[string]strin
 		return nil, &Error{Code: CodeBadRequest, Message: err.Error()}
 	}
 	s.tellHabits(ctx)
+	go s.share(context.WithoutCancel(ctx))
 	return map[string]string{"instruction": instruction}, nil
 }
 
@@ -119,7 +189,7 @@ func (s *Server) watching(ctx context.Context) (WatchingData, error) {
 		return WatchingData{}, err
 	}
 	clicks, err := s.Engine.NotedClicks(ctx)
-	return WatchingData{On: on, Clicks: len(clicks)}, err
+	return WatchingData{On: on, Clicks: len(clicks), Shared: s.Engine.Learner != nil}, err
 }
 
 func (s *Server) setWatching(ctx context.Context, req Request) (WatchingData, error) {

@@ -5730,3 +5730,69 @@ Habits live in `habits` beside the clicks; clearing the clicks clears any
 habit not yet chosen.
 
 Still to do: the privacy page text, for Vedansh to approve.
+
+## D-241 — VANS learns when, offers it below the dot, and earns the right to do it
+
+Asked for by Vedansh on 2026-10-15: notice what he does at the start of the
+day, after work, or right after opening an app, and offer it at that moment —
+"you're checking your work email; start the timer like you usually do?" The
+plan is in `docs/plans/2026-10-14-testers.md`, "Timing: learning when".
+
+**More is noted, still on the Mac.** Beyond clicks (D-240): which app comes to
+the front, and when the Mac wakes, unlocks, locks and sleeps. The shell hears
+them from AppKit (`watching.rs`) and the engine keeps them in `clicks` as
+`front` and `moment` rows. App names only, never window titles, which carry
+email subjects and file names.
+
+**When is counted, not asked.** `FindTimed` (`internal/engine/timing.go`)
+finds three kinds, each on at least three days of the last seven:
+
+| Kind | Counted when |
+|---|---|
+| A time of day | the same thing within twenty minutes of the same time; weekdays told apart |
+| After the Mac is opened | within ten minutes of the day's first unlock or wake |
+| After an app | within five minutes of the app's first coming forward that day, on at least 60% of the days it did |
+
+The line it offers is built from the labels ("Start in Clockify, like
+usual?"), so no model is involved here either.
+
+**The offer is a line below the dot,** in its own window (`nudge`), on its own
+background so the notch cannot hide it, never over full-screen apps and never
+opening the panel. Due offers come every minute, at the day's first unlock or
+wake, and the first time an app comes forward that day; not twice a day, and
+not for something already done today.
+
+**Trust grows.** Run, Later and Skip the first three times. After three runs,
+Always as well. With Always on, the line counts down five seconds with Cancel,
+then runs it; Cancel turns Always off until it is chosen again. Skip three
+times and that suggestion stops.
+
+**Taken from Clicky,** whose labels show it holds suggestions while the person
+is focused, snoozes, rests after repeated dismissals, greets in the morning
+through the notch, and holds routines until the Mac has settled after a wake
+(AGY G13):
+
+- An offer waits until there has been no typing or clicking for 2.5 seconds,
+  and until five seconds after a wake or unlock, for up to two minutes.
+- Later brings it back in fifteen minutes.
+- Three offers skipped or left to fade in a row, and VANS is quiet for the
+  rest of the day.
+- At the day's first unlock or wake: "Good morning", with what is usual today.
+
+Where Clicky keeps what it learns on its own server, VANS keeps the notes on
+the Mac.
+
+**Running it.** A click goes through the panel as a "do" request, with every
+confirmation it would have if typed. Opening an app is done by the shell when
+Run is pressed (`open -a`). D-032 and D-131 say VANS never opens an
+application by itself; this is the person asking, by Run or by an Always they
+chose and did not cancel, and it is the whole of what they asked for.
+
+**What was learned is sent, for testers only.** Changes D-240's "nothing is
+sent". Vedansh decided the test builds send the habits found and how each was
+answered — never the notes they came from — to the VANS server, which keeps
+one list per tester, replaced each time it changes (`synth.KindLearned`, a
+`learned` row). It is not counted against the day's allowance and not mailed.
+A copy that asks a model directly sends nothing. Setup says so on the copies
+that send it. It may become Mac-only later. The privacy page wording is
+drafted in the tester plan and waits for Vedansh.

@@ -115,6 +115,7 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 	watching, stopWatching := context.WithCancel(ctx)
 	defer stopWatching()
 	go s.watchTheClock(watching)
+	go s.offerByTheClock(watching)
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -210,6 +211,8 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.noticed(ctx, req)
 	case "moment":
 		result, err = s.moment(ctx, req)
+	case "answer_offer":
+		result, err = s.answerOffer(ctx, req)
 	case "watching":
 		result, err = s.watching(ctx)
 	case "set_watching":

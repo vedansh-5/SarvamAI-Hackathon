@@ -529,6 +529,7 @@ async function loadLogin() {
 interface Watching {
   on: boolean;
   clicks: number;
+  shared?: boolean;
 }
 
 interface NotedClick {
@@ -553,8 +554,11 @@ function notedLine(c: NotedClick): string {
 
 function showWatching(w: Watching) {
   ($("watching") as HTMLInputElement).checked = w.on;
+  const sent = w.shared
+    ? " The habits it finds, and how you answered them, are sent to Vedansh to improve VANS; the list of clicks itself is not."
+    : "";
   $("watching-note").textContent = w.on
-    ? "VANS notes the names of the buttons and menu items you click, which app is in front, and when your Mac wakes, unlocks and locks, so it can offer what you usually do at the moment you usually do it. Never what you type, window titles, or anything on a web page. It stays on this Mac for seven days."
+    ? `VANS notes the names of the buttons and menu items you click, which app is in front, and when your Mac wakes, unlocks and locks, so it can offer what you usually do at the moment you usually do it. Never what you type, window titles, or anything on a web page. The notes stay on this Mac for seven days.${sent}`
     : "Off. Nothing new is noted. What was noted goes after seven days, or now with Clear.";
   const see = $("watching-see") as HTMLButtonElement;
   see.textContent = w.clicks ? `See what VANS noted (${w.clicks})` : "Nothing noted yet";
@@ -2534,6 +2538,14 @@ function renderHabit() {
   row.append(save, teach, later);
   box.appendChild(row);
 }
+
+listen<{ instruction?: string }>("nudge://run", async (event) => {
+  const instruction = event.payload?.instruction?.trim();
+  if (!instruction) return;
+  openFresh = false;
+  await invoke("summon").catch(console.error);
+  void extract("do", instruction);
+});
 
 listen("engine://habits", () => {
   loadHabit().catch(console.error);

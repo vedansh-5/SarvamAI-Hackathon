@@ -20,6 +20,7 @@ export default defineConfig(async () => ({
         main: "index.html",
         coach: "coach.html",
         notch: "notch.html",
+        nudge: "nudge.html",
       },
     },
   },

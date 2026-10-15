@@ -30,6 +30,7 @@ type Ledger interface {
 	Spend(ctx context.Context, code, day string) (mine, all int, err error)
 	Keep(ctx context.Context, f Feedback) error
 	Record(ctx context.Context, a Activity) error
+	KeepLearned(ctx context.Context, from string, at time.Time, habits string) error
 }
 
 type Feedback struct {
@@ -186,8 +187,13 @@ func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	answerer, known := kinds[asked.Kind]
-	if !known && asked.Kind != synth.KindFeedback {
+	if !known && asked.Kind != synth.KindFeedback && asked.Kind != synth.KindLearned {
 		refuse(w, http.StatusBadRequest, fmt.Sprintf("%q is not a kind of question VANS asks", asked.Kind))
+		return
+	}
+
+	if asked.Kind == synth.KindLearned {
+		s.learned(w, r, who, asked.Request)
 		return
 	}
 
@@ -288,6 +294,26 @@ func (s *Server) feedback(w http.ResponseWriter, r *http.Request, who Tester, ra
 			s.logf("feedback from %s was kept but not mailed: %v", who.Name, err)
 		}
 	}
+	reply(w, http.StatusOK, synth.Answered{})
+}
+
+func (s *Server) learned(w http.ResponseWriter, r *http.Request, who Tester, raw json.RawMessage) {
+	var l synth.Learned
+	if len(raw) > synth.MostLearnedBytes || json.Unmarshal(raw, &l) != nil {
+		refuse(w, http.StatusBadRequest, "what was learned is not readable or too long")
+		return
+	}
+	habits, err := json.Marshal(l.Habits)
+	if err != nil {
+		refuse(w, http.StatusBadRequest, "what was learned is not readable")
+		return
+	}
+	if err := s.Ledger.KeepLearned(r.Context(), who.Name, s.now(), string(habits)); err != nil {
+		s.logf("could not keep what was learned for %s: %v", who.Name, err)
+		reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the VANS server could not keep what was learned"}})
+		return
+	}
+	s.logf("%s: %d learned habit(s) kept", who.Name, len(l.Habits))
 	reply(w, http.StatusOK, synth.Answered{})
 }
 

@@ -2,11 +2,15 @@ package engine
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/vedansh/vans/internal/store"
+	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
 )
 
@@ -21,6 +25,69 @@ type ClickLog interface {
 	OpenHabits(ctx context.Context) ([]store.Habit, error)
 	Habit(ctx context.Context, key string) (store.Habit, bool, error)
 	SettleHabit(ctx context.Context, key, state string) error
+	KeepTimed(ctx context.Context, r store.TimedRow) error
+	TimedRows(ctx context.Context) ([]store.TimedRow, error)
+	TimedRow(ctx context.Context, key string) (store.TimedRow, bool, error)
+	PutTimed(ctx context.Context, r store.TimedRow) error
+	Setting(ctx context.Context, key string) (string, error)
+	SetSetting(ctx context.Context, key, value string) error
+	AllHabits(ctx context.Context) ([]store.HabitState, error)
+	AllTimed(ctx context.Context) ([]store.TimedRow, error)
+}
+
+type LearnedSender interface {
+	SendLearned(ctx context.Context, l synth.Learned) error
+}
+
+const sharedKey = "learned.shared"
+
+func (e *Engine) WhatWasLearned(ctx context.Context) (synth.Learned, error) {
+	var l synth.Learned
+	habits, err := e.Clicks.AllHabits(ctx)
+	if err != nil {
+		return l, err
+	}
+	for _, h := range habits {
+		l.Habits = append(l.Habits, synth.LearnedHabit{What: h.Name, Times: h.Times, Answer: h.State})
+	}
+	timed, err := e.Clicks.AllTimed(ctx)
+	if err != nil {
+		return l, err
+	}
+	for _, r := range timed {
+		t, ok := timedFrom(r)
+		if !ok {
+			continue
+		}
+		l.Habits = append(l.Habits, synth.LearnedHabit{
+			What: t.Doing(), When: t.When(), Days: r.Days,
+			Yes: r.Yes, Skips: r.Skips, Always: r.Always, Stopped: r.Stopped,
+		})
+	}
+	return l, nil
+}
+
+func (e *Engine) ShareWhatWasLearned(ctx context.Context) error {
+	if e.Clicks == nil || e.Learner == nil {
+		return nil
+	}
+	l, err := e.WhatWasLearned(ctx)
+	if err != nil || len(l.Habits) == 0 {
+		return err
+	}
+	raw, err := json.Marshal(l)
+	if err != nil {
+		return err
+	}
+	sum := sha256.Sum256(raw)
+	stamp := hex.EncodeToString(sum[:])
+	if was, _ := e.Clicks.Setting(ctx, sharedKey); was == stamp {
+		return nil
+	}
+	if err := e.Learner.SendLearned(ctx, l); err != nil {
+		return err
+	}
+	return e.Clicks.SetSetting(ctx, sharedKey, stamp)
 }
 
 const keepClicksFor = 7 * 24 * time.Hour
@@ -98,6 +165,11 @@ func (e *Engine) LookForHabits(ctx context.Context) (int, error) {
 	clicks, err := e.NotedClicks(ctx)
 	if err != nil {
 		return 0, err
+	}
+	for _, t := range FindTimed(clicks) {
+		if err := e.keepTimed(ctx, t); err != nil {
+			return 0, err
+		}
 	}
 	open := 0
 	for _, h := range FindHabits(clicks) {

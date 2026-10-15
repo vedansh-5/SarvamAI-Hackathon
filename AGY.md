@@ -2101,7 +2101,14 @@ Done on the branch, with tests:
   at least 60% of the days it came forward). Lines like "Start in Clockify,
   like usual?".
 
-Next, in order:
+**Built since (D-241), on the same branch:** the `timed` table and answers,
+what is due and when, the line below the dot (`nudge`), trust that grows, good
+morning, holding while busy and after a wake, quiet after three dismissals,
+running a habit, and sending what was learned to the server for testers.
+Setup says what is sent. The privacy wording is drafted in the tester plan for
+Vedansh. Not yet seen running on his Mac; the server change is not deployed.
+
+Was next, in order (all done above):
 
 1. Keep timed habits and their answers in a `timed` table: yes count, skips in
    a row (three stops it), Always, the day last offered.

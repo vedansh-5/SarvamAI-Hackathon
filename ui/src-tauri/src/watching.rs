@@ -51,6 +51,9 @@ fn moments(app: &AppHandle) {
     for (name, kind) in on {
         let handle = app.clone();
         let block = RcBlock::new(move |_note: core::ptr::NonNull<NSNotification>| {
+            if kind == "wake" {
+                crate::nudge::woke();
+            }
             tell(&handle, "moment", serde_json::json!({ "kind": kind }));
         });
         let observer = unsafe { center.addObserverForName_object_queue_usingBlock(Some(name), None, None, &block) };
@@ -61,6 +64,9 @@ fn moments(app: &AppHandle) {
     for (name, kind) in [("com.apple.screenIsLocked", "lock"), ("com.apple.screenIsUnlocked", "unlock")] {
         let handle = app.clone();
         let block = RcBlock::new(move |_note: core::ptr::NonNull<NSNotification>| {
+            if kind == "unlock" {
+                crate::nudge::woke();
+            }
             tell(&handle, "moment", serde_json::json!({ "kind": kind }));
         });
         let name = NSString::from_str(name);

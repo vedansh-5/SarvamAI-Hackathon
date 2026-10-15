@@ -48,6 +48,7 @@ const (
 	KindRead      = "read"
 	KindPing      = "ping"
 	KindFeedback  = "feedback"
+	KindLearned   = "learned"
 )
 
 const (
@@ -55,6 +56,24 @@ const (
 	FeedbackNote        = "note"
 	MostFeedbackBytes   = 64 << 10
 )
+
+const MostLearnedBytes = 64 << 10
+
+type Learned struct {
+	Habits []LearnedHabit `json:"habits"`
+}
+
+type LearnedHabit struct {
+	What    string `json:"what"`
+	When    string `json:"when,omitempty"`
+	Days    int    `json:"days,omitempty"`
+	Times   int    `json:"times,omitempty"`
+	Yes     int    `json:"yes,omitempty"`
+	Skips   int    `json:"skips,omitempty"`
+	Always  bool   `json:"always,omitempty"`
+	Stopped bool   `json:"stopped,omitempty"`
+	Answer  string `json:"answer,omitempty"`
+}
 
 type Feedback struct {
 	Kind string `json:"kind"`
