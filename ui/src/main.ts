@@ -19,6 +19,14 @@ interface Preflight {
   checks: Check[];
 }
 
+interface Permission {
+  name: string;
+  label: string;
+  why: string;
+  state: "granted" | "not_asked" | "needed" | "unknown";
+  settings: string;
+}
+
 interface Plan {
   plan_id: string;
   page_url: string;
@@ -362,6 +370,7 @@ function show(id: string) {
   }
   invoke("set_pinned", { pinned: PINNED.has(id) }).catch(console.error);
   adjusting = id === "preflight";
+  if ((id === "preflight") !== (was === "preflight")) watchPermissions(id === "preflight");
   setReading(id !== "ask");
   paintTint();
 
@@ -434,8 +443,12 @@ async function runPreflight(advance = true) {
   checks.appendChild(el("p", "meta", "Checking…"));
 
   let result: Preflight;
+  let perms: Permission[];
   try {
-    result = await invoke<Preflight>("preflight");
+    [result, perms] = await Promise.all([
+      invoke<Preflight>("preflight"),
+      loadPermissions(),
+    ]);
   } catch (e) {
     clear(checks);
     checks.appendChild(
@@ -445,13 +458,130 @@ async function runPreflight(advance = true) {
   }
 
   clear(checks);
-  for (const c of result.checks) {
+  for (const c of result.checks.filter((c) => c.name !== "accessibility")) {
     checks.appendChild(checkRow(c));
   }
 
-  if (result.ready && advance) {
+  if (result.ready && !mustAsk(perms) && advance) {
     show("ask");
   }
+}
+
+const PERMS_KEY = "vans.permissions";
+
+interface PermsMemory {
+  asked: boolean;
+  seen: Record<string, Permission["state"]>;
+}
+
+function permsMemory(): PermsMemory {
+  try {
+    const raw = localStorage.getItem(PERMS_KEY);
+    if (raw) return { asked: false, seen: {}, ...JSON.parse(raw) };
+  } catch {}
+  return { asked: false, seen: {} };
+}
+
+function rememberPerms(perms: Permission[], asked: boolean) {
+  const memory = permsMemory();
+  memory.asked = memory.asked || asked;
+  for (const p of perms) {
+    if (p.state !== "unknown") memory.seen[p.name] = p.state;
+  }
+  try {
+    localStorage.setItem(PERMS_KEY, JSON.stringify(memory));
+  } catch {}
+}
+
+function withMemory(perms: Permission[]): Permission[] {
+  const { seen } = permsMemory();
+  return perms.map((p) =>
+    p.state === "unknown" && seen[p.name] ? { ...p, state: seen[p.name] } : p,
+  );
+}
+
+function mustAsk(perms: Permission[]): boolean {
+  const { asked } = permsMemory();
+  return perms.some(
+    (p) =>
+      p.state === "not_asked" ||
+      (p.name === "accessibility" && p.state !== "granted") ||
+      (!asked && p.state !== "granted"),
+  );
+}
+
+let permsAsking = false;
+
+async function loadPermissions(): Promise<Permission[]> {
+  const perms = withMemory(await invoke<Permission[]>("permissions"));
+  rememberPerms(perms, false);
+  renderPermissions(perms);
+  return perms;
+}
+
+function renderPermissions(perms: Permission[]) {
+  const list = $("perms");
+  clear(list);
+  const { asked } = permsMemory();
+  for (const p of perms) {
+    const ok = p.state === "granted";
+    const box = el("div", ok ? "check ok" : "check");
+    box.appendChild(el("span", "check-dot"));
+    const text = el("div", "check-text");
+    text.appendChild(el("div", "check-label", p.label));
+    text.appendChild(el("div", "check-detail", p.why));
+    box.appendChild(text);
+    const denied = p.state === "needed" && p.name !== "accessibility" && p.name !== "screen";
+    if (!ok && (denied || (asked && p.state !== "not_asked"))) {
+      const open = el("button", "btn quiet", "Open Settings") as HTMLButtonElement;
+      open.addEventListener("click", () => {
+        invoke("open_permission_settings", { name: p.name }).catch(console.error);
+      });
+      box.appendChild(open);
+    } else {
+      box.appendChild(el("span", "check-tag", ok ? "Granted" : "Needed"));
+    }
+    list.appendChild(box);
+  }
+  const screen = perms.find((p) => p.name === "screen");
+  $("perms-reopen").hidden = !asked || !screen || screen.state === "granted";
+  ($("perms-ask") as HTMLButtonElement).hidden = perms.every((p) => p.state === "granted");
+  if (!permsAsking) {
+    $("perms-state").textContent = perms.every((p) => p.state === "granted")
+      ? "All granted."
+      : asked
+        ? "Turn the rest on in Settings. Screen Recording works after VANS reopens."
+        : "";
+  }
+  fitWindow();
+}
+
+async function askPermissions() {
+  const button = $("perms-ask") as HTMLButtonElement;
+  button.disabled = true;
+  permsAsking = true;
+  $("perms-state").textContent = "Answer each macOS prompt as it comes up.";
+  try {
+    const perms = withMemory(await invoke<Permission[]>("ask_permissions"));
+    rememberPerms(perms, true);
+    permsAsking = false;
+    renderPermissions(perms);
+  } catch (e) {
+    permsAsking = false;
+    $("perms-state").textContent = String(e);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+let permsTick = 0;
+
+function watchPermissions(on: boolean) {
+  clearInterval(permsTick);
+  if (!on) return;
+  permsTick = window.setInterval(() => {
+    if (!permsAsking) loadPermissions().catch(console.error);
+  }, 2000);
 }
 
 function checkRow(c: Check): HTMLElement {
@@ -466,21 +596,6 @@ function checkRow(c: Check): HTMLElement {
 
   box.appendChild(el("span", "check-tag", c.ok ? "Granted" : "Needed"));
   return box;
-}
-
-async function checkNotes() {
-  const out = $("notes-result");
-  clear(out);
-  out.appendChild(el("p", "meta", "Asking Notes…"));
-
-  try {
-    const c = await invoke<Check>("check_notes");
-    clear(out);
-    out.appendChild(checkRow(c));
-  } catch (e) {
-    clear(out);
-    out.appendChild(el("p", "bad", isRpcError(e) ? e.message : String(e)));
-  }
 }
 
 // --- the task ---
@@ -602,6 +717,16 @@ async function extract(sendAs?: string, text?: string) {
   if (!instruction) {
     ($("intent") as HTMLInputElement).focus();
     return;
+  }
+
+  try {
+    if (mustAsk(withMemory(await invoke<Permission[]>("permissions")))) {
+      show("preflight");
+      void runPreflight(false);
+      return;
+    }
+  } catch (e) {
+    console.error(e);
   }
 
   ($("intent") as HTMLInputElement).value = instruction;
@@ -1659,38 +1784,6 @@ function renderUnresolved(into: HTMLElement, data: Unresolved) {
   }
 }
 
-async function checkScreenRecording() {
-  const out = $("screen-result");
-  clear(out);
-  out.appendChild(el("p", "meta", "Checking Screen Recording permission…"));
-
-  try {
-    const granted = await invoke<boolean>("check_screen_recording");
-    clear(out);
-    const row = checkRow({
-      name: "screen",
-      label: "Screen Recording",
-      ok: granted,
-      detail: granted
-        ? "VANS can see what you are looking at."
-        : "Not granted yet. Ask for it below.",
-      required: false,
-    });
-    out.appendChild(row);
-
-    if (!granted) {
-      const promptBtn = el("button", "btn secondary", "Request access") as HTMLButtonElement;
-      promptBtn.addEventListener("click", () => {
-        invoke("request_screen_recording").catch(console.error);
-      });
-      out.appendChild(promptBtn);
-    }
-  } catch (e) {
-    clear(out);
-    out.appendChild(el("p", "bad", isRpcError(e) ? e.message : String(e)));
-  }
-}
-
 /// The window title is whatever the frontmost application decided to call
 /// itself, and when that application is a browser it is whatever the page
 /// decided — `document.title` is writable by any script on it. Building this
@@ -2578,8 +2671,10 @@ $("model-more").addEventListener("toggle", () => fitWindow());
 $("history-back").addEventListener("click", () => show("preflight"));
 
 $("recheck").addEventListener("click", () => runPreflight(false));
-$("check-screen").addEventListener("click", checkScreenRecording);
-$("check-notes").addEventListener("click", checkNotes);
+$("perms-ask").addEventListener("click", askPermissions);
+$("perms-reopen").addEventListener("click", () => {
+  invoke("reopen").catch(console.error);
+});
 $("commit").addEventListener("mousedown", startHold);
 $("commit").addEventListener("mouseup", releaseHold);
 $("commit").addEventListener("mouseleave", releaseHold);
