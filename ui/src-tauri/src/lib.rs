@@ -1,5 +1,7 @@
 mod coach;
 mod engine;
+mod login;
+mod notch;
 mod overlay;
 mod permissions;
 pub mod screen;
@@ -39,6 +41,21 @@ fn open_permission_settings(name: String) {
 #[tauri::command]
 fn reopen(app: tauri::AppHandle) {
     app.restart();
+}
+
+#[tauri::command]
+fn notch_place() -> Option<notch::Place> {
+    notch::place()
+}
+
+#[tauri::command]
+fn login_item() -> login::LoginItem {
+    login::status()
+}
+
+#[tauri::command]
+fn set_login_item(on: bool) -> Result<login::LoginItem, String> {
+    login::set(on)
 }
 
 /// Commands are thin on purpose. Every decision the runtime makes — what to
@@ -448,6 +465,7 @@ pub fn run() {
             app.manage(engine);
 
             overlay::install(&handle_for_overlay)?;
+            notch::install(&handle_for_overlay)?;
             Ok(())
         })
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
@@ -494,7 +512,10 @@ pub fn run() {
             permissions,
             ask_permissions,
             open_permission_settings,
-            reopen
+            reopen,
+            notch_place,
+            login_item,
+            set_login_item
         ])
         .run(tauri::generate_context!())
         .expect("error while running VANS");

@@ -19,6 +19,7 @@ export default defineConfig(async () => ({
       input: {
         main: "index.html",
         coach: "coach.html",
+        notch: "notch.html",
       },
     },
   },
