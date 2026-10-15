@@ -33,7 +33,7 @@ VANS reads only when you ask, and only what the request needs:
 - **The page in front, or the text you have selected,** when you ask about it.
 - **The names of files** in a folder your request is about. VANS does not open your files or read their contents.
 - **The names of the applications** you have installed and which are open, so it can tell where a task is done.
-- **A picture of one window,** only for the few applications that do not describe their own controls. VANS tells you before a run that it will look at the window.
+- **A picture of one window,** only for the few applications that do not describe their own controls. VANS tells you before a run that it will look at the window. The words in the picture are found on your Mac, by macOS's own text recognition; nothing is downloaded or installed for it.
 
 Apart from learning, described next, VANS does not read anything between requests, and it never records your keystrokes.
 
@@ -58,7 +58,7 @@ From the notes, VANS finds habits by counting, on your Mac, with no model involv
 To understand a request and plan the steps, VANS sends these to a model provider over an encrypted connection:
 
 - the words of your request;
-- the part of what it read that the request needs: the window's controls, the page text, the selected text, the file names, or the picture of the window.
+- the part of what it read that the request needs: the window's controls, the page text, the selected text, the file names, or the picture of the window and the words found in it.
 
 In the test builds this goes from your Mac to the VANS server, and from there to a model provider. The server holds the keys and the instructions for the model, so your Mac does not need them. It passes what you sent to the model and the answer back to you; it does not keep the window's controls, the page text, the selected text, the file names or the picture. When the text a window was showing has been sent to answer you, the panel says so in the answer.
 
