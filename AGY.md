@@ -2071,9 +2071,21 @@ when". His answers on 2026-10-15:
 - Trust grows: Run / Skip the first three times it is taken up, then Always
   too. With Always on: "Starting … in 5 s · Cancel", then run it. Cancel turns
   Always off until it is chosen again.
-- He asked to look at how Clicky does it. Clicky is no longer on this Mac and
-  the earlier notes on it (§9.6) say nothing about learning; looking again
-  needs it downloaded, which is his call.
+- How Clicky does it (HeyClicky 1.0.53, reinstalled by Vedansh; read from its
+  Info.plist and the labels in its binary only, nothing run or taken):
+  - "Fresh task suggestions every 24 hours, announced through the morning
+    notch", with a good-morning greeting there.
+  - A suggestion is held while the person is focused, can be snoozed, and
+    rests for a while after repeated dismissals ("ignored-suggestions break").
+  - Routines run on a schedule; due ones are held until the Mac has settled
+    after waking, and wait for the internet.
+  - Its memory of the person is kept on its server (`/me/memory`), not on the
+    Mac. Its Accessibility line says it is for focus tracking "not background
+    watching".
+  Worth taking: hold an offer while someone is busy typing or clicking, and
+  show it at the next pause; rest after repeated dismissals rather than only
+  stopping; hold offers until a few seconds after a wake. Different on
+  purpose: VANS keeps what it learns on the Mac.
 
 Done on the branch, with tests:
 
