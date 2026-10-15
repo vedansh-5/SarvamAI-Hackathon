@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/vedansh/vans/internal/store"
 	"github.com/vedansh/vans/internal/uiact"
@@ -51,5 +52,48 @@ func TestAClickOnSomethingThatIsNotAControlIsNotNoted(t *testing.T) {
 	e := &Engine{Clicks: st, ClickAt: func(int, int) (uiact.Noticed, bool) { return uiact.Noticed{}, false }}
 	if kept, _ := e.NoteClick(ctx, 10, 10); kept {
 		t.Error("a click on something that is not a control was noted")
+	}
+}
+
+func TestAFoundHabitCanBeSavedAsARoutine(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(filepath.Join(t.TempDir(), "vans.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	c := &clicking{at: time.Now().Add(-3 * time.Hour)}
+	for i := 0; i < 3; i++ {
+		c.do("Mail", "Archive", "Next", "Flag")
+		c.pause(time.Hour)
+	}
+	for _, click := range c.out {
+		if err := st.NoteClick(ctx, click); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	e := &Engine{Clicks: st, Routines: st}
+	if open, err := e.LookForHabits(ctx); err != nil || open != 1 {
+		t.Fatalf("open = %d, err = %v; want the one habit found", open, err)
+	}
+	offers, err := e.HabitOffers(ctx)
+	if err != nil || len(offers) != 1 {
+		t.Fatalf("offers = %+v, err = %v", offers, err)
+	}
+	if offers[0].Routine != "archive next flag" {
+		t.Errorf("suggested routine name %q", offers[0].Routine)
+	}
+
+	if _, err := e.SettleHabit(ctx, offers[0].Key, SaveHabit, "tidy mail"); err != nil {
+		t.Fatal(err)
+	}
+	got, found, err := st.Routine(ctx, "tidy mail")
+	if err != nil || !found || got != "In Mail, click Archive, then click Next, then click Flag" {
+		t.Errorf("routine = %q (found %v, err %v)", got, found, err)
+	}
+	if offers, _ := e.HabitOffers(ctx); len(offers) != 0 {
+		t.Errorf("a saved habit is still offered: %+v", offers)
 	}
 }

@@ -2,6 +2,9 @@ package store
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -72,6 +75,86 @@ func (s *Store) ForgetClicksBefore(ctx context.Context, before time.Time) error 
 func (s *Store) ClearClicks(ctx context.Context) error {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM clicks`); err != nil {
 		return fmt.Errorf("store: clear clicks: %w", err)
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM habits WHERE state = ''`); err != nil {
+		return fmt.Errorf("store: clear habits: %w", err)
+	}
+	return nil
+}
+
+type Habit struct {
+	Key   string  `json:"key"`
+	Name  string  `json:"name"`
+	Steps []Click `json:"steps"`
+	Times int     `json:"times"`
+}
+
+const (
+	HabitOpen      = ""
+	HabitSaved     = "saved"
+	HabitShown     = "shown"
+	HabitDismissed = "dismissed"
+)
+
+func (s *Store) KeepHabit(ctx context.Context, h Habit) (bool, error) {
+	steps, err := json.Marshal(h.Steps)
+	if err != nil {
+		return false, err
+	}
+	res, err := s.db.ExecContext(ctx, `
+INSERT INTO habits (key, name, steps, times, found_at) VALUES (?, ?, ?, ?, ?)
+ON CONFLICT (key) DO UPDATE SET times = excluded.times WHERE habits.state = ''`,
+		h.Key, h.Name, string(steps), h.Times, time.Now().Unix())
+	if err != nil {
+		return false, fmt.Errorf("store: keep habit: %w", err)
+	}
+	var state string
+	if err := s.db.QueryRowContext(ctx, `SELECT state FROM habits WHERE key = ?`, h.Key).Scan(&state); err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+	return n > 0 && state == HabitOpen, nil
+}
+
+func (s *Store) OpenHabits(ctx context.Context) ([]Habit, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT key, name, steps, times FROM habits WHERE state = '' ORDER BY times DESC, found_at`)
+	if err != nil {
+		return nil, fmt.Errorf("store: read habits: %w", err)
+	}
+	defer rows.Close()
+	var out []Habit
+	for rows.Next() {
+		var h Habit
+		var steps string
+		if err := rows.Scan(&h.Key, &h.Name, &steps, &h.Times); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(steps), &h.Steps); err != nil {
+			continue
+		}
+		out = append(out, h)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) Habit(ctx context.Context, key string) (Habit, bool, error) {
+	var h Habit
+	var steps string
+	err := s.db.QueryRowContext(ctx, `SELECT key, name, steps, times FROM habits WHERE key = ?`, key).
+		Scan(&h.Key, &h.Name, &steps, &h.Times)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Habit{}, false, nil
+	}
+	if err != nil {
+		return Habit{}, false, err
+	}
+	return h, true, json.Unmarshal([]byte(steps), &h.Steps)
+}
+
+func (s *Store) SettleHabit(ctx context.Context, key, state string) error {
+	if _, err := s.db.ExecContext(ctx, `UPDATE habits SET state = ? WHERE key = ?`, state, key); err != nil {
+		return fmt.Errorf("store: settle habit: %w", err)
 	}
 	return nil
 }

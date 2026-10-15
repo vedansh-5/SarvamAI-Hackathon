@@ -5706,4 +5706,27 @@ watching is on and hollow while it is off.
 labels ("In Mail: Archive, then Next") rather than by a model, and saving it
 makes an ordinary routine. Watching costs no calls.
 
-Still to build: finding repeats, the suggestion, and the privacy page text.
+**Finding repeats** (`FindHabits`, `internal/engine/habits.go`) is plain
+counting. Clicks are split into sittings at a pause of more than two minutes,
+and a double click counts once. A run of three to eight clicks with at least
+two different ones in it, done three times or more across at least two
+sittings, is a habit. A run inside a longer habit is dropped unless it is done
+more often than the longer one. At most five. The server looks after every
+twentieth click kept, at most once every five minutes, and tells the panel and
+the dot how many are waiting (`engine://habits`).
+
+**Offering one.** The dot gets a white centre. The ask screen shows the first
+waiting habit, "You often do this. In Mail: Archive, Next, then Flag.", until
+one of three is chosen:
+
+- Save as a routine: named by the person (suggested from the first three
+  labels), saved as a routine whose instruction is the clicks in words ("In
+  Mail, click Archive, then click Next, then click Flag"). Its undo is
+  forgetting the routine, as for any other.
+- Show me: coaches the same instruction.
+- Not now: never offered again.
+
+Habits live in `habits` beside the clicks; clearing the clicks clears any
+habit not yet chosen.
+
+Still to do: the privacy page text, for Vedansh to approve.
