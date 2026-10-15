@@ -717,7 +717,7 @@ A pipe is reachable only by the process that created it. The gate holds because 
 
 ## D-037 — Preflight never touches Notes; the user asks for that check
 
-**Status:** Accepted — reconciles D-007 with D-032
+**Status:** Accepted — reconciles D-007 with D-032; the Notes button became part of "Allow all" (D-237)
 
 **Context.** D-007 chose a GUI partly *for* permissions onboarding: discovering a denied automation permission halfway through a task is a bad experience, and a window can ask for it up front. But the only way to test automation access is to send an Apple event, which **launches Notes** — and D-032 says the runtime does not launch applications.
 
@@ -5529,4 +5529,48 @@ header, so the function's long address shows no console, not even its
 sign-in page; through the gate the console's links and cookie use plain
 paths (`/testers`). Redeploy the Worker with `npx wrangler deploy` in
 `infra/cloudflare/console`; change the secret on both sides together.
+
+## D-237 — Every permission is asked for at once, in Setup, before the first guide
+
+**Status:** Accepted, 2026-10-15
+
+**Context.** Vedansh asked that a downloaded VANS ask for all its permissions
+at once and never before a step. Until now each one was found when a guide
+reached it: Accessibility through a failed read, Screen Recording and Notes
+through their own buttons in Setup, and control of Safari, Chrome, Finder or
+System Events through a macOS prompt that appeared halfway through a step. A
+guide that stops for a system dialog teaches nothing.
+
+**Decision.** Setup opens with one list, read by the shell
+(`ui/src-tauri/src/permissions.rs`): Accessibility, Screen Recording, and
+control of each of System Events, Finder, Safari, Google Chrome and Notes that
+is installed. Each row says why in one line. One button, Allow all, raises
+every prompt in a row: the control prompts first, one app at a time, then
+Accessibility and Screen Recording, which send the person to System Settings.
+The rows turn green on their own (checked every two seconds while Setup is
+open). A row that was refused gets an Open Settings button for its pane;
+macOS never asks twice. Screen Recording only takes effect after a restart, so
+Reopen VANS is offered while it is off.
+
+The panel will not leave Setup on launch, and will not start a request, while
+any permission has never been asked for, or while Accessibility is off. Once
+Allow all has run, a refused permission other than Accessibility is the
+person's choice and does not block.
+
+**Opening apps.** macOS can only ask about controlling an app that is open.
+Allow all opens Safari, Chrome and Notes in the background and hidden (`open
+-g -j`), asks, and quits them again; the note above the button says so before
+it is pressed. This is the person's button, which is what D-032 and D-037
+allow. The answer is remembered in the panel, because once the app is closed
+the shell cannot read it without opening it again.
+
+**What the shell can and cannot tell.** Control of an open app is read exactly
+(`AEDeterminePermissionToAutomateTarget` without asking): granted, never
+asked, or refused. Accessibility and Screen Recording only say granted or not,
+so "never asked" there comes from whether Allow all has run on this Mac.
+
+The engine's preflight keeps its own Accessibility check, since the engine is
+the process that reads windows, but the panel shows the shell's row only. The
+`check_notes` command and the Screen Recording buttons are gone; the engine
+method stays. `Info.plist` gives macOS the line shown in the control prompts.
 

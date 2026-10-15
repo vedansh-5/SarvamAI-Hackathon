@@ -208,15 +208,21 @@
               <h2 class="screen-title">Set up VANS</h2>
               <p class="lede">Grant these once. This window stays put while you switch apps.</p>
 
+              <div class="kicker">Permissions</div>
+              <p class="note">VANS asks for all of them now, so nothing stops you halfway through a step. Allow all opens Safari, Chrome and Notes in the background for a moment, because macOS only asks about an app that is open, and closes them again.</p>
+              <div id="perms" class="setup-list"></div>
+              <div class="row">
+                <button id="perms-ask" class="btn volt" type="button">Allow all</button>
+                <button id="perms-reopen" class="btn quiet" type="button" hidden>Reopen VANS</button>
+                <span id="perms-state" class="note inline"></span>
+              </div>
+
+              <div class="kicker spaced">Ready</div>
               <div id="checks" class="setup-list"></div>
 
               <div class="row">
                 <button id="recheck" class="btn" type="button">Check again</button>
-                <button id="check-screen" class="btn quiet" type="button">Screen Recording</button>
-                <button id="check-notes" class="btn quiet" type="button">Notes access</button>
               </div>
-              <div id="screen-result"></div>
-              <div id="notes-result"></div>
 
               <div class="kicker spaced">Model</div>
               <p id="model-note" class="note">VANS needs a key for the model it thinks with. It is kept in your Mac’s Keychain and sent only to that model.</p>

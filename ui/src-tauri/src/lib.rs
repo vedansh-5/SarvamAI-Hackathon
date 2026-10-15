@@ -1,6 +1,7 @@
 mod coach;
 mod engine;
 mod overlay;
+mod permissions;
 pub mod screen;
 
 use std::path::PathBuf;
@@ -16,16 +17,28 @@ fn get_screen_context(include_screenshot: Option<bool>) -> ScreenContext {
     screen::capture_active_context(include_screenshot.unwrap_or(false))
 }
 
-/// Checks whether Screen Recording permission is granted.
 #[tauri::command]
-fn check_screen_recording() -> bool {
-    screen::has_screen_recording_permission()
+async fn permissions() -> Result<Vec<permissions::Permission>, String> {
+    tauri::async_runtime::spawn_blocking(permissions::check)
+        .await
+        .map_err(|e| e.to_string())
 }
 
-/// Prompts the user for Screen Recording permission.
 #[tauri::command]
-fn request_screen_recording() -> bool {
-    screen::request_screen_recording_permission()
+async fn ask_permissions() -> Result<Vec<permissions::Permission>, String> {
+    tauri::async_runtime::spawn_blocking(permissions::ask_all)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn open_permission_settings(name: String) {
+    permissions::open_settings(&name);
+}
+
+#[tauri::command]
+fn reopen(app: tauri::AppHandle) {
+    app.restart();
 }
 
 /// Commands are thin on purpose. Every decision the runtime makes — what to
@@ -35,13 +48,6 @@ fn request_screen_recording() -> bool {
 #[tauri::command]
 async fn preflight(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("preflight", None).await
-}
-
-/// Sends an Apple event to Notes, which launches it and may raise the
-/// automation prompt. Only ever called from a button that says so (D-037).
-#[tauri::command]
-async fn check_notes(engine: State<'_, Engine>) -> Result<Value, RpcError> {
-    engine.call("check_notes", None).await
 }
 
 /// Works out what an instruction means and prepares it. Touches nothing
@@ -447,7 +453,6 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             preflight,
-            check_notes,
             prepare,
             destinations,
             suggestions,
@@ -486,8 +491,10 @@ pub fn run() {
             set_blur,
             open_url,
             get_screen_context,
-            check_screen_recording,
-            request_screen_recording
+            permissions,
+            ask_permissions,
+            open_permission_settings,
+            reopen
         ])
         .run(tauri::generate_context!())
         .expect("error while running VANS");
