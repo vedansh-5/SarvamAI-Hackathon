@@ -2306,6 +2306,7 @@ listen<ScreenContext | undefined>("overlay://shown", (event) => {
   }
 
   void loadSuggestions(event.payload?.app_name);
+  loadHabit().catch(console.error);
 
   scroller.scrollTop = 0;
 
@@ -2442,6 +2443,87 @@ interface DueTask {
 }
 
 let dueTasks: DueTask[] = [];
+
+interface HabitOffer {
+  key: string;
+  name: string;
+  times: number;
+  routine: string;
+  instruction: string;
+}
+
+let habitOffer: HabitOffer | null = null;
+
+async function loadHabit() {
+  const offers = await invoke<HabitOffer[]>("habits");
+  habitOffer = offers[0] ?? null;
+  renderHabit();
+  fitWindow();
+}
+
+async function settleHabit(how: "save" | "show" | "dismiss", name = ""): Promise<string> {
+  const offer = habitOffer;
+  if (!offer) return "";
+  const done = await invoke<{ instruction: string }>("settle_habit", { key: offer.key, how, name });
+  habitOffer = null;
+  renderHabit();
+  void loadHabit();
+  return done.instruction;
+}
+
+function renderHabit() {
+  const box = $("habit");
+  clear(box);
+  box.hidden = habitOffer === null;
+  const offer = habitOffer;
+  if (!offer) return;
+
+  const row = el("div", "row");
+  row.appendChild(el("span", "field-note", `You often do this. ${offer.name}.`));
+
+  const save = el("button", "btn secondary", "Save as a routine") as HTMLButtonElement;
+  save.addEventListener("click", () => {
+    clear(row);
+    row.appendChild(el("span", "field-note", "Name it. Say the name to run it."));
+    const name = document.createElement("input");
+    name.className = "field";
+    name.value = offer.routine;
+    const keep = el("button", "btn secondary", "Save") as HTMLButtonElement;
+    const back = el("button", "btn quiet", "Cancel") as HTMLButtonElement;
+    keep.addEventListener("click", async () => {
+      const called = name.value.trim() || offer.routine;
+      try {
+        await settleHabit("save", called);
+        toast(`Saved. Say “${called}” to run it.`);
+      } catch (e) {
+        toast(isRpcError(e) ? e.message : String(e));
+      }
+    });
+    back.addEventListener("click", renderHabit);
+    row.append(name, keep, back);
+    name.focus();
+    name.select();
+    fitWindow();
+  });
+
+  const teach = el("button", "btn secondary", "Show me") as HTMLButtonElement;
+  teach.addEventListener("click", async () => {
+    const instruction = await settleHabit("show");
+    if (instruction) void extract("show", instruction);
+  });
+
+  const later = el("button", "btn quiet", "Not now") as HTMLButtonElement;
+  later.addEventListener("click", () => {
+    settleHabit("dismiss").catch(console.error);
+  });
+
+  row.append(save, teach, later);
+  box.appendChild(row);
+}
+
+listen("engine://habits", () => {
+  loadHabit().catch(console.error);
+});
 
 function renderDue() {
   const box = $("due");

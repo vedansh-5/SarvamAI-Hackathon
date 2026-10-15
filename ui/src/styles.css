@@ -811,6 +811,20 @@ section:not([hidden]) {
   font-size: 13.5px;
 }
 
+.habit .row {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.habit .field-note {
+  flex-basis: 100%;
+}
+
+.habit input {
+  flex: 1;
+  min-width: 8rem;
+}
+
 .headsup {
   display: flex;
   align-items: baseline;

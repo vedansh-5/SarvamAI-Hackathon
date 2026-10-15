@@ -26,6 +26,15 @@ listen<State>("pill://state", (e) => paint(e.payload));
 listen<Watching>("pill://watching", (e) => watched(e.payload));
 invoke<Watching>("watching").then(watched).catch(() => {});
 
+function offering(open: number) {
+  pill.classList.toggle("offering", open > 0);
+}
+
+listen<{ params?: { open?: number } }>("engine://habits", (e) => offering(e.payload?.params?.open ?? 0));
+invoke<unknown[]>("habits")
+  .then((offers) => offering(offers.length))
+  .catch(() => {});
+
 pill.addEventListener("click", () => {
   invoke("summon").catch(() => {});
 });

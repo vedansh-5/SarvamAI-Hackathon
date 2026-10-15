@@ -95,6 +95,9 @@ type Server struct {
 	// the same thing: VANS doing something in their window, and Escape to stop it.
 	actCancel context.CancelFunc
 	actResume chan struct{}
+
+	noted    int
+	lookedAt time.Time
 }
 
 // Serve reads requests from in and writes responses to out until in ends.
@@ -213,6 +216,10 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.notedClicks(ctx)
 	case "clear_clicks":
 		result, err = s.clearClicks(ctx)
+	case "habits":
+		result, err = s.habits(ctx)
+	case "settle_habit":
+		result, err = s.settleHabit(ctx, req)
 	case "can_send_feedback":
 		result = map[string]bool{"ready": s.Feedback != nil}
 	case "send_feedback":

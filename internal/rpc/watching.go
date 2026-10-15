@@ -3,8 +3,15 @@ package rpc
 import (
 	"context"
 	"encoding/json"
+	"time"
 
+	"github.com/vedansh/vans/internal/engine"
 	"github.com/vedansh/vans/internal/store"
+)
+
+const (
+	lookEvery     = 20
+	lookAtMostPer = 5 * time.Minute
 )
 
 type WatchingData struct {
@@ -30,7 +37,62 @@ func (s *Server) noticed(ctx context.Context, req Request) (map[string]bool, err
 		return map[string]bool{"kept": false}, nil
 	}
 	kept, err := s.Engine.NoteClick(ctx, p.X, p.Y)
+	if kept && s.timeToLook() {
+		go s.lookForHabits(context.WithoutCancel(ctx))
+	}
 	return map[string]bool{"kept": kept}, err
+}
+
+func (s *Server) timeToLook() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.noted++
+	if s.noted < lookEvery || time.Since(s.lookedAt) < lookAtMostPer {
+		return false
+	}
+	s.noted, s.lookedAt = 0, time.Now()
+	return true
+}
+
+func (s *Server) lookForHabits(ctx context.Context) {
+	if _, err := s.Engine.LookForHabits(ctx); err != nil {
+		s.notify(0, "could not look for habits: %v", err)
+		return
+	}
+	s.tellHabits(ctx)
+}
+
+func (s *Server) tellHabits(ctx context.Context) {
+	offers, err := s.Engine.HabitOffers(ctx)
+	if err != nil {
+		return
+	}
+	s.push(0, "habits", map[string]int{"open": len(offers)})
+}
+
+func (s *Server) habits(ctx context.Context) ([]engine.HabitOffer, error) {
+	offers, err := s.Engine.HabitOffers(ctx)
+	if offers == nil {
+		offers = []engine.HabitOffer{}
+	}
+	return offers, err
+}
+
+func (s *Server) settleHabit(ctx context.Context, req Request) (map[string]string, error) {
+	var p struct {
+		Key  string `json:"key"`
+		How  string `json:"how"`
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(req.Params, &p); err != nil {
+		return nil, &Error{Code: CodeBadRequest, Message: err.Error()}
+	}
+	instruction, err := s.Engine.SettleHabit(ctx, p.Key, p.How, p.Name)
+	if err != nil {
+		return nil, &Error{Code: CodeBadRequest, Message: err.Error()}
+	}
+	s.tellHabits(ctx)
+	return map[string]string{"instruction": instruction}, nil
 }
 
 func (s *Server) watching(ctx context.Context) (WatchingData, error) {
@@ -75,5 +137,6 @@ func (s *Server) clearClicks(ctx context.Context) (WatchingData, error) {
 			return WatchingData{}, err
 		}
 	}
+	s.tellHabits(ctx)
 	return s.watching(ctx)
 }

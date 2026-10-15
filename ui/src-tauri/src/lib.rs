@@ -132,6 +132,23 @@ async fn noted_clicks(engine: State<'_, Engine>) -> Result<Value, RpcError> {
 }
 
 #[tauri::command]
+async fn habits(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("habits", None).await
+}
+
+#[tauri::command]
+async fn settle_habit(
+    engine: State<'_, Engine>,
+    key: String,
+    how: String,
+    name: String,
+) -> Result<Value, RpcError> {
+    engine
+        .call("settle_habit", Some(json!({ "key": key, "how": how, "name": name })))
+        .await
+}
+
+#[tauri::command]
 async fn clear_clicks(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("clear_clicks", None).await
 }
@@ -520,6 +537,8 @@ pub fn run() {
             set_watching,
             noted_clicks,
             clear_clicks,
+            habits,
+            settle_habit,
             resume_drive,
             answer_guide,
             answer_question,
