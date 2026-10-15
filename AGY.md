@@ -2117,3 +2117,16 @@ Next, in order:
    the person asked).
 5. Decision record (D-241), privacy page text for Vedansh, non-negotiables 3
    and 10 checked (nothing opens by accident; nothing in full-screen apps).
+
+**Decided by Vedansh after the Clicky look (2026-10-15):**
+
+- Take all of it: good morning through the notch with what is usual today,
+  hold offers while busy, Later (snooze), rest after repeated dismissals, wait
+  after a wake and for the internet. Details in the tester plan.
+- For testers, what VANS learned goes to the VANS server: each habit found and
+  how it was answered. The raw click and app log stays on the Mac. May become
+  Mac-only later. This changes D-240 ("nothing sent"): Setup's wording and the
+  privacy page must say it before it ships.
+- Logo: draft B, the spotlight ring opening for the pointer, which lands on the
+  centre. Next: the final vector files (app icon set, favicon, the in-app
+  mark) and redrawing the on-screen ghost cursor to the logo's pointer.
