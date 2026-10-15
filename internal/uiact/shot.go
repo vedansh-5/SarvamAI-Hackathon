@@ -11,6 +11,7 @@ import (
 
 type Shot struct {
 	JPEG       []byte
+	Full       []byte
 	X, Y, W, H int
 }
 
@@ -41,13 +42,17 @@ func WindowShot(ctx context.Context, r Runner, app string) (Shot, error) {
 		fmt.Sprintf("-l%d", id), path).CombinedOutput(); err != nil {
 		return Shot{}, fmt.Errorf("%w: %v (%s)", ErrCannotSee, err, truncate(string(out), 120))
 	}
+	full, err := os.ReadFile(path)
+	if err != nil || len(full) < 1024 {
+		return Shot{}, ErrCannotSee
+	}
 	_ = exec.CommandContext(ctx, "sips", "-Z", fmt.Sprint(longestShotSide), path).Run()
 
 	data, err := os.ReadFile(path)
 	if err != nil || len(data) < 1024 {
 		return Shot{}, ErrCannotSee
 	}
-	return Shot{JPEG: data, X: x, Y: y, W: w, H: h}, nil
+	return Shot{JPEG: data, Full: full, X: x, Y: y, W: w, H: h}, nil
 }
 
 func (s System) Shot(ctx context.Context, app string) (Shot, error) {
