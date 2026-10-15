@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Memory struct {
@@ -17,6 +18,7 @@ type Memory struct {
 	day      string
 	feedback []Feedback
 	activity []Activity
+	learned  map[string]string
 }
 
 var (
@@ -56,6 +58,22 @@ func (m *Memory) Keep(_ context.Context, f Feedback) error {
 	f.ID = strconv.Itoa(len(m.feedback) + 1)
 	m.feedback = append(m.feedback, f)
 	return nil
+}
+
+func (m *Memory) KeepLearned(_ context.Context, from string, _ time.Time, habits string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.learned == nil {
+		m.learned = map[string]string{}
+	}
+	m.learned[from] = habits
+	return nil
+}
+
+func (m *Memory) Learned(from string) string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.learned[from]
 }
 
 func (m *Memory) Kept() []Feedback {

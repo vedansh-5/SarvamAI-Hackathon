@@ -19,6 +19,14 @@ type Click struct {
 
 const watchingKey = "watching"
 
+const (
+	RoleFront  = "front"
+	RoleMoment = "moment"
+	MacApp     = "Mac"
+)
+
+func (c Click) Clicked() bool { return c.Role != RoleFront && c.Role != RoleMoment }
+
 func (s *Store) Watching(ctx context.Context) (bool, error) {
 	v, err := s.Setting(ctx, watchingKey)
 	if err != nil || v == "" {
@@ -79,7 +87,7 @@ func (s *Store) ClearClicks(ctx context.Context) error {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM habits WHERE state = ''`); err != nil {
 		return fmt.Errorf("store: clear habits: %w", err)
 	}
-	return nil
+	return s.ClearTimed(ctx)
 }
 
 type Habit struct {
@@ -132,6 +140,28 @@ func (s *Store) OpenHabits(ctx context.Context) ([]Habit, error) {
 		}
 		if err := json.Unmarshal([]byte(steps), &h.Steps); err != nil {
 			continue
+		}
+		out = append(out, h)
+	}
+	return out, rows.Err()
+}
+
+type HabitState struct {
+	Habit
+	State string `json:"state"`
+}
+
+func (s *Store) AllHabits(ctx context.Context) ([]HabitState, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT key, name, times, state FROM habits ORDER BY times DESC, key`)
+	if err != nil {
+		return nil, fmt.Errorf("store: read habits: %w", err)
+	}
+	defer rows.Close()
+	var out []HabitState
+	for rows.Next() {
+		var h HabitState
+		if err := rows.Scan(&h.Key, &h.Name, &h.Times, &h.State); err != nil {
+			return nil, err
 		}
 		out = append(out, h)
 	}

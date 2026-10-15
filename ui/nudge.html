@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>VANS</title>
+    <style>
+      :root { --volt: #ffd23f; --ink: #f3f4ee; --mute: #a5a79c; --glass: rgba(20, 21, 18, 0.92); }
+      html, body {
+        margin: 0; padding: 0; width: 100%; height: 100%;
+        background: transparent; overflow: hidden;
+        -webkit-user-select: none; user-select: none; cursor: default;
+        font: 13px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+        color: var(--ink);
+      }
+      #card {
+        box-sizing: border-box; position: fixed; inset: 0;
+        display: flex; flex-direction: column; justify-content: center; gap: 6px;
+        padding: 8px 8px 8px 14px; border-radius: 13px;
+        background: var(--glass);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+        opacity: 0; transform: translateY(-4px);
+        transition: opacity 180ms ease, transform 180ms ease;
+      }
+      #card.shown { opacity: 1; transform: none; }
+      .row { display: flex; align-items: center; gap: 6px; }
+      #line { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+      #line::before {
+        content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+        background: var(--volt); margin-right: 8px; vertical-align: 1px;
+      }
+      #usual { margin: 0; padding: 0 0 0 15px; list-style: none; color: var(--mute); font-size: 12px; }
+      #usual li { padding: 1px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      button {
+        font: inherit; font-size: 12px; font-weight: 600; border: 0; border-radius: 980px;
+        padding: 4px 10px; color: var(--ink); background: rgba(255, 255, 255, 0.1); cursor: default;
+      }
+      button:hover { background: rgba(255, 255, 255, 0.18); }
+      button.go { background: var(--volt); color: #10110e; }
+      button.go:hover { filter: brightness(1.08); }
+      button[hidden] { display: none; }
+    </style>
+  </head>
+  <body>
+    <div id="card">
+      <div class="row">
+        <span id="line"></span>
+        <button id="run" class="go" type="button">Run</button>
+        <button id="always" type="button" hidden>Always</button>
+        <button id="later" type="button">Later</button>
+        <button id="skip" type="button">Skip</button>
+        <button id="cancel" type="button" hidden>Cancel</button>
+        <button id="ok" class="go" type="button" hidden>OK</button>
+      </div>
+      <ul id="usual" hidden></ul>
+    </div>
+    <script type="module" src="/src/nudge.ts"></script>
+  </body>
+</html>

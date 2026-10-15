@@ -2,6 +2,7 @@ mod coach;
 mod engine;
 mod login;
 mod notch;
+mod nudge;
 mod overlay;
 mod permissions;
 mod watching;
@@ -145,6 +146,28 @@ async fn settle_habit(
 ) -> Result<Value, RpcError> {
     engine
         .call("settle_habit", Some(json!({ "key": key, "how": how, "name": name })))
+        .await
+}
+
+#[tauri::command]
+async fn show_nudge(app: tauri::AppHandle, height: f64) {
+    nudge::show_when_still(app, height).await;
+}
+
+#[tauri::command]
+fn hide_nudge(app: tauri::AppHandle) {
+    nudge::hide(&app);
+}
+
+#[tauri::command]
+fn open_app(name: String) -> Result<(), String> {
+    nudge::open_app(&name)
+}
+
+#[tauri::command]
+async fn answer_offer(engine: State<'_, Engine>, key: String, answer: String) -> Result<Value, RpcError> {
+    engine
+        .call("answer_offer", Some(json!({ "key": key, "answer": answer })))
         .await
 }
 
@@ -519,6 +542,7 @@ pub fn run() {
 
             overlay::install(&handle_for_overlay)?;
             notch::install(&handle_for_overlay)?;
+            nudge::install(&handle_for_overlay)?;
             watching::install(&handle_for_overlay);
             Ok(())
         })
@@ -539,6 +563,10 @@ pub fn run() {
             clear_clicks,
             habits,
             settle_habit,
+            show_nudge,
+            hide_nudge,
+            open_app,
+            answer_offer,
             resume_drive,
             answer_guide,
             answer_question,
