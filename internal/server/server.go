@@ -92,13 +92,14 @@ type Mailer interface {
 }
 
 type Server struct {
-	Model   func(used *synth.Usage) synth.Model
-	Ledger  Ledger
-	Mail    Mailer
-	Console http.Handler
-	Total   int
-	Now     func() time.Time
-	Log     func(format string, args ...any)
+	Model    func(used *synth.Usage) synth.Model
+	Ledger   Ledger
+	Mail     Mailer
+	Console  http.Handler
+	Releases Releases
+	Total    int
+	Now      func() time.Time
+	Log      func(format string, args ...any)
 }
 
 func (s *Server) logf(format string, args ...any) {
@@ -125,6 +126,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.Console.ServeHTTP(w, r)
 	case r.URL.Path == synth.AskPath && r.Method == http.MethodPost:
 		s.ask(w, r)
+	case strings.HasPrefix(r.URL.Path, UpdatePath) && r.Method == http.MethodGet:
+		s.update(w, r)
 	case r.URL.Path == synth.AskPath:
 		reply(w, http.StatusMethodNotAllowed, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultRefused, Message: "post only"}})
 	default:
@@ -151,24 +154,32 @@ func codeOf(r *http.Request) string {
 	return strings.TrimSpace(strings.TrimPrefix(header, "Bearer "))
 }
 
-func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
+func (s *Server) tester(w http.ResponseWriter, r *http.Request) (Tester, bool) {
 	code := codeOf(r)
 	if code == "" {
 		refuse(w, http.StatusUnauthorized, "this copy of VANS has no invite code")
-		return
+		return Tester{}, false
 	}
 	who, found, err := s.Ledger.Tester(r.Context(), code)
 	if err != nil {
 		s.logf("could not look up an invite code: %v", err)
 		reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the VANS server could not check the invite code"}})
-		return
+		return Tester{}, false
 	}
 	if !found {
 		refuse(w, http.StatusUnauthorized, "this invite code is not one VANS knows")
-		return
+		return Tester{}, false
 	}
 	if who.Off {
 		refuse(w, http.StatusForbidden, "this invite code has been switched off")
+		return Tester{}, false
+	}
+	return who, true
+}
+
+func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
+	who, ok := s.tester(w, r)
+	if !ok {
 		return
 	}
 
@@ -201,7 +212,7 @@ func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
 	seen := Activity{At: s.now(), From: who.Name, Kind: asked.Kind, Words: words, App: app}
 
 	if asked.Kind != synth.KindPing {
-		mine, all, err := s.Ledger.Spend(r.Context(), code, Day(s.now()))
+		mine, all, err := s.Ledger.Spend(r.Context(), codeOf(r), Day(s.now()))
 		if err != nil {
 			s.logf("could not count a request for %s: %v", who.Name, err)
 			reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the VANS server could not count the request"}})

@@ -9,7 +9,7 @@ import (
 	"github.com/vedansh/vans/internal/uiact"
 )
 
-var uiActSystemPrompt = fmt.Sprintf(uiActSystemPromptFormat, pressingAKey())
+func uiActSystemPrompt() string { return fmt.Sprintf(uiActSystemPromptFormat, pressingAKey()) }
 
 const uiActSystemPromptFormat = `You write a program that does one thing inside a macOS window, by driving the controls a person would click.
 
@@ -98,7 +98,7 @@ func (c *OpenAICompatible) WriteUIAction(ctx context.Context, req UIActRequest) 
 		maxTokens = int(DefaultMaxTokens)
 	}
 
-	system, err := c.systemFor(uiActSystemPrompt, "program", uiActSchema)
+	system, err := c.systemFor(uiActSystemPrompt(), "program", uiActSchema)
 	if err != nil {
 		return uiact.Program{}, err
 	}

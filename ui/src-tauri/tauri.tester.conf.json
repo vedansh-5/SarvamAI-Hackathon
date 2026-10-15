@@ -1,0 +1,11 @@
+{
+  "bundle": {
+    "createUpdaterArtifacts": true,
+    "resources": [],
+    "externalBin": ["../vans-engine"],
+    "macOS": {
+      "signingIdentity": "VANS Developer",
+      "entitlements": "Entitlements.plist"
+    }
+  }
+}

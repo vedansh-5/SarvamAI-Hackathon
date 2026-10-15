@@ -150,7 +150,7 @@ func TestAnthropicRejectsEmptyCandidates(t *testing.T) {
 // record of what happened; the screen afterwards is not an invitation to do it
 // again.
 func TestTheStepWriterIsToldNotToRepeatItself(t *testing.T) {
-	if !strings.Contains(driveSystemPrompt, "already listed under what has been done") {
+	if !strings.Contains(driveSystemPrompt(), "already listed under what has been done") {
 		t.Error("nothing tells the step writer that a done step is done")
 	}
 }

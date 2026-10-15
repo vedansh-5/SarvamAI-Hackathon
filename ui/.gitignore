@@ -25,6 +25,7 @@ dist-ssr
 
 # The runtime binary, built from ./cmd/vans-engine
 vans-engine
+vans-engine-*
 .env
 .env.*
 *.env

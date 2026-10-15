@@ -108,6 +108,9 @@ measured accuracy of each, is D-232; the lineup is `VANS_PROVIDERS` in `.env`.
 | Console gate (`VANS_CONSOLE_GATE`) | Parameter Store under `/vans/server/`, and the `vans-console` Worker's secret `CONSOLE_GATE` | the VANS server and the Worker; nobody types it |
 | Wrangler sign-in | `~/.wrangler` on this Mac (signed in 2026-10-14 with Vedansh's approval) | `npx wrangler` in `infra/cloudflare/console` |
 | A key typed into Setup | the macOS Keychain, service `dev.vedansh.vans` | the engine |
+| "VANS Developer" signing certificate | the login keychain; a copy in `~/.vans-signing` (back it up) | `codesign`, through `infra/mac/release.sh` |
+| Update signing key | `~/.tauri/vans-updater.key` (back it up) | `infra/mac/release.sh`; copies already out check updates against its public half |
+| A tester's invite code | the tester's Keychain, service `dev.vedansh.vans`, account `invite-code` | the tester build's engine |
 | `vans-deploy` access key | `~/.aws/credentials`, profile `vans-deploy` | the AWS command line |
 | Root access key | `~/.aws/credentials`, profile `default` | the AWS command line |
 | `LIST_TO` | Cloudflare → Workers → `vans` → Settings → Variables and Secrets | the site's form |
@@ -146,7 +149,16 @@ curl -sI https://summonvans.in | head -1
 | Mail | SES, Mumbai, sandbox (200 a day, only to verified addresses) | sends feedback from `feedback@summonvans.in` to Vedansh's Gmail |
 | Logs | `/aws/lambda/vans-server`, kept 14 days | the tester's name and the kind of question; never what was asked (that is in the table, for the console) |
 
+Releases for testers sit in the private bucket `vans-releases` (Mumbai,
+public access blocked): `latest.json`, and per version the signed update
+archive and the `.dmg`. The server reads it through `VANS_RELEASES_BUCKET` in
+Parameter Store and hands out hour-long download links to testers only
+(D-243). `infra/aws/releases-bucket.sh` made it.
+
 ```bash
+./infra/mac/signing-setup.sh            # once: the signing certificate and the update key
+./infra/mac/release.sh "what changed"   # build, sign, check and upload the version in tauri.conf.json
+./infra/mac/tester-link.sh              # a seven-day download link for a new tester
 ./infra/aws/deploy-server.sh            # build and deploy the server, then check it answers
 go run ./cmd/vans-testers add Riya      # a new tester and their code (200 a day unless -daily)
 go run ./cmd/vans-testers list          # every tester and what each used today

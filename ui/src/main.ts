@@ -462,6 +462,7 @@ async function runPreflight(advance = true) {
   clear(checks);
   checks.appendChild(el("p", "meta", "Checking…"));
   loadWatching().catch(console.error);
+  loadInvite().catch(console.error);
 
   let result: Preflight;
   let perms: Permission[];
@@ -2907,6 +2908,45 @@ function showModel(m: ModelStatus) {
       : "VANS needs a key for the model it thinks with. It is kept in your Mac\u2019s Keychain and sent only to that model.";
 }
 
+interface InviteState {
+  tester: boolean;
+  has: boolean;
+}
+
+function showInvite(i: InviteState) {
+  $("invite-section").hidden = !i.tester;
+  $("model-section").hidden = i.tester;
+  field("invite-code").value = "";
+  field("invite-code").placeholder = i.has ? "Saved. Paste a new code to replace it" : "vans-\u2026";
+}
+
+async function loadInvite() {
+  try {
+    showInvite(await invoke<InviteState>("invite"));
+  } catch {}
+}
+
+$("invite-save").addEventListener("click", async () => {
+  const button = $("invite-save") as HTMLButtonElement;
+  const code = field("invite-code").value.trim();
+  if (!code) {
+    $("invite-state").textContent = "Paste the code first.";
+    return;
+  }
+  button.disabled = true;
+  $("invite-state").textContent = "Checking\u2026";
+  try {
+    showInvite(await invoke<InviteState>("set_invite", { code }));
+    $("invite-state").textContent = "Saved. The VANS server knows this code.";
+    runPreflight(false);
+  } catch (e) {
+    $("invite-state").textContent = isRpcError(e) ? withoutThePrefix(e.message) : String(e);
+  } finally {
+    button.disabled = false;
+    fitWindow();
+  }
+});
+
 async function loadModel() {
   try {
     showModel(await invoke<ModelStatus>("model_settings"));
@@ -2959,6 +2999,10 @@ $("model-more").addEventListener("toggle", () => fitWindow());
 $("history-back").addEventListener("click", () => show("preflight"));
 
 $("recheck").addEventListener("click", () => runPreflight(false));
+$("quit").addEventListener("click", () => {
+  invoke("quit_app").catch(console.error);
+});
+
 $("login-item").addEventListener("change", async (e) => {
   const box = e.target as HTMLInputElement;
   try {
