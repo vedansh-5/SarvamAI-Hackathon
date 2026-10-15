@@ -81,6 +81,8 @@ type Server struct {
 
 	Feedback FeedbackSender
 
+	Online func(ctx context.Context) bool
+
 	out   *json.Encoder
 	outMu sync.Mutex
 
@@ -100,6 +102,7 @@ type Server struct {
 
 	noted    int
 	lookedAt time.Time
+	held     []heldOffer
 }
 
 // Serve reads requests from in and writes responses to out until in ends.

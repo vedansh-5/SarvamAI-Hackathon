@@ -5912,3 +5912,25 @@ chooses one; the choice is kept, sent to every window and to the engine
 (`set_accent`). A highlight is always light: pale yellow, light blue,
 lavender, mint or pink, with dark ink on it, on light and dark pages alike.
 A test holds every theme to a light highlight with text on it at 7:1 or more.
+
+## D-245 — Offers wait for the internet, and "before you finish"
+
+Both were asked for by Vedansh on 2026-10-15 and left unbuilt by D-241.
+
+**An offer that needs a model waits for the internet.** Opening an app needs
+nothing, so it is offered at once. Anything else runs as a request, and offering
+it with no connection would put a Run button in front of something that will
+fail. The engine checks the address it actually asks (the model's, or the VANS
+server's on a tester copy) with a three-second connection, only when an offer
+is due. A held offer is tried again every minute and offered as soon as the
+connection is back; after two hours it is dropped, because "like usual" at the
+wrong time is noise.
+
+**"Before you finish."** A fourth kind of timed habit: the last thing done in
+the fifteen minutes before the Mac's last lock or sleep of the day, with nothing
+done after it, on three days. A lunch-time lock is not finishing, because work
+follows it. It is offered by the clock from ten minutes before its usual time
+("Before you finish, stop in Clockify, like usual?"), and not if it was done in
+the last two hours, so something also done in the morning is still offered in
+the evening. When the same thing is also found by time of day on as many days,
+"before you finish" wins, since that is what it is.

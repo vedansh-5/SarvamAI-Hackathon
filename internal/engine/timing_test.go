@@ -87,3 +87,42 @@ func TestAnAppThatIsOnlySometimesFollowedIsNotTimed(t *testing.T) {
 		}
 	}
 }
+
+func TestSomethingDoneJustBeforeTheLastLockIsBeforeYouFinish(t *testing.T) {
+	var events []store.Click
+	for i, end := range [][2]int{{17, 40}, {18, 50}, {18, 5}} {
+		h, m := end[0], end[1]
+		events = append(events,
+			click(day(i, 11, 0), "Clockify", "Stop"),
+			moment(day(i, 13, 0), "lock"),
+			moment(day(i, 13, 30), "unlock"),
+			click(day(i, h, m), "Clockify", "Stop"),
+			moment(day(i, h, m+6), "lock"),
+		)
+	}
+	got := FindTimed(events)
+	if len(got) != 1 || got[0].Trigger.Kind != BeforeDone {
+		t.Fatalf("found %+v, want Stop in Clockify before finishing", got)
+	}
+	if got[0].Line() != "Before you finish, stop in Clockify, like usual?" || got[0].When() != "before you finish for the day, around 18:05 on weekdays" {
+		t.Errorf("said %q / %q", got[0].Line(), got[0].When())
+	}
+}
+
+func TestALockInTheMiddleOfTheDayIsNotFinishing(t *testing.T) {
+	var events []store.Click
+	for i := 0; i < 3; i++ {
+		events = append(events,
+			click(day(i, 12, 50+i), "Slack", "Away"),
+			moment(day(i, 12, 55), "lock"),
+			moment(day(i, 14, 0), "unlock"),
+			click(day(i, 14, 5), "Mail", "Archive"),
+			click(day(i, 16, 10*i), "Notes", "New Note"),
+		)
+	}
+	for _, t2 := range FindTimed(events) {
+		if t2.Trigger.Kind == BeforeDone {
+			t.Errorf("a lunch break was taken for the end of the day: %+v", t2)
+		}
+	}
+}
