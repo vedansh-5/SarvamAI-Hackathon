@@ -2137,3 +2137,38 @@ Was next, in order (all done above):
 - Logo: draft B, the spotlight ring opening for the pointer, which lands on the
   centre. Next: the final vector files (app icon set, favicon, the in-app
   mark) and redrawing the on-screen ghost cursor to the logo's pointer.
+
+## G14. Where it stands, 2026-10-15 evening
+
+Everything in G13 is merged, and so is what followed it:
+
+| PR | What | Decision |
+|---|---|---|
+| #198 | Timing: the line below the dot, trust that grows, good morning, sending what was learned | D-241 |
+| #199, #200 | The mark: app icon, ghost cursor, site favicon (live) | D-242 |
+| #201 | Tester kit: tester build with no instructions in it, invite code, signing, updates through the server, Quit | D-243 |
+| #203 | Marking text on a page with no model call; five colours from `internal/theme/themes.json` | D-244 |
+| #204 | Offers wait for the internet; "before you finish" habits | D-245 |
+| #205 | The flaky guide test steadied | — |
+
+Deployed: the server with `learned` and the update route; the private bucket
+`vans-releases` exists and the server reads it.
+
+**Waiting on Vedansh, in this order:**
+
+1. Read and merge #190 (privacy page: the server, watching and learning) and
+   #202 (install page). Both publish the site.
+2. Run `./infra/mac/signing-setup.sh` once (it asks for the Mac password to trust
+   the certificate), then `./infra/mac/release.sh "first test build"`, then
+   `./infra/mac/tester-link.sh` for a download link.
+3. Name a moment for the hands-on runs: the app from the code (colours in
+   Setup › Appearance, marks on a page, the line below the dot), the Postman
+   retry, the multi-app timed run, and the hands-on suite with Groq and Workers
+   AI writing.
+4. Install from zero on a fresh macOS user (VANS cannot create the user).
+5. Decide on reading on-screen text on the Mac for applications that publish
+   nothing (tester plan, "Applications that publish nothing").
+6. Cloudflare: PR preview builds fail in 0 seconds with no reason on GitHub, and
+   the Wrangler sign-in may not read build logs. Production deploys work. Open
+   the build link on any PR, or turn preview builds off, in the dashboard.
+7. SES DKIM records in Cloudflare DNS, when mail matters.
