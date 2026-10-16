@@ -2192,7 +2192,7 @@ Vedansh's own.
 | #211 | A page for each tester in the console | D-248 |
 | #212 | Visits counted by Cloudflare; Clarity only after Allow | D-249 |
 | #214 | One download link for everyone: `summonvans.in/download` | D-250 |
-| this one | Opening VANS from Applications opens the panel; 0.1.1 | D-251 |
+| #215 | Opening VANS from Applications opens the panel; 0.1.1 | D-251 |
 
 Vedansh read and approved #190 (privacy page) and #202 (install page) on
 2026-10-16; they are merged after this. Everything else in G14's "Waiting on
