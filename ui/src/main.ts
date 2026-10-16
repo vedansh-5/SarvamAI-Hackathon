@@ -706,6 +706,14 @@ function renderPermissions(perms: Permission[]) {
   fitWindow();
 }
 
+document.addEventListener("pointermove", (e) => {
+  const option = (e.target as HTMLElement | null)?.closest?.(".seg > *") as HTMLElement | null;
+  if (!option) return;
+  const box = option.getBoundingClientRect();
+  option.style.setProperty("--mx", `${e.clientX - box.left}px`);
+  option.style.setProperty("--my", `${e.clientY - box.top}px`);
+});
+
 let lastPerms: Permission[] = [];
 
 $("perms-fold").addEventListener("click", () => {

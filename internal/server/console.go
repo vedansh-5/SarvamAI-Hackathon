@@ -152,7 +152,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("Referrer-Policy", "no-referrer")
-	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'self'; frame-ancestors 'none'")
 
 	if c.Gate != "" && subtle.ConstantTimeCompare([]byte(r.Header.Get(GateHeader)), []byte(c.Gate)) != 1 {
 		http.NotFound(w, r)

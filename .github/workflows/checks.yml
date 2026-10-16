@@ -59,6 +59,8 @@ jobs:
         working-directory: website
     steps:
       - uses: actions/checkout@v4
+      - name: The site's colours are the app's
+        run: cmp ../internal/theme/themes.json src/themes.json || { echo "website/src/themes.json differs from internal/theme/themes.json; copy the app's file over it"; exit 1; }
       - uses: actions/setup-node@v4
         with:
           node-version: 22

@@ -636,6 +636,12 @@ section:not([hidden]) {
   color: rgb(var(--panel-rgb));
 }
 
+.seg > *:not(.on):hover {
+  color: var(--ink);
+  background: radial-gradient(70px circle at var(--mx, 50%) var(--my, 50%), rgba(var(--volt-rgb), 0.3), transparent 70%);
+  box-shadow: inset 0 0 0 1px rgba(var(--volt-rgb), 0.5);
+}
+
 .seg.bare {
   padding: 0;
   background: transparent;
