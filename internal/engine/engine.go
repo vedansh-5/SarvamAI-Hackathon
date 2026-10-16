@@ -305,6 +305,7 @@ type Plan struct {
 	Say      string
 	SayTitle string
 	Copy     string
+	Panel    string
 
 	Fields []string
 	Rows   []runner.Row

@@ -227,6 +227,27 @@ func TestASettingAlreadyAsAskedChangesNothing(t *testing.T) {
 	if plan.Setting != nil || plan.NeedsCommit() || !strings.Contains(plan.Say, "already") {
 		t.Errorf("plan = %+v, want to be told it is already dark", plan)
 	}
+	if plan.Panel != "dark" || !strings.Contains(plan.Say, "VANS is dark now too") {
+		t.Errorf("panel = %q, say = %q: an already dark Mac should still turn VANS dark", plan.Panel, plan.Say)
+	}
+}
+
+func TestChangingTheAppearanceTakesVANSWithIt(t *testing.T) {
+	e := &Engine{Settings: &fakeSettings{values: map[string]string{macset.Dark: "on", macset.Volume: "30"}}}
+	light, err := e.planSetting(context.Background(), "switch to light mode", "light mode", "light")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if light.Setting == nil || light.Panel != "light" {
+		t.Errorf("light mode = %+v, want the Mac changed and VANS to follow", light)
+	}
+	volume, err := e.planSetting(context.Background(), "set the volume to 50", "volume", "50")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if volume.Panel != "" {
+		t.Errorf("the volume changed VANS's colours: %q", volume.Panel)
+	}
 }
 
 func TestASettingVANSDoesNotChangeIsDeclinedWithWhatItCan(t *testing.T) {

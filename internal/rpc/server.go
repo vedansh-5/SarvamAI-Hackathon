@@ -576,6 +576,7 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 		ModeWhy:        plan.ModeWhy,
 		Say:            plan.Say,
 		SayTitle:       plan.SayTitle,
+		Panel:          plan.Panel,
 		Marked:         plan.Marked,
 		Copy:           plan.Copy,
 		App:            app,

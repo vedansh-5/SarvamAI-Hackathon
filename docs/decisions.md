@@ -6102,3 +6102,17 @@ Now:
   opens the panel once, which is harmless.
 
 Released as 0.1.1, the first version that reaches a tester through the updater.
+
+## D-252 — Dark or light mode takes the VANS panel with it
+
+Found by Vedansh on 2026-10-16 in the installed build: "switch to dark mode"
+on a Mac that was already dark answered "The appearance is already dark" and
+left the VANS panel light, which is what he was looking at. The panel's own
+light or dark choice (the ◐ button) is kept separately and had been set to
+light.
+
+A dark or light request now covers both. When the Mac is already as asked,
+VANS turns its own panel to match and says "Your Mac is already dark. VANS is
+dark now too." When the Mac changes, the panel follows once the change is
+done. The plan carries `Panel` ("dark" or "light") for the panel to act on;
+no other setting touches it.
