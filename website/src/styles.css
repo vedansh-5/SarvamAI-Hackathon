@@ -1372,7 +1372,8 @@ section {
   color: var(--ink);
 }
 
-.privacy-article ul {
+.privacy-article ul,
+.privacy-article ol {
   margin: 0 0 24px;
   padding-left: 22px;
 }
