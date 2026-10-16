@@ -17,6 +17,10 @@ func TestWhatToMarkIsUnderstoodWithoutAModel(t *testing.T) {
 		{"highlight 23215555", Match{Contains, "23215555"}},
 		{"find the ones called Riya here", Match{Equals, "Riya"}},
 		{"could you highlight the ones that start with 2321 for me", Match{StartsWith, "2321"}},
+		{"highlight the PRs made by vedansh-5", Match{Contains, "vedansh-5"}},
+		{"highlight the issues opened by @piyush182004 on this page", Match{Contains, "piyush182004"}},
+		{"mark the comments by Riya", Match{Contains, "Riya"}},
+		{"highlight the commits by dev_42 here", Match{Contains, "dev_42"}},
 	} {
 		got, ok := Understand(c.said)
 		if !ok || got != c.want {
@@ -34,6 +38,9 @@ func TestOtherRequestsAreLeftToTheRouter(t *testing.T) {
 		"how do I highlight text that starts with a capital",
 		"clear the highlighting",
 		"mark this email as read",
+		"highlight the text by clicking",
+		"highlight the rows by date",
+		"how do I highlight the PRs made by vedansh-5",
 	} {
 		if got, ok := Understand(said); ok {
 			t.Errorf("%q was taken as marking text: %+v", said, got)

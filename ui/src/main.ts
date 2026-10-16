@@ -1734,7 +1734,7 @@ function renderFailure(e: unknown) {
     const data = e.data as Unroutable;
     $("notunderstood-why").textContent = data?.why ?? "";
     $("notunderstood-why").hidden = !data?.why;
-    renderSuggestions($("can-do"), currentSuggestions());
+    renderSuggestions($("can-do"), currentSuggestions().slice(0, 4));
     return;
   }
 

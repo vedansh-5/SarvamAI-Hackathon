@@ -6116,3 +6116,21 @@ VANS turns its own panel to match and says "Your Mac is already dark. VANS is
 dark now too." When the Mac changes, the panel follows once the change is
 done. The plan carries `Panel` ("dark" or "light") for the panel to act on;
 no other setting touches it.
+
+## D-253 — Marking "the ones by someone", and a shorter "not sure" list
+
+Found by Vedansh on 2026-10-16 on a GitHub pull request list: "highlight the
+PRs made by vedansh-5" took 34 to 40 seconds and then failed. The marker that
+needs no model (D-244) knew "start with", "end with", "contain" and quoted
+words, not "by someone", so the request went to the model's restyle, whose
+summary of the page had no authors in it.
+
+Now "… by X", with or without "made", "opened", "created", "written",
+"authored", "posted", "submitted", "filed", "raised", "sent", "added" or
+"started" before "by", marks every place X appears, at once and with no model
+call. X must look like a name: it starts with @ or a capital letter, or has a
+digit, "-", "_" or "." in it. That keeps "highlight the text by clicking" and
+"the rows by date" out.
+
+The "I'm not sure what to do with that" screen listed every suggestion VANS
+has, fifteen of them, most unrelated. It now shows four.
