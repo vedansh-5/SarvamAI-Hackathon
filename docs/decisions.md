@@ -6007,3 +6007,25 @@ test holds them to that.
 
 **Where it is reached.** The welcome's second button, a quiet chip below the box
 ("What can VANS do?"), and Setup › Record.
+
+## D-248 — A page for each tester in the console
+
+Asked for by Vedansh on 2026-10-16: one place to see how much a tester used
+VANS, how it went, and what VANS learned about them.
+
+`/testers/<name>` gathers what the server already keeps for that one tester:
+today's use against the allowance, requests a day for the thirty days the
+records are kept, the share that finished and the typical answer time, what
+they ask for (by kind), the applications, the failures with an example, their
+latest fifty requests, and the habits the panel last sent with when it sent
+them. The allowance and the on/off switch work from the page too, and come
+back to it. A name in the Testers list leads to it.
+
+**Memories are not shown, by choice.** Facts, routines and schedules stay in
+`~/.vans` on the tester's Mac and are never sent; the privacy page promises
+that, and Vedansh chose to keep it (same day). The habits and the request
+records already say how each person uses VANS. Showing memories would mean
+uploading them, which would be a change to tell testers about first.
+
+Nothing new is kept: the page only reads the records D-236 and D-241 already
+keep.

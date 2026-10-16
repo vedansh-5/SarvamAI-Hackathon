@@ -19,6 +19,7 @@ type Memory struct {
 	feedback []Feedback
 	activity []Activity
 	learned  map[string]string
+	sentAt   map[string]time.Time
 }
 
 var (
@@ -60,14 +61,21 @@ func (m *Memory) Keep(_ context.Context, f Feedback) error {
 	return nil
 }
 
-func (m *Memory) KeepLearned(_ context.Context, from string, _ time.Time, habits string) error {
+func (m *Memory) KeepLearned(_ context.Context, from string, at time.Time, habits string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.learned == nil {
-		m.learned = map[string]string{}
+		m.learned, m.sentAt = map[string]string{}, map[string]time.Time{}
 	}
 	m.learned[from] = habits
+	m.sentAt[from] = at
 	return nil
+}
+
+func (m *Memory) Habits(_ context.Context, from string) (Habits, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return habitsFrom(m.sentAt[from], m.learned[from])
 }
 
 func (m *Memory) Learned(from string) string {

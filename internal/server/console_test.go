@@ -216,3 +216,55 @@ func TestBehindAGateTheConsoleIsInvisibleWithoutIt(t *testing.T) {
 		t.Errorf("through the gate the links should be plain: %d", rec.Code)
 	}
 }
+
+func TestATesterHasTheirOwnPage(t *testing.T) {
+	srv, ledger, client := consoleServer(t)
+	ctx := context.Background()
+	at := time.Date(2026, 10, 14, 8, 0, 0, 0, time.UTC)
+	other := "vans-another-tester-code"
+	_ = ledger.AddTester(ctx, Tester{Name: "Kabir", Code: other, Daily: 5})
+	_, _, _ = ledger.Spend(ctx, riya, Day(at))
+	_ = ledger.Record(ctx, Activity{At: at, From: "Riya", Kind: "app_guide", Words: "how do I add a layer", App: "Figma", Took: 2 * time.Second, By: "groq/a"})
+	_ = ledger.Record(ctx, Activity{At: at.Add(time.Minute), From: "Riya", Kind: "app_action", Words: "make a note", App: "Notes", Fault: "not_found"})
+	_ = ledger.Record(ctx, Activity{At: at, From: "Kabir", Kind: "app_guide", Words: "something only Kabir asked", App: "Mail"})
+	habits, _ := json.Marshal([]synth.LearnedHabit{{What: "Start in Clockify", When: "after you open Mail", Days: 4, Times: 3, Yes: 2, Always: true}})
+	_ = ledger.KeepLearned(ctx, "Riya", at, string(habits))
+	signIn(t, srv, client)
+
+	_, list := page(t, client, http.MethodGet, srv.URL+"/console/testers", nil)
+	if !strings.Contains(list, `href="/console/testers/Riya"`) {
+		t.Error("the testers list does not link to Riya's page")
+	}
+
+	status, body := page(t, client, http.MethodGet, srv.URL+"/console/testers/Riya", nil)
+	if status != http.StatusOK {
+		t.Fatalf("Riya's page answered %d", status)
+	}
+	for _, want := range []string{"how do I add a layer", "make a note", "Figma", "not found", "Start in Clockify", "after you open Mail", "always", "of 10"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("Riya's page is missing %q", want)
+		}
+	}
+	if strings.Contains(body, "something only Kabir asked") {
+		t.Error("Riya's page shows another tester's request")
+	}
+
+	if status, _ := page(t, client, http.MethodPost, srv.URL+"/console/testers/daily", url.Values{"code": {riya}, "daily": {"25"}, "back": {"Riya"}}); status != http.StatusOK {
+		t.Fatalf("changing the allowance from Riya's page answered %d", status)
+	}
+	if got, _, _ := ledger.Tester(ctx, riya); got.Daily != 25 {
+		t.Errorf("allowance = %d, want 25", got.Daily)
+	}
+
+	if status, _ := page(t, client, http.MethodGet, srv.URL+"/console/testers/Nobody", nil); status != http.StatusNotFound {
+		t.Errorf("a tester who does not exist answered %d", status)
+	}
+}
+
+func TestATesterPageNeedsTheKey(t *testing.T) {
+	srv, _, client := consoleServer(t)
+	status, body := page(t, client, http.MethodGet, srv.URL+"/console/testers/Riya", nil)
+	if status != http.StatusUnauthorized || strings.Contains(body, riya) {
+		t.Errorf("Riya's page answered %d without the key", status)
+	}
+}

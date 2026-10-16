@@ -59,6 +59,8 @@ button.plain { background: var(--fill); color: var(--ink); }
 .login input { width: 100%; margin: 12px 0; }
 svg text { fill: var(--mute); font-size: 10px; }
 svg rect { fill: var(--bar); }
+a { color: var(--accent); text-decoration: none; }
+.back { display: inline-block; margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -76,7 +78,7 @@ svg rect { fill: var(--bar); }
   <b>VANS</b>
   <nav>
     <a href="{{$.Base}}/" {{if eq .Page "overview"}}class="on"{{end}}>Overview</a>
-    <a href="{{$.Base}}/testers" {{if eq .Page "testers"}}class="on"{{end}}>Testers</a>
+    <a href="{{$.Base}}/testers" {{if or (eq .Page "testers") (eq .Page "tester")}}class="on"{{end}}>Testers</a>
     <a href="{{$.Base}}/activity" {{if eq .Page "activity"}}class="on"{{end}}>Activity</a>
     <a href="{{$.Base}}/feedback" {{if eq .Page "feedback"}}class="on"{{end}}>Feedback</a>
   </nav>
@@ -148,7 +150,7 @@ svg rect { fill: var(--bar); }
       <tr><th>Name</th><th>Code</th><th>Today</th><th>Daily allowance</th><th>Last seen</th><th>Last 7 days</th><th></th></tr>
       {{range .Testers}}
       <tr {{if .Off}}class="done"{{end}}>
-        <td>{{.Name}}</td><td><code>{{.Code}}</code></td>
+        <td><a href="{{$.Base}}/testers/{{.Name}}">{{.Name}}</a></td><td><code>{{.Code}}</code></td>
         <td>{{.Today}}{{if .Daily}} <span class="mute">({{pct .Today .Daily}}%)</span>{{end}}</td>
         <td><form method="post" action="{{$.Base}}/testers/daily" class="row">
           <input type="hidden" name="code" value="{{.Code}}">
@@ -162,6 +164,85 @@ svg rect { fill: var(--bar); }
       </tr>
       {{else}}<tr><td colspan="7" class="mute">No testers yet.</td></tr>{{end}}
     </table>
+  </div>
+
+{{else if eq .Page "tester"}}
+  {{with .Who}}
+  <a class="back" href="{{$.Base}}/testers">‹ Testers</a>
+  <h1>{{.Name}}{{if .Off}} <span class="mute">· switched off</span>{{end}}</h1>
+  <div class="stats">
+    <div class="card stat"><div class="n">{{.Today}}{{if .Daily}}<span class="mute" style="font-size:17px"> of {{.Daily}}</span>{{end}}</div><div class="l">requests today{{if .Daily}} ({{pct .Today .Daily}}% of the allowance){{end}}</div></div>
+    <div class="card stat"><div class="n">{{.Week}}</div><div class="l">requests, last 7 days</div></div>
+    <div class="card stat"><div class="n">{{$.Answered}}</div><div class="l">requests, last 30 days</div></div>
+    <div class="card stat"><div class="n">{{pct $.Finished $.Answered}}%</div><div class="l">finished, last 30 days</div></div>
+    <div class="card stat"><div class="n">{{took $.Median}}</div><div class="l">typical answer time</div></div>
+    <div class="card stat"><div class="n" style="font-size:20px;padding-top:10px">{{when .LastSeen}}</div><div class="l">last seen</div></div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="row">
+      <form method="post" action="{{$.Base}}/testers/daily" class="row">
+        <input type="hidden" name="code" value="{{.Code}}"><input type="hidden" name="back" value="{{.Name}}">
+        <span class="mute">Daily allowance</span>
+        <input name="daily" type="number" min="0" value="{{.Daily}}"><button class="plain" type="submit">Save</button>
+      </form>
+      <form method="post" action="{{$.Base}}/testers/{{if .Off}}on{{else}}off{{end}}" style="margin-left:auto">
+        <input type="hidden" name="code" value="{{.Code}}"><input type="hidden" name="back" value="{{.Name}}">
+        <button class="plain" type="submit">{{if .Off}}Switch on{{else}}Switch off{{end}}</button>
+      </form>
+    </div>
+  </div>
+  {{end}}
+  <div class="grid">
+    <div class="card wide">
+      <h2>Requests a day, last 30 days</h2>
+      <svg viewBox="0 0 1080 160" width="100%" role="img" aria-label="Requests a day for the last 30 days">
+        {{range $i, $d := .Days}}
+          <rect x="{{$d.X}}" y="{{subtract 140 $d.Height}}" width="24" height="{{$d.Height}}" rx="3"><title>{{$d.Label}}: {{$d.Count}}</title></rect>
+          {{if eq (mod $i 5) 0}}<text x="{{$d.X}}" y="156">{{$d.Label}}</text>{{end}}
+        {{end}}
+      </svg>
+    </div>
+    <div class="card">
+      <h2>What they ask for</h2>
+      {{if .Kinds}}<table>{{range .Kinds}}<tr><td>{{words .Name}}</td><td style="width:50%"><div class="bar" style="width: {{.Width}}%"></div></td><td>{{.Count}}</td></tr>{{end}}</table>
+      {{else}}<p class="mute">Nothing yet.</p>{{end}}
+    </div>
+    <div class="card">
+      <h2>Applications</h2>
+      {{if .Apps}}<table>{{range .Apps}}<tr><td>{{.Name}}</td><td style="width:50%"><div class="bar" style="width: {{.Width}}%"></div></td><td>{{.Count}}</td></tr>{{end}}</table>
+      {{else}}<p class="mute">None yet.</p>{{end}}
+    </div>
+    <div class="card">
+      <h2>Failures</h2>
+      {{if .Failures}}<table>{{range .Failures}}<tr><td>{{words .Name}}{{if .Example}}<div class="mute">e.g. {{.Example}}</div>{{end}}</td><td>{{.Count}}</td></tr>{{end}}</table>
+      {{else}}<p class="mute">None in the last 30 days.</p>{{end}}
+    </div>
+    <div class="card wide">
+      <h2>Habits VANS found{{if not .Habits.At.IsZero}} <span class="mute">· sent {{when .Habits.At}}</span>{{end}}</h2>
+      {{if .Habits.List}}
+      <table>
+        <tr><th>What</th><th>When</th><th>Days seen</th><th>Times done</th><th>Offers taken</th><th>Skipped</th><th>Now</th></tr>
+        {{range .Habits.List}}
+        <tr><td>{{.What}}</td><td class="mute">{{.When}}</td><td>{{.Days}}</td><td>{{.Times}}</td><td>{{.Yes}}</td><td>{{.Skips}}</td>
+          <td>{{if .Stopped}}<span class="mute">stopped</span>{{else if .Always}}<span class="good">always</span>{{else if .Answer}}{{words .Answer}}{{else}}<span class="mute">not asked yet</span>{{end}}</td></tr>
+        {{end}}
+      </table>
+      {{else}}<p class="mute">None sent yet. VANS sends them when its list changes, and not at all when Learning is off.</p>{{end}}
+    </div>
+    <div class="card wide">
+      <h2>Their latest requests</h2>
+      <table>
+        <tr><th>When</th><th>What they asked</th><th>Application</th><th>Kind</th><th>Result</th><th>Took</th><th>Model</th></tr>
+        {{range .Rows}}
+        <tr>
+          <td class="mute">{{when .At}}</td><td>{{if .Words}}{{.Words}}{{else}}<span class="mute">-</span>{{end}}</td>
+          <td>{{.App}}</td><td class="mute">{{words .Kind}}</td>
+          <td>{{if .Fault}}<span class="bad">{{words .Fault}}</span>{{else}}<span class="good">answered</span>{{end}}</td>
+          <td>{{took .Took}}</td><td class="mute">{{.By}}</td>
+        </tr>
+        {{else}}<tr><td colspan="7" class="mute">No requests in the last 30 days.</td></tr>{{end}}
+      </table>
+    </div>
   </div>
 
 {{else if eq .Page "activity"}}
