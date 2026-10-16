@@ -20,8 +20,13 @@
         } catch (e) {
           document.documentElement.setAttribute("data-theme", "light");
         }
+        try {
+          var a = localStorage.getItem("vans-accent") || "yellow";
+          document.documentElement.setAttribute("data-accent", a);
+        } catch (e) {}
       })();
     </script>
+    <script type="module" src="/src/theme.ts"></script>
   </head>
   <body class="privacy-body">
     <header class="site-header">
@@ -29,6 +34,12 @@
         <a href="/" class="header-brand" aria-label="VANS home">VANS</a>
         <div class="header-right">
           <a href="/" class="text-link header-nav-link">Home</a>
+          <div class="theme-picker" id="theme-picker">
+            <button type="button" class="theme-picker-fold" id="theme-picker-fold" aria-label="Theme colour" aria-expanded="false" aria-haspopup="true">
+              <span class="theme-picker-fold-dot" aria-hidden="true"></span>
+            </button>
+            <div class="theme-swatches" id="theme-swatches" role="group" aria-label="Theme colours"></div>
+          </div>
           <button type="button" id="header-theme-toggle" class="theme-toggle btn-ghost" aria-label="Toggle light or dark theme">
             <span class="theme-icon" aria-hidden="true"></span>
             <span class="theme-label">Dark mode</span>
@@ -89,8 +100,8 @@
 <li>the words of your request;</li>
 <li>the part of what it read that the request needs: the window's controls, the page text, the selected text, the file names, or the picture of the window and the words found in it.</li>
 </ul>
-<p>In the test builds this goes from your Mac to the VANS server, and from there to a model provider. The server holds the keys and the instructions for the model, so your Mac does not need them. It passes what you sent to the model and the answer back to you; it does not keep the window's controls, the page text, the selected text, the file names or the picture. When the text a window was showing has been sent to answer you, the panel says so in the answer.</p>
-<p>The VANS server runs on Amazon Web Services in Mumbai, India. The model providers are Google (the Gemini API), Groq and Cloudflare (Workers AI); each request goes to whichever is quickest and most accurate for it at that moment. Each provider processes what it receives under its own terms and privacy policy. If the providers change, this page will say so before the change reaches you.</p>
+<p>In the test builds this goes from your Mac to the VANS server, and from there to a model provider. It passes what you sent to the model and the answer back to you; it does not keep the window's controls, the page text, the selected text, the file names or the picture. When the text a window was showing has been sent to answer you, the panel says so in the answer.</p>
+<p>The VANS server runs on Amazon Web Services in Mumbai, India. The model providers are Google (the Gemini API), Groq and Cloudflare (Workers AI). Each provider processes what it receives under its own terms and privacy policy. If the providers change, this page will say so before the change reaches you.</p>
 <p>Nothing is sold, and nothing is used for advertising.</p>
 <h3>What VANS keeps, and where</h3>
 <p>Everything VANS remembers is in one folder on your Mac, <code>~/.vans</code>. It holds:</p>

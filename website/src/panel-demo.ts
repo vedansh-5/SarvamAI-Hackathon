@@ -1,5 +1,6 @@
 import { DotField } from "./dots.ts";
 import { REQUEST_FACTS, KEYS } from "./facts.ts";
+import { onThemeChange, savedTheme, type Theme } from "./theme.ts";
 
 export interface DemoQuery {
   text: string;
@@ -63,8 +64,8 @@ export function initLivePanel(container: HTMLElement) {
                 <button type="button" class="chip write" data-q="move the screenshots on my Desktop into a folder called Screenshots">
                   <span class="dot"></span><span>move screenshots</span>
                 </button>
-                <button type="button" class="chip" data-q="what does this error say">
-                  <span class="dot"></span><span>what does this error say</span>
+                <button type="button" class="chip" data-q="highlight the ones that start with 23">
+                  <span class="dot"></span><span>highlight starting with 23</span>
                 </button>
               </div>
             </div>
@@ -140,6 +141,14 @@ Move Screenshot 2026-10-13 at 10.02.48.png</div>
     dot: 0.28,
     baseAlpha: 0.35,
   });
+
+  const updateDotColours = (t: Theme, isDark: boolean) => {
+    dotField.colours(t.accent, isDark ? "rgba(243, 244, 238, 0.42)" : "rgba(16, 17, 14, 0.44)");
+  };
+  const initTheme = savedTheme();
+  updateDotColours(initTheme, document.documentElement.getAttribute("data-theme") === "dark");
+  onThemeChange((t, isDark) => updateDotColours(t, isDark));
+
   dotField.start();
 
   function updateReadout(timeText: string) {

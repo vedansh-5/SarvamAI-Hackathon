@@ -31,6 +31,7 @@ VANS opens its Setup screen the first time.
 
 1. **Permissions.** Press Allow all and answer each macOS prompt as it comes up. Accessibility and Screen Recording can only be switched on by you, in System Settings: VANS takes you there and comes back when they are on.
 2. **Invite code.** Paste the code under Invite code and press Save and check.
+3. **Chrome.** To let VANS mark things on a page or answer questions about web pages in Google Chrome, turn on View › Developer › Allow JavaScript from Apple Events in Chrome's menu bar.
 
 VANS sits at the top of your screen, as a small dot in the middle of the menu bar. Click the dot, or press `⌥Space`, and ask how to do something.
 

@@ -12,7 +12,8 @@ export interface RequestFact {
   id: string;
   query: string;
   whatHappens: string;
-  kind: "teaching" | "reading" | "writing" | "files" | "schedule";
+  kind: "teaching" | "marking" | "reading" | "files";
+  group: "show" | "mark" | "do";
   colorToken: "blue" | "teal" | "green" | "violet";
   targetDemo: "guide" | "panel";
   sampleAnswer?: string;
@@ -20,11 +21,13 @@ export interface RequestFact {
 }
 
 export const REQUEST_FACTS: RequestFact[] = [
+  // Show you how
   {
     id: "wallpaper",
     query: "how do I change my wallpaper",
     whatHappens: "Tells you which app it lives in, then points at each control in turn",
     kind: "teaching",
+    group: "show",
     colorToken: "blue",
     targetDemo: "guide",
     sourceApp: "System Settings",
@@ -35,6 +38,7 @@ export const REQUEST_FACTS: RequestFact[] = [
     query: "show me where the search box is",
     whatHappens: "Points at it on your screen and waits for you",
     kind: "teaching",
+    group: "show",
     colorToken: "teal",
     targetDemo: "guide",
     sourceApp: "System Settings",
@@ -45,17 +49,53 @@ export const REQUEST_FACTS: RequestFact[] = [
     query: "how do I add a reminder for tomorrow",
     whatHappens: "Walks you through it in Reminders, and offers to type the text for you",
     kind: "teaching",
+    group: "show",
     colorToken: "violet",
     targetDemo: "guide",
     sourceApp: "Reminders",
     sampleAnswer: "Open Reminders. Click + at top right, enter the title, and pick Tomorrow for the date.",
   },
+
+  // Mark things on the page
+  {
+    id: "mark-start",
+    query: "highlight the ones that start with 23",
+    whatHappens: "Marks only those numbers, in your colour, right on the page",
+    kind: "marking",
+    group: "mark",
+    colorToken: "green",
+    targetDemo: "panel",
+    sampleAnswer: 'Marked 10 items starting with "23" in your accent colour on the page. Press esc to clear.',
+  },
+  {
+    id: "mark-word",
+    query: 'highlight "Pending"',
+    whatHappens: "Marks every place the word appears, and nothing around it",
+    kind: "marking",
+    group: "mark",
+    colorToken: "blue",
+    targetDemo: "panel",
+    sampleAnswer: 'Marked 4 occurrences of "Pending" on the page. Press esc to clear.',
+  },
+  {
+    id: "mark-end",
+    query: "highlight the IDs ending in 07",
+    whatHappens: "The same, for the end of the number. Esc on the page takes the marks off",
+    kind: "marking",
+    group: "mark",
+    colorToken: "violet",
+    targetDemo: "panel",
+    sampleAnswer: 'Marked 6 IDs ending in "07" on the page. Press esc to clear.',
+  },
+
+  // Read and do
   {
     id: "error",
     query: "what does this error say",
     whatHappens: "Reads what is on screen and explains it in plain words",
     kind: "reading",
-    colorToken: "green",
+    group: "do",
+    colorToken: "teal",
     targetDemo: "panel",
     sampleAnswer: "The alert says disk space is running low on Macintosh HD. About 4.2 GB remains free.",
   },
@@ -64,34 +104,18 @@ export const REQUEST_FACTS: RequestFact[] = [
     query: "what is this page about",
     whatHappens: "Reads the page in front and answers in the panel",
     kind: "reading",
+    group: "do",
     colorToken: "blue",
     targetDemo: "panel",
-    sampleAnswer: "This page presents VANS: an on-screen guide for Mac that points at controls step-by-step or does the task for you.",
-  },
-  {
-    id: "translate",
-    query: 'translate "good morning, see you at three" to Hindi',
-    whatHappens: "Works on the quoted or selected text and hands it back to copy",
-    kind: "writing",
-    colorToken: "violet",
-    targetDemo: "panel",
-    sampleAnswer: 'सुप्रभात, तीन बजे मिलते हैं (Suprabhat, teen baje milte hain).\n\nCopied to clipboard.',
+    sampleAnswer: "This page presents VANS: a layer for Mac that points at controls step-by-step or does the task for you.",
   },
   {
     id: "screenshots",
     query: "move the screenshots on my Desktop into a folder called Screenshots",
     whatHappens: "Shows what it will move, waits for you, and can put every file back",
     kind: "files",
+    group: "do",
     colorToken: "teal",
     targetDemo: "panel",
-  },
-  {
-    id: "stretch",
-    query: "in 1 minute remind me to stretch",
-    whatHappens: "Brings it back at the time. It does not run things behind your back",
-    kind: "schedule",
-    colorToken: "green",
-    targetDemo: "panel",
-    sampleAnswer: "Reminder scheduled for 1 minute from now. VANS will post a notification when time is up.",
   },
 ];

@@ -35,7 +35,7 @@ These are the standing rules for `summonvans.in`. They hold for every change, wh
 
 ## 5. Colour and shape
 
-- **Volt is VANS.** The pointer, the ring, the primary button, one accent per screen.
+- **The accent is the visitor's VANS colour, yellow unless they pick another from `src/themes.json`; the mark stays yellow.** The pointer, the ring, the primary button, one accent per screen.
 - **Red means something outside VANS is about to change.** It appears only in the confirm demo. Never as decoration, never for errors in general.
 - The illustration colours (blue, teal, green, violet) are for pictures only: inside drawn windows, as marks, as soft washes. Never for text, and no reds, pinks or oranges among them.
 - **Light is the default theme.** A first visit is light whatever the system says. The switch is in the header.

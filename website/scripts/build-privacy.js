@@ -166,8 +166,13 @@ function buildPage({ name, title, description }) {
         } catch (e) {
           document.documentElement.setAttribute("data-theme", "light");
         }
+        try {
+          var a = localStorage.getItem("vans-accent") || "yellow";
+          document.documentElement.setAttribute("data-accent", a);
+        } catch (e) {}
       })();
     </script>
+    <script type="module" src="/src/theme.ts"></script>
   </head>
   <body class="privacy-body">
     <header class="site-header">
@@ -175,6 +180,12 @@ function buildPage({ name, title, description }) {
         <a href="/" class="header-brand" aria-label="VANS home">VANS</a>
         <div class="header-right">
           <a href="/" class="text-link header-nav-link">Home</a>
+          <div class="theme-picker" id="theme-picker">
+            <button type="button" class="theme-picker-fold" id="theme-picker-fold" aria-label="Theme colour" aria-expanded="false" aria-haspopup="true">
+              <span class="theme-picker-fold-dot" aria-hidden="true"></span>
+            </button>
+            <div class="theme-swatches" id="theme-swatches" role="group" aria-label="Theme colours"></div>
+          </div>
           <button type="button" id="header-theme-toggle" class="theme-toggle btn-ghost" aria-label="Toggle light or dark theme">
             <span class="theme-icon" aria-hidden="true"></span>
             <span class="theme-label">Dark mode</span>

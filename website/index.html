@@ -3,16 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VANS — Ask how. It shows you, right on your screen.</title>
+    <title>VANS — Ask how, in the app you are in. It shows you there.</title>
     <meta
       name="description"
-      content="VANS is a guide for Mac you summon with ⌥Space. Ask how to do something and it points at the next thing to click and waits while you do it."
+      content="VANS is a layer you summon with ⌥Space over any app or page. It looks at your screen, points at the next thing to click and waits while you do it, or does the job for you."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta property="og:title" content="VANS — Ask how. It shows you, right on your screen." />
+    <meta property="og:title" content="VANS — Ask how, in the app you are in. It shows you there." />
     <meta
       property="og:description"
-      content="A guide for Mac you summon with ⌥Space. It points at the next thing to click and waits while you do it, or does the job for you."
+      content="A layer for Mac you summon with ⌥Space over any app or page. It points at the next thing to click and waits while you do it, or does the job for you."
     />
     <meta property="og:image" content="/og-image.svg" />
     <meta property="og:type" content="website" />
@@ -26,8 +26,13 @@
         } catch (e) {
           document.documentElement.setAttribute("data-theme", "light");
         }
+        try {
+          var a = localStorage.getItem("vans-accent") || "yellow";
+          document.documentElement.setAttribute("data-accent", a);
+        } catch (e) {}
       })();
     </script>
+    <script type="module" src="/src/theme.ts"></script>
   </head>
   <body>
     <canvas id="bg-canvas" aria-hidden="true"></canvas>
@@ -38,6 +43,12 @@
         <a href="/" class="header-brand" aria-label="VANS home">VANS</a>
         <div class="header-right">
           <a href="/privacy" class="header-link text-link">Privacy</a>
+          <div class="theme-picker" id="theme-picker">
+            <button type="button" class="theme-picker-fold" id="theme-picker-fold" aria-label="Theme colour" aria-expanded="false" aria-haspopup="true">
+              <span class="theme-picker-fold-dot" aria-hidden="true"></span>
+            </button>
+            <div class="theme-swatches" id="theme-swatches" role="group" aria-label="Theme colours"></div>
+          </div>
           <button type="button" id="header-theme-toggle" class="theme-toggle btn-ghost" aria-label="Toggle light or dark theme">
             <span class="theme-icon" aria-hidden="true"></span>
             <span class="theme-label">Dark mode</span>
@@ -51,19 +62,19 @@
       <section id="hero" class="hero-section">
         <div class="hero-copy">
           <div class="kicker"><span class="kicker-dot" aria-hidden="true"></span>VANS · FOR MAC</div>
-          <h1 class="headline">Ask how. It shows you, right on your screen.</h1>
+          <h1 class="headline">Ask how, in the app you are in. It shows you there.</h1>
           <p class="subhead">
-            VANS is a guide you summon with <kbd>⌥</kbd><kbd>Space</kbd>. Ask how to do something and it points at the next thing to click, in the app you are already in, and waits while you do it. When you would rather not, it can do the job for you.
+            VANS is a layer you summon with <kbd>⌥</kbd><kbd>Space</kbd> over any app or page. It looks at your screen, so the help fits your version, your settings and what you have open. Ask how, and it points at the next thing to click and waits while you do it. When you would rather not, it does the job, and asks before it changes anything.
           </p>
           <div class="hero-actions">
-            <a href="#why" class="vans-pill" data-open="get-sheet">
+            <a href="#testing" class="vans-pill" data-open="get-sheet">
               <span class="vans-pill-icon" aria-hidden="true"></span>
               <span class="vans-pill-text">
                 <span class="vans-pill-label">Join the testers</span>
                 <span class="vans-pill-halo" aria-hidden="true">Join the testers</span>
               </span>
             </a>
-            <a href="#why" class="text-link" data-open="windows-sheet">On Windows? Join the list.</a>
+            <a href="#testing" class="text-link" data-open="windows-sheet">On Windows? Join the list.</a>
           </div>
         </div>
 
@@ -103,6 +114,7 @@
           <h2 class="section-head">Start with "how do I".</h2>
         </div>
         <ol class="asks" id="requests-grid">
+          <li class="ask-group-label">Show you how</li>
           <li>
             <button type="button" class="ask-row request-card" data-category="teach" data-request="how do I change my wallpaper">
               <span class="ask-ring mark-blue" aria-hidden="true"></span>
@@ -127,9 +139,37 @@
               <span class="ask-try" aria-hidden="true">Try it <kbd>↵</kbd></span>
             </button>
           </li>
+
+          <li class="ask-group-label">Mark things on the page</li>
+          <li>
+            <button type="button" class="ask-row request-card" data-category="panel" data-request="highlight the ones that start with 23">
+              <span class="ask-ring mark-green" aria-hidden="true"></span>
+              <span class="ask-query">highlight the ones that start with 23</span>
+              <span class="ask-what">Marks only those numbers, in your colour, right on the page</span>
+              <span class="ask-try" aria-hidden="true">Try it <kbd>↵</kbd></span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="ask-row request-card" data-category="panel" data-request="highlight &quot;Pending&quot;">
+              <span class="ask-ring mark-blue" aria-hidden="true"></span>
+              <span class="ask-query">highlight "Pending"</span>
+              <span class="ask-what">Marks every place the word appears, and nothing around it</span>
+              <span class="ask-try" aria-hidden="true">Try it <kbd>↵</kbd></span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="ask-row request-card" data-category="panel" data-request="highlight the IDs ending in 07">
+              <span class="ask-ring mark-violet" aria-hidden="true"></span>
+              <span class="ask-query">highlight the IDs ending in 07</span>
+              <span class="ask-what">The same, for the end of the number. Esc on the page takes the marks off</span>
+              <span class="ask-try" aria-hidden="true">Try it <kbd>↵</kbd></span>
+            </button>
+          </li>
+
+          <li class="ask-group-label">Read and do</li>
           <li>
             <button type="button" class="ask-row request-card" data-category="panel" data-request="what does this error say">
-              <span class="ask-ring mark-green" aria-hidden="true"></span>
+              <span class="ask-ring mark-teal" aria-hidden="true"></span>
               <span class="ask-query">what does this error say</span>
               <span class="ask-what">Reads what is on screen and explains it in plain words</span>
               <span class="ask-try" aria-hidden="true">Try it <kbd>↵</kbd></span>
@@ -144,14 +184,6 @@
             </button>
           </li>
           <li>
-            <button type="button" class="ask-row request-card" data-category="panel" data-request="translate &quot;good morning, see you at three&quot; to Hindi">
-              <span class="ask-ring mark-violet" aria-hidden="true"></span>
-              <span class="ask-query">translate "good morning, see you at three" to Hindi</span>
-              <span class="ask-what">Works on the quoted or selected text and hands it back to copy</span>
-              <span class="ask-try" aria-hidden="true">Try it <kbd>↵</kbd></span>
-            </button>
-          </li>
-          <li>
             <button type="button" class="ask-row request-card" data-category="panel" data-request="move the screenshots on my Desktop into a folder called Screenshots">
               <span class="ask-ring mark-teal" aria-hidden="true"></span>
               <span class="ask-query">move the screenshots on my Desktop into a folder called Screenshots</span>
@@ -159,18 +191,23 @@
               <span class="ask-try" aria-hidden="true">Try it <kbd>↵</kbd></span>
             </button>
           </li>
-          <li>
-            <button type="button" class="ask-row request-card" data-category="panel" data-request="in 1 minute remind me to stretch">
-              <span class="ask-ring mark-green" aria-hidden="true"></span>
-              <span class="ask-query">in 1 minute remind me to stretch</span>
-              <span class="ask-what">Brings it back at the time. It does not run things behind your back</span>
-              <span class="ask-try" aria-hidden="true">Try it <kbd>↵</kbd></span>
-            </button>
-          </li>
         </ol>
       </section>
 
-      <!-- Section 4: Control -->
+      <!-- Section 4: Different -->
+      <section id="different" class="different-section">
+        <div class="section-header">
+          <div class="kicker"><span class="kicker-dot" aria-hidden="true"></span>DIFFERENT</div>
+          <h2 class="section-head">It looks at your screen, not someone else's.</h2>
+        </div>
+        <div class="different-content">
+          <p class="different-lead">A video shows someone else's screen, often on a version that is not yours, with menus that have moved since.</p>
+          <p class="different-para">A chat answer is a guess about a setup it cannot see.</p>
+          <p class="different-para">VANS looks at the window you have open, so it points at the button that is actually there. And it waits while you press it.</p>
+        </div>
+      </section>
+
+      <!-- Section 5: Control -->
       <section id="control" class="control-section">
         <div class="section-header">
           <div class="kicker"><span class="kicker-dot" aria-hidden="true"></span>CONTROL</div>
@@ -199,44 +236,52 @@
         </div>
       </section>
 
-      <!-- Section 5: Privacy -->
+      <!-- Section 6: Privacy -->
       <section id="privacy" class="privacy-section">
         <div class="section-header">
           <div class="kicker"><span class="kicker-dot" aria-hidden="true"></span>PRIVACY</div>
           <h2 class="section-head">Plain about what leaves your Mac.</h2>
         </div>
         <div class="privacy-content">
-          <ul class="privacy-bullets">
-            <li>VANS looks at your screen only when you ask it something, and only at what the question is about.</li>
-            <li>To answer, it sends your request and the relevant text to a model provider, straight from your Mac. The panel tells you when it has done so.</li>
-            <li>What VANS remembers is kept in one folder on your Mac. You can delete it at any time.</li>
-          </ul>
+          <p class="privacy-lead">VANS looks at your screen only when you ask it something, and only at what the question is about. In the test builds, your request and the text it needs go to the VANS server, which passes them to a model provider. The server keeps a short record of what you asked, and nothing from your screen. The panel tells you when text from your screen was sent.</p>
+          <p class="privacy-para">VANS also notes which buttons you click, so it can offer what you do at the same time each day. It never notes what you type, the notes stay on your Mac, and one switch turns it off.</p>
           <div class="privacy-more">
             <a href="/privacy" class="text-link">Read the full privacy page</a>
           </div>
         </div>
       </section>
 
-      <!-- Section 6: Why & Ask -->
+      <!-- Section 7: Where it started -->
       <section id="why" class="why-section">
         <div class="section-header">
           <div class="kicker"><span class="kicker-dot" aria-hidden="true"></span>WHY</div>
         </div>
         <blockquote class="founder-note">
-          <p>
-            I built VANS because I was tired of looking up how to do small things on my own Mac: where a setting lives, which menu has the thing I need. A video shows you someone else's screen. I wanted something that would point at mine and wait while I did it, so that the next time I would just know. It can also do the job for you when you do not care to learn it, and it shows you exactly what it is about to do first. VANS is early. A few people are testing it, and I would like you to be one of them.
-          </p>
+          <p>It started in internship season. I was looking at a long list of IDs on a results page, no names, and I wanted the ones that started with mine marked. Nothing could do that in the browser without setting something up first. I could have downloaded the list and filtered it in a spreadsheet, but that was a lot of work for something so small, so I didn't. What I wanted was to tell something on my screen what I meant, and have it done right there.</p>
+          <p>That is still the idea, only wider. Most of what I get stuck on is not on a web page. It is a setting in an app, an export option, a menu that moved in the last update. Most apps have no help that can see what you are looking at, and the ones that do each want you to sign up for their own. So VANS sits over all of them, and looks at your screen when you ask.</p>
+          <p>It can do the job for you, but what I care about more is that it shows you, so the next time you just know.</p>
           <footer>— Vedansh</footer>
         </blockquote>
-        <div class="final-ask">
-          <a href="#why" class="vans-pill" data-open="get-sheet">
-            <span class="vans-pill-icon" aria-hidden="true"></span>
-            <span class="vans-pill-text">
-              <span class="vans-pill-label">Join the testers</span>
-              <span class="vans-pill-halo" aria-hidden="true">Join the testers</span>
-            </span>
-          </a>
-          <div class="mono-line">vedansh@summonvans.in</div>
+      </section>
+
+      <!-- Section 8: Testing -->
+      <section id="testing" class="testing-section">
+        <div class="section-header">
+          <div class="kicker"><span class="kicker-dot" aria-hidden="true"></span>TESTING</div>
+          <h2 class="section-head">Early, and on Mac.</h2>
+        </div>
+        <div class="testing-content">
+          <p class="testing-para">VANS is in private testing. I let a few people in at a time, so I can fix what they run into before more join. Write to me with which Mac you have and which macOS it runs, and I will send you the download and your own invite code. It updates itself after that.</p>
+          <div class="final-ask">
+            <a href="#testing" class="vans-pill" data-open="get-sheet">
+              <span class="vans-pill-icon" aria-hidden="true"></span>
+              <span class="vans-pill-text">
+                <span class="vans-pill-label">Join the testers</span>
+                <span class="vans-pill-halo" aria-hidden="true">Join the testers</span>
+              </span>
+            </a>
+            <div class="mono-line">vedansh@summonvans.in</div>
+          </div>
         </div>
       </section>
 
@@ -264,7 +309,7 @@
       <button type="button" class="sheet-close" data-close aria-label="Close"><kbd>esc</kbd></button>
       <div class="kicker"><span class="kicker-dot" aria-hidden="true"></span>GET VANS</div>
       <h2 id="get-title" class="sheet-title">The download lands here soon.</h2>
-      <p class="sheet-body">VANS is in private testing, so there is no public download yet. For early, hands-on access, email me and I will send you a build.</p>
+      <p class="sheet-body">VANS is in private testing, so there is no public download yet. For early, hands-on access, email me and I will send you the download and your own invite code.</p>
       <div class="sheet-address">
         <span class="sheet-address-text">vedansh@summonvans.in</span>
         <button type="button" class="sheet-copy" data-copy="vedansh@summonvans.in">Copy address</button>
