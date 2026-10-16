@@ -1,6 +1,6 @@
 [package]
 name = "vans"
-version = "0.1.0"
+version = "0.1.1"
 description = "Visual Agent Navigation System"
 edition = "2021"
 
@@ -29,7 +29,7 @@ tauri-plugin-updater = "2"
 objc2 = "0.6"
 block2 = "0.6"
 objc2-app-kit = { version = "0.3", features = ["NSWorkspace", "NSRunningApplication", "NSWindow", "NSResponder", "NSPanel", "NSEvent", "NSGraphics", "NSScreen"] }
-objc2-foundation = { version = "0.3", features = ["NSString", "NSNotification", "NSOperation", "NSDistributedNotificationCenter", "block2"] }
+objc2-foundation = { version = "0.3", features = ["NSString", "NSNotification", "NSOperation", "NSDistributedNotificationCenter", "NSProcessInfo", "block2"] }
 objc2-core-graphics = { version = "0.3", features = ["CGWindow", "libc"] }
 objc2-core-foundation = { version = "0.3", features = ["CFArray", "CFDictionary", "CFNumber", "CFString"] }
 objc2-service-management = { version = "0.3", features = ["SMAppService"] }

@@ -14,6 +14,17 @@ pub fn installed() -> bool {
 }
 
 #[cfg(target_os = "macos")]
+pub fn started_at_login() -> bool {
+    use objc2_foundation::NSProcessInfo;
+    status().on && NSProcessInfo::processInfo().systemUptime() < 180.0
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn started_at_login() -> bool {
+    false
+}
+
+#[cfg(target_os = "macos")]
 pub fn status() -> LoginItem {
     use objc2_service_management::{SMAppService, SMAppServiceStatus};
     let state = unsafe { SMAppService::mainAppService().status() };

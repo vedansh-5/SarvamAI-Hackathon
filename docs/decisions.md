@@ -6082,3 +6082,23 @@ the invite code replaced by signing in with an email inside VANS; the testers
 table becomes accounts and the daily allowance becomes the plan's limit.
 
 `infra/mac/tester-link.sh` still makes a plain seven-day link to one version.
+
+## D-251 — Opening VANS from Applications opens the panel
+
+Found by Vedansh on 2026-10-16 with the first installed build: opening VANS
+from Applications did nothing he could see. VANS runs without a Dock icon, it
+did not show the panel when it started, and it did not answer macOS's "opened
+again" signal, so a second open from Applications, Spotlight or Launchpad was
+silent while the app was already running.
+
+Now:
+
+- **Opened again while running** (`RunEvent::Reopen`): the panel opens, as any
+  app brings its window forward.
+- **Started by hand:** the panel opens once it is ready.
+- **Started at login:** it stays quiet. A start counts as "at login" when
+  Start at login is on and the Mac has been up for under three minutes; macOS
+  gives no plain flag for it. Logging out and in without a restart therefore
+  opens the panel once, which is harmless.
+
+Released as 0.1.1, the first version that reaches a tester through the updater.
