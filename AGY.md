@@ -2191,7 +2191,7 @@ Vedansh's own.
 | #210 | Release build fixed (engine per chip, update key in the config) | — |
 | #211 | A page for each tester in the console | D-248 |
 | #212 | Visits counted by Cloudflare; Clarity only after Allow | D-249 |
-| this one | One download link for everyone: `summonvans.in/download` | D-250 |
+| #214 | One download link for everyone: `summonvans.in/download` | D-250 |
 
 Vedansh read and approved #190 (privacy page) and #202 (install page) on
 2026-10-16; they are merged after this. Everything else in G14's "Waiting on
