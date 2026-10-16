@@ -2187,7 +2187,7 @@ Vedansh's own.
 
 | PR | What | Decision |
 |---|---|---|
-| this one | A welcome on first run, and "What VANS can do" from the engine | D-247 |
+| #209 | A welcome on first run, and "What VANS can do" from the engine | D-247 |
 
 Vedansh read and approved #190 (privacy page) and #202 (install page) on
 2026-10-16; they are merged after this. Everything else in G14's "Waiting on
