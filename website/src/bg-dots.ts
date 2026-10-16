@@ -1,3 +1,5 @@
+import { channels, savedTheme } from "./theme.ts";
+
 export function initHeroDotBackground(canvasId: string = "bg-canvas") {
   const canvas = document.getElementById(canvasId) as HTMLCanvasElement | null;
   if (!canvas) return;
@@ -30,7 +32,10 @@ export function initHeroDotBackground(canvasId: string = "bg-canvas") {
 
     const isLight = document.documentElement.getAttribute("data-theme") === "light";
     const baseRgb = isLight ? "16, 17, 14" : "243, 244, 238";
-    const voltRgb = isLight ? "214, 160, 0" : "255, 210, 63";
+    const voltRgb =
+      document.documentElement.style.getPropertyValue("--volt-rgb").trim() ||
+      getComputedStyle(document.documentElement).getPropertyValue("--volt-rgb").trim() ||
+      channels(savedTheme().accent);
 
     const cols = Math.ceil(width / GAP) + 1;
     const rows = Math.ceil(height / GAP) + 1;

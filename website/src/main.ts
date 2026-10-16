@@ -5,6 +5,7 @@ import { initConfirmDemo } from "./confirm-demo.ts";
 import { initHeroDotBackground } from "./bg-dots.ts";
 import { initSheets } from "./sheets.ts";
 import { initConsent } from "./consent.ts";
+import { initThemePicker, paint, savedTheme } from "./theme.ts";
 
 function initTheme() {
   const toggles = document.querySelectorAll<HTMLElement>(".theme-toggle");
@@ -29,6 +30,7 @@ function initTheme() {
     try {
       localStorage.setItem("vans-theme", theme);
     } catch {}
+    paint(savedTheme());
   };
 
   apply(getSaved());
@@ -101,6 +103,7 @@ function initScrollFade() {
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
+  initThemePicker();
   initPills();
   initKeycapFeedback();
   initScrollFade();

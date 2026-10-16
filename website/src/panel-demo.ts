@@ -1,5 +1,6 @@
 import { DotField } from "./dots.ts";
 import { REQUEST_FACTS, KEYS } from "./facts.ts";
+import { onThemeChange, savedTheme, type Theme } from "./theme.ts";
 
 export interface DemoQuery {
   text: string;
@@ -140,6 +141,14 @@ Move Screenshot 2026-10-13 at 10.02.48.png</div>
     dot: 0.28,
     baseAlpha: 0.35,
   });
+
+  const updateDotColours = (t: Theme, isDark: boolean) => {
+    dotField.colours(t.accent, isDark ? "rgba(243, 244, 238, 0.42)" : "rgba(16, 17, 14, 0.44)");
+  };
+  const initTheme = savedTheme();
+  updateDotColours(initTheme, document.documentElement.getAttribute("data-theme") === "dark");
+  onThemeChange((t, isDark) => updateDotColours(t, isDark));
+
   dotField.start();
 
   function updateReadout(timeText: string) {
