@@ -36,12 +36,16 @@ server=${server%/}
 
 out=$(mktemp -d)
 engine="ui/vans-engine-$target"
-trap 'rm -rf "$out" "$engine"' EXIT
+arm="ui/vans-engine-aarch64-apple-darwin"
+intel="ui/vans-engine-x86_64-apple-darwin"
+trap 'rm -rf "$out" "$engine" "$arm" "$intel"' EXIT
 
 flags="-s -w -X main.serverURL=$server"
 CGO_ENABLED=1 GOARCH=arm64 go build -tags tester -trimpath -ldflags "$flags" -o "$out/arm64" ./cmd/vans-engine
 CGO_ENABLED=1 GOARCH=amd64 CC="clang -arch x86_64" go build -tags tester -trimpath -ldflags "$flags" -o "$out/amd64" ./cmd/vans-engine
 lipo -create -output "$engine" "$out/arm64" "$out/amd64"
+cp "$out/arm64" "$arm"
+cp "$out/amd64" "$intel"
 
 (
   cd ui
