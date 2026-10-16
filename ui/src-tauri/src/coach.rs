@@ -301,6 +301,14 @@ fn watch_for_the_click(app: &AppHandle) {
             if at.x < x || at.x > x + w || flipped < y || flipped > y + h {
                 return;
             }
+            let typing = LAST
+                .lock()
+                .unwrap()
+                .as_ref()
+                .is_some_and(|p| p.verb.eq_ignore_ascii_case("type"));
+            if typing {
+                return;
+            }
             if let Err(e) = handle.emit(ACTED, ()) {
                 eprintln!("[vans] could not report the click on the tip: {e}");
             }

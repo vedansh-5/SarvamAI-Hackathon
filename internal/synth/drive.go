@@ -9,7 +9,7 @@ import (
 	"github.com/vedansh/vans/internal/uiact"
 )
 
-var driveSystemPrompt = fmt.Sprintf(driveSystemPromptFormat, pressingAKey())
+func driveSystemPrompt() string { return fmt.Sprintf(driveSystemPromptFormat, pressingAKey()) }
 
 const driveSystemPromptFormat = `You are working through a task on someone's Mac, one step at a time, by using the controls on screen exactly as a person would.
 
@@ -133,7 +133,7 @@ func (c *OpenAICompatible) WriteStep(ctx context.Context, req StepRequest) (Step
 		maxTokens = MostTokensForAStep
 	}
 
-	system, err := c.systemFor(driveSystemPrompt, "step", driveSchema)
+	system, err := c.systemFor(driveSystemPrompt(), "step", driveSchema)
 	if err != nil {
 		return StepAnswer{}, err
 	}

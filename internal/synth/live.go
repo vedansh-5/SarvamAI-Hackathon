@@ -20,6 +20,21 @@ type Usage struct {
 	calls atomic.Int64
 	in    atomic.Int64
 	out   atomic.Int64
+	by    atomic.Value
+}
+
+func (u *Usage) answeredBy(name string) {
+	if u != nil {
+		u.by.Store(name)
+	}
+}
+
+func (u *Usage) By() string {
+	if u == nil {
+		return ""
+	}
+	name, _ := u.by.Load().(string)
+	return name
 }
 
 type Used struct {

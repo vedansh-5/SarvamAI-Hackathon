@@ -1,5 +1,8 @@
 import { emit, listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import { followTheme } from "./theme";
+
+followTheme();
 
 /// Says what the overlay is doing, into the shell's log rather than a console
 /// nobody is reading. A page that never loaded and an event that reached no

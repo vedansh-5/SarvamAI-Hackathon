@@ -717,7 +717,7 @@ A pipe is reachable only by the process that created it. The gate holds because 
 
 ## D-037 — Preflight never touches Notes; the user asks for that check
 
-**Status:** Accepted — reconciles D-007 with D-032
+**Status:** Accepted — reconciles D-007 with D-032; the Notes button became part of "Allow all" (D-237)
 
 **Context.** D-007 chose a GUI partly *for* permissions onboarding: discovering a denied automation permission halfway through a task is a bad experience, and a window can ask for it up front. But the only way to test automation access is to send an Apple event, which **launches Notes** — and D-032 says the runtime does not launch applications.
 
@@ -5481,3 +5481,529 @@ feedback, and a button that can only fail is worse than none. The engine
 passes the text to `synth.Remote.SendFeedback`, which is D-234's path:
 checked against the invite code, counted against the day's allowance, kept,
 then mailed.
+
+---
+
+## D-236 — The console, and the one row kept per request
+
+The console is the page at `/console` on the VANS server that runs the tester
+programme: **Overview** (requests a day for fourteen days, the share that
+finished, typical answer time, each model's use against its free allowance,
+the applications used most, the commonest failures), **Testers** (make a
+code, change an allowance, switch a code off or on, today's use, last seen),
+**Activity** (each request, filtered by tester, application, days or failed
+only) and **Feedback** (newest first, mark handled). It is drawn by the
+server, with no script, no outside font and no chart library; the bars are
+SVG and HTML widths. It exists only when `VANS_CONSOLE_KEY` is set.
+
+**One key, one cookie.** Signing in compares the typed key with
+`VANS_CONSOLE_KEY` in constant time and sets a cookie holding a hash of it,
+`HttpOnly`, `Secure`, `SameSite=Strict`, scoped to `/console`, for thirty
+days. Every change is a form post, which the strict cookie keeps to pages the
+console itself served. The page forbids framing and sends no referrer. A new
+code is shown once in the page that made it, never put in an address.
+
+**What is kept per request**, for Activity and the Overview: when, who, the
+kind of question, the words the tester typed (the `Instruction`, `Task`,
+`Question` or `Ask` field, cut at 500 characters), the application, whether it
+was answered or which fault, how long it took, and which model answered
+(`Usage.By`, set by the pool). For "which application" the application kept
+is the one chosen, not the one in front. Never the window's contents, the
+text a tester selected, a picture, or the tree of controls: the fields that
+carry those are not read. Rows live under `act#<day>` and DynamoDB deletes
+them thirty days later (`gone`, the table's time-to-live). Pings and feedback
+are not rows; feedback is kept on its own.
+
+The table went from five to ten writes a second (still inside the free
+allowance), since a request is now three writes. A model's free daily
+allowance is shown when `VANS_PROVIDER_<NAME>_DAILY` is set; it is set to
+1,000 for both Groq seats, which is what Groq's own refusal names.
+
+**On its own address (same day).** Vedansh asked for the console at
+`console.summonvans.in` and nowhere else. A Cloudflare Worker,
+`vans-console`, owns that name, sends every request on to the function with
+`/console` in front of the path and a secret header, `X-Vans-Console-Gate`,
+and marks the answers not to be indexed. When `VANS_CONSOLE_GATE` is set the
+server answers "not found" to any console request without the matching
+header, so the function's long address shows no console, not even its
+sign-in page; through the gate the console's links and cookie use plain
+paths (`/testers`). Redeploy the Worker with `npx wrangler deploy` in
+`infra/cloudflare/console`; change the secret on both sides together.
+
+## D-237 — Every permission is asked for at once, in Setup, before the first guide
+
+**Status:** Accepted, 2026-10-15
+
+**Context.** Vedansh asked that a downloaded VANS ask for all its permissions
+at once and never before a step. Until now each one was found when a guide
+reached it: Accessibility through a failed read, Screen Recording and Notes
+through their own buttons in Setup, and control of Safari, Chrome, Finder or
+System Events through a macOS prompt that appeared halfway through a step. A
+guide that stops for a system dialog teaches nothing.
+
+**Decision.** Setup opens with one list, read by the shell
+(`ui/src-tauri/src/permissions.rs`): Accessibility, Screen Recording, and
+control of each of System Events, Finder, Safari, Google Chrome and Notes that
+is installed. Each row says why in one line. One button, Allow all, raises
+every prompt in a row: the control prompts first, one app at a time, then
+Accessibility and Screen Recording, which send the person to System Settings.
+The rows turn green on their own (checked every two seconds while Setup is
+open). A row that was refused gets an Open Settings button for its pane;
+macOS never asks twice. Screen Recording only takes effect after a restart, so
+Reopen VANS is offered while it is off.
+
+The panel will not leave Setup on launch, and will not start a request, while
+any permission has never been asked for, or while Accessibility is off. Once
+Allow all has run, a refused permission other than Accessibility is the
+person's choice and does not block.
+
+**Opening apps.** macOS can only ask about controlling an app that is open.
+Allow all opens Safari, Chrome and Notes in the background and hidden (`open
+-g -j`), asks, and quits them again; the note above the button says so before
+it is pressed. This is the person's button, which is what D-032 and D-037
+allow. The answer is remembered in the panel, because once the app is closed
+the shell cannot read it without opening it again.
+
+**What the shell can and cannot tell.** Control of an open app is read exactly
+(`AEDeterminePermissionToAutomateTarget` without asking): granted, never
+asked, or refused. Accessibility and Screen Recording only say granted or not,
+so "never asked" there comes from whether Allow all has run on this Mac.
+
+The engine's preflight keeps its own Accessibility check, since the engine is
+the process that reads windows, but the panel shows the shell's row only. The
+`check_notes` command and the Screen Recording buttons are gone; the engine
+method stays. `Info.plist` gives macOS the line shown in the control prompts.
+
+## D-238 — VANS starts at login, and sits in the notch
+
+**Status:** Accepted, 2026-10-15
+
+**Starting at login.** VANS registers itself with macOS as a login item
+(`SMAppService.mainAppService`, `ui/src-tauri/src/login.rs`), the same list a
+person sees in System Settings › General › Login Items, so it can be turned
+off there as well as in Setup (Start › Open VANS when you log in). It is on by
+default: the first time the installed app runs it turns itself on once and
+remembers that it decided, so switching it off stays off. Run from the code it
+does nothing and the switch says it works in the installed app; a login item
+pointing at a build folder would outlive the build. If macOS wants the person
+to approve it, Setup says where.
+
+**The pill.** A yellow dot, `notch` (`ui/src-tauri/src/notch.rs`,
+`ui/notch.html`, `ui/src/notch.ts`), in a 24-point window over the menu bar
+just left of the notch, or in the middle of the menu bar without one. It goes
+on the screen with the notch, or the main screen, and moves when screens
+change. It started as a black shape 56 points wider than the notch on each
+side, with words; Vedansh found it too big, so it is only the dot.
+
+| What VANS is doing | The dot |
+|---|---|
+| Nothing | still |
+| Working on a request | breathing |
+| Guiding, doing the steps, or asking | a soft ring |
+
+The panel tells it (`pill://state`) whenever its screen changes and at each
+step. Clicking the dot opens the panel, and so does resting on it for 0.3 s; a
+panel opened by resting closes itself 1.2 s after the pointer leaves the dot
+and the panel, unless it was clicked or typed in. Resting only counts when the
+dot is on the current desktop, so moving to the top of a full-screen app to
+bring the menu bar down never opens VANS. The dot joins every desktop but not
+full-screen apps. The learning dot comes with watching and learning.
+
+
+## D-239 — A guide never gives the step it just gave, types instead of clicking to type, and keeps no run that looped
+
+Asked "how do I set the baseUrl" in Postman, the guide pointed at the Variable
+row six times, said "click the Variable row to type baseUrl" each time, never
+asked for the typing, and then kept all eight steps as the recipe for next
+time. Read from the log:
+
+- The row is an `AXRow`, and a row cannot hold typed text, so every `type`
+  step aimed at it was refused. Clicking it was the only step left that passed.
+- `goingInCircles` stopped a step only after it changed nothing twice, or after
+  the same click eight times. Every click on the row moved the focus a little,
+  so it counted as a change, and six was under eight.
+- `rememberTheRun` checked that the run finished and that every step changed
+  the window. Both were true.
+
+Four changes:
+
+- **The step just done, done again, is circling.** A step that worked is
+  refused if it comes straight back, and the model is told to give what comes
+  after it, a `type` step if that is typing. A step that changed nothing still
+  gets its one retry. Steps that are meant to repeat are left alone: pressed
+  keys, scrolls, waits, sliders, steppers, and buttons whose name says they move
+  on (Next, Continue, Back, More, Add, Zoom and the like). Any other click is
+  refused after its third time (`mostSameClicks`, 8 to 3); those that move on
+  keep eight.
+- **A guide may point at a row to type in it.** The person does the typing, so
+  the guide checks a step with `uiact.ValidateToPoint`, which does not ask
+  whether the control can hold text. Doing it for them still checks, and is not
+  offered on a control that cannot hold text. The guide's own instructions now
+  say a typing step is `type` with the text, never a click "to type". A click on
+  the field no longer ends a typing step (`coach.rs`); the text appearing does,
+  or Next.
+- **A looped run is not kept, and one already kept is not used.**
+  `wentInCircles` calls a run circling when a step that is not meant to repeat
+  comes twice in a row or three times in all. `rememberTheRun` keeps no such
+  run, and `stepsFromLastTime` ignores one stored before this, which clears the
+  Postman recipe.
+- **Every model call logs its time and size**, as `[model] <model> answered in
+  <time>, <n> tokens in, <n> out`.
+
+**Speed.** In that run every plan took 5.1 to 6.0 s and the first step 11.7 s
+from the hotkey. Measured on 2026-10-15 with the same model
+(`gemini-flash-lite-latest`) on a made-up window the size of Postman's,
+spaced five seconds apart (`TestSpeedOfPlanAndStepLive`, integration tag):
+
+| Window | Plan | Step |
+|---|---|---|
+| 100 controls | 1.9–2.4 s | 1.8–2.4 s |
+| 376 controls | 1.8–3.3 s | 1.8–2.1 s |
+
+So the model alone is about half what the run saw. The rest is either Postman's
+real window carrying far more text than the made-up one, or the free tier
+slowing under a burst, as in D-224. The new `[model]` line says which on the
+next run. Not changed yet: in a guide, each step after the planned ones asks
+the planner again, after the person acts, so every step waits for a whole call.
+Asking for the next step while the person is still doing this one would hide
+most of that wait.
+
+## D-240 — Watching and learning: on by default, clicks on controls only, nothing sent
+
+VANS notices what a person does again and again and offers to teach it or do
+it. Vedansh decided on 2026-10-15 that it is on by default and can be switched
+off (the plan had it off by default). The plan is in
+`docs/plans/2026-10-14-testers.md`, "Watching and learning"; this records
+the first part, noting.
+
+**What is noted.** A click, and only the app and the name of the control
+clicked: "Mail · Archive". The shell already watches clicks for the coach; a
+second global monitor (`ui/src-tauri/src/watching.rs`) passes each one's
+position to the engine (`noticed`), which reads what is there through
+accessibility (`uiact.NoticeAt`). It is kept only if `uiact.Pick` allows it:
+
+- a control (button, menu item, menu bar item, checkbox, radio button, pop-up
+  button, menu button, disclosure triangle), or the text or picture on one;
+  never a row, a cell, a text area or a link, whose names are people's
+  content, such as an email's subject;
+- with a name of sixty characters or fewer;
+- not inside a web page, whose buttons can say anything;
+- not in a password manager, the login window, or VANS;
+- not while VANS is guiding or doing steps, since those clicks are VANS's own
+  lesson, not a habit.
+
+Never typed text, keystrokes, window contents or pictures, so no new
+permission is asked for. Notes are in `clicks` in the Mac's own database and
+anything older than seven days is dropped as each new one is written. Reading
+a click takes about 30 ms.
+
+**What the person sees.** Setup › Learning: the switch, a line saying what is
+noted and that it stays on the Mac for seven days, "See what VANS noted (n)"
+listing the day, time, app and control, and Clear. The dot is filled while
+watching is on and hollow while it is off.
+
+**Nothing is sent to a model.** A found repeat will be named from its own
+labels ("In Mail: Archive, then Next") rather than by a model, and saving it
+makes an ordinary routine. Watching costs no calls.
+
+**Finding repeats** (`FindHabits`, `internal/engine/habits.go`) is plain
+counting. Clicks are split into sittings at a pause of more than two minutes,
+and a double click counts once. A run of three to eight clicks with at least
+two different ones in it, done three times or more across at least two
+sittings, is a habit. A run inside a longer habit is dropped unless it is done
+more often than the longer one. At most five. The server looks after every
+twentieth click kept, at most once every five minutes, and tells the panel and
+the dot how many are waiting (`engine://habits`).
+
+**Offering one.** The dot gets a white centre. The ask screen shows the first
+waiting habit, "You often do this. In Mail: Archive, Next, then Flag.", until
+one of three is chosen:
+
+- Save as a routine: named by the person (suggested from the first three
+  labels), saved as a routine whose instruction is the clicks in words ("In
+  Mail, click Archive, then click Next, then click Flag"). Its undo is
+  forgetting the routine, as for any other.
+- Show me: coaches the same instruction.
+- Not now: never offered again.
+
+Habits live in `habits` beside the clicks; clearing the clicks clears any
+habit not yet chosen.
+
+Still to do: the privacy page text, for Vedansh to approve.
+
+## D-241 — VANS learns when, offers it below the dot, and earns the right to do it
+
+Asked for by Vedansh on 2026-10-15: notice what he does at the start of the
+day, after work, or right after opening an app, and offer it at that moment —
+"you're checking your work email; start the timer like you usually do?" The
+plan is in `docs/plans/2026-10-14-testers.md`, "Timing: learning when".
+
+**More is noted, still on the Mac.** Beyond clicks (D-240): which app comes to
+the front, and when the Mac wakes, unlocks, locks and sleeps. The shell hears
+them from AppKit (`watching.rs`) and the engine keeps them in `clicks` as
+`front` and `moment` rows. App names only, never window titles, which carry
+email subjects and file names.
+
+**When is counted, not asked.** `FindTimed` (`internal/engine/timing.go`)
+finds three kinds, each on at least three days of the last seven:
+
+| Kind | Counted when |
+|---|---|
+| A time of day | the same thing within twenty minutes of the same time; weekdays told apart |
+| After the Mac is opened | within ten minutes of the day's first unlock or wake |
+| After an app | within five minutes of the app's first coming forward that day, on at least 60% of the days it did |
+
+The line it offers is built from the labels ("Start in Clockify, like
+usual?"), so no model is involved here either.
+
+**The offer is a line below the dot,** in its own window (`nudge`), on its own
+background so the notch cannot hide it, never over full-screen apps and never
+opening the panel. Due offers come every minute, at the day's first unlock or
+wake, and the first time an app comes forward that day; not twice a day, and
+not for something already done today.
+
+**Trust grows.** Run, Later and Skip the first three times. After three runs,
+Always as well. With Always on, the line counts down five seconds with Cancel,
+then runs it; Cancel turns Always off until it is chosen again. Skip three
+times and that suggestion stops.
+
+**Taken from Clicky,** whose labels show it holds suggestions while the person
+is focused, snoozes, rests after repeated dismissals, greets in the morning
+through the notch, and holds routines until the Mac has settled after a wake
+(AGY G13):
+
+- An offer waits until there has been no typing or clicking for 2.5 seconds,
+  and until five seconds after a wake or unlock, for up to two minutes.
+- Later brings it back in fifteen minutes.
+- Three offers skipped or left to fade in a row, and VANS is quiet for the
+  rest of the day.
+- At the day's first unlock or wake: "Good morning", with what is usual today.
+
+Where Clicky keeps what it learns on its own server, VANS keeps the notes on
+the Mac.
+
+**Running it.** A click goes through the panel as a "do" request, with every
+confirmation it would have if typed. Opening an app is done by the shell when
+Run is pressed (`open -a`). D-032 and D-131 say VANS never opens an
+application by itself; this is the person asking, by Run or by an Always they
+chose and did not cancel, and it is the whole of what they asked for.
+
+**What was learned is sent, for testers only.** Changes D-240's "nothing is
+sent". Vedansh decided the test builds send the habits found and how each was
+answered — never the notes they came from — to the VANS server, which keeps
+one list per tester, replaced each time it changes (`synth.KindLearned`, a
+`learned` row). It is not counted against the day's allowance and not mailed.
+A copy that asks a model directly sends nothing. Setup says so on the copies
+that send it. It may become Mac-only later. The privacy page wording is
+drafted in the tester plan and waits for Vedansh.
+## D-242 — The mark is a spotlight that opens for the pointer
+
+Chosen by Vedansh on 2026-10-15 from four directions explored in Gemini and
+three vector drafts: a yellow ring, opening where a pointer comes in, with its
+tip on the centre. It says what VANS does, "this is where to look", and it
+still reads at 16 pixels, where the tiny pointer in the image model's version
+vanished and a closed ring with a pointer outside read as a search icon.
+
+The sources are `ui/brand/mark.svg` (the square mark, for favicons and small
+places) and `ui/brand/app-icon.svg` (the macOS icon on Apple's grid, with its
+shadow). Every size the app bundle lists is made from them with `rsvg-convert`,
+`iconutil` and `magick`; the Tauri placeholder icon is gone.
+
+The ghost cursor the coach draws is now the mark's pointer, the rounded
+triangle D-138 described, where it had been drawn as an arrow with a tail. The
+logo and the thing on screen are the same shape.
+
+The dot in the notch stays a plain dot (D-238). The website's favicon changes
+in its own pull request, since the site waits for Vedansh's read.
+
+## D-243 — The tester kit: a tester build with no instructions, signed once, updated through the server
+
+The tester build is the same app built with the Go tag `tester`. Its engine has
+one way to think: the VANS server, whose address is set when it is built
+(`-X main.serverURL`). `cmd/vans-engine/model_local.go` and `model_tester.go`
+hold the two choices; the local one, with the model clients and their
+instructions, is not compiled into a tester build at all. The three prompts
+that were built at start-up (`driveSystemPrompt`, `planSystemPrompt`,
+`uiActSystemPrompt`) became functions, so the linker drops them with the rest.
+`infra/mac/check-bundle.py` looks through every file of a built app for a line
+of any instruction in `internal/synth`, for the value of any key, token or
+secret in `.env`, and for anything shaped like a cloud or model key; the
+release stops on a hit, and CI runs it on a tester engine for every change.
+What stays in the app is the engine's own loop: the short notes it adds when a
+step is refused or goes in circles (`NoStepNote`, the circling messages). The
+loop runs on the Mac, so they have to.
+
+The invite code is typed into Setup, checked by asking the server (a ping),
+and kept in the Keychain beside the model key (`setup.Invite`). A wrong code is
+neither kept nor sent again. On a tester copy Setup shows the code box where
+the model box was.
+
+**Signed once, for good.** The app is signed with a self-signed certificate,
+"VANS Developer", made once on Vedansh's Mac by `infra/mac/signing-setup.sh`.
+Apple's notarization needs the paid developer programme; a certificate of our
+own costs nothing and gives the one thing that matters for testers: macOS ties
+Accessibility and the other permissions to the signer, so they survive every
+update. An ad-hoc signature changes with every build and would ask testers to
+grant everything again. The cost is the first launch: macOS stops an app it
+has not checked, and the tester allows it once in Privacy & Security, which
+the site's install page walks through. The engine ships beside the app's own
+binary (`Contents/MacOS/vans-engine`) so the bundle signs it too, with the
+hardened runtime and only the Apple Events entitlement.
+
+**Updates go through the server.** Releases sit in a private bucket,
+`vans-releases`: `latest.json` names the version and the signed archive for
+each kind of Mac. The app asks `GET /v1/update/{target}/{arch}/{version}` with
+its invite code, every six hours and 90 seconds after starting; the server
+answers "nothing new" or with an hour-long download link (`server.S3Releases`).
+Only testers can download, and a code switched off stops updates too. The
+archive carries a signature from the update key, also made by
+`signing-setup.sh` and kept in `~/.tauri`, which the app checks before
+installing. A new version is installed in the background and the line below
+the dot offers Restart. One universal build serves Apple silicon and Intel.
+
+`infra/mac/release.sh` builds a release from what is committed, checks the
+signature and the bundle, and uploads it; `infra/mac/tester-link.sh` prints a
+seven-day download link for a new tester. Setup gained Quit VANS, since an app
+in the notch had no way to be quit.
+
+## D-244 — Marking text on a page, and VANS in more than one colour
+
+**What was wrong.** "Highlight the ones that start with 2321" on a page of 60
+roll numbers marked all 60. The restyle path (D-068) gives the model selectors
+and counts, never the words, so it cannot pick items by what they say; it
+answered `li` or `td`, the rule matched everything, and the run reported
+success. On a page with a strict content security policy the style element was
+blocked, nothing changed, and the commit still said verified. Every restyle
+was a model call, cold or repeated, and "clear the highlighting" cost a
+routing call although D-068 said it did not.
+
+**Marking by text needs no model.** `internal/pagemark` recognises "start
+with", "end with", "contain", "called" and a quoted or numeric value in Go, and
+a script in the page does the matching. It reads the page's text a block at a
+time, so a value split across inline tags is still one value; it looks inside
+open shadow roots and same-origin frames; it counts only what is drawn. It
+marks the matching words with the CSS Custom Highlight API: the page's own
+elements are not touched or recoloured, nothing moves, and the mark is the
+value itself, never its row. When a longer value matched, an exact short one
+("23" in a row-number column) is dropped. It says "10 of 60 that start with
+2321", where 60 counts values shaped like the matches, and scrolls to the
+first one when none are in view. Measured on a 60-row list, a table and a long
+page: exact every time, 0 model calls, 0.16 to 0.5 seconds. The text never
+leaves the page, so D-068's rule holds.
+
+**Marks go away on their own.** Esc in the page takes them off; so does the next
+request, the panel's clear button, "clear the highlighting" (now recognised in
+Go, no call) and undo. Which browser carries marks is saved, so an engine that
+crashed takes them off when it next starts. A page that would not show them is
+a failure, not a success.
+
+**Restyles from the model.** The sheet is now adopted by script
+(`adoptedStyleSheets`), which a strict page does not block, and a rule whose
+every match is a row, list, table or section is refused, so the model marks the
+cell or the label instead.
+
+**Colours.** `internal/theme/themes.json` is the one place VANS's colours live:
+yellow, blue, purple, green and pink, each with its accent, the ink that sits on
+it, a light highlight and the ink on that. The engine embeds it for page marks
+and restyles; the panel, the dot, the line below it and the coach import it
+through `ui/src/theme.ts`, which sets `--volt`, `--on-volt` and `--volt-rgb`.
+No window names a colour of its own any more. Setup › Appearance › Colour
+chooses one; the choice is kept, sent to every window and to the engine
+(`set_accent`). A highlight is always light: pale yellow, light blue,
+lavender, mint or pink, with dark ink on it, on light and dark pages alike.
+A test holds every theme to a light highlight with text on it at 7:1 or more.
+
+## D-245 — Offers wait for the internet, and "before you finish"
+
+Both were asked for by Vedansh on 2026-10-15 and left unbuilt by D-241.
+
+**An offer that needs a model waits for the internet.** Opening an app needs
+nothing, so it is offered at once. Anything else runs as a request, and offering
+it with no connection would put a Run button in front of something that will
+fail. The engine checks the address it actually asks (the model's, or the VANS
+server's on a tester copy) with a three-second connection, only when an offer
+is due. A held offer is tried again every minute and offered as soon as the
+connection is back; after two hours it is dropped, because "like usual" at the
+wrong time is noise.
+
+**"Before you finish."** A fourth kind of timed habit: the last thing done in
+the fifteen minutes before the Mac's last lock or sleep of the day, with nothing
+done after it, on three days. A lunch-time lock is not finishing, because work
+follows it. It is offered by the clock from ten minutes before its usual time
+("Before you finish, stop in Clockify, like usual?"), and not if it was done in
+the last two hours, so something also done in the morning is still offered in
+the evening. When the same thing is also found by time of day on as many days,
+"before you finish" wins, since that is what it is.
+
+## D-246 — The words on a window are read on the Mac, exactly
+
+Decided by Vedansh on 2026-10-15: VANS may read the text on screen on the Mac,
+for applications that publish nothing. This is the one exception to "no
+processing on the Mac": the recognition is macOS's own (the Vision framework),
+nothing is downloaded or shipped, and it runs only on a window VANS is already
+looking at under D-169.
+
+**What changed.** A window that cannot be read through accessibility used to be
+a picture sent to the model, which guessed a box for each control: about four
+seconds a screen, and pointing only. Now the window is read three ways, most
+exact first:
+
+1. **What the application publishes.** Its menu bar is usually readable even
+   when its window is not, and menus are exact. They join the tree.
+2. **The words on screen.** `uiact.ReadWords` runs text recognition on the
+   full-size picture (the model still gets the smaller one) and returns each
+   label with its exact place. Words on one line are split into separate labels
+   where the gap is wider than about one and a half letters, so a toolbar's
+   "Cut", "Copy", "Paste" stay three and "Render Queue" stays one. English only,
+   because letting it guess the language read "Copy" with a Cyrillic C; look-alike
+   letters in an otherwise Latin word are turned back to Latin as well.
+3. **The model's look,** for icons that carry no words. When the words alone are
+   enough to go on (five or more), the look happens in the background and its
+   icons join the tree a moment later; nobody waits for it. When there are fewer
+   words, it is waited for as before. A control the model names that matches a
+   word nearby takes the word's exact place; anything left is marked
+   `Estimated` and says "[place estimated]" in what the model reads.
+
+**Doing, not only pointing.** `uiact.RunByPointer` carries out steps on such a
+window with the real pointer and keyboard. It refuses any step whose target is
+estimated, so VANS clicks only what it can place exactly and points at the rest.
+The do-it path now switches to the looked-at window too (`DrivePlan.Vision`),
+and its preview says so.
+
+**Measured.** Twelve rendered windows (light, dark and coloured, five fonts,
+10 to 16 px, normal and Retina scale, labels plain and boxed): 307 of 312 labels
+found (98.4%), and every one found landed inside its own label (100%). Each read
+took 31 to 67 ms. The misses were small text at normal scale and a boxed "OK";
+at Retina scale one label in 156 was missed. `vans-probe -words app …` measures
+the same thing against the controls a real application publishes; it needs the
+applications in front, so it waits for a moment Vedansh chooses.
+
+**What leaves the Mac.** The recognised words go to the model as part of the
+window description, like the names of controls in any other window. The picture
+is still sent for the icon look, as D-169 said.
+
+## D-247 — A welcome on first run, and "What VANS can do"
+
+Asked for by Vedansh on 2026-10-16, so testers know what to ask before they ask.
+
+**The welcome.** Shown once, after the setup checks first pass, instead of going
+straight to the box. It leads with teaching ("VANS shows you how"), gives one
+example from each of the first three things this copy can do, and lists the
+three keys a tester needs: ⌥Space to open VANS, Esc to stop and take marks off,
+holding Return to say yes. Start, or any example, marks it seen; it is kept in
+the panel's own storage, and if that cannot be read the welcome is skipped
+rather than shown every time. Setup › Record brings it back.
+
+**The list comes from the engine.** `Engine.Abilities` returns only what this
+build can actually run: a copy with no guide does not offer "Show you how", one
+with no memory does not offer "Remember things". The panel never keeps its own
+list, so it cannot promise something the engine was built without. Teaching is
+always first.
+
+**Examples fill the box, they do not run.** Picking one puts the words in the box
+and waits for Return, so trying an example never changes anything by surprise.
+The marking examples are ones the engine understands with no model call, and a
+test holds them to that.
+
+**Where it is reached.** The welcome's second button, a quiet chip below the box
+("What can VANS do?"), and Setup › Record.

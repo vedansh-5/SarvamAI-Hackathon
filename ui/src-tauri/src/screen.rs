@@ -42,7 +42,6 @@ pub struct ScreenContext {
 #[link(name = "CoreGraphics", kind = "framework")]
 extern "C" {
     fn CGPreflightScreenCaptureAccess() -> bool;
-    fn CGRequestScreenCaptureAccess() -> bool;
 }
 
 /// Reports whether macOS Screen Recording permission has been granted.
@@ -50,16 +49,6 @@ pub fn has_screen_recording_permission() -> bool {
     #[cfg(target_os = "macos")]
     unsafe {
         CGPreflightScreenCaptureAccess()
-    }
-    #[cfg(not(target_os = "macos"))]
-    true
-}
-
-/// Triggers the macOS system prompt asking for Screen Recording permission.
-pub fn request_screen_recording_permission() -> bool {
-    #[cfg(target_os = "macos")]
-    unsafe {
-        CGRequestScreenCaptureAccess()
     }
     #[cfg(not(target_os = "macos"))]
     true

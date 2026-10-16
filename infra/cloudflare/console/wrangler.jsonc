@@ -1,0 +1,11 @@
+{
+  "name": "vans-console",
+  "main": "index.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "console.summonvans.in", "custom_domain": true }],
+  "vars": {
+    "ORIGIN": "https://dcebecm6rhedpylmqas2q3hxyq0holhl.lambda-url.ap-south-1.on.aws"
+  }
+}

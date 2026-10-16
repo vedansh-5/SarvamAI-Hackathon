@@ -74,3 +74,7 @@ func wakeApp(int) bool { return false }
 func walkAppDeep(int, string) (Tree, error) { return Tree{}, errNoAccessibilityAPI }
 
 func walkAppText(int, string) (Tree, error) { return Tree{}, errNoAccessibilityAPI }
+
+func NoticeAt(int, int) (Noticed, bool) { return Noticed{}, false }
+
+func ReadWords([]byte) ([]Word, error) { return nil, ErrCannotReadWords }

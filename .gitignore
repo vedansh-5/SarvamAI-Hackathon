@@ -5,3 +5,5 @@ ui/.vite/
 .env
 .env.*
 *.env
+
+.wrangler/

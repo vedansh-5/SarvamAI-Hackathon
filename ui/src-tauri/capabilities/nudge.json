@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "nudge",
+  "description": "The line below the dot that offers what is usual at this moment. It hears offers from the engine and tells the panel to run one. It needs nothing else.",
+  "windows": ["nudge"],
+  "permissions": ["core:event:default"]
+}

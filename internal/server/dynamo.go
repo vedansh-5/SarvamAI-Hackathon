@@ -20,8 +20,11 @@ const (
 	EnvTable     = "VANS_TABLE"
 	testersKey   = "tester"
 	feedbackKey  = "feedback"
+	learnedKey   = "learned"
 	everyoneKey  = "all"
 	dayKeyPrefix = "use#"
+	actKeyPrefix = "act#"
+	KeepActivity = 30 * 24 * time.Hour
 )
 
 type DynamoAPI interface {
@@ -104,17 +107,75 @@ func (d *Dynamo) Spend(ctx context.Context, code, day string) (int, int, error) 
 	return mine, all, nil
 }
 
-func (d *Dynamo) Keep(ctx context.Context, f Feedback) error {
+func stamp(at time.Time) string {
 	suffix := make([]byte, 4)
 	_, _ = rand.Read(suffix)
+	return at.UTC().Format(time.RFC3339Nano) + "#" + hex.EncodeToString(suffix)
+}
+
+func timeOf(sk string) time.Time {
+	when, _, _ := strings.Cut(sk, "#")
+	at, _ := time.Parse(time.RFC3339Nano, when)
+	return at
+}
+
+func (d *Dynamo) Record(ctx context.Context, a Activity) error {
+	item := map[string]types.AttributeValue{
+		"pk":   &types.AttributeValueMemberS{Value: actKeyPrefix + Day(a.At)},
+		"sk":   &types.AttributeValueMemberS{Value: stamp(a.At)},
+		"from": &types.AttributeValueMemberS{Value: a.From},
+		"kind": &types.AttributeValueMemberS{Value: a.Kind},
+		"ms":   &types.AttributeValueMemberN{Value: strconv.FormatInt(a.Took.Milliseconds(), 10)},
+		"gone": &types.AttributeValueMemberN{Value: strconv.FormatInt(a.At.Add(KeepActivity).Unix(), 10)},
+	}
+	for name, value := range map[string]string{"words": a.Words, "app": a.App, "fault": a.Fault, "by": a.By} {
+		if value != "" {
+			item[name] = &types.AttributeValueMemberS{Value: value}
+		}
+	}
+	_, err := d.Client.PutItem(ctx, &dynamodb.PutItemInput{TableName: &d.Table, Item: item})
+	return err
+}
+
+func (d *Dynamo) Activity(ctx context.Context, day string) ([]Activity, error) {
+	items, err := d.everything(ctx, actKeyPrefix+day)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Activity, 0, len(items))
+	for _, item := range items {
+		out = append(out, Activity{
+			At: timeOf(str(item, "sk")), From: str(item, "from"), Kind: str(item, "kind"),
+			Words: str(item, "words"), App: str(item, "app"), Fault: str(item, "fault"),
+			Took: time.Duration(num(item, "ms")) * time.Millisecond, By: str(item, "by"),
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].At.After(out[j].At) })
+	return out, nil
+}
+
+func (d *Dynamo) Keep(ctx context.Context, f Feedback) error {
 	_, err := d.Client.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: &d.Table,
 		Item: map[string]types.AttributeValue{
 			"pk":   &types.AttributeValueMemberS{Value: feedbackKey},
-			"sk":   &types.AttributeValueMemberS{Value: f.At.UTC().Format(time.RFC3339Nano) + "#" + hex.EncodeToString(suffix)},
+			"sk":   &types.AttributeValueMemberS{Value: stamp(f.At)},
 			"from": &types.AttributeValueMemberS{Value: f.From},
 			"kind": &types.AttributeValueMemberS{Value: f.Kind},
 			"text": &types.AttributeValueMemberS{Value: f.Text},
+		},
+	})
+	return err
+}
+
+func (d *Dynamo) KeepLearned(ctx context.Context, from string, at time.Time, habits string) error {
+	_, err := d.Client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: &d.Table,
+		Item: map[string]types.AttributeValue{
+			"pk":     &types.AttributeValueMemberS{Value: learnedKey},
+			"sk":     &types.AttributeValueMemberS{Value: from},
+			"at":     &types.AttributeValueMemberS{Value: at.UTC().Format(time.RFC3339)},
+			"habits": &types.AttributeValueMemberS{Value: habits},
 		},
 	})
 	return err
@@ -150,20 +211,35 @@ func (d *Dynamo) AddTester(ctx context.Context, t Tester) error {
 	return err
 }
 
-func (d *Dynamo) SetOff(ctx context.Context, code string, off bool) error {
+func (d *Dynamo) set(ctx context.Context, pk, sk, field string, value types.AttributeValue, missing error) error {
 	_, err := d.Client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 		TableName:                 &d.Table,
-		Key:                       key(testersKey, code),
-		UpdateExpression:          aws.String("SET #off = :off"),
+		Key:                       key(pk, sk),
+		UpdateExpression:          aws.String("SET #f = :v"),
 		ConditionExpression:       aws.String("attribute_exists(pk)"),
-		ExpressionAttributeNames:  map[string]string{"#off": "off"},
-		ExpressionAttributeValues: map[string]types.AttributeValue{":off": &types.AttributeValueMemberBOOL{Value: off}},
+		ExpressionAttributeNames:  map[string]string{"#f": field},
+		ExpressionAttributeValues: map[string]types.AttributeValue{":v": value},
 	})
-	var missing *types.ConditionalCheckFailedException
-	if errors.As(err, &missing) {
-		return fmt.Errorf("server: no tester has that code")
+	var gone *types.ConditionalCheckFailedException
+	if errors.As(err, &gone) {
+		return missing
 	}
 	return err
+}
+
+func (d *Dynamo) SetOff(ctx context.Context, code string, off bool) error {
+	return d.set(ctx, testersKey, code, "off", &types.AttributeValueMemberBOOL{Value: off}, ErrNoTester)
+}
+
+func (d *Dynamo) SetDaily(ctx context.Context, code string, daily int) error {
+	if daily < 0 {
+		return fmt.Errorf("server: a daily allowance cannot be below zero")
+	}
+	return d.set(ctx, testersKey, code, "daily", &types.AttributeValueMemberN{Value: strconv.Itoa(daily)}, ErrNoTester)
+}
+
+func (d *Dynamo) Handled(ctx context.Context, id string) error {
+	return d.set(ctx, feedbackKey, id, "handled", &types.AttributeValueMemberBOOL{Value: true}, ErrNoFeedback)
 }
 
 func (d *Dynamo) everything(ctx context.Context, pk string) ([]map[string]types.AttributeValue, error) {
@@ -219,9 +295,10 @@ func (d *Dynamo) Feedback(ctx context.Context) ([]Feedback, error) {
 	}
 	out := make([]Feedback, 0, len(items))
 	for _, item := range items {
-		when, _, _ := strings.Cut(str(item, "sk"), "#")
-		at, _ := time.Parse(time.RFC3339Nano, when)
-		out = append(out, Feedback{From: str(item, "from"), Kind: str(item, "kind"), Text: str(item, "text"), At: at})
+		out = append(out, Feedback{
+			ID: str(item, "sk"), From: str(item, "from"), Kind: str(item, "kind"), Text: str(item, "text"),
+			At: timeOf(str(item, "sk")), Handled: flag(item, "handled"),
+		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].At.After(out[j].At) })
 	return out, nil

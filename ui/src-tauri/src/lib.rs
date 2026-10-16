@@ -1,6 +1,12 @@
 mod coach;
 mod engine;
+mod login;
+mod notch;
+mod nudge;
 mod overlay;
+mod permissions;
+mod update;
+mod watching;
 pub mod screen;
 
 use std::path::PathBuf;
@@ -16,16 +22,56 @@ fn get_screen_context(include_screenshot: Option<bool>) -> ScreenContext {
     screen::capture_active_context(include_screenshot.unwrap_or(false))
 }
 
-/// Checks whether Screen Recording permission is granted.
 #[tauri::command]
-fn check_screen_recording() -> bool {
-    screen::has_screen_recording_permission()
+async fn permissions() -> Result<Vec<permissions::Permission>, String> {
+    tauri::async_runtime::spawn_blocking(permissions::check)
+        .await
+        .map_err(|e| e.to_string())
 }
 
-/// Prompts the user for Screen Recording permission.
 #[tauri::command]
-fn request_screen_recording() -> bool {
-    screen::request_screen_recording_permission()
+async fn ask_permissions() -> Result<Vec<permissions::Permission>, String> {
+    tauri::async_runtime::spawn_blocking(permissions::ask_all)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn ask_permissions_again(app: tauri::AppHandle) -> Result<Vec<permissions::Permission>, String> {
+    let identifier = app.config().identifier.clone();
+    tauri::async_runtime::spawn_blocking(move || permissions::ask_again(&identifier))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn open_permission_settings(name: String) {
+    permissions::open_settings(&name);
+}
+
+#[tauri::command]
+fn reopen(app: tauri::AppHandle) {
+    app.restart();
+}
+
+#[tauri::command]
+fn keep_panel() {
+    notch::keep();
+}
+
+#[tauri::command]
+fn take_keyboard(app: tauri::AppHandle) {
+    overlay::take_keyboard(&app);
+}
+
+#[tauri::command]
+fn login_item() -> login::LoginItem {
+    login::status()
+}
+
+#[tauri::command]
+fn set_login_item(on: bool) -> Result<login::LoginItem, String> {
+    login::set(on)
 }
 
 /// Commands are thin on purpose. Every decision the runtime makes — what to
@@ -35,13 +81,6 @@ fn request_screen_recording() -> bool {
 #[tauri::command]
 async fn preflight(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("preflight", None).await
-}
-
-/// Sends an Apple event to Notes, which launches it and may raise the
-/// automation prompt. Only ever called from a button that says so (D-037).
-#[tauri::command]
-async fn check_notes(engine: State<'_, Engine>) -> Result<Value, RpcError> {
-    engine.call("check_notes", None).await
 }
 
 /// Works out what an instruction means and prepares it. Touches nothing
@@ -75,6 +114,77 @@ async fn guide(engine: State<'_, Engine>, plan_id: String) -> Result<Value, RpcE
 #[tauri::command]
 async fn stop_guide(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("stop_guide", None).await
+}
+
+#[tauri::command]
+async fn watching(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("watching", None).await
+}
+
+#[tauri::command]
+async fn set_watching(app: tauri::AppHandle, engine: State<'_, Engine>, on: bool) -> Result<Value, RpcError> {
+    let now = engine.call("set_watching", Some(json!({ "on": on }))).await?;
+    let _ = tauri::Emitter::emit(&app, "pill://watching", &now);
+    Ok(now)
+}
+
+#[tauri::command]
+async fn noted_clicks(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("noted_clicks", None).await
+}
+
+#[tauri::command]
+async fn habits(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("habits", None).await
+}
+
+#[tauri::command]
+async fn settle_habit(
+    engine: State<'_, Engine>,
+    key: String,
+    how: String,
+    name: String,
+) -> Result<Value, RpcError> {
+    engine
+        .call("settle_habit", Some(json!({ "key": key, "how": how, "name": name })))
+        .await
+}
+
+#[tauri::command]
+async fn show_nudge(app: tauri::AppHandle, height: f64) {
+    nudge::show_when_still(app, height).await;
+}
+
+#[tauri::command]
+fn hide_nudge(app: tauri::AppHandle) {
+    nudge::hide(&app);
+}
+
+#[tauri::command]
+fn restart_app(app: tauri::AppHandle) {
+    app.restart();
+}
+
+#[tauri::command]
+fn quit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
+#[tauri::command]
+fn open_app(name: String) -> Result<(), String> {
+    nudge::open_app(&name)
+}
+
+#[tauri::command]
+async fn answer_offer(engine: State<'_, Engine>, key: String, answer: String) -> Result<Value, RpcError> {
+    engine
+        .call("answer_offer", Some(json!({ "key": key, "answer": answer })))
+        .await
+}
+
+#[tauri::command]
+async fn clear_clicks(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("clear_clicks", None).await
 }
 
 #[tauri::command]
@@ -177,6 +287,26 @@ async fn set_rules(
             Some(json!({ "never": never, "spend_limit": spend_limit, "ask_first": ask_first })),
         )
         .await
+}
+
+#[tauri::command]
+async fn abilities(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("abilities", None).await
+}
+
+#[tauri::command]
+async fn set_accent(engine: State<'_, Engine>, accent: String) -> Result<Value, RpcError> {
+    engine.call("set_accent", Some(json!({ "accent": accent }))).await
+}
+
+#[tauri::command]
+async fn invite(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("invite", None).await
+}
+
+#[tauri::command]
+async fn set_invite(engine: State<'_, Engine>, code: String) -> Result<Value, RpcError> {
+    engine.call("set_invite", Some(json!({ "code": code }))).await
 }
 
 #[tauri::command]
@@ -415,6 +545,12 @@ fn engine_path(app: &tauri::AppHandle) -> PathBuf {
             return p;
         }
     }
+    if let Some(dir) = std::env::current_exe().ok().and_then(|exe| exe.parent().map(PathBuf::from)) {
+        let beside = dir.join("vans-engine");
+        if beside.exists() {
+            return beside;
+        }
+    }
     if let Ok(dir) = app.path().resource_dir() {
         let bundled = dir.join("vans-engine");
         if bundled.exists() {
@@ -442,12 +578,16 @@ pub fn run() {
             app.manage(engine);
 
             overlay::install(&handle_for_overlay)?;
+            notch::install(&handle_for_overlay)?;
+            nudge::install(&handle_for_overlay)?;
+            watching::install(&handle_for_overlay);
+            update::install(&handle_for_overlay);
             Ok(())
         })
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             preflight,
-            check_notes,
             prepare,
             destinations,
             suggestions,
@@ -456,6 +596,16 @@ pub fn run() {
             guide,
             stop_guide,
             advance_guide,
+            watching,
+            set_watching,
+            noted_clicks,
+            clear_clicks,
+            habits,
+            settle_habit,
+            show_nudge,
+            hide_nudge,
+            open_app,
+            answer_offer,
             resume_drive,
             answer_guide,
             answer_question,
@@ -463,6 +613,12 @@ pub fn run() {
             set_rules,
             can_send_feedback,
             send_feedback,
+            abilities,
+            set_accent,
+            invite,
+            set_invite,
+            restart_app,
+            quit_app,
             model_settings,
             set_model_settings,
             forget_model_key,
@@ -486,8 +642,15 @@ pub fn run() {
             set_blur,
             open_url,
             get_screen_context,
-            check_screen_recording,
-            request_screen_recording
+            permissions,
+            ask_permissions,
+            ask_permissions_again,
+            open_permission_settings,
+            reopen,
+            take_keyboard,
+            keep_panel,
+            login_item,
+            set_login_item
         ])
         .run(tauri::generate_context!())
         .expect("error while running VANS");

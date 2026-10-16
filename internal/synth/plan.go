@@ -9,7 +9,7 @@ import (
 	"github.com/vedansh/vans/internal/uiact"
 )
 
-var planSystemPrompt = fmt.Sprintf(planSystemPromptFormat, pressingAKey())
+func planSystemPrompt() string { return fmt.Sprintf(planSystemPromptFormat, pressingAKey()) }
 
 const planSystemPromptFormat = `You are planning a whole task on someone's Mac, to be carried out by driving the controls on screen exactly as a person would.
 
@@ -176,7 +176,7 @@ func (c *OpenAICompatible) WritePlan(ctx context.Context, req PlanRequest) (Plan
 		maxTokens = MostTokensForAPlan
 	}
 
-	system, err := c.systemFor(planSystemPrompt, "plan", planSchema)
+	system, err := c.systemFor(planSystemPrompt(), "plan", planSchema)
 	if err != nil {
 		return PlanAnswer{}, err
 	}

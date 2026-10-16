@@ -23,6 +23,8 @@ type DrivePlan struct {
 	Task    string
 	Preview string
 
+	Vision bool
+
 	// Shape and Literals are what the instruction generalises to and the values
 	// taken out of it. Carried so a run that works can be kept under the same
 	// key every other tier caches by, with this request's values lifted back out
@@ -166,6 +168,17 @@ func (e *Engine) driveOn(ctx context.Context, app, task, shape string, literals 
 	if err != nil {
 		return nil, err
 	}
+	vision := false
+	if e.Eyes != nil {
+		if seen := uiact.Assess(tree); seen.Verdict == uiact.Blind {
+			e.logf("%s cannot be read (%s), so its window will be looked at instead", app, seen.Why)
+			byEye := *e
+			byEye.UIScreen = e.Eyes
+			if looked, lookErr := byEye.UIScreen.Capture(ctx, tree.App); lookErr == nil {
+				tree, vision, e = looked, true, &byEye
+			}
+		}
+	}
 	if len(tree.Elements) == 0 {
 		return nil, fmt.Errorf("engine: %s has nothing on screen to work with", app)
 	}
@@ -206,10 +219,16 @@ func (e *Engine) driveOn(ctx context.Context, app, task, shape string, literals 
 			tree.App, uiact.Preview(uiact.Program{App: tree.App, Steps: replay}))
 	}
 
+	if vision {
+		preview += "\n\n" + tree.App + " does not publish its controls, so VANS reads the words on its window. " +
+			"It clicks only what it can place exactly; anything it could only estimate, it points at and leaves to you."
+	}
+
 	return &Plan{
 		Task:        Task{Intent: task, Title: tree.App},
 		Destination: tree.App,
 		Drive: &DrivePlan{
+			Vision:    vision,
 			App:       tree.App,
 			Task:      task,
 			Preview:   preview,
@@ -242,6 +261,11 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 				return Receipt{}, err
 			}
 		}
+	}
+	if d.Vision && e.Eyes != nil {
+		byEye := *e
+		byEye.UIScreen = e.Eyes
+		e = &byEye
 	}
 	if !e.canDrive() {
 		return Receipt{}, fmt.Errorf("engine: this build cannot work through a task on screen")
@@ -794,8 +818,12 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 			answer.Step = typedAsAsked(answer.Step, task)
 			program := uiact.Program{App: tree.App, Steps: []uiact.Step{answer.Step}}
 
+			check := uiact.Validate
+			if !acting {
+				check = uiact.ValidateToPoint
+			}
 			var refused *uiact.InvalidError
-			if err := uiact.Validate(program, tree); err != nil {
+			if err := check(program, tree); err != nil {
 				if !errors.As(err, &refused) {
 					return state(), err
 				}

@@ -6,9 +6,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const rootDir = path.resolve(__dirname, "..");
-const markdownPath = path.resolve(rootDir, "content/privacy.md");
-const outputDir = path.resolve(rootDir, "privacy");
-const outputPath = path.resolve(outputDir, "index.html");
+
+const pages = [
+  {
+    name: "privacy",
+    title: "Privacy",
+    description: "Privacy policy for VANS. Plain about what leaves your Mac, what is kept, and what VANS never does.",
+  },
+  {
+    name: "install",
+    title: "Installing VANS",
+    description: "How to install a VANS test build on your Mac, and how to open it the first time.",
+  },
+];
 
 function escapeHtml(str) {
   return str
@@ -22,6 +32,8 @@ function inlineFormat(text) {
   let out = text.replace(/`([^`]+)`/g, (_m, code) => `<code>${escapeHtml(code)}</code>`);
   // bold **text**
   out = out.replace(/\*\*([^*]+)\*\*/g, (_m, bold) => `<strong>${inlineFormat(bold)}</strong>`);
+  // link [text](/path)
+  out = out.replace(/\[([^\]]+)\]\((\/[^)\s]*)\)/g, (_m, label, href) => `<a href="${href}" class="text-link">${label}</a>`);
   // email
   out = out.replace(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g, (_m, email) => {
     return `<a href="mailto:${email}" class="text-link">${email}</a>`;
@@ -33,6 +45,7 @@ export function markdownToHtml(md) {
   const lines = md.split(/\r?\n/);
   const html = [];
   let inList = false;
+  let listTag = "ul";
 
   for (let i = 0; i < lines.length; i++) {
     const rawLine = lines[i];
@@ -40,7 +53,7 @@ export function markdownToHtml(md) {
 
     if (!trimmed) {
       if (inList) {
-        html.push("</ul>");
+        html.push(`</${listTag}>`);
         inList = false;
       }
       continue;
@@ -48,7 +61,7 @@ export function markdownToHtml(md) {
 
     if (trimmed.startsWith("### ")) {
       if (inList) {
-        html.push("</ul>");
+        html.push(`</${listTag}>`);
         inList = false;
       }
       const title = inlineFormat(trimmed.slice(4));
@@ -58,7 +71,7 @@ export function markdownToHtml(md) {
 
     if (trimmed.startsWith("## ")) {
       if (inList) {
-        html.push("</ul>");
+        html.push(`</${listTag}>`);
         inList = false;
       }
       const title = inlineFormat(trimmed.slice(3));
@@ -68,7 +81,7 @@ export function markdownToHtml(md) {
 
     if (trimmed.startsWith("# ")) {
       if (inList) {
-        html.push("</ul>");
+        html.push(`</${listTag}>`);
         inList = false;
       }
       const title = inlineFormat(trimmed.slice(2));
@@ -76,25 +89,32 @@ export function markdownToHtml(md) {
       continue;
     }
 
-    if (trimmed.startsWith("- ")) {
+    const numbered = trimmed.match(/^\d+\.\s+/);
+    if (trimmed.startsWith("- ") || numbered) {
+      const tag = numbered ? "ol" : "ul";
+      if (inList && tag !== listTag) {
+        html.push(`</${listTag}>`);
+        inList = false;
+      }
       if (!inList) {
-        html.push("<ul>");
+        listTag = tag;
+        html.push(`<${listTag}>`);
         inList = true;
       }
-      const itemText = inlineFormat(trimmed.slice(2));
+      const itemText = inlineFormat(numbered ? trimmed.slice(numbered[0].length) : trimmed.slice(2));
       html.push(`<li>${itemText}</li>`);
       continue;
     }
 
     // Regular paragraph line
     if (inList) {
-      html.push("</ul>");
+      html.push(`</${listTag}>`);
       inList = false;
     }
 
     // Collect multi-line paragraphs if followed by text
     let para = trimmed;
-    while (i + 1 < lines.length && lines[i + 1].trim() && !lines[i + 1].trim().startsWith("#") && !lines[i + 1].trim().startsWith("- ")) {
+    while (i + 1 < lines.length && lines[i + 1].trim() && !lines[i + 1].trim().startsWith("#") && !lines[i + 1].trim().startsWith("- ") && !/^\d+\.\s/.test(lines[i + 1].trim())) {
       i++;
       para += " " + lines[i].trim();
     }
@@ -102,15 +122,18 @@ export function markdownToHtml(md) {
   }
 
   if (inList) {
-    html.push("</ul>");
+    html.push(`</${listTag}>`);
   }
 
   return html.join("\n");
 }
 
-export function buildPrivacyPage() {
+function buildPage({ name, title, description }) {
+  const markdownPath = path.resolve(rootDir, `content/${name}.md`);
+  const outputDir = path.resolve(rootDir, name);
+  const outputPath = path.resolve(outputDir, "index.html");
   if (!fs.existsSync(markdownPath)) {
-    console.error(`Privacy markdown not found at ${markdownPath}`);
+    console.error(`Markdown not found at ${markdownPath}`);
     return;
   }
 
@@ -126,11 +149,11 @@ export function buildPrivacyPage() {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Privacy — VANS</title>
-    <meta name="description" content="Privacy policy for VANS. Plain about what leaves your Mac, what is kept, and what VANS never does." />
+    <title>${title} — VANS</title>
+    <meta name="description" content="${description}" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta property="og:title" content="Privacy — VANS" />
-    <meta property="og:description" content="Privacy policy for VANS. Plain about what leaves your Mac, what is kept, and what VANS never does." />
+    <meta property="og:title" content="${title} — VANS" />
+    <meta property="og:description" content="${description}" />
     <meta property="og:image" content="/og-image.svg" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -192,10 +215,14 @@ export function buildPrivacyPage() {
 `;
 
   fs.writeFileSync(outputPath, pageHtml, "utf-8");
-  console.log(`Privacy page built successfully at ${outputPath}`);
+  console.log(`${title} page built successfully at ${outputPath}`);
+}
+
+export function buildPages() {
+  for (const page of pages) buildPage(page);
 }
 
 // Run directly if invoked
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  buildPrivacyPage();
+  buildPages();
 }

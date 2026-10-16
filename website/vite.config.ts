@@ -1,16 +1,16 @@
 import { defineConfig } from "vite";
 import { resolve } from "node:path";
-import { buildPrivacyPage } from "./scripts/build-privacy.js";
+import { buildPages } from "./scripts/build-privacy.js";
 
 function privacyMarkdownPlugin() {
   return {
     name: "privacy-markdown-plugin",
     buildStart() {
-      buildPrivacyPage();
+      buildPages();
     },
     handleHotUpdate({ file }: { file: string }) {
-      if (file.endsWith("privacy.md")) {
-        buildPrivacyPage();
+      if (file.includes("/content/") && file.endsWith(".md")) {
+        buildPages();
       }
     },
   };
@@ -25,6 +25,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, "index.html"),
         privacy: resolve(__dirname, "privacy/index.html"),
+        install: resolve(__dirname, "install/index.html"),
       },
     },
   },

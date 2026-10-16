@@ -26,6 +26,11 @@ jobs:
         run: CGO_ENABLED=0 GOOS=darwin go vet ./...
       - name: Tests
         run: go test ./...
+      - name: The tester engine carries no instructions
+        run: |
+          mkdir -p "$RUNNER_TEMP/tester.app"
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -tags tester -trimpath -ldflags "-s -w" -o "$RUNNER_TEMP/tester.app/vans-engine" ./cmd/vans-engine
+          python3 -I infra/mac/check-bundle.py "$RUNNER_TEMP/tester.app"
 
   panel:
     runs-on: ubuntu-latest

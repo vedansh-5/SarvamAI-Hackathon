@@ -104,7 +104,13 @@ measured accuracy of each, is D-232; the lineup is `VANS_PROVIDERS` in `.env`.
 | Cloudflare Workers AI token | `.env` | the VANS server on this Mac |
 | Every model key and provider setting the server uses | AWS Parameter Store, Mumbai, under `/vans/server/`, encrypted (`SecureString`) | the VANS server on Lambda, once when it starts |
 | Tester invite codes | the `vans-server` table | the VANS server; `vans-testers` |
+| Console key (`VANS_CONSOLE_KEY`) | `.env`, and Parameter Store under `/vans/server/` | the VANS server; Vedansh, to sign in to the console |
+| Console gate (`VANS_CONSOLE_GATE`) | Parameter Store under `/vans/server/`, and the `vans-console` Worker's secret `CONSOLE_GATE` | the VANS server and the Worker; nobody types it |
+| Wrangler sign-in | `~/.wrangler` on this Mac (signed in 2026-10-14 with Vedansh's approval) | `npx wrangler` in `infra/cloudflare/console` |
 | A key typed into Setup | the macOS Keychain, service `dev.vedansh.vans` | the engine |
+| "VANS Developer" signing certificate | the login keychain; a copy in `~/.vans-signing` (back it up) | `codesign`, through `infra/mac/release.sh` |
+| Update signing key | `~/.tauri/vans-updater.key` (back it up) | `infra/mac/release.sh`; copies already out check updates against its public half |
+| A tester's invite code | the tester's Keychain, service `dev.vedansh.vans`, account `invite-code` | the tester build's engine |
 | `vans-deploy` access key | `~/.aws/credentials`, profile `vans-deploy` | the AWS command line |
 | Root access key | `~/.aws/credentials`, profile `default` | the AWS command line |
 | `LIST_TO` | Cloudflare → Workers → `vans` → Settings → Variables and Secrets | the site's form |
@@ -137,12 +143,22 @@ curl -sI https://summonvans.in | head -1
 |---|---|---|
 | Function | `vans-server`, Lambda, Mumbai, arm64, 256 MB, 140 s limit | built from `cmd/vans-lambda`; runs as `vans-server-runtime` |
 | Its address | `https://dcebecm6rhedpylmqas2q3hxyq0holhl.lambda-url.ap-south-1.on.aws/` | a Lambda function URL; anyone can reach it, only an invite code gets an answer |
-| Table | `vans-server`, DynamoDB, Mumbai, 5 reads and 5 writes a second, deletion protection on | testers (`pk = tester`), counts per day (`pk = use#<day>`), feedback (`pk = feedback`) |
+| Table | `vans-server`, DynamoDB, Mumbai, 10 reads and 10 writes a second, deletion protection on | testers (`pk = tester`), counts per day (`pk = use#<day>`), feedback (`pk = feedback`), one row per request (`pk = act#<day>`, deleted after 30 days by the `gone` time-to-live) |
+| Console | `https://console.summonvans.in` | sign in with `VANS_CONSOLE_KEY`, kept in `.env` and in Parameter Store (D-236). Served through the Cloudflare Worker `vans-console` (`infra/cloudflare/console`), which adds the `VANS_CONSOLE_GATE` secret; the function's own address answers "not found" for the console without it |
 | Settings | Parameter Store, `/vans/server/*` | read into the environment when the function starts |
 | Mail | SES, Mumbai, sandbox (200 a day, only to verified addresses) | sends feedback from `feedback@summonvans.in` to Vedansh's Gmail |
-| Logs | `/aws/lambda/vans-server`, kept 14 days | the tester's name and the kind of question; never what was asked |
+| Logs | `/aws/lambda/vans-server`, kept 14 days | the tester's name and the kind of question; never what was asked (that is in the table, for the console) |
+
+Releases for testers sit in the private bucket `vans-releases` (Mumbai,
+public access blocked): `latest.json`, and per version the signed update
+archive and the `.dmg`. The server reads it through `VANS_RELEASES_BUCKET` in
+Parameter Store and hands out hour-long download links to testers only
+(D-243). `infra/aws/releases-bucket.sh` made it.
 
 ```bash
+./infra/mac/signing-setup.sh            # once: the signing certificate and the update key
+./infra/mac/release.sh "what changed"   # build, sign, check and upload the version in tauri.conf.json
+./infra/mac/tester-link.sh              # a seven-day download link for a new tester
 ./infra/aws/deploy-server.sh            # build and deploy the server, then check it answers
 go run ./cmd/vans-testers add Riya      # a new tester and their code (200 a day unless -daily)
 go run ./cmd/vans-testers list          # every tester and what each used today

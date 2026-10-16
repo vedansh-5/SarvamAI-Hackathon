@@ -14,24 +14,19 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/vedansh/vans/internal/envfile"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 
 	"github.com/vedansh/vans/internal/adapter/appleevents"
 	"github.com/vedansh/vans/internal/adapter/cdp"
 	"github.com/vedansh/vans/internal/capability"
 	"github.com/vedansh/vans/internal/engine"
-	"github.com/vedansh/vans/internal/extract"
 	"github.com/vedansh/vans/internal/eyes"
-	"github.com/vedansh/vans/internal/keychain"
 	"github.com/vedansh/vans/internal/macset"
 	"github.com/vedansh/vans/internal/route"
 	"github.com/vedansh/vans/internal/rpc"
-	"github.com/vedansh/vans/internal/setup"
 	"github.com/vedansh/vans/internal/store"
 	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
@@ -48,7 +43,7 @@ func main() {
 }
 
 func run() error {
-	envfile.Load(".env", "../.env")
+	loadEnv()
 	var (
 		hostPort = flag.String("cdp", "127.0.0.1:9222", "debugging endpoint of an already-running Chromium")
 		dbPath   = flag.String("db", defaultDB(), "program cache")
@@ -113,37 +108,11 @@ func run() error {
 
 	notes := appleevents.Notes{Runner: appleevents.Osascript{}}
 
-	// A missing key is reported by preflight rather than refused at startup.
-	// The shell needs to open and explain what to fix; exiting here would give
-	// it nothing to show.
-	var (
-		synthesizer synth.Synthesizer
-		synthErr    error
-		model       *setup.Model
-		meter       *synth.Usage
-	)
 	synth.Notice = func(format string, args ...any) {
 		fmt.Fprintf(os.Stderr, "[model] "+format+"\n", args...)
 	}
-	if url := strings.TrimSpace(os.Getenv(synth.EnvServerURL)); url != "" {
-		remote := synth.NewRemote(url, os.Getenv(synth.EnvInvite))
-		synthesizer, meter = remote, remote.Usage
-		fmt.Fprintf(os.Stderr, "[model] asking the VANS server at %s\n", url)
-	} else if os.Getenv(synth.EnvProvider) == "anthropic" {
-		synthesizer, synthErr = synth.FromEnv()
-		if synthErr != nil {
-			synthesizer = unconfigured{err: synthErr}
-		}
-	} else {
-		llm := synth.NewLive()
-		wait, mode := synth.WaitAndModeFromEnv()
-		model = &setup.Model{
-			Live: llm, Keys: keychain.System{}, Saved: st, Env: os.Getenv,
-			Wait: wait, Mode: mode,
-		}
-		model.Load(ctx)
-		synthesizer, meter = llm, llm.Meter
-	}
+	b := chooseModel(ctx, st)
+	synthesizer, model, meter, learner := b.synthesizer, b.model, b.meter, b.learner
 
 	// The router shares the store, so a routing decision and an extraction
 	// program for the same request live in one file and are backed up, moved
@@ -259,6 +228,9 @@ func run() error {
 			Rulebook:   st,
 			Memory:     st,
 			Routines:   st,
+			Clicks:     st,
+			Prefs:      st,
+			Learner:    learner,
 			UIScreen:   desktop,
 			PageScreen: page,
 			Eyes:       looking(synthesizer, desktop),
@@ -266,12 +238,13 @@ func run() error {
 		Deeds:    st,
 		Rules:    st,
 		Model:    model,
+		Invite:   b.invite,
+		Online:   reachable(b.reaches),
 		Feedback: feedbackTo(synthesizer),
 		Probe: probe{
-			model:    model,
+			ready:    b.ready,
 			hostPort: *hostPort,
 			notes:    notes,
-			synthErr: synthErr,
 			live:     &appleevents.Chrome{Runner: appleevents.Osascript{}},
 		},
 		HostPort: *hostPort,
@@ -288,20 +261,11 @@ func run() error {
 type probe struct {
 	hostPort string
 	notes    appleevents.Notes
-	synthErr error
 	live     *appleevents.Chrome
-	model    *setup.Model
+	ready    func() error
 }
 
-func (p probe) LLMConfigured() error {
-	if p.model != nil {
-		if !p.model.Live.Configured() {
-			return synth.ErrNotSetUp
-		}
-		return nil
-	}
-	return p.synthErr
-}
+func (p probe) LLMConfigured() error { return p.ready() }
 
 // AccessibilityGranted asks whether the trust is in place, which does not
 // prompt for it. Nothing here asks for the permission: a window opening is not
@@ -344,24 +308,6 @@ func (p probe) NotesAccessible(ctx context.Context) error {
 	return err
 }
 
-// unconfigured stands in for a synthesizer that could not be built, so the
-// process can start and explain itself.
-type unconfigured struct{ err error }
-
-func (u unconfigured) Synthesize(context.Context, synth.Request) (extract.Program, error) {
-	return extract.Program{}, u.err
-}
-
-func modelLabel() string {
-	if m := os.Getenv(synth.EnvModel); m != "" {
-		return m
-	}
-	if os.Getenv(synth.EnvProvider) == "anthropic" {
-		return synth.DefaultModel
-	}
-	return synth.DefaultOSModel
-}
-
 func defaultDB() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -371,13 +317,28 @@ func defaultDB() string {
 }
 
 func looking(model any, desktop uiact.System) uiact.Screen {
-	reader, ok := model.(eyes.Reader)
-	if !ok {
-		return nil
-	}
+	reader, _ := model.(eyes.Reader)
 	return &eyes.Screen{
 		Camera: desktop,
 		Reader: reader,
+		Words:  uiact.ReadWords,
+		Menus: func(ctx context.Context, app string) ([]uiact.Element, error) {
+			tree, err := desktop.Capture(ctx, app)
+			if err != nil {
+				return nil, err
+			}
+			var menus []uiact.Element
+			for _, el := range tree.Elements {
+				if uiact.InMenuBar(el) {
+					menus = append(menus, el)
+				}
+			}
+			return menus, nil
+		},
+		Hands: func(ctx context.Context, p uiact.Program, t uiact.Tree) error {
+			return uiact.RunByPointer(ctx, desktop.Runner, p, t)
+		},
+		Typist: desktop.Type,
 		Raise:  desktop.BringToFront,
 		Log: func(format string, args ...any) {
 			fmt.Fprintf(os.Stderr, "[eyes] "+format+"\n", args...)

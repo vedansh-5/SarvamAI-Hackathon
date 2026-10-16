@@ -1,7 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import { DotField, type DotMode } from "./dots";
 import { livingPill } from "./pill";
+import { THEMES, chooseTheme, followTheme, type Theme } from "./theme";
 
 // --- shapes mirrored from internal/rpc/protocol.go ---
 
@@ -17,6 +18,14 @@ interface Check {
 interface Preflight {
   ready: boolean;
   checks: Check[];
+}
+
+interface Permission {
+  name: string;
+  label: string;
+  why: string;
+  state: "granted" | "not_asked" | "needed" | "unknown";
+  settings: string;
 }
 
 interface Plan {
@@ -39,6 +48,7 @@ interface Plan {
   mode_why?: string;
   say?: string;
   say_title?: string;
+  marked?: boolean;
   copy?: string;
   decision_calls: number;
   action: string;
@@ -293,6 +303,24 @@ const FINISHED = new Set(["results", "failure", "notunderstood", "history"]);
 const WITH_FIELD = new Set(["ask", "working", "results", "notunderstood", "failure"]);
 const WITHOUT_FOOT = new Set(["guiding", "question"]);
 let showing = "ask";
+let pillStep = "";
+
+function tellPill() {
+  const state =
+    showing === "working"
+      ? "working"
+      : showing === "guiding"
+        ? "guiding"
+        : showing === "question"
+          ? "asking"
+          : "idle";
+  const stepping = state === "guiding" || actingIn !== null;
+  if (state === "idle" && actingIn === null) pillStep = "";
+  emit("pill://state", {
+    state,
+    text: stepping && pillStep ? pillStep : state === "asking" ? "Question" : undefined,
+  }).catch(() => {});
+}
 let openFresh = false;
 
 const HINTS: Record<string, [string, string][]> = {
@@ -362,6 +390,7 @@ function show(id: string) {
   }
   invoke("set_pinned", { pinned: PINNED.has(id) }).catch(console.error);
   adjusting = id === "preflight";
+  if ((id === "preflight") !== (was === "preflight")) watchPermissions(id === "preflight");
   setReading(id !== "ask");
   paintTint();
 
@@ -391,6 +420,8 @@ function show(id: string) {
   renderFoot();
   paintPresence();
   if (id !== "confirm") releaseHold();
+  if (id === "confirm") invoke("take_keyboard").catch(console.error);
+  tellPill();
 }
 
 /// Every value that reaches the DOM goes through a text node.
@@ -432,10 +463,16 @@ async function runPreflight(advance = true) {
   const checks = $("checks");
   clear(checks);
   checks.appendChild(el("p", "meta", "Checking…"));
+  loadWatching().catch(console.error);
+  loadInvite().catch(console.error);
 
   let result: Preflight;
+  let perms: Permission[];
   try {
-    result = await invoke<Preflight>("preflight");
+    [result, perms] = await Promise.all([
+      invoke<Preflight>("preflight"),
+      loadPermissions(),
+    ]);
   } catch (e) {
     clear(checks);
     checks.appendChild(
@@ -445,13 +482,268 @@ async function runPreflight(advance = true) {
   }
 
   clear(checks);
-  for (const c of result.checks) {
+  for (const c of result.checks.filter((c) => c.name !== "accessibility")) {
     checks.appendChild(checkRow(c));
   }
 
-  if (result.ready && advance) {
-    show("ask");
+  if (result.ready && !mustAsk(perms) && advance) {
+    if (welcomed()) show("ask");
+    else void showWelcome();
   }
+}
+
+interface LoginItem {
+  on: boolean;
+  works: boolean;
+  approve: boolean;
+}
+
+const LOGIN_KEY = "vans.login.decided";
+
+function showLogin(item: LoginItem) {
+  const box = $("login-item") as HTMLInputElement;
+  box.checked = item.on;
+  box.disabled = !item.works;
+  const note = $("login-note");
+  note.hidden = item.works && !item.approve;
+  note.textContent = !item.works
+    ? "Works in the installed app."
+    : "macOS wants you to allow it in System Settings › General › Login Items.";
+}
+
+async function loadLogin() {
+  let item = await invoke<LoginItem>("login_item");
+  let decided = true;
+  try {
+    decided = localStorage.getItem(LOGIN_KEY) !== null;
+  } catch {}
+  if (item.works && !decided) {
+    try {
+      item = await invoke<LoginItem>("set_login_item", { on: true });
+    } catch (e) {
+      console.error(e);
+    }
+    try {
+      localStorage.setItem(LOGIN_KEY, "1");
+    } catch {}
+  }
+  showLogin(item);
+}
+
+interface Watching {
+  on: boolean;
+  clicks: number;
+  shared?: boolean;
+}
+
+interface NotedClick {
+  at: string;
+  app: string;
+  role: string;
+  title: string;
+}
+
+const MAC_MOMENTS: Record<string, string> = {
+  wake: "Mac woke",
+  sleep: "Mac went to sleep",
+  lock: "Mac locked",
+  unlock: "Mac unlocked",
+};
+
+function notedLine(c: NotedClick): string {
+  if (c.role === "front") return `Switched to ${c.app}`;
+  if (c.role === "moment") return MAC_MOMENTS[c.title] ?? c.title;
+  return `${c.app} · ${c.title}`;
+}
+
+function showWatching(w: Watching) {
+  ($("watching") as HTMLInputElement).checked = w.on;
+  const sent = w.shared
+    ? " The habits it finds, and how you answered them, are sent to Vedansh to improve VANS; the list of clicks itself is not."
+    : "";
+  $("watching-note").textContent = w.on
+    ? `VANS notes the names of the buttons and menu items you click, which app is in front, and when your Mac wakes, unlocks and locks, so it can offer what you usually do at the moment you usually do it. Never what you type, window titles, or anything on a web page. The notes stay on this Mac for seven days.${sent}`
+    : "Off. Nothing new is noted. What was noted goes after seven days, or now with Clear.";
+  const see = $("watching-see") as HTMLButtonElement;
+  see.textContent = w.clicks ? `See what VANS noted (${w.clicks})` : "Nothing noted yet";
+  see.disabled = w.clicks === 0;
+  ($("watching-clear") as HTMLButtonElement).disabled = w.clicks === 0;
+  if (w.clicks === 0) $("watching-list").hidden = true;
+}
+
+async function loadWatching() {
+  showWatching(await invoke<Watching>("watching"));
+}
+
+async function seeNoted() {
+  const list = $("watching-list");
+  if (!list.hidden) {
+    list.hidden = true;
+    return;
+  }
+  const clicks = await invoke<NotedClick[]>("noted_clicks");
+  list.replaceChildren(
+    ...clicks
+      .slice(-200)
+      .reverse()
+      .map((c) => {
+        const li = document.createElement("li");
+        const when = document.createElement("time");
+        when.textContent = new Date(c.at).toLocaleString([], {
+          weekday: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        li.append(when, notedLine(c));
+        return li;
+      }),
+  );
+  list.hidden = false;
+}
+
+const PERMS_KEY = "vans.permissions";
+
+interface PermsMemory {
+  asked: boolean;
+  seen: Record<string, Permission["state"]>;
+}
+
+function permsMemory(): PermsMemory {
+  try {
+    const raw = localStorage.getItem(PERMS_KEY);
+    if (raw) return { asked: false, seen: {}, ...JSON.parse(raw) };
+  } catch {}
+  return { asked: false, seen: {} };
+}
+
+function rememberPerms(perms: Permission[], asked: boolean) {
+  const memory = permsMemory();
+  memory.asked = memory.asked || asked;
+  for (const p of perms) {
+    if (p.state !== "unknown") memory.seen[p.name] = p.state;
+  }
+  try {
+    localStorage.setItem(PERMS_KEY, JSON.stringify(memory));
+  } catch {}
+}
+
+function withMemory(perms: Permission[]): Permission[] {
+  const { seen } = permsMemory();
+  return perms.map((p) =>
+    p.state === "unknown" && seen[p.name] ? { ...p, state: seen[p.name] } : p,
+  );
+}
+
+function mustAsk(perms: Permission[]): boolean {
+  const { asked } = permsMemory();
+  return perms.some(
+    (p) =>
+      p.state === "not_asked" ||
+      (p.name === "accessibility" && p.state !== "granted") ||
+      (!asked && p.state !== "granted"),
+  );
+}
+
+let permsAsking = false;
+
+async function loadPermissions(): Promise<Permission[]> {
+  const perms = withMemory(await invoke<Permission[]>("permissions"));
+  rememberPerms(perms, false);
+  renderPermissions(perms);
+  if (waitingFor && perms.find((p) => p.name === waitingFor)?.state === "granted") {
+    waitingFor = null;
+    invoke("summon").catch(console.error);
+  }
+  return perms;
+}
+
+function renderPermissions(perms: Permission[]) {
+  const list = $("perms");
+  clear(list);
+  const { asked } = permsMemory();
+  for (const p of perms) {
+    const ok = p.state === "granted";
+    const box = el("div", ok ? "check ok" : "check");
+    box.appendChild(el("span", "check-dot"));
+    const text = el("div", "check-text");
+    text.appendChild(el("div", "check-label", p.label));
+    text.appendChild(el("div", "check-detail", p.why));
+    box.appendChild(text);
+    const control = p.name !== "accessibility" && p.name !== "screen";
+    const denied = p.state === "needed" && control;
+    if (!ok && (denied || (asked && p.state !== "not_asked"))) {
+      const fix = el("button", "btn quiet", control ? "Ask again" : "Turn on") as HTMLButtonElement;
+      fix.addEventListener("click", () => {
+        if (control) void askAgain(p);
+        else openSettingsFor(p);
+      });
+      box.appendChild(fix);
+    } else {
+      box.appendChild(el("span", "check-tag", ok ? "Granted" : "Needed"));
+    }
+    list.appendChild(box);
+  }
+  const screen = perms.find((p) => p.name === "screen");
+  $("perms-reopen").hidden = !asked || !screen || screen.state === "granted";
+  ($("perms-ask") as HTMLButtonElement).hidden = perms.every((p) => p.state === "granted");
+  if (!permsAsking) {
+    $("perms-state").textContent = perms.every((p) => p.state === "granted")
+      ? "All granted."
+      : asked
+        ? "Accessibility and Screen Recording can only be switched on by you, in Settings. Turn on takes you there and VANS comes back when it is on."
+        : "";
+  }
+  fitWindow();
+}
+
+let waitingFor: string | null = null;
+
+function openSettingsFor(p: Permission) {
+  waitingFor = p.name;
+  invoke("open_permission_settings", { name: p.name }).catch(console.error);
+  invoke("dismiss").catch(console.error);
+}
+
+async function askAgain(p: Permission) {
+  permsAsking = true;
+  $("perms-state").textContent = "Answer the macOS prompts as they come up.";
+  try {
+    const perms = withMemory(await invoke<Permission[]>("ask_permissions_again"));
+    rememberPerms(perms, true);
+    permsAsking = false;
+    renderPermissions(perms);
+  } catch {
+    permsAsking = false;
+    openSettingsFor(p);
+  }
+}
+
+async function askPermissions() {
+  const button = $("perms-ask") as HTMLButtonElement;
+  button.disabled = true;
+  permsAsking = true;
+  $("perms-state").textContent = "Answer each macOS prompt as it comes up.";
+  try {
+    const perms = withMemory(await invoke<Permission[]>("ask_permissions"));
+    rememberPerms(perms, true);
+    permsAsking = false;
+    renderPermissions(perms);
+  } catch (e) {
+    permsAsking = false;
+    $("perms-state").textContent = String(e);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+let permsTick = 0;
+
+function watchPermissions(on: boolean) {
+  clearInterval(permsTick);
+  if (!on) return;
+  permsTick = window.setInterval(() => {
+    if (!permsAsking) loadPermissions().catch(console.error);
+  }, 2000);
 }
 
 function checkRow(c: Check): HTMLElement {
@@ -466,21 +758,6 @@ function checkRow(c: Check): HTMLElement {
 
   box.appendChild(el("span", "check-tag", c.ok ? "Granted" : "Needed"));
   return box;
-}
-
-async function checkNotes() {
-  const out = $("notes-result");
-  clear(out);
-  out.appendChild(el("p", "meta", "Asking Notes…"));
-
-  try {
-    const c = await invoke<Check>("check_notes");
-    clear(out);
-    out.appendChild(checkRow(c));
-  } catch (e) {
-    clear(out);
-    out.appendChild(el("p", "bad", isRpcError(e) ? e.message : String(e)));
-  }
 }
 
 // --- the task ---
@@ -604,6 +881,16 @@ async function extract(sendAs?: string, text?: string) {
     return;
   }
 
+  try {
+    if (mustAsk(withMemory(await invoke<Permission[]>("permissions")))) {
+      show("preflight");
+      void runPreflight(false);
+      return;
+    }
+  } catch (e) {
+    console.error(e);
+  }
+
   ($("intent") as HTMLInputElement).value = instruction;
   $("working-query").textContent = instruction;
   $("progress").textContent = "Working";
@@ -620,7 +907,12 @@ async function extract(sendAs?: string, text?: string) {
     lastInstruction = instruction;
     setProgress(100);
     currentPlan = plan;
+    invoke("note", {
+      from: "timing",
+      what: `${plan.elapsed_ms} ms, ${plan.synthesis_calls + plan.decision_calls} calls, ${plan.app || hostOf(plan.page_url) || "?"}: ${instruction}`,
+    }).catch(() => {});
     if (plan.say) {
+      if (plan.marked) showClearStyle(true);
       renderSay(plan);
       show("results");
       if (plan.decision_calls + plan.synthesis_calls === 0) setStatus("", "Instant");
@@ -735,6 +1027,8 @@ listen<{
 }>("engine://drive_step", (event) => {
   if (actingIn === null) return;
   const s = event.payload.params;
+  pillStep = `Step ${s.number}`;
+  tellPill();
   invoke("point_at", {
     x: s.x,
     y: s.y,
@@ -860,6 +1154,8 @@ listen<{
   (event) => {
     const s = event.payload.params;
     $("guiding-step").textContent = `${s.number}. ${s.label}`;
+    pillStep = `Step ${s.number}`;
+    tellPill();
 
     // The step is on the screen now, so the panel can leave. Every step after
     // the first finds it already gone.
@@ -1091,9 +1387,19 @@ function renderResults(plan: Plan) {
 
   const n = plan.rows.length;
   const source = hostOf(plan.page_url) || plan.page_url;
-  $("results-kicker").textContent =
-    `${n} result${n === 1 ? "" : "s"} from ${source}${plan.decision_calls + plan.synthesis_calls === 0 ? " · remembered" : ""}`;
+  const remembered = plan.decision_calls + plan.synthesis_calls === 0 ? " · remembered" : "";
+  const answered = !!plan.answer;
+  $("results-kicker").textContent = answered
+    ? `${plan.app || source}${remembered}`
+    : `${n} result${n === 1 ? "" : "s"} from ${source}${remembered}`;
   $("results-kicker").title = timing(plan);
+  $("show-read").textContent = `Show what VANS read (${n})`;
+  $("show-read").hidden = !answered || n === 0;
+  if (answered) {
+    $("view-switch").hidden = true;
+    $("cards").hidden = true;
+    $("table-wrap").hidden = true;
+  }
 
   renderCards($("cards"), plan.fields, plan.rows);
 
@@ -1133,11 +1439,13 @@ function renderAnswer(plan: Plan) {
     const row = plan.rows[n - 1];
     if (!row) continue;
 
-    const label = hostOf(firstLink(row, plan.fields)) || String(n);
+    const label = hostOf(firstLink(row, plan.fields));
+    if (!label) continue;
     const chip = el("button", "cite", label) as HTMLButtonElement;
     chip.type = "button";
     chip.title = row[plan.fields[0]] ?? "";
     chip.addEventListener("click", () => {
+      showRead();
       const card = $("cards").children[n - 1] as HTMLElement | undefined;
       card?.scrollIntoView({ behavior: "smooth", block: "center" });
       card?.classList.add("lit");
@@ -1145,6 +1453,14 @@ function renderAnswer(plan: Plan) {
     });
     cites.appendChild(chip);
   }
+}
+
+function showRead() {
+  if ($("show-read").hidden) return;
+  $("show-read").hidden = true;
+  $("view-switch").hidden = false;
+  applyView(tableView(), false);
+  fitWindow();
 }
 
 function firstLink(row: Record<string, string>, fields: string[]): string {
@@ -1659,38 +1975,6 @@ function renderUnresolved(into: HTMLElement, data: Unresolved) {
   }
 }
 
-async function checkScreenRecording() {
-  const out = $("screen-result");
-  clear(out);
-  out.appendChild(el("p", "meta", "Checking Screen Recording permission…"));
-
-  try {
-    const granted = await invoke<boolean>("check_screen_recording");
-    clear(out);
-    const row = checkRow({
-      name: "screen",
-      label: "Screen Recording",
-      ok: granted,
-      detail: granted
-        ? "VANS can see what you are looking at."
-        : "Not granted yet. Ask for it below.",
-      required: false,
-    });
-    out.appendChild(row);
-
-    if (!granted) {
-      const promptBtn = el("button", "btn secondary", "Request access") as HTMLButtonElement;
-      promptBtn.addEventListener("click", () => {
-        invoke("request_screen_recording").catch(console.error);
-      });
-      out.appendChild(promptBtn);
-    }
-  } catch (e) {
-    clear(out);
-    out.appendChild(el("p", "bad", isRpcError(e) ? e.message : String(e)));
-  }
-}
-
 /// The window title is whatever the frontmost application decided to call
 /// itself, and when that application is a browser it is whatever the page
 /// decided — `document.title` is writable by any script on it. Building this
@@ -1952,6 +2236,29 @@ function paintPresence() {
 presence.start();
 guidePresence.start();
 
+function showAccents(current: Theme) {
+  const box = $("accents");
+  box.replaceChildren(
+    ...THEMES.map((t) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "accent-swatch";
+      b.title = t.name;
+      b.setAttribute("role", "radio");
+      b.setAttribute("aria-label", t.name);
+      b.setAttribute("aria-checked", String(t.id === current.id));
+      b.style.setProperty("--swatch", t.accent);
+      b.addEventListener("click", async () => showAccents(await chooseTheme(t.id)));
+      return b;
+    }),
+  );
+  paintPresence();
+}
+
+const startingTheme = followTheme(showAccents);
+showAccents(startingTheme);
+invoke("set_accent", { accent: startingTheme.id }).catch(() => {});
+
 /// Tells the shell how tall the panel wants to be.
 ///
 /// A summoned panel is not a document viewer: it should be the size of what it
@@ -2025,7 +2332,19 @@ function humanise(message: string): string {
   return message;
 }
 
+let kept = false;
+
+function keepPanel() {
+  if (kept) return;
+  kept = true;
+  invoke("keep_panel").catch(() => {});
+}
+
+document.addEventListener("mousedown", keepPanel, true);
+document.addEventListener("keydown", keepPanel, true);
+
 listen<ScreenContext | undefined>("overlay://shown", (event) => {
+  kept = false;
   if (event.payload) {
     updateActiveContext(event.payload);
   } else {
@@ -2033,6 +2352,7 @@ listen<ScreenContext | undefined>("overlay://shown", (event) => {
   }
 
   void loadSuggestions(event.payload?.app_name);
+  loadHabit().catch(console.error);
 
   scroller.scrollTop = 0;
 
@@ -2130,6 +2450,108 @@ function backToAsk() {
   intent.select();
 }
 
+interface Ability {
+  title: string;
+  says: string;
+  examples?: string[];
+}
+
+let abilitiesKnown: Ability[] | null = null;
+
+async function abilities(): Promise<Ability[]> {
+  if (!abilitiesKnown) {
+    try {
+      abilitiesKnown = await invoke<Ability[]>("abilities");
+    } catch {
+      return [];
+    }
+  }
+  return abilitiesKnown ?? [];
+}
+
+function tryExample(text: string) {
+  ($("intent") as HTMLInputElement).value = text;
+  backToAsk();
+  renderMode();
+}
+
+function exampleChip(text: string): HTMLElement {
+  const chip = el("button", "chip") as HTMLButtonElement;
+  chip.type = "button";
+  chip.appendChild(el("span", "dot"));
+  chip.appendChild(el("span", undefined, text));
+  chip.addEventListener("click", () => {
+    welcomeDone();
+    tryExample(text);
+  });
+  return chip;
+}
+
+function abilityRow(a: Ability, examples: string[]): HTMLElement {
+  const row = el("div", "ability");
+  row.appendChild(el("div", "ability-title", a.title));
+  row.appendChild(el("p", "ability-says", a.says));
+  if (examples.length) {
+    const box = el("div", "ability-examples");
+    for (const text of examples) box.appendChild(exampleChip(text));
+    row.appendChild(box);
+  }
+  return row;
+}
+
+let abilitiesFrom = "ask";
+
+async function showAbilities() {
+  abilitiesFrom = showing === "abilities" ? abilitiesFrom : showing;
+  show("abilities");
+  const list = $("ability-list");
+  clear(list);
+  for (const a of await abilities()) list.appendChild(abilityRow(a, a.examples ?? []));
+  fitWindow();
+}
+
+const WELCOME_KEY = "vans.welcomed";
+
+function welcomed(): boolean {
+  try {
+    return localStorage.getItem(WELCOME_KEY) === "yes";
+  } catch {
+    return true;
+  }
+}
+
+function welcomeDone() {
+  try {
+    localStorage.setItem(WELCOME_KEY, "yes");
+  } catch {}
+}
+
+async function showWelcome() {
+  show("welcome");
+  const tries = $("welcome-tries");
+  clear(tries);
+  const withExamples = (await abilities()).filter((a) => a.examples?.length).slice(0, 3);
+  for (const a of withExamples) tries.appendChild(abilityRow(a, [a.examples![0]]));
+  fitWindow();
+}
+
+$("welcome-start").addEventListener("click", () => {
+  welcomeDone();
+  backToAsk();
+});
+$("welcome-more").addEventListener("click", () => {
+  welcomeDone();
+  void showAbilities();
+});
+$("abilities-back").addEventListener("click", () => {
+  if (abilitiesFrom === "ask" || !abilitiesFrom) backToAsk();
+  else show(abilitiesFrom);
+  fitWindow();
+});
+$("show-abilities").addEventListener("click", () => void showAbilities());
+$("setup-abilities").addEventListener("click", () => void showAbilities());
+$("setup-welcome").addEventListener("click", () => void showWelcome());
+
 for (const button of Array.from($("mode").querySelectorAll("button"))) {
   button.addEventListener("click", () => {
     const clicked: Mode = button.getAttribute("data-mode") === "do" ? "do" : "show";
@@ -2169,6 +2591,95 @@ interface DueTask {
 }
 
 let dueTasks: DueTask[] = [];
+
+interface HabitOffer {
+  key: string;
+  name: string;
+  times: number;
+  routine: string;
+  instruction: string;
+}
+
+let habitOffer: HabitOffer | null = null;
+
+async function loadHabit() {
+  const offers = await invoke<HabitOffer[]>("habits");
+  habitOffer = offers[0] ?? null;
+  renderHabit();
+  fitWindow();
+}
+
+async function settleHabit(how: "save" | "show" | "dismiss", name = ""): Promise<string> {
+  const offer = habitOffer;
+  if (!offer) return "";
+  const done = await invoke<{ instruction: string }>("settle_habit", { key: offer.key, how, name });
+  habitOffer = null;
+  renderHabit();
+  void loadHabit();
+  return done.instruction;
+}
+
+function renderHabit() {
+  const box = $("habit");
+  clear(box);
+  box.hidden = habitOffer === null;
+  const offer = habitOffer;
+  if (!offer) return;
+
+  const row = el("div", "row");
+  row.appendChild(el("span", "field-note", `You often do this. ${offer.name}.`));
+
+  const save = el("button", "btn secondary", "Save as a routine") as HTMLButtonElement;
+  save.addEventListener("click", () => {
+    clear(row);
+    row.appendChild(el("span", "field-note", "Name it. Say the name to run it."));
+    const name = document.createElement("input");
+    name.className = "field";
+    name.value = offer.routine;
+    const keep = el("button", "btn secondary", "Save") as HTMLButtonElement;
+    const back = el("button", "btn quiet", "Cancel") as HTMLButtonElement;
+    keep.addEventListener("click", async () => {
+      const called = name.value.trim() || offer.routine;
+      try {
+        await settleHabit("save", called);
+        toast(`Saved. Say “${called}” to run it.`);
+      } catch (e) {
+        toast(isRpcError(e) ? e.message : String(e));
+      }
+    });
+    back.addEventListener("click", renderHabit);
+    row.append(name, keep, back);
+    name.focus();
+    name.select();
+    fitWindow();
+  });
+
+  const teach = el("button", "btn secondary", "Show me") as HTMLButtonElement;
+  teach.addEventListener("click", async () => {
+    const instruction = await settleHabit("show");
+    if (instruction) void extract("show", instruction);
+  });
+
+  const later = el("button", "btn quiet", "Not now") as HTMLButtonElement;
+  later.addEventListener("click", () => {
+    settleHabit("dismiss").catch(console.error);
+  });
+
+  row.append(save, teach, later);
+  box.appendChild(row);
+}
+
+listen<{ instruction?: string }>("nudge://run", async (event) => {
+  const instruction = event.payload?.instruction?.trim();
+  if (!instruction) return;
+  openFresh = false;
+  await invoke("summon").catch(console.error);
+  void extract("do", instruction);
+});
+
+listen("engine://habits", () => {
+  loadHabit().catch(console.error);
+});
 
 function renderDue() {
   const box = $("due");
@@ -2526,6 +3037,45 @@ function showModel(m: ModelStatus) {
       : "VANS needs a key for the model it thinks with. It is kept in your Mac\u2019s Keychain and sent only to that model.";
 }
 
+interface InviteState {
+  tester: boolean;
+  has: boolean;
+}
+
+function showInvite(i: InviteState) {
+  $("invite-section").hidden = !i.tester;
+  $("model-section").hidden = i.tester;
+  field("invite-code").value = "";
+  field("invite-code").placeholder = i.has ? "Saved. Paste a new code to replace it" : "vans-\u2026";
+}
+
+async function loadInvite() {
+  try {
+    showInvite(await invoke<InviteState>("invite"));
+  } catch {}
+}
+
+$("invite-save").addEventListener("click", async () => {
+  const button = $("invite-save") as HTMLButtonElement;
+  const code = field("invite-code").value.trim();
+  if (!code) {
+    $("invite-state").textContent = "Paste the code first.";
+    return;
+  }
+  button.disabled = true;
+  $("invite-state").textContent = "Checking\u2026";
+  try {
+    showInvite(await invoke<InviteState>("set_invite", { code }));
+    $("invite-state").textContent = "Saved. The VANS server knows this code.";
+    runPreflight(false);
+  } catch (e) {
+    $("invite-state").textContent = isRpcError(e) ? withoutThePrefix(e.message) : String(e);
+  } finally {
+    button.disabled = false;
+    fitWindow();
+  }
+});
+
 async function loadModel() {
   try {
     showModel(await invoke<ModelStatus>("model_settings"));
@@ -2578,8 +3128,40 @@ $("model-more").addEventListener("toggle", () => fitWindow());
 $("history-back").addEventListener("click", () => show("preflight"));
 
 $("recheck").addEventListener("click", () => runPreflight(false));
-$("check-screen").addEventListener("click", checkScreenRecording);
-$("check-notes").addEventListener("click", checkNotes);
+$("quit").addEventListener("click", () => {
+  invoke("quit_app").catch(console.error);
+});
+
+$("login-item").addEventListener("change", async (e) => {
+  const box = e.target as HTMLInputElement;
+  try {
+    showLogin(await invoke<LoginItem>("set_login_item", { on: box.checked }));
+  } catch (err) {
+    box.checked = !box.checked;
+    $("login-note").hidden = false;
+    $("login-note").textContent = String(err);
+  }
+});
+$("watching").addEventListener("change", async (e) => {
+  const box = e.target as HTMLInputElement;
+  try {
+    showWatching(await invoke<Watching>("set_watching", { on: box.checked }));
+  } catch (err) {
+    box.checked = !box.checked;
+    $("watching-note").textContent = String(err);
+  }
+});
+$("watching-see").addEventListener("click", () => {
+  seeNoted().catch(console.error);
+});
+$("watching-clear").addEventListener("click", async () => {
+  showWatching(await invoke<Watching>("clear_clicks"));
+});
+$("show-read").addEventListener("click", showRead);
+$("perms-ask").addEventListener("click", askPermissions);
+$("perms-reopen").addEventListener("click", () => {
+  invoke("reopen").catch(console.error);
+});
 $("commit").addEventListener("mousedown", startHold);
 $("commit").addEventListener("mouseup", releaseHold);
 $("commit").addEventListener("mouseleave", releaseHold);
@@ -2604,5 +3186,7 @@ void loadSuggestions();
 
 show("preflight");
 runPreflight();
+loadLogin().catch(console.error);
+loadWatching().catch(console.error);
 refreshActiveContext();
 loadDestinations();

@@ -77,7 +77,11 @@ type Server struct {
 
 	Model *setup.Model
 
+	Invite *setup.Invite
+
 	Feedback FeedbackSender
+
+	Online func(ctx context.Context) bool
 
 	out   *json.Encoder
 	outMu sync.Mutex
@@ -95,6 +99,10 @@ type Server struct {
 	// the same thing: VANS doing something in their window, and Escape to stop it.
 	actCancel context.CancelFunc
 	actResume chan struct{}
+
+	noted    int
+	lookedAt time.Time
+	held     []heldOffer
 }
 
 // Serve reads requests from in and writes responses to out until in ends.
@@ -111,7 +119,11 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 
 	watching, stopWatching := context.WithCancel(ctx)
 	defer stopWatching()
+	if s.Engine != nil {
+		go s.Engine.TakeMarksOff(watching)
+	}
 	go s.watchTheClock(watching)
+	go s.offerByTheClock(watching)
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -203,6 +215,34 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result, err = s.setModelSettings(ctx, req)
 	case "forget_model_key":
 		result, err = s.forgetModelKey(ctx)
+	case "invite":
+		result, err = s.invite()
+	case "set_invite":
+		result, err = s.setInvite(ctx, req)
+	case "abilities":
+		result = s.Engine.Abilities()
+	case "set_accent":
+		result, err = s.setAccent(ctx, req)
+	case "update_source":
+		result, err = s.updateSource()
+	case "noticed":
+		result, err = s.noticed(ctx, req)
+	case "moment":
+		result, err = s.moment(ctx, req)
+	case "answer_offer":
+		result, err = s.answerOffer(ctx, req)
+	case "watching":
+		result, err = s.watching(ctx)
+	case "set_watching":
+		result, err = s.setWatching(ctx, req)
+	case "noted_clicks":
+		result, err = s.notedClicks(ctx)
+	case "clear_clicks":
+		result, err = s.clearClicks(ctx)
+	case "habits":
+		result, err = s.habits(ctx)
+	case "settle_habit":
+		result, err = s.settleHabit(ctx, req)
 	case "can_send_feedback":
 		result = map[string]bool{"ready": s.Feedback != nil}
 	case "send_feedback":
@@ -284,9 +324,17 @@ func (s *Server) preflight(ctx context.Context) (PreflightResult, error) {
 		},
 	}
 
-	if err := s.Probe.LLMConfigured(); err != nil {
+	if err := s.Probe.LLMConfigured(); err != nil && s.Invite != nil {
+		checks[0].Label = "Invite code"
+		checks[0].Detail = "This copy of VANS needs the invite code Vedansh sent you."
+		checks[0].Fix = "Paste it under \u201CInvite code\u201D below and press Save and check."
+	} else if err != nil {
 		checks[0].Detail = "VANS has no model to think with yet."
 		checks[0].Fix = "Paste a model key under \u201Cmodel\u201D below and press Save and test."
+	} else if s.Invite != nil {
+		checks[0].OK = true
+		checks[0].Label = "Invite code"
+		checks[0].Detail = "Saved."
 	} else {
 		checks[0].OK = true
 		checks[0].Detail = "Configured."
@@ -528,6 +576,7 @@ func (s *Server) prepare(ctx context.Context, req Request) (PrepareResult, error
 		ModeWhy:        plan.ModeWhy,
 		Say:            plan.Say,
 		SayTitle:       plan.SayTitle,
+		Marked:         plan.Marked,
 		Copy:           plan.Copy,
 		App:            app,
 		DecisionCalls:  plan.DecisionCalls,
@@ -1199,6 +1248,70 @@ func (s *Server) forgetModelKey(ctx context.Context) (setup.Status, error) {
 		return setup.Status{}, &Error{Code: CodeBadRequest, Message: "this build takes its model from the environment only"}
 	}
 	return s.Model.Forget(ctx)
+}
+
+type InviteState struct {
+	Tester bool `json:"tester"`
+	Has    bool `json:"has"`
+}
+
+func (s *Server) invite() (InviteState, error) {
+	if s.Invite == nil {
+		return InviteState{}, nil
+	}
+	return InviteState{Tester: true, Has: s.Invite.Status().Has}, nil
+}
+
+func (s *Server) setInvite(ctx context.Context, req Request) (InviteState, error) {
+	if s.Invite == nil {
+		return InviteState{}, &Error{Code: CodeBadRequest, Message: "this copy of VANS does not use an invite code"}
+	}
+	var p struct {
+		Code string `json:"code"`
+	}
+	if err := json.Unmarshal(req.Params, &p); err != nil {
+		return InviteState{}, &Error{Code: CodeBadRequest, Message: err.Error()}
+	}
+	status, err := s.Invite.Save(ctx, p.Code)
+	if err != nil {
+		return InviteState{Tester: true, Has: status.Has}, &Error{Code: CodeModelNotSaved, Message: inviteRefusal(err)}
+	}
+	return InviteState{Tester: true, Has: status.Has}, nil
+}
+
+func (s *Server) setAccent(ctx context.Context, req Request) (map[string]string, error) {
+	var p struct {
+		Accent string `json:"accent"`
+	}
+	if err := json.Unmarshal(req.Params, &p); err != nil {
+		return nil, &Error{Code: CodeBadRequest, Message: err.Error()}
+	}
+	if s.Engine == nil {
+		return nil, &Error{Code: CodeBadRequest, Message: "no engine"}
+	}
+	if err := s.Engine.SetTheme(ctx, p.Accent); err != nil {
+		return nil, &Error{Code: CodeBadRequest, Message: err.Error()}
+	}
+	return map[string]string{"accent": s.Engine.Theme(ctx).ID}, nil
+}
+
+type UpdateSource struct {
+	Server string `json:"server"`
+	Code   string `json:"code"`
+}
+
+func (s *Server) updateSource() (UpdateSource, error) {
+	if s.Invite == nil {
+		return UpdateSource{}, nil
+	}
+	return UpdateSource{Server: s.Invite.Remote.URL, Code: s.Invite.Remote.InviteCode()}, nil
+}
+
+func inviteRefusal(err error) string {
+	if errors.Is(err, synth.ErrRefused) {
+		return err.Error()
+	}
+	return "VANS could not reach its server to check the code. Check the internet connection and try again."
 }
 
 var ScheduleTick = 20 * time.Second

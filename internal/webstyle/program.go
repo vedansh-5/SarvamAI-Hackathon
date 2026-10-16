@@ -132,8 +132,15 @@ func Validate(p Program, doc *html.Node) error {
 				"rule %d: %q is not a selector this page can be asked for", i+1, sel))
 			continue
 		}
-		if doc != nil && len(cascadia.QueryAll(doc, compiled)) < MinMatchingElements {
+		if doc == nil {
+			continue
+		}
+		found := cascadia.QueryAll(doc, compiled)
+		if len(found) < MinMatchingElements {
 			reasons = append(reasons, fmt.Sprintf("rule %d: %q matched nothing on the page", i+1, sel))
+		} else if emphasis != "muted" && allWhole(found) {
+			reasons = append(reasons, fmt.Sprintf(
+				"rule %d: %q marks whole rows, lists or sections; mark the cell, name or label that makes the difference instead", i+1, sel))
 		}
 	}
 
@@ -142,6 +149,22 @@ func Validate(p Program, doc *html.Node) error {
 	}
 	sort.Strings(reasons)
 	return &InvalidError{Reasons: reasons}
+}
+
+var whole = map[string]bool{
+	"html": true, "body": true, "main": true, "section": true, "article": true, "form": true,
+	"nav": true, "header": true, "footer": true, "aside": true,
+	"table": true, "thead": true, "tbody": true, "tfoot": true, "tr": true,
+	"ul": true, "ol": true, "dl": true,
+}
+
+func allWhole(nodes []*html.Node) bool {
+	for _, n := range nodes {
+		if !whole[n.Data] {
+			return false
+		}
+	}
+	return true
 }
 
 // Sheet renders the validated program as CSS.

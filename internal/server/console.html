@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>VANS console</title>
+<style>
+:root {
+  --bg: #f5f5f7; --card: #ffffff; --ink: #1d1d1f; --mute: #6e6e73; --line: rgba(0,0,0,0.08);
+  --accent: #0071e3; --good: #1f9d55; --bad: #d70015; --bar: #0071e3; --fill: rgba(0,0,0,0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #000000; --card: #1c1c1e; --ink: #f5f5f7; --mute: #98989d; --line: rgba(255,255,255,0.1);
+          --accent: #2997ff; --good: #30d158; --bad: #ff453a; --bar: #2997ff; --fill: rgba(255,255,255,0.06); }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+       font: 15px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; }
+header { display: flex; align-items: center; gap: 24px; padding: 16px 24px; border-bottom: 1px solid var(--line);
+         background: var(--card); position: sticky; top: 0; flex-wrap: wrap; }
+header b { font-size: 17px; letter-spacing: -0.01em; }
+nav { display: flex; gap: 4px; flex-wrap: wrap; }
+nav a { color: var(--mute); text-decoration: none; padding: 6px 12px; border-radius: 980px; }
+nav a.on { color: var(--ink); background: var(--fill); }
+header form { margin-left: auto; }
+main { max-width: 1080px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 8px 0 20px; }
+h2 { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.card { background: var(--card); border-radius: 18px; padding: 20px; border: 1px solid var(--line); overflow-x: auto; }
+.wide { grid-column: 1 / -1; }
+.stats { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 16px; }
+.stat .n { font-size: 32px; font-weight: 600; letter-spacing: -0.02em; }
+.stat .l { color: var(--mute); font-size: 13px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; color: var(--mute); font-weight: 500; font-size: 12px; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+.mute { color: var(--mute); }
+.good { color: var(--good); }
+.bad { color: var(--bad); }
+code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--fill); padding: 2px 6px; border-radius: 6px; }
+.bar { height: 8px; border-radius: 4px; background: var(--bar); min-width: 2px; }
+.track { background: var(--fill); border-radius: 4px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+input, select { font: inherit; color: var(--ink); background: var(--fill); border: 1px solid var(--line);
+                border-radius: 10px; padding: 7px 10px; }
+input[type=number] { width: 90px; }
+button { font: inherit; border: none; border-radius: 980px; padding: 7px 16px; cursor: pointer;
+         background: var(--accent); color: #fff; }
+button.plain { background: var(--fill); color: var(--ink); }
+.made { background: var(--fill); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+.made code { font-size: 15px; padding: 4px 10px; }
+.error { color: var(--bad); margin: 0 0 16px; }
+.note { white-space: pre-wrap; margin: 8px 0 0; }
+.done { opacity: 0.5; }
+.login { max-width: 360px; margin: 15vh auto; }
+.login input { width: 100%; margin: 12px 0; }
+svg text { fill: var(--mute); font-size: 10px; }
+svg rect { fill: var(--bar); }
+</style>
+</head>
+<body>
+{{if eq .Page "login"}}
+<main><div class="card login">
+  <h1>VANS console</h1>
+  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+  <form method="post" action="{{$.Base}}/login">
+    <input type="password" name="key" placeholder="Console key" autocomplete="current-password" autofocus>
+    <button type="submit">Open</button>
+  </form>
+</div></main>
+{{else}}
+<header>
+  <b>VANS</b>
+  <nav>
+    <a href="{{$.Base}}/" {{if eq .Page "overview"}}class="on"{{end}}>Overview</a>
+    <a href="{{$.Base}}/testers" {{if eq .Page "testers"}}class="on"{{end}}>Testers</a>
+    <a href="{{$.Base}}/activity" {{if eq .Page "activity"}}class="on"{{end}}>Activity</a>
+    <a href="{{$.Base}}/feedback" {{if eq .Page "feedback"}}class="on"{{end}}>Feedback</a>
+  </nav>
+  <form method="post" action="{{$.Base}}/logout"><button class="plain" type="submit">Sign out</button></form>
+</header>
+<main>
+{{if eq .Page "error"}}
+  <h1>That did not work</h1>
+  <p class="error">{{.Error}}</p>
+  <p><a href="{{$.Base}}/">Back to the overview</a></p>
+
+{{else if eq .Page "overview"}}
+  <h1>Overview</h1>
+  <div class="stats">
+    <div class="card stat"><div class="n">{{.Today}}</div><div class="l">requests today</div></div>
+    <div class="card stat"><div class="n">{{pct .Finished .Answered}}%</div><div class="l">finished, last 7 days ({{.Finished}} of {{.Answered}})</div></div>
+    <div class="card stat"><div class="n">{{took .Median}}</div><div class="l">typical answer time, last 7 days</div></div>
+  </div>
+  <div class="grid">
+    <div class="card wide">
+      <h2>Requests a day</h2>
+      <svg viewBox="0 0 560 160" width="100%" role="img" aria-label="Requests a day for the last 14 days">
+        {{range .Days}}
+          <rect x="{{.X}}" y="{{subtract 140 .Height}}" width="28" height="{{.Height}}" rx="4"><title>{{.Label}}: {{.Count}}</title></rect>
+          <text x="{{.X}}" y="156">{{.Label}}</text>
+        {{end}}
+      </svg>
+    </div>
+    <div class="card wide">
+      <h2>Models, last 7 days</h2>
+      {{if .Providers}}
+      <table>
+        <tr><th>Model</th><th>Answered</th><th>Typical time</th><th>Today</th><th>Free allowance today</th></tr>
+        {{range .Providers}}
+        <tr><td>{{.Name}}</td><td>{{.Count}}</td><td>{{took .Median}}</td><td>{{.Today}}</td>
+          <td>{{if .Limit}}<div class="track"><div class="bar" style="width: {{pct .Today .Limit}}%"></div></div><span class="mute">{{.Today}} of {{.Limit}}</span>{{else}}<span class="mute">not set</span>{{end}}</td></tr>
+        {{end}}
+      </table>
+      {{else}}<p class="mute">Nothing answered yet.</p>{{end}}
+    </div>
+    <div class="card">
+      <h2>Applications used most</h2>
+      {{if .Apps}}<table>{{range .Apps}}<tr><td>{{.Name}}</td><td style="width:50%"><div class="bar" style="width: {{.Width}}%"></div></td><td>{{.Count}}</td></tr>{{end}}</table>
+      {{else}}<p class="mute">None yet.</p>{{end}}
+    </div>
+    <div class="card">
+      <h2>Commonest failures</h2>
+      {{if .Failures}}<table>{{range .Failures}}<tr><td>{{words .Name}}{{if .Example}}<div class="mute">e.g. {{.Example}}</div>{{end}}</td><td>{{.Count}}</td></tr>{{end}}</table>
+      {{else}}<p class="mute">None in the last 7 days.</p>{{end}}
+    </div>
+  </div>
+
+{{else if eq .Page "testers"}}
+  <h1>Testers</h1>
+  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+  {{with .Made}}
+  <div class="made">{{.Name}} can use VANS with the code <code>{{.Code}}</code>, up to {{.Daily}} requests a day. Copy it now; it is shown here once.</div>
+  {{end}}
+  <div class="card" style="margin-bottom:16px">
+    <h2>Add a tester</h2>
+    <form method="post" action="{{$.Base}}/testers/add" class="row">
+      <input name="name" placeholder="Name" required>
+      <input name="daily" type="number" min="0" value="200" title="Requests a day">
+      <button type="submit">Make a code</button>
+    </form>
+  </div>
+  <div class="card">
+    <table>
+      <tr><th>Name</th><th>Code</th><th>Today</th><th>Daily allowance</th><th>Last seen</th><th>Last 7 days</th><th></th></tr>
+      {{range .Testers}}
+      <tr {{if .Off}}class="done"{{end}}>
+        <td>{{.Name}}</td><td><code>{{.Code}}</code></td>
+        <td>{{.Today}}{{if .Daily}} <span class="mute">({{pct .Today .Daily}}%)</span>{{end}}</td>
+        <td><form method="post" action="{{$.Base}}/testers/daily" class="row">
+          <input type="hidden" name="code" value="{{.Code}}">
+          <input name="daily" type="number" min="0" value="{{.Daily}}"><button class="plain" type="submit">Save</button>
+        </form></td>
+        <td>{{when .LastSeen}}</td><td>{{.Week}}</td>
+        <td><form method="post" action="{{$.Base}}/testers/{{if .Off}}on{{else}}off{{end}}">
+          <input type="hidden" name="code" value="{{.Code}}">
+          <button class="plain" type="submit">{{if .Off}}Switch on{{else}}Switch off{{end}}</button>
+        </form></td>
+      </tr>
+      {{else}}<tr><td colspan="7" class="mute">No testers yet.</td></tr>{{end}}
+    </table>
+  </div>
+
+{{else if eq .Page "activity"}}
+  <h1>Activity</h1>
+  <div class="card" style="margin-bottom:16px">
+    <form method="get" action="{{$.Base}}/activity" class="row">
+      <select name="tester"><option value="">Every tester</option>
+        {{$t := .Filter.Tester}}{{range .Names}}<option {{if eq . $t}}selected{{end}}>{{.}}</option>{{end}}
+      </select>
+      <input name="app" placeholder="Application" value="{{.Filter.App}}">
+      <select name="days">
+        <option value="1" {{if eq .Filter.Days 1}}selected{{end}}>Today</option>
+        <option value="3" {{if eq .Filter.Days 3}}selected{{end}}>Last 3 days</option>
+        <option value="7" {{if eq .Filter.Days 7}}selected{{end}}>Last 7 days</option>
+      </select>
+      <label class="row"><input type="checkbox" name="failed" value="1" {{if .Filter.Failed}}checked{{end}}> Failed only</label>
+      <button type="submit">Show</button>
+    </form>
+  </div>
+  <div class="card">
+    <table>
+      <tr><th>When</th><th>Who</th><th>What they asked</th><th>Application</th><th>Kind</th><th>Result</th><th>Took</th><th>Model</th></tr>
+      {{range .Rows}}
+      <tr>
+        <td class="mute">{{when .At}}</td><td>{{.From}}</td><td>{{if .Words}}{{.Words}}{{else}}<span class="mute">-</span>{{end}}</td>
+        <td>{{.App}}</td><td class="mute">{{words .Kind}}</td>
+        <td>{{if .Fault}}<span class="bad">{{words .Fault}}</span>{{else}}<span class="good">answered</span>{{end}}</td>
+        <td>{{took .Took}}</td><td class="mute">{{.By}}</td>
+      </tr>
+      {{else}}<tr><td colspan="8" class="mute">Nothing matches.</td></tr>{{end}}
+    </table>
+  </div>
+
+{{else if eq .Page "feedback"}}
+  <h1>Feedback{{if .Open}} <span class="mute">· {{.Open}} open</span>{{end}}</h1>
+  {{range .Feedback}}
+  <div class="card {{if .Handled}}done{{end}}" style="margin-bottom:12px">
+    <div class="row">
+      <b>{{.From}}</b><span class="mute">{{words .Kind}} · {{when .At}}</span>
+      {{if not .Handled}}
+      <form method="post" action="{{$.Base}}/feedback/handled" style="margin-left:auto">
+        <input type="hidden" name="id" value="{{.ID}}"><button class="plain" type="submit">Mark handled</button>
+      </form>
+      {{else}}<span class="mute" style="margin-left:auto">handled</span>{{end}}
+    </div>
+    <p class="note">{{.Text}}</p>
+  </div>
+  {{else}}<p class="mute">No feedback yet.</p>{{end}}
+{{end}}
+</main>
+{{end}}
+</body>
+</html>

@@ -29,13 +29,62 @@ type Ledger interface {
 	Tester(ctx context.Context, code string) (Tester, bool, error)
 	Spend(ctx context.Context, code, day string) (mine, all int, err error)
 	Keep(ctx context.Context, f Feedback) error
+	Record(ctx context.Context, a Activity) error
+	KeepLearned(ctx context.Context, from string, at time.Time, habits string) error
 }
 
 type Feedback struct {
-	From string
-	Kind string
-	Text string
-	At   time.Time
+	ID      string
+	From    string
+	Kind    string
+	Text    string
+	At      time.Time
+	Handled bool
+}
+
+type Activity struct {
+	At    time.Time
+	From  string
+	Kind  string
+	Words string
+	App   string
+	Fault string
+	Took  time.Duration
+	By    string
+}
+
+const MostWords = 500
+
+var wordFields = []string{"Instruction", "Task", "Question", "Ask"}
+var appFields = []string{"App", "InFront"}
+
+func said(raw json.RawMessage) (words, app string) {
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(raw, &fields) != nil {
+		return "", ""
+	}
+	pick := func(names []string) string {
+		for _, want := range names {
+			for name, value := range fields {
+				var text string
+				if strings.EqualFold(name, want) && json.Unmarshal(value, &text) == nil && strings.TrimSpace(text) != "" {
+					return strings.TrimSpace(text)
+				}
+			}
+		}
+		return ""
+	}
+	words = pick(wordFields)
+	if runes := []rune(words); len(runes) > MostWords {
+		words = string(runes[:MostWords]) + "…"
+	}
+	return words, pick(appFields)
+}
+
+func (s *Server) record(ctx context.Context, a Activity) {
+	if err := s.Ledger.Record(ctx, a); err != nil {
+		s.logf("could not record %s's %s: %v", a.From, a.Kind, err)
+	}
 }
 
 type Mailer interface {
@@ -43,12 +92,14 @@ type Mailer interface {
 }
 
 type Server struct {
-	Model  func(used *synth.Usage) synth.Model
-	Ledger Ledger
-	Mail   Mailer
-	Total  int
-	Now    func() time.Time
-	Log    func(format string, args ...any)
+	Model    func(used *synth.Usage) synth.Model
+	Ledger   Ledger
+	Mail     Mailer
+	Console  http.Handler
+	Releases Releases
+	Total    int
+	Now      func() time.Time
+	Log      func(format string, args ...any)
 }
 
 func (s *Server) logf(format string, args ...any) {
@@ -71,8 +122,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.URL.Path == HealthPath && r.Method == http.MethodGet:
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, `{"ok":true}`)
+	case s.Console != nil && (r.URL.Path == ConsolePath || strings.HasPrefix(r.URL.Path, ConsolePath+"/")):
+		s.Console.ServeHTTP(w, r)
 	case r.URL.Path == synth.AskPath && r.Method == http.MethodPost:
 		s.ask(w, r)
+	case strings.HasPrefix(r.URL.Path, UpdatePath) && r.Method == http.MethodGet:
+		s.update(w, r)
 	case r.URL.Path == synth.AskPath:
 		reply(w, http.StatusMethodNotAllowed, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultRefused, Message: "post only"}})
 	default:
@@ -99,24 +154,32 @@ func codeOf(r *http.Request) string {
 	return strings.TrimSpace(strings.TrimPrefix(header, "Bearer "))
 }
 
-func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
+func (s *Server) tester(w http.ResponseWriter, r *http.Request) (Tester, bool) {
 	code := codeOf(r)
 	if code == "" {
 		refuse(w, http.StatusUnauthorized, "this copy of VANS has no invite code")
-		return
+		return Tester{}, false
 	}
 	who, found, err := s.Ledger.Tester(r.Context(), code)
 	if err != nil {
 		s.logf("could not look up an invite code: %v", err)
 		reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the VANS server could not check the invite code"}})
-		return
+		return Tester{}, false
 	}
 	if !found {
 		refuse(w, http.StatusUnauthorized, "this invite code is not one VANS knows")
-		return
+		return Tester{}, false
 	}
 	if who.Off {
 		refuse(w, http.StatusForbidden, "this invite code has been switched off")
+		return Tester{}, false
+	}
+	return who, true
+}
+
+func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
+	who, ok := s.tester(w, r)
+	if !ok {
 		return
 	}
 
@@ -135,13 +198,21 @@ func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	answerer, known := kinds[asked.Kind]
-	if !known && asked.Kind != synth.KindFeedback {
+	if !known && asked.Kind != synth.KindFeedback && asked.Kind != synth.KindLearned {
 		refuse(w, http.StatusBadRequest, fmt.Sprintf("%q is not a kind of question VANS asks", asked.Kind))
 		return
 	}
 
+	if asked.Kind == synth.KindLearned {
+		s.learned(w, r, who, asked.Request)
+		return
+	}
+
+	words, app := said(asked.Request)
+	seen := Activity{At: s.now(), From: who.Name, Kind: asked.Kind, Words: words, App: app}
+
 	if asked.Kind != synth.KindPing {
-		mine, all, err := s.Ledger.Spend(r.Context(), code, Day(s.now()))
+		mine, all, err := s.Ledger.Spend(r.Context(), codeOf(r), Day(s.now()))
 		if err != nil {
 			s.logf("could not count a request for %s: %v", who.Name, err)
 			reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the VANS server could not count the request"}})
@@ -149,12 +220,16 @@ func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
 		}
 		if who.Daily > 0 && mine > who.Daily {
 			s.logf("%s is over their %d for today", who.Name, who.Daily)
+			seen.Fault = synth.FaultOverCap
+			s.record(r.Context(), seen)
 			reply(w, http.StatusTooManyRequests, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultOverCap,
 				Message: "You have used today's allowance. It starts again at 5:30 in the morning, India time."}})
 			return
 		}
 		if s.Total > 0 && all > s.Total {
 			s.logf("every tester together is over %d for today", s.Total)
+			seen.Fault = synth.FaultOverCap
+			s.record(r.Context(), seen)
 			reply(w, http.StatusTooManyRequests, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultOverCap,
 				Message: "VANS has used today's allowance for everyone. It starts again at 5:30 in the morning, India time."}})
 			return
@@ -177,7 +252,12 @@ func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.logf("%s asked %s: failed after %s and %d call(s): %v", who.Name, asked.Kind, time.Since(started).Round(10*time.Millisecond), spent.Calls, err)
-		reply(w, http.StatusOK, synth.Answered{Fault: synth.FaultOf(err), Used: spent})
+		fault := synth.FaultOf(err)
+		seen.Fault, seen.Took, seen.By = fault.Kind, time.Since(started), used.By()
+		if asked.Kind != synth.KindPing {
+			s.record(r.Context(), seen)
+		}
+		reply(w, http.StatusOK, synth.Answered{Fault: fault, Used: spent})
 		return
 	}
 	encoded, err := json.Marshal(answered)
@@ -187,6 +267,13 @@ func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.logf("%s asked %s: answered in %s with %d call(s)", who.Name, asked.Kind, time.Since(started).Round(10*time.Millisecond), spent.Calls)
+	if asked.Kind != synth.KindPing {
+		seen.Took, seen.By = time.Since(started), used.By()
+		if choice, ok := answered.(synth.AppChoice); ok && choice.App != "" {
+			seen.App = choice.App
+		}
+		s.record(r.Context(), seen)
+	}
 	reply(w, http.StatusOK, synth.Answered{Answer: encoded, Used: spent})
 }
 
@@ -218,6 +305,26 @@ func (s *Server) feedback(w http.ResponseWriter, r *http.Request, who Tester, ra
 			s.logf("feedback from %s was kept but not mailed: %v", who.Name, err)
 		}
 	}
+	reply(w, http.StatusOK, synth.Answered{})
+}
+
+func (s *Server) learned(w http.ResponseWriter, r *http.Request, who Tester, raw json.RawMessage) {
+	var l synth.Learned
+	if len(raw) > synth.MostLearnedBytes || json.Unmarshal(raw, &l) != nil {
+		refuse(w, http.StatusBadRequest, "what was learned is not readable or too long")
+		return
+	}
+	habits, err := json.Marshal(l.Habits)
+	if err != nil {
+		refuse(w, http.StatusBadRequest, "what was learned is not readable")
+		return
+	}
+	if err := s.Ledger.KeepLearned(r.Context(), who.Name, s.now(), string(habits)); err != nil {
+		s.logf("could not keep what was learned for %s: %v", who.Name, err)
+		reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the VANS server could not keep what was learned"}})
+		return
+	}
+	s.logf("%s: %d learned habit(s) kept", who.Name, len(l.Habits))
 	reply(w, http.StatusOK, synth.Answered{})
 }
 

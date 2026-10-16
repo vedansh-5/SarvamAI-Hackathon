@@ -38,6 +38,7 @@
           <div id="content" class="content">
           <section id="ask" hidden>
             <div id="due" class="due" hidden></div>
+            <div id="habit" class="due habit" hidden></div>
             <div class="ask-body">
               <div id="remembered-row" class="chip-row" hidden>
                 <span class="kicker">Remembered</span>
@@ -46,6 +47,7 @@
               <div class="chip-row">
                 <span class="kicker">Try</span>
                 <div id="suggestions" class="chips"></div>
+                <button id="show-abilities" class="chip quiet-chip" type="button">What can VANS do?</button>
               </div>
               <div class="mode-row">
                 <span class="kicker">For a task</span>
@@ -122,6 +124,7 @@
                 <p id="answer-text"></p>
                 <div id="answer-cites" class="cites"></div>
               </div>
+              <button id="show-read" class="btn link" type="button" hidden></button>
               <div id="cards" class="cards"></div>
               <div id="table-wrap" class="table-wrap" hidden>
                 <table id="rows"></table>
@@ -192,6 +195,37 @@
             </div>
           </section>
 
+          <section id="welcome" hidden>
+            <div class="setup">
+              <span class="kicker volt">Welcome</span>
+              <h2 class="screen-title">VANS shows you how</h2>
+              <p class="lede">Ask how to do something and VANS points at each step on your own screen while you do it. When you would rather not, it can do it for you, where you can watch.</p>
+              <div class="kicker spaced">Try one</div>
+              <div id="welcome-tries" class="abilities"></div>
+              <div class="kicker spaced">Keys</div>
+              <ul class="keys">
+                <li><kbd>⌥Space</kbd> opens VANS, from any app. So does the dot at the top of the screen.</li>
+                <li><kbd>Esc</kbd> stops what VANS is doing, and takes marks off a page.</li>
+                <li>Hold <kbd>Return</kbd> to say yes when VANS asks before changing something.</li>
+              </ul>
+              <div class="row">
+                <button id="welcome-start" class="btn volt" type="button">Start</button>
+                <button id="welcome-more" class="btn quiet" type="button">Everything VANS can do</button>
+              </div>
+            </div>
+          </section>
+
+          <section id="abilities" hidden>
+            <div class="setup">
+              <h2 class="screen-title">What VANS can do</h2>
+              <p class="lede">Pick an example to put it in the box. Nothing runs until you press Return.</p>
+              <div id="ability-list" class="abilities"></div>
+              <div class="row">
+                <button id="abilities-back" class="btn" type="button">Back</button>
+              </div>
+            </div>
+          </section>
+
           <section id="history" hidden>
             <div class="setup">
               <h2 class="screen-title">What VANS has done</h2>
@@ -208,16 +242,34 @@
               <h2 class="screen-title">Set up VANS</h2>
               <p class="lede">Grant these once. This window stays put while you switch apps.</p>
 
+              <div class="kicker">Permissions</div>
+              <p class="note">VANS asks for all of them now, so nothing stops you halfway through a step. Allow all opens Safari, Chrome and Notes in the background for a moment, because macOS only asks about an app that is open, and closes them again.</p>
+              <div id="perms" class="setup-list"></div>
+              <div class="row">
+                <button id="perms-ask" class="btn volt" type="button">Allow all</button>
+                <button id="perms-reopen" class="btn quiet" type="button" hidden>Reopen VANS</button>
+                <span id="perms-state" class="note inline"></span>
+              </div>
+
+              <div class="kicker spaced">Ready</div>
               <div id="checks" class="setup-list"></div>
 
               <div class="row">
                 <button id="recheck" class="btn" type="button">Check again</button>
-                <button id="check-screen" class="btn quiet" type="button">Screen Recording</button>
-                <button id="check-notes" class="btn quiet" type="button">Notes access</button>
               </div>
-              <div id="screen-result"></div>
-              <div id="notes-result"></div>
 
+              <div id="invite-section" hidden>
+                <div class="kicker spaced">Invite code</div>
+                <p class="note">The code Vedansh sent you. It is kept in your Mac’s Keychain and lets this copy ask the VANS server.</p>
+                <input id="invite-code" class="line-input" type="text" autocomplete="off" spellcheck="false"
+                       placeholder="vans-…" />
+                <div class="row">
+                  <button id="invite-save" class="btn volt" type="button">Save and check</button>
+                  <span id="invite-state" class="note inline"></span>
+                </div>
+              </div>
+
+              <div id="model-section">
               <div class="kicker spaced">Model</div>
               <p id="model-note" class="note">VANS needs a key for the model it thinks with. It is kept in your Mac’s Keychain and sent only to that model.</p>
               <input id="model-key" class="line-input" type="password" autocomplete="off" spellcheck="false"
@@ -241,6 +293,7 @@
                 <button id="model-save" class="btn volt" type="button">Save and test</button>
                 <button id="model-forget" class="btn quiet" type="button" hidden>Remove key</button>
                 <span id="model-saved" class="note inline"></span>
+              </div>
               </div>
 
               <div class="kicker spaced">Rules</div>
@@ -271,9 +324,37 @@
               <div class="kicker spaced">Record</div>
               <div class="row">
                 <button id="show-history" class="btn" type="button">What VANS has done</button>
+                <button id="setup-abilities" class="btn quiet" type="button">What VANS can do</button>
+                <button id="setup-welcome" class="btn quiet" type="button">The welcome again</button>
               </div>
 
+              <div class="kicker spaced">Start</div>
+              <div class="setting-row">
+                <label for="login-item">Open VANS when you log in</label>
+                <input id="login-item" type="checkbox" class="switch" />
+              </div>
+              <p id="login-note" class="note" hidden></p>
+              <div class="row">
+                <button id="quit" class="btn quiet" type="button">Quit VANS</button>
+              </div>
+
+              <div class="kicker spaced">Learning</div>
+              <div class="setting-row">
+                <label for="watching">Learn from what I do</label>
+                <input id="watching" type="checkbox" class="switch" />
+              </div>
+              <p id="watching-note" class="note"></p>
+              <div class="noted-actions">
+                <button id="watching-see" class="btn link" type="button"></button>
+                <button id="watching-clear" class="btn link" type="button">Clear</button>
+              </div>
+              <ol id="watching-list" class="noted" hidden></ol>
+
               <div class="kicker spaced">Appearance</div>
+              <div class="setting-row">
+                <span class="setting-label" id="accent-label">Colour</span>
+                <div id="accents" class="accents" role="radiogroup" aria-labelledby="accent-label"></div>
+              </div>
               <div class="setting-row">
                 <label for="opacity">Glass</label>
                 <input id="opacity" type="range" min="15" max="100" step="1" />
@@ -289,8 +370,9 @@
               </div>
 
               <p class="helper">
-                Checking access opens applications and may ask macOS for
-                permission. VANS never opens anything on its own.
+                Allow all opens Safari, Chrome and Notes for a moment to ask
+                macOS about them. Apart from that, VANS never opens anything on
+                its own.
               </p>
 
               <button id="to-task" class="btn volt" type="button">Done</button>

@@ -28,6 +28,7 @@ Rules that decide whether your answer is usable:
 - Use the selectors you were given. Do not invent a class that was not in the summary.
 - You are not shown what the page says, only what it is made of. Style the elements the request points at; do not try to match on wording you cannot see.
 - Prefer one rule. Marking the thing the user asked about is the whole job, and a page with five different tints on it says nothing.
+- Mark the smallest element that carries the difference: the cell, the name, the label or the price. Never a whole row, list, table or section; a rule like that is refused, because a large coloured patch hides what it means to point at.
 - To show which items match, mark those items. Do not mute everything else unless the request asks you to.
 - Say in one line what the restyle will do, in the words a person would use.
 

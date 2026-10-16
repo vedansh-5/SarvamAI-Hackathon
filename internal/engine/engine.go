@@ -143,6 +143,7 @@ type Engine struct {
 	Runner    appact.Runner
 
 	Styler   StyleWriter
+	Prefs    PrefStore
 	UIWriter UIActionWriter
 	UIScreen uiact.Screen
 
@@ -195,6 +196,10 @@ type Engine struct {
 	Noticed func()
 
 	Places PlaceStore
+
+	Clicks  ClickLog
+	ClickAt func(x, y int) (uiact.Noticed, bool)
+	Learner LearnedSender
 
 	Question func(ctx context.Context, question string, options []string) (string, error)
 
@@ -352,6 +357,8 @@ type Plan struct {
 
 	// Style is set when this plan changes how the page in front looks.
 	Style *StylePlan
+
+	Marked bool
 
 	Guide *GuidePlan
 

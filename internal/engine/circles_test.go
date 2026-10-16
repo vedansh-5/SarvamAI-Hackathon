@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -136,5 +137,57 @@ func TestAControlThatHasNotArrivedYetIsWaitedForNotAskedAbout(t *testing.T) {
 	}
 	if w.calls != 1 {
 		t.Errorf("asked the model %d time(s) about a step that only needed the page to catch up, want 1", w.calls)
+	}
+}
+
+func TestTheSameStepRightAfterItWorkedIsRefused(t *testing.T) {
+	f := &movingScreen{}
+	w := &alwaysStep{step: clickMessage()}
+	e := &Engine{UIScreen: f, Steps: w}
+
+	_, err := e.runDrive(context.Background(), drivePlan())
+	if err == nil {
+		t.Fatal("a run that kept giving the same step was reported as success")
+	}
+	if !strings.Contains(err.Error(), "same steps") {
+		t.Errorf("err = %v, want it to say it kept coming back to the same steps", err)
+	}
+	if f.acts != 1 {
+		t.Errorf("clicked the same control %d time(s) though every click changed the window, want 1", f.acts)
+	}
+}
+
+func TestAClickIsRefusedAfterItsThirdTime(t *testing.T) {
+	var h stepsSoFar
+	row := clickMessage()
+	for i := 0; i < mostSameClicks; i++ {
+		if why := h.goingInCircles(row, "Click Message"); why != "" {
+			t.Fatalf("refused click %d: %s", i+1, why)
+		}
+		h.did(row, "Click Message")
+		other := uiact.Step{Do: "click", Target: uiact.Selector{Role: "AXButton", Title: fmt.Sprint("Other ", i)}}
+		h.did(other, "Click another")
+	}
+	if why := h.goingInCircles(row, "Click Message"); why == "" {
+		t.Errorf("a click on the same control was allowed a %d time", mostSameClicks+1)
+	}
+}
+
+func TestARunThatRepeatedAStepIsCalledCircling(t *testing.T) {
+	row := uiact.Step{Do: "click", Target: uiact.Selector{Role: "AXRow", Title: "Variable"}, Describe: "Click the Variable row"}
+	env := uiact.Step{Do: "click", Target: uiact.Selector{Role: "AXButton", Title: "Environments"}, Describe: "Click Environments"}
+	next := uiact.Step{Do: "click", Target: uiact.Selector{Role: "AXButton", Title: "Next Month"}}
+
+	if why := wentInCircles([]uiact.Step{env, row, row, row}); why == "" {
+		t.Error("the Postman run, the same row clicked back to back, was not called circling")
+	}
+	if why := wentInCircles([]uiact.Step{row, env, row, env, row}); why == "" {
+		t.Error("a step given three times was not called circling")
+	}
+	if why := wentInCircles([]uiact.Step{next, next, next, next, env}); why != "" {
+		t.Errorf("paging through months was called circling: %s", why)
+	}
+	if why := wentInCircles([]uiact.Step{env, row, typeIntoMessage(), pressEnter()}); why != "" {
+		t.Errorf("an ordinary run was called circling: %s", why)
 	}
 }

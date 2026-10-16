@@ -1897,18 +1897,298 @@ and cost is in `docs/infrastructure.md`. This section is the short record.
 | Routing chosen for accuracy; Gemini latest first, 21/21 | D-233 |
 | The server live on Lambda in Mumbai; testers, counts and feedback in DynamoDB; keys in Parameter Store; feedback mailed; `vans-testers` makes codes | D-234, `docs/infrastructure.md` |
 | "Send this to Vedansh" on a failure and "Tell Vedansh" in Setup | D-235 |
+| The console at `/console`: overview, testers, activity, feedback; one row kept per request for 30 days | D-236 |
 | AWS: budget alert, `vans-deploy` user fenced to VANS, $143.49 credit | `docs/infrastructure.md` |
 
 **Feedback mail:** the Gmail address is verified and the three DKIM records
 are in Cloudflare (2026-10-14); mail flows once SES finishes checking them.
 The hands-on suite through the live server passed fifteen of fifteen.
 
-**Next, in order:** the console, then every permission asked for at first
-launch, then start at login and the notch, watching and learning, the
-tester kit, and the privacy page with each.
+**Console:** `https://console.summonvans.in`, signed in with
+`VANS_CONSOLE_KEY` from `.env` (D-236). The function's own address shows no
+console.
+
+**Open pull requests (2026-10-14):** #190, the privacy page for testers, for
+Vedansh to read; merge it when the first tester build goes out. #191, the
+console's own address, already deployed; merge when Vedansh says.
+
+**Next, in order:**
+
+1. Every permission asked for at first launch, on one screen, never in the
+   middle of a step. About a day.
+2. Start at login, and the notch pill. About a day.
+3. Watching and learning, off until the tester turns it on. The largest piece:
+   about four to five days.
+4. The tester kit: the packaged app, a first run that takes the invite code,
+   updates from S3, and the "Open Anyway" page. About a day.
+5. Install from zero on a fresh macOS user, then the hands-on suite. About a
+   day, on Vedansh's timing.
+6. Merge the privacy page (#190) with the first build.
+
+**When testers can start (estimate, 2026-10-14):** one to two weeks at this
+pace; about five working days without watching and learning. The hands-on
+runs need Vedansh's timing and are where it slips. Offered: ship the first
+build without watching and learning and add it in an update; not decided.
 
 
 i encountered this - two steps open at a time even though the previous step was already completed. 
 Also it has a delay in reading whether the step is complete or not. 
 Also it has another problem as well - If I change the screens like actually move to other apps by 3 finger slides it should close the window actively - more like hide the things (actions, multi step coach etc) and multi step coach should resume from that point itself when we move back to the window- option space should open the window in other apps as well
 Also it automatically opens the apps that contains the steps. It shall not do that, it must instruct the user to open the required App as a part of the multi step guide.
+## G11. Non-negotiables: check these before calling any change done
+
+Vedansh should never be the one who finds these. Every change to the panel,
+the dot, the coach, a guide or anything that puts a window on screen is
+checked against this list before it is called done. Each check is a look or
+one command, not a test suite: it costs seconds.
+
+| # | Rule | How to check, cheaply |
+|---|---|---|
+| 1 | The panel opens in the same place every time: centred, about a fifth of the way down, on the screen with the pointer. Like Spotlight | Open it three times from different apps; it lands in the same spot |
+| 2 | Nothing VANS puts on screen may stop the menu bar, the clock, Control Center or the Dock from appearing, in any app, full screen included | List VANS's windows (command below): only the panel, the coach and the 24-point dot, and nothing wider than the dot in the top strip. Then move to the top in a full-screen app |
+| 3 | Normal pointer movement never opens anything. Only a deliberate rest on the dot (0.3 s), the hotkey or a click | Move to the top edge and the corners in a full-screen app and on the desktop; nothing opens |
+| 4 | A screen that wants a key (hold Return, typing, a question) has the keyboard when it appears. No click first | Run a task to the confirm screen and hold Return without touching the mouse |
+| 5 | VANS never covers what it sent the person to (System Settings, another app). It steps aside and comes back when the thing is done | Press every "Turn on" or "Open" button and look |
+| 6 | A panel opened by hovering closes itself about a second after the pointer leaves it untouched; one opened by the hotkey or used never does | Hover, leave; hover, click, leave |
+| 7 | The person sees only what a person needs. Never raw accessibility names (`AXMenuBarItem`), counts of what was read, internal numbers or citation numbers. An answer is the answer; the raw list hides behind "Show what VANS read" | Ask "what is this page about" in two apps |
+| 8 | A guide never repeats the step it just gave, never goes back and forth, and never says "click X to type". If it would, it asks or says it is stuck | Read the step lines in the log (`[n] step k:`); no two the same in a row |
+| 9 | A run that repeated or went in circles is never kept as a recipe | The log says "not keeping these steps" for such a run |
+| 10 | Nothing shows in a full-screen app unless the person asked for VANS there | Open a full-screen app; only what was summoned appears |
+| 11 | The first sign of an answer within 3 seconds; a whole step within 6. Slower than that is a bug to log, not a fact | `[vans] timing:` lines in the log |
+| 12 | Say what was checked and what was not. "Builds" is not "works" | The PR body names each rule above that the change touched and how it was checked |
+
+List VANS's windows on screen, with size and layer:
+
+```bash
+cat > /tmp/wins.swift <<'S'
+import CoreGraphics
+for w in CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as! [[String: Any]]
+where (w[kCGWindowOwnerName as String] as? String ?? "").lowercased().contains("vans") {
+  print(w[kCGWindowLayer as String] ?? "", w[kCGWindowBounds as String] ?? "")
+}
+S
+swift /tmp/wins.swift
+```
+
+## G12. Handoff, 2026-10-15
+
+**Merged today.** #191 (the console at `console.summonvans.in`). #192, every
+permission asked for at once in Setup (D-237). #193, start at login and the
+notch pill (D-238).
+
+**In the pull request with this log, tried by Vedansh on his Mac unless said:**
+
+- The pill is now only the yellow dot, in a 24-point window just left of the
+  notch (centre of the menu bar without one). No black shape: the wide one
+  looked wrong. Breathes while working, a soft ring while guiding.
+- Resting on the dot for 0.3 s opens the panel; a panel opened that way closes
+  itself 1.2 s after the pointer leaves the dot and the panel, unless it was
+  clicked or typed in (`notch::keep`, `keep_panel`). Hover only counts when the
+  dot is on the current desktop (`dot_in_view`), never in a full-screen app.
+- The confirm screen takes the keyboard (`take_keyboard`), so holding Return
+  works without clicking the panel first. Not yet tried by Vedansh.
+- An answer shows alone: the app's name, the answer, and a "Show what VANS read
+  (n)" link for the raw list. Citation chips only for real links.
+- The panel opens in the same place every time (`put_at_home`), on the screen
+  with the pointer. Not yet tried by Vedansh.
+- Setup: a refused app is asked again after its old answer is cleared (`tccutil
+  reset AppleEvents`, installed app only; run from the code it opens Settings).
+  Accessibility and Screen Recording can only be switched on by the person:
+  "Turn on" opens the pane, the panel steps aside and comes back when it is on.
+  Vedansh parked the rest of Accessibility for later.
+- Each request writes `[vans] timing: <ms>, <calls>, <app>: <what was asked>`
+  to the shell's log, for the speed table.
+
+**The menu bar glitch.** In full-screen apps the menu bar stopped coming down.
+It was macOS: it stayed broken with VANS quit and cleared after switching
+desktops. Rule 2 above stands anyway, because the first wide pill sat inside
+the menu bar strip.
+
+**Postman, "how do I set the baseUrl" (coach), what went wrong:**
+
+1. "Click the Variable row" was given five times in a row, and "the
+   Environment combobox" twice. `goingInCircles` (`internal/engine/circles.go`)
+   only stops a step after it changed nothing twice, or after the same click 8
+   times (`mostSameClicks`). Each click changed something small (focus), so
+   nothing stopped it.
+2. The step said "click the Variable row to type baseUrl" and never asked the
+   person to type.
+3. The run was kept as the recipe for next time (`rememberTheRun`,
+   `internal/engine/trace.go`), loops included.
+4. Each replan took 5 to 6 s, and the first answer 11.7 s (one call to route,
+   then planning).
+
+**Fixes, in order (for AGY):**
+
+1. `circles.go`: the same step as the one just given is circling, unless it is
+   a button that moves a wizard on (Next, Continue). `mostSameClicks` from 8 to
+   3. A test with a Postman-shaped run where every click changes the focus.
+2. The step prompt: when what is next is typing into a field, the step is
+   `type` with the text, or a coach step that says "Type baseUrl here". Never
+   "click X to type". A test on the parsed step.
+3. `rememberTheRun`: do not keep a run in which any step repeats back to back
+   or the same step appears more than twice; log "not keeping these steps:
+   they went in circles".
+4. Speed: find where the 11.7 s and the 5 to 6 s per replan go (route, plan,
+   reading 376 elements). Rule 11 is the bar.
+5. Then a timed run across apps, with Vedansh: Postman, AutoCAD
+   (`/Applications/Autodesk/AutoCAD 2027`), Figma and Canva in the browser,
+   Finder, Notes, Mail, Calendar, Numbers, Chrome, WhatsApp, VS Code,
+   DaVinci. One table: app, task, time to first step, right or wrong.
+
+**After that, the plan's order:** watching and learning (4 to 5 days), the
+tester kit (a day), install from zero (a day), then the privacy page (#190).
+
+**Done, same day (D-239).** Fixes 1 to 3 are in, with tests: the same step
+straight after it worked is refused, clicks stop after three unless the button
+moves on, a guide can point at a row to type in it and is told to type rather
+than "click to type", a click on the field no longer ends a typing step, and a
+looped run is neither kept nor replayed (the Postman recipe is ignored). Fix 4
+is measured, not fixed: the model alone takes about 2 to 3 s on a Postman-sized
+window, half what the run saw; every model call now logs its time and tokens
+(`[model] ... answered in`), so the next run shows where the rest goes. Not yet
+seen on Vedansh's Mac: the Postman question again, which is the first thing to
+try in fix 5.
+
+## G13. Watching and learning, and timing: where it stands, 2026-10-15
+
+**Merged.** #196 noting clicks on controls (D-240); #197 finding repeated
+clicks and offering them on the ask screen (Save as a routine, Show me, Not
+now). On by default, switchable in Setup › Learning. Not yet seen running on
+Vedansh's Mac: the switch, the noted list, the hollow dot when off, the white
+centre and the habit card. Rebuild the engine and restart the app to try it; a
+card needs a habit done three times across two sittings.
+
+**In progress on the branch `watching-timing`: learning when.** Asked for by
+Vedansh: notice what he does at the start of the day, after work, or right
+after opening an app, and offer it at that moment ("Start your timer, like
+usual?"). The plan is in `docs/plans/2026-10-14-testers.md`, "Timing: learning
+when". His answers on 2026-10-15:
+
+- The offer is a small line on its own background, just below the dot, so the
+  notch cannot hide it. It never opens the panel.
+- Note app switches, Mac wake / sleep / lock / unlock, and click times.
+- Trust grows: Run / Skip the first three times it is taken up, then Always
+  too. With Always on: "Starting … in 5 s · Cancel", then run it. Cancel turns
+  Always off until it is chosen again.
+- How Clicky does it (HeyClicky 1.0.53, reinstalled by Vedansh; read from its
+  Info.plist and the labels in its binary only, nothing run or taken):
+  - "Fresh task suggestions every 24 hours, announced through the morning
+    notch", with a good-morning greeting there.
+  - A suggestion is held while the person is focused, can be snoozed, and
+    rests for a while after repeated dismissals ("ignored-suggestions break").
+  - Routines run on a schedule; due ones are held until the Mac has settled
+    after waking, and wait for the internet.
+  - Its memory of the person is kept on its server (`/me/memory`), not on the
+    Mac. Its Accessibility line says it is for focus tracking "not background
+    watching".
+  Worth taking: hold an offer while someone is busy typing or clicking, and
+  show it at the next pause; rest after repeated dismissals rather than only
+  stopping; hold offers until a few seconds after a wake. Different on
+  purpose: VANS keeps what it learns on the Mac.
+
+Done on the branch, with tests:
+
+- The shell reports app switches and Mac moments (`ui/src-tauri/src/watching.rs`,
+  `moment` RPC); the engine keeps them in `clicks` with role `front` or
+  `moment` (`NoteMoment`), never for password managers or VANS, never while
+  guiding. The click-habit finder ignores them.
+- "See what VANS noted" reads them plainly ("Switched to Mail", "Mac unlocked").
+- `FindTimed` (`internal/engine/timing.go`): at a time of day (same thing
+  within twenty minutes on three days, weekdays told apart), after the Mac is
+  opened (within ten minutes of the first unlock or wake, three days), after an
+  app (within five minutes of its first coming forward that day, three days and
+  at least 60% of the days it came forward). Lines like "Start in Clockify,
+  like usual?".
+
+**Built since (D-241), on the same branch:** the `timed` table and answers,
+what is due and when, the line below the dot (`nudge`), trust that grows, good
+morning, holding while busy and after a wake, quiet after three dismissals,
+running a habit, and sending what was learned to the server for testers.
+Setup says what is sent. The privacy wording is drafted in the tester plan for
+Vedansh. Not yet seen running on his Mac; the server change is not deployed.
+
+Was next, in order (all done above):
+
+1. Keep timed habits and their answers in a `timed` table: yes count, skips in
+   a row (three stops it), Always, the day last offered.
+2. Decide what is due: a minute tick for times; the first unlock or wake of
+   the day; the first time an app comes forward that day. Not if the action
+   was already done today. Push `offer` to the shell.
+3. The line below the dot: a new window `nudge` (needs its own capability file,
+   D-086), non-activating, fades after eight seconds unless pointed at; Run,
+   Skip, Always after three yeses; the countdown with Cancel.
+4. Running: a click action goes through as a "do" request with every
+   confirmation; opening an app is done by the shell on Run (record it as a
+   decision, since D-032 and D-131 say VANS never opens an app by itself; here
+   the person asked).
+5. Decision record (D-241), privacy page text for Vedansh, non-negotiables 3
+   and 10 checked (nothing opens by accident; nothing in full-screen apps).
+
+**Decided by Vedansh after the Clicky look (2026-10-15):**
+
+- Take all of it: good morning through the notch with what is usual today,
+  hold offers while busy, Later (snooze), rest after repeated dismissals, wait
+  after a wake and for the internet. Details in the tester plan.
+- For testers, what VANS learned goes to the VANS server: each habit found and
+  how it was answered. The raw click and app log stays on the Mac. May become
+  Mac-only later. This changes D-240 ("nothing sent"): Setup's wording and the
+  privacy page must say it before it ships.
+- Logo: draft B, the spotlight ring opening for the pointer, which lands on the
+  centre. Next: the final vector files (app icon set, favicon, the in-app
+  mark) and redrawing the on-screen ghost cursor to the logo's pointer.
+
+## G14. Where it stands, 2026-10-15 evening
+
+Everything in G13 is merged, and so is what followed it:
+
+| PR | What | Decision |
+|---|---|---|
+| #198 | Timing: the line below the dot, trust that grows, good morning, sending what was learned | D-241 |
+| #199, #200 | The mark: app icon, ghost cursor, site favicon (live) | D-242 |
+| #201 | Tester kit: tester build with no instructions in it, invite code, signing, updates through the server, Quit | D-243 |
+| #203 | Marking text on a page with no model call; five colours from `internal/theme/themes.json` | D-244 |
+| #204 | Offers wait for the internet; "before you finish" habits | D-245 |
+| #205 | The flaky guide test steadied | — |
+| #207 | Apps that publish nothing: menus, words read on the Mac (exact, clicked), the model only for icons | D-246 |
+
+Deployed: the server with `learned` and the update route; the private bucket
+`vans-releases` exists and the server reads it.
+
+**Waiting on Vedansh, in this order:**
+
+1. Read and merge #190 (privacy page: the server, watching and learning) and
+   #202 (install page). Both publish the site.
+2. Run `./infra/mac/signing-setup.sh` once (it asks for the Mac password to trust
+   the certificate), then `./infra/mac/release.sh "first test build"`, then
+   `./infra/mac/tester-link.sh` for a download link.
+3. Name a moment for the hands-on runs: the app from the code (colours in
+   Setup › Appearance, marks on a page, the line below the dot), the Postman
+   retry, the multi-app timed run, and the hands-on suite with Groq and Workers
+   AI writing.
+4. Install from zero on a fresh macOS user (VANS cannot create the user).
+5. Measure the words against real applications when convenient:
+   `go run ./cmd/vans-probe -words Finder Notes "System Settings"` (brings each
+   to the front for a moment). Rendered windows measured 98.4% found, 100% on
+   target (D-246).
+6. Cloudflare PR previews: the site, `wrangler.jsonc` and the account are fine —
+   `npx wrangler versions upload` from this Mac made a working preview on
+   2026-10-15. What fails is the dashboard's build for non-production branches.
+   In Workers & Pages → vans → Settings → Build: either set the non-production
+   deploy command to `npx wrangler versions upload` (root `/website`, build
+   `npm run build`), or turn off builds for non-production branches. The GitHub
+   `site` job already builds the site on every pull request.
+
+Done and checked: SES DKIM (verified, signing on, DMARC passes on DKIM). SES is
+still in the sandbox, which only matters for mail to addresses other than
+Vedansh's own.
+
+## G15. Where it stands, 2026-10-16
+
+| PR | What | Decision |
+|---|---|---|
+| #209 | A welcome on first run, and "What VANS can do" from the engine | D-247 |
+
+Vedansh read and approved #190 (privacy page) and #202 (install page) on
+2026-10-16; they are merged after this. Everything else in G14's "Waiting on
+Vedansh" list still stands, from item 2 on.

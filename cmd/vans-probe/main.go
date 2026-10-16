@@ -24,6 +24,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Each one is brought forward for a moment, because macOS only lists the windows of the application in front.")
 	}
 	tasks := flag.Bool("tasks", false, "list the most recent tasks and how many model calls each took, instead of reading applications")
+	words := flag.Bool("words", false, "measure how exactly the words read from each window's picture land on the controls the window publishes")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -35,6 +36,13 @@ func main() {
 		return
 	}
 	screen := uiact.System{Runner: appleevents.Osascript{}}
+	if *words {
+		if err := measureWords(ctx, screen, flag.Args()); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	apps := flag.Args()
 	if len(apps) == 0 {
