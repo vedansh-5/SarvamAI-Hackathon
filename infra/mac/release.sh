@@ -53,7 +53,8 @@ cp "$out/amd64" "$intel"
   VANS_UPDATER_PUBKEY="$(cat "$updater.pub")" \
   TAURI_SIGNING_PRIVATE_KEY="$(cat "$updater")" \
   TAURI_SIGNING_PRIVATE_KEY_PASSWORD="" \
-  npx tauri build --target $target --config src-tauri/tauri.tester.conf.json
+  npx tauri build --target $target --config src-tauri/tauri.tester.conf.json \
+    --config "{\"plugins\":{\"updater\":{\"pubkey\":\"$(cat "$updater.pub")\"}}}"
 )
 
 bundle="ui/src-tauri/target/$target/release/bundle"
