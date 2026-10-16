@@ -61,9 +61,9 @@ To understand a request and plan the steps, VANS sends these to a model provider
 - the words of your request;
 - the part of what it read that the request needs: the window's controls, the page text, the selected text, the file names, or the picture of the window and the words found in it.
 
-In the test builds this goes from your Mac to the VANS server, and from there to a model provider. The server holds the keys and the instructions for the model, so your Mac does not need them. It passes what you sent to the model and the answer back to you; it does not keep the window's controls, the page text, the selected text, the file names or the picture. When the text a window was showing has been sent to answer you, the panel says so in the answer.
+In the test builds this goes from your Mac to the VANS server, and from there to a model provider. It passes what you sent to the model and the answer back to you; it does not keep the window's controls, the page text, the selected text, the file names or the picture. When the text a window was showing has been sent to answer you, the panel says so in the answer.
 
-The VANS server runs on Amazon Web Services in Mumbai, India. The model providers are Google (the Gemini API), Groq and Cloudflare (Workers AI); each request goes to whichever is quickest and most accurate for it at that moment. Each provider processes what it receives under its own terms and privacy policy. If the providers change, this page will say so before the change reaches you.
+The VANS server runs on Amazon Web Services in Mumbai, India. The model providers are Google (the Gemini API), Groq and Cloudflare (Workers AI). Each provider processes what it receives under its own terms and privacy policy. If the providers change, this page will say so before the change reaches you.
 
 Nothing is sold, and nothing is used for advertising.
 

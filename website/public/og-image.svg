@@ -13,14 +13,14 @@
   </g>
   <!-- Headline -->
   <text x="120" y="270" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif" font-size="64" font-weight="650" fill="#F3F4EE" letter-spacing="-1">
-    Ask how. It shows you,
+    Ask how, in the app you are in.
   </text>
   <text x="120" y="348" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif" font-size="64" font-weight="650" fill="#F3F4EE" letter-spacing="-1">
-    right on your screen.
+    It shows you there.
   </text>
   <!-- Sub -->
   <text x="120" y="430" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" font-size="20" font-weight="400" fill="#F3F4EE" opacity="0.65">
-    A guide you summon with ⌥Space. It points at the next thing to click and waits while you do it.
+    A layer you summon with ⌥Space. It points at the next thing to click and waits while you do it.
   </text>
   <!-- Right side graphic: volt ring + pointer -->
   <g transform="translate(860, 260)">

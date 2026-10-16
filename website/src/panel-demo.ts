@@ -64,8 +64,8 @@ export function initLivePanel(container: HTMLElement) {
                 <button type="button" class="chip write" data-q="move the screenshots on my Desktop into a folder called Screenshots">
                   <span class="dot"></span><span>move screenshots</span>
                 </button>
-                <button type="button" class="chip" data-q="what does this error say">
-                  <span class="dot"></span><span>what does this error say</span>
+                <button type="button" class="chip" data-q="highlight the ones that start with 23">
+                  <span class="dot"></span><span>highlight starting with 23</span>
                 </button>
               </div>
             </div>
