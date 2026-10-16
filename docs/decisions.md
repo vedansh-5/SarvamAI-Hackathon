@@ -6029,3 +6029,30 @@ uploading them, which would be a change to tell testers about first.
 
 Nothing new is kept: the page only reads the records D-236 and D-241 already
 keep.
+
+## D-249 — Counting visits to the site, and Clarity only with a yes
+
+Asked for by Vedansh on 2026-10-16: see the traffic to summonvans.in and how
+visitors react to it, visually. Until now the site promised no cookies, no
+analytics and no trackers (website/RULES.md §6).
+
+**Two tools, not one built here.** Both are free and already give the views
+asked for, so nothing is built to show them:
+
+- **Cloudflare Web Analytics** counts visits, pages, where visitors came from,
+  country and device, with no cookies and no following across sites. It is
+  switched on in the Cloudflare dashboard by Vedansh, since the project is his.
+- **Microsoft Clarity** shows how pages are read: heatmaps of clicks and
+  scrolling, and recordings of visits. It sets cookies, so it loads only after
+  the visitor presses Allow on a banner. Before that, and after No thanks,
+  nothing is fetched from Microsoft. The answer is kept in the visitor's own
+  browser; "Cookie choice" in the footer asks again. The Windows form is marked
+  `data-clarity-mask` so what is typed into it is never recorded.
+
+**The project ID lives in `website/src/consent.ts`.** With it empty, as it is
+until Vedansh makes the Clarity project, there is no banner and no link, and
+the site behaves as before. The ID is public by nature: it is in every page
+that loads Clarity.
+
+The privacy page and RULES.md §6 say all of this in the same change, as §6
+requires of anything the site starts receiving.

@@ -10,7 +10,7 @@ VANS is in private testing, and this page changes as VANS does.
 - VANS learns what you do often, so it can offer it at the right moment. It is on from the start, and you can switch it off in Setup. It notes the names of buttons you click, never what you type.
 - To answer, it sends your request and the relevant text to the model provider. The panel tells you when it has done so.
 - What VANS remembers is kept in one folder on your Mac. You can delete it at any time.
-- This website uses no cookies, no analytics and no trackers.
+- This website counts visits without cookies. Only if you allow it, it also uses Microsoft Clarity to see how the pages are read, which sets cookies.
 
 ## Who is behind VANS
 
@@ -18,7 +18,8 @@ VANS (Visual Agent Navigation System) is made by an independent developer. It is
 
 ## This website
 
-- **No cookies and no tracking.** The site sets no cookies and loads nothing from other companies. Fonts are served from the site itself. Your choice of light or dark is saved in your own browser and never sent anywhere.
+- **Counting visits.** Cloudflare Web Analytics counts visits to each page, where visitors came from, and their country and kind of device. It sets no cookies and does not follow you to other sites. Fonts are served from the site itself. Your choice of light or dark is saved in your own browser and never sent anywhere.
+- **Microsoft Clarity, only if you allow it.** On your first visit the site asks. If you press Allow, it loads Microsoft Clarity, which records how you move through the pages, such as clicks, scrolling and where you stop, so I can see which parts are unclear. It sets cookies, on this site and on Microsoft's, to tell one visit from the next. What you type into a form is hidden from it. Microsoft keeps recordings for 30 days and processes them under its own privacy statement. If you press No thanks, nothing is loaded. Cookie choice, at the bottom of every page, changes your answer.
 - **Hosting.** The site is served by Cloudflare. Like any host, Cloudflare processes technical details of each visit, such as your IP address and browser type, in order to deliver the page and keep it secure. I do not use these to identify you.
 - **Email.** If you write to an address at summonvans.in, I receive your email address and whatever you choose to tell me. I use it to reply and to arrange testing. I do not add you to a mailing list. Ask me to delete your emails and I will.
 - **The Windows list.** If you leave your email in the Windows form, it is sent to me as an email and kept in my inbox. I use it once, to tell you when there is a Windows version to try. It is not stored anywhere else and not shared. Ask me to remove it and I will.
