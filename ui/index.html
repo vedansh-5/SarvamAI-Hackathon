@@ -39,6 +39,7 @@
           <section id="ask" hidden>
             <div id="due" class="due" hidden></div>
             <div id="habit" class="due habit" hidden></div>
+            <div id="update-ready" class="due" hidden></div>
             <div class="ask-body">
               <div id="remembered-row" class="chip-row" hidden>
                 <span class="kicker">Remembered</span>
@@ -338,6 +339,14 @@
               <div class="row">
                 <button id="quit" class="btn quiet" type="button">Quit VANS</button>
               </div>
+
+              <div class="kicker spaced">Updates</div>
+              <div class="row">
+                <span id="version-line" class="note inline"></span>
+                <button id="check-updates" class="btn quiet" type="button">Check for updates</button>
+                <button id="restart-now" class="btn volt" type="button" hidden>Restart now</button>
+              </div>
+              <p id="update-note" class="note" hidden></p>
 
               <div class="kicker spaced">Learning</div>
               <div class="setting-row">
