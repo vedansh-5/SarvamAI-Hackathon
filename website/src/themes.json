@@ -1,0 +1,10 @@
+{
+  "default": "yellow",
+  "themes": [
+    { "id": "yellow", "name": "Yellow", "accent": "#ffd23f", "onAccent": "#10110e", "soft": "#fff0b3", "ink": "#1d1a0a" },
+    { "id": "blue", "name": "Blue", "accent": "#5aa9ff", "onAccent": "#06121f", "soft": "#d9ebff", "ink": "#0b1a2b" },
+    { "id": "purple", "name": "Purple", "accent": "#a98bff", "onAccent": "#140c26", "soft": "#e8e0ff", "ink": "#1c1430" },
+    { "id": "green", "name": "Green", "accent": "#41d69a", "onAccent": "#05170f", "soft": "#d4f5e5", "ink": "#0b2018" },
+    { "id": "pink", "name": "Pink", "accent": "#ff86bd", "onAccent": "#250714", "soft": "#ffe0ee", "ink": "#2a0d1b" }
+  ]
+}

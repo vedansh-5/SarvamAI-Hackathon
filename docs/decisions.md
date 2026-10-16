@@ -6134,3 +6134,28 @@ digit, "-", "_" or "." in it. That keeps "highlight the text by clicking" and
 
 The "I'm not sure what to do with that" screen listed every suggestion VANS
 has, fifteen of them, most unrelated. It now shows four.
+
+## D-254 — Granted permissions fold away
+
+Asked for by Vedansh on 2026-10-16: once every permission is granted, the
+seven rows and the note about Allow all are noise in Setup. They now fold into
+one line, "All 7 permissions granted.", with Show to open the list again and
+Hide to close it. Anything not granted keeps the full list, the note and the
+buttons, as before.
+
+## D-255 — A glow on the panel's switches, a console icon, and the site's colours
+
+Asked for by Vedansh on 2026-10-16.
+
+- **The switches glow on hover,** like the site's "Join the testers" pill: a
+  soft light of the chosen VANS colour that follows the pointer, and a thin
+  ring of it, on any option of a switch that is not the chosen one ("Show me
+  how" and "Do it for me", and the rest built the same way).
+- **The console has a tab icon:** the site's mark, written into the page as
+  data, because the console loads nothing from anywhere (`img-src data:` is
+  the one thing its policy now allows beyond its own styles).
+- **The site will offer the five VANS colours.** So that there is one source,
+  `website/src/themes.json` is an exact copy of `internal/theme/themes.json`,
+  and CI fails if they differ; the site's rule that nothing is read from
+  outside `website/` stays. The picker itself is in the site plan, for the
+  site's builder.

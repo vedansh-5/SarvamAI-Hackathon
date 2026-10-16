@@ -658,7 +658,10 @@ async function loadPermissions(): Promise<Permission[]> {
   return perms;
 }
 
+let permsOpen = false;
+
 function renderPermissions(perms: Permission[]) {
+  lastPerms = perms;
   const list = $("perms");
   clear(list);
   const { asked } = permsMemory();
@@ -687,15 +690,36 @@ function renderPermissions(perms: Permission[]) {
   const screen = perms.find((p) => p.name === "screen");
   $("perms-reopen").hidden = !asked || !screen || screen.state === "granted";
   ($("perms-ask") as HTMLButtonElement).hidden = perms.every((p) => p.state === "granted");
+  const allGranted = perms.every((p) => p.state === "granted");
+  const folded = allGranted && !permsOpen;
+  list.hidden = folded;
+  $("perms-note").hidden = allGranted;
+  $("perms-fold").hidden = !allGranted;
+  $("perms-fold").textContent = permsOpen ? "Hide" : "Show";
   if (!permsAsking) {
-    $("perms-state").textContent = perms.every((p) => p.state === "granted")
-      ? "All granted."
+    $("perms-state").textContent = allGranted
+      ? `All ${perms.length} permissions granted.`
       : asked
         ? "Accessibility and Screen Recording can only be switched on by you, in Settings. Turn on takes you there and VANS comes back when it is on."
         : "";
   }
   fitWindow();
 }
+
+document.addEventListener("pointermove", (e) => {
+  const option = (e.target as HTMLElement | null)?.closest?.(".seg > *") as HTMLElement | null;
+  if (!option) return;
+  const box = option.getBoundingClientRect();
+  option.style.setProperty("--mx", `${e.clientX - box.left}px`);
+  option.style.setProperty("--my", `${e.clientY - box.top}px`);
+});
+
+let lastPerms: Permission[] = [];
+
+$("perms-fold").addEventListener("click", () => {
+  permsOpen = !permsOpen;
+  renderPermissions(lastPerms);
+});
 
 let waitingFor: string | null = null;
 
