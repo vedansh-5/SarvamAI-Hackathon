@@ -2182,3 +2182,13 @@ Deployed: the server with `learned` and the update route; the private bucket
 Done and checked: SES DKIM (verified, signing on, DMARC passes on DKIM). SES is
 still in the sandbox, which only matters for mail to addresses other than
 Vedansh's own.
+
+## G15. Where it stands, 2026-10-16
+
+| PR | What | Decision |
+|---|---|---|
+| this one | A welcome on first run, and "What VANS can do" from the engine | D-247 |
+
+Vedansh read and approved #190 (privacy page) and #202 (install page) on
+2026-10-16; they are merged after this. Everything else in G14's "Waiting on
+Vedansh" list still stands, from item 2 on.

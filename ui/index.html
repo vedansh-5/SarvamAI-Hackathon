@@ -47,6 +47,7 @@
               <div class="chip-row">
                 <span class="kicker">Try</span>
                 <div id="suggestions" class="chips"></div>
+                <button id="show-abilities" class="chip quiet-chip" type="button">What can VANS do?</button>
               </div>
               <div class="mode-row">
                 <span class="kicker">For a task</span>
@@ -194,6 +195,37 @@
             </div>
           </section>
 
+          <section id="welcome" hidden>
+            <div class="setup">
+              <span class="kicker volt">Welcome</span>
+              <h2 class="screen-title">VANS shows you how</h2>
+              <p class="lede">Ask how to do something and VANS points at each step on your own screen while you do it. When you would rather not, it can do it for you, where you can watch.</p>
+              <div class="kicker spaced">Try one</div>
+              <div id="welcome-tries" class="abilities"></div>
+              <div class="kicker spaced">Keys</div>
+              <ul class="keys">
+                <li><kbd>⌥Space</kbd> opens VANS, from any app. So does the dot at the top of the screen.</li>
+                <li><kbd>Esc</kbd> stops what VANS is doing, and takes marks off a page.</li>
+                <li>Hold <kbd>Return</kbd> to say yes when VANS asks before changing something.</li>
+              </ul>
+              <div class="row">
+                <button id="welcome-start" class="btn volt" type="button">Start</button>
+                <button id="welcome-more" class="btn quiet" type="button">Everything VANS can do</button>
+              </div>
+            </div>
+          </section>
+
+          <section id="abilities" hidden>
+            <div class="setup">
+              <h2 class="screen-title">What VANS can do</h2>
+              <p class="lede">Pick an example to put it in the box. Nothing runs until you press Return.</p>
+              <div id="ability-list" class="abilities"></div>
+              <div class="row">
+                <button id="abilities-back" class="btn" type="button">Back</button>
+              </div>
+            </div>
+          </section>
+
           <section id="history" hidden>
             <div class="setup">
               <h2 class="screen-title">What VANS has done</h2>
@@ -292,6 +324,8 @@
               <div class="kicker spaced">Record</div>
               <div class="row">
                 <button id="show-history" class="btn" type="button">What VANS has done</button>
+                <button id="setup-abilities" class="btn quiet" type="button">What VANS can do</button>
+                <button id="setup-welcome" class="btn quiet" type="button">The welcome again</button>
               </div>
 
               <div class="kicker spaced">Start</div>
