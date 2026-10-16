@@ -6134,3 +6134,11 @@ digit, "-", "_" or "." in it. That keeps "highlight the text by clicking" and
 
 The "I'm not sure what to do with that" screen listed every suggestion VANS
 has, fifteen of them, most unrelated. It now shows four.
+
+## D-254 — Granted permissions fold away
+
+Asked for by Vedansh on 2026-10-16: once every permission is granted, the
+seven rows and the note about Allow all are noise in Setup. They now fold into
+one line, "All 7 permissions granted.", with Show to open the list again and
+Hide to close it. Anything not granted keeps the full list, the note and the
+buttons, as before.
