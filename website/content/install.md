@@ -34,6 +34,8 @@ VANS opens its Setup screen the first time.
 
 VANS sits at the top of your screen, as a small dot in the middle of the menu bar. Click the dot, or press `⌥Space`, and ask how to do something.
 
+When the checks pass, VANS shows a short welcome with a few things to try. Picking one puts it in the box; nothing runs until you press Return. Later, **What can VANS do?** below the box lists everything this copy can do.
+
 ## Updates
 
 VANS checks for a new test build a few times a day and installs it in the background. When one is ready, a line below the dot says so: press Restart, or Later to keep working.
