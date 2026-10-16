@@ -48,6 +48,7 @@ interface Plan {
   mode_why?: string;
   say?: string;
   say_title?: string;
+  panel?: "dark" | "light";
   marked?: boolean;
   copy?: string;
   decision_calls: number;
@@ -907,6 +908,7 @@ async function extract(sendAs?: string, text?: string) {
     lastInstruction = instruction;
     setProgress(100);
     currentPlan = plan;
+    if (plan.panel && !plan.needs_commit) applyTheme(plan.panel === "dark", true);
     invoke("note", {
       from: "timing",
       what: `${plan.elapsed_ms} ms, ${plan.synthesis_calls + plan.decision_calls} calls, ${plan.app || hostOf(plan.page_url) || "?"}: ${instruction}`,
@@ -1583,6 +1585,7 @@ async function confirmWrite() {
 
   try {
     const receipt = await invoke<Receipt>("commit", { planId: currentPlan.plan_id });
+    if (currentPlan.panel) applyTheme(currentPlan.panel === "dark", true);
     if (acting) {
       actingIn = null;
       invoke("finish_pointer").catch(console.error);
@@ -1731,7 +1734,7 @@ function renderFailure(e: unknown) {
     const data = e.data as Unroutable;
     $("notunderstood-why").textContent = data?.why ?? "";
     $("notunderstood-why").hidden = !data?.why;
-    renderSuggestions($("can-do"), currentSuggestions());
+    renderSuggestions($("can-do"), currentSuggestions().slice(0, 4));
     return;
   }
 

@@ -77,6 +77,11 @@ func (e *Engine) planSetting(ctx context.Context, instruction, settingSlot, valu
 	if err != nil {
 		return saying("One thing first", strings.ToUpper(err.Error()[:1])+err.Error()[1:]+"."), nil
 	}
+	if to == was && setting == macset.Dark {
+		plan := saying("Already so", fmt.Sprintf("Your Mac is already %s. VANS is %s now too.", spoken(setting, was), spoken(setting, was)))
+		plan.Panel = spoken(setting, was)
+		return plan, nil
+	}
 	if to == was {
 		return saying("Already so", fmt.Sprintf("%s is already %s.", capitalised(nameOf(setting)), spoken(setting, was))), nil
 	}
@@ -87,11 +92,15 @@ func (e *Engine) planSetting(ctx context.Context, instruction, settingSlot, valu
 	}
 	preview += "\n\nIt can be put back from History."
 
-	return &Plan{
+	plan := &Plan{
 		Task:        Task{Intent: strings.TrimSpace(instruction), Title: whereSettingsLive},
 		Destination: whereSettingsLive,
 		Setting:     &SettingPlan{Setting: setting, To: to, Was: was, Preview: preview},
-	}, nil
+	}
+	if setting == macset.Dark {
+		plan.Panel = spoken(setting, to)
+	}
+	return plan, nil
 }
 
 func capitalised(s string) string {

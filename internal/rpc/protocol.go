@@ -264,6 +264,7 @@ type PrepareResult struct {
 	ModeWhy       string `json:"mode_why,omitempty"`
 	Say           string `json:"say,omitempty"`
 	SayTitle      string `json:"say_title,omitempty"`
+	Panel         string `json:"panel,omitempty"`
 	Marked        bool   `json:"marked,omitempty"`
 	Copy          string `json:"copy,omitempty"`
 	DecisionCalls int    `json:"decision_calls"`

@@ -582,6 +582,10 @@ pub fn run() {
             nudge::install(&handle_for_overlay)?;
             watching::install(&handle_for_overlay);
             update::install(&handle_for_overlay);
+            if !login::started_at_login() {
+                let shown = handle_for_overlay.clone();
+                let _ = handle_for_overlay.run_on_main_thread(move || overlay::show(&shown));
+            }
             Ok(())
         })
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
@@ -652,6 +656,12 @@ pub fn run() {
             login_item,
             set_login_item
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running VANS");
+        .build(tauri::generate_context!())
+        .expect("error while running VANS")
+        .run(|app, event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = event {
+                overlay::show(app);
+            }
+        });
 }

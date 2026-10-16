@@ -6082,3 +6082,55 @@ the invite code replaced by signing in with an email inside VANS; the testers
 table becomes accounts and the daily allowance becomes the plan's limit.
 
 `infra/mac/tester-link.sh` still makes a plain seven-day link to one version.
+
+## D-251 — Opening VANS from Applications opens the panel
+
+Found by Vedansh on 2026-10-16 with the first installed build: opening VANS
+from Applications did nothing he could see. VANS runs without a Dock icon, it
+did not show the panel when it started, and it did not answer macOS's "opened
+again" signal, so a second open from Applications, Spotlight or Launchpad was
+silent while the app was already running.
+
+Now:
+
+- **Opened again while running** (`RunEvent::Reopen`): the panel opens, as any
+  app brings its window forward.
+- **Started by hand:** the panel opens once it is ready.
+- **Started at login:** it stays quiet. A start counts as "at login" when
+  Start at login is on and the Mac has been up for under three minutes; macOS
+  gives no plain flag for it. Logging out and in without a restart therefore
+  opens the panel once, which is harmless.
+
+Released as 0.1.1, the first version that reaches a tester through the updater.
+
+## D-252 — Dark or light mode takes the VANS panel with it
+
+Found by Vedansh on 2026-10-16 in the installed build: "switch to dark mode"
+on a Mac that was already dark answered "The appearance is already dark" and
+left the VANS panel light, which is what he was looking at. The panel's own
+light or dark choice (the ◐ button) is kept separately and had been set to
+light.
+
+A dark or light request now covers both. When the Mac is already as asked,
+VANS turns its own panel to match and says "Your Mac is already dark. VANS is
+dark now too." When the Mac changes, the panel follows once the change is
+done. The plan carries `Panel` ("dark" or "light") for the panel to act on;
+no other setting touches it.
+
+## D-253 — Marking "the ones by someone", and a shorter "not sure" list
+
+Found by Vedansh on 2026-10-16 on a GitHub pull request list: "highlight the
+PRs made by vedansh-5" took 34 to 40 seconds and then failed. The marker that
+needs no model (D-244) knew "start with", "end with", "contain" and quoted
+words, not "by someone", so the request went to the model's restyle, whose
+summary of the page had no authors in it.
+
+Now "… by X", with or without "made", "opened", "created", "written",
+"authored", "posted", "submitted", "filed", "raised", "sent", "added" or
+"started" before "by", marks every place X appears, at once and with no model
+call. X must look like a name: it starts with @ or a capital letter, or has a
+digit, "-", "_" or "." in it. That keeps "highlight the text by clicking" and
+"the rows by date" out.
+
+The "I'm not sure what to do with that" screen listed every suggestion VANS
+has, fifteen of them, most unrelated. It now shows four.
