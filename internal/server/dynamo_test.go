@@ -143,3 +143,20 @@ func TestTheTableKeepsFeedbackNewestFirst(t *testing.T) {
 		t.Errorf("feedback = %+v, %v", all, err)
 	}
 }
+
+func TestTheTableGivesBackWhatEachTesterSentAsLearned(t *testing.T) {
+	ctx := context.Background()
+	d := &Dynamo{Client: newTable(), Table: "vans"}
+	at := time.Date(2026, 10, 16, 7, 30, 0, 0, time.UTC)
+	if err := d.KeepLearned(ctx, "Riya", at, `[{"what":"Start in Clockify","days":4}]`); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := d.Habits(ctx, "Riya")
+	if err != nil || !got.At.Equal(at) || len(got.List) != 1 || got.List[0].What != "Start in Clockify" || got.List[0].Days != 4 {
+		t.Errorf("Riya's habits = %+v, %v", got, err)
+	}
+	if none, err := d.Habits(ctx, "Kabir"); err != nil || len(none.List) != 0 || !none.At.IsZero() {
+		t.Errorf("a tester who sent nothing = %+v, %v", none, err)
+	}
+}

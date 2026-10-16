@@ -181,6 +181,15 @@ func (d *Dynamo) KeepLearned(ctx context.Context, from string, at time.Time, hab
 	return err
 }
 
+func (d *Dynamo) Habits(ctx context.Context, from string) (Habits, error) {
+	out, err := d.Client.GetItem(ctx, &dynamodb.GetItemInput{TableName: &d.Table, Key: key(learnedKey, from)})
+	if err != nil || len(out.Item) == 0 {
+		return Habits{}, err
+	}
+	at, _ := time.Parse(time.RFC3339, str(out.Item, "at"))
+	return habitsFrom(at, str(out.Item, "habits"))
+}
+
 var ErrCodeTaken = errors.New("server: that code is already in use")
 
 func NewCode() string {

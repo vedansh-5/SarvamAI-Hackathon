@@ -6,9 +6,12 @@ import (
 	"crypto/subtle"
 	_ "embed"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strconv"
@@ -26,6 +29,8 @@ const (
 	consoleCookie  = "vans_console"
 	consoleDays    = 14
 	activityDays   = 7
+	testerDays     = 30
+	testerRows     = 50
 )
 
 type Books interface {
@@ -37,6 +42,23 @@ type Books interface {
 	Activity(ctx context.Context, day string) ([]Activity, error)
 	Feedback(ctx context.Context) ([]Feedback, error)
 	Handled(ctx context.Context, id string) error
+	Habits(ctx context.Context, from string) (Habits, error)
+}
+
+type Habits struct {
+	At   time.Time
+	List []synth.LearnedHabit
+}
+
+func habitsFrom(at time.Time, raw string) (Habits, error) {
+	h := Habits{At: at}
+	if raw == "" {
+		return h, nil
+	}
+	if err := json.Unmarshal([]byte(raw), &h.List); err != nil {
+		return Habits{}, fmt.Errorf("server: the habits kept for this tester are not readable: %w", err)
+	}
+	return h, nil
 }
 
 type Console struct {
@@ -83,6 +105,7 @@ var consoleTemplate = template.Must(template.New("console").Funcs(template.FuncM
 	"words":    func(s string) string { return strings.ReplaceAll(s, "_", " ") },
 	"pct":      func(n, of int) int { return percent(n, of) },
 	"subtract": func(a, b int) int { return a - b },
+	"mod":      func(a, b int) int { return a % b },
 }).Parse(consolePage))
 
 var india = time.FixedZone("IST", 5*3600+1800)
@@ -162,7 +185,12 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "feedback":
 		c.show(w, r, c.feedback)
 	default:
-		http.NotFound(w, r)
+		name, ok := strings.CutPrefix(page, "testers/")
+		if !ok || name == "" {
+			http.NotFound(w, r)
+			return
+		}
+		c.show(w, r, func(ctx context.Context, v *view) error { return c.tester(ctx, v, name) })
 	}
 }
 
@@ -224,6 +252,9 @@ func (c *Console) act(w http.ResponseWriter, r *http.Request, page string) {
 		c.render(w, http.StatusBadRequest, view{Page: "error", Error: err.Error()})
 		return
 	}
+	if name := r.PostFormValue("back"); name != "" && strings.HasPrefix(page, "testers/") {
+		back = c.base() + "/testers/" + url.PathEscape(name)
+	}
 	http.Redirect(w, r, back, http.StatusSeeOther)
 }
 
@@ -249,6 +280,10 @@ type view struct {
 
 	Feedback []Feedback
 	Open     int
+
+	Who    *testerRow
+	Kinds  []countRow
+	Habits Habits
 }
 
 type dayBar struct {
@@ -297,7 +332,11 @@ func (c *Console) show(w http.ResponseWriter, r *http.Request, fill func(ctx con
 	}
 	v := view{Page: page}
 	if err := fill(r.Context(), &v); err != nil {
-		c.render(w, http.StatusServiceUnavailable, view{Page: "error", Error: err.Error()})
+		status := http.StatusServiceUnavailable
+		if errors.Is(err, ErrNoTester) {
+			status = http.StatusNotFound
+		}
+		c.render(w, status, view{Page: "error", Error: err.Error()})
 		return
 	}
 	c.render(w, http.StatusOK, v)
@@ -445,6 +484,87 @@ func (c *Console) testers(ctx context.Context, v *view) error {
 		v.Testers = append(v.Testers, testerRow{Tester: t, Today: used[t.Code], LastSeen: seen[t.Name], Week: asked[t.Name]})
 	}
 	return nil
+}
+
+func (c *Console) tester(ctx context.Context, v *view, name string) error {
+	v.Page = "tester"
+	testers, err := c.Books.Testers(ctx)
+	if err != nil {
+		return err
+	}
+	for _, t := range testers {
+		if t.Name == name {
+			v.Who = &testerRow{Tester: t}
+			break
+		}
+	}
+	if v.Who == nil {
+		return fmt.Errorf("%w called %q", ErrNoTester, name)
+	}
+
+	now := c.now()
+	most := 1
+	for i := testerDays - 1; i >= 0; i-- {
+		day := now.AddDate(0, 0, -i)
+		used, err := c.Books.Used(ctx, Day(day))
+		if err != nil {
+			return err
+		}
+		n := used[v.Who.Code]
+		v.Days = append(v.Days, dayBar{Label: day.In(india).Format("2 Jan"), Count: n})
+		most = max(most, n)
+	}
+	for i := range v.Days {
+		v.Days[i].Height = v.Days[i].Count * 120 / most
+		v.Days[i].X = i * 36
+	}
+	v.Who.Today = v.Days[len(v.Days)-1].Count
+
+	all, err := c.recent(ctx, testerDays)
+	if err != nil {
+		return err
+	}
+	apps, failures, kinds := map[string]int{}, map[string]int{}, map[string]int{}
+	examples := map[string]string{}
+	var times []time.Duration
+	for _, a := range all {
+		if a.From != name {
+			continue
+		}
+		v.Rows = append(v.Rows, a)
+		v.Answered++
+		if a.At.After(v.Who.LastSeen) {
+			v.Who.LastSeen = a.At
+		}
+		if now.Sub(a.At) < activityDays*24*time.Hour {
+			v.Who.Week++
+		}
+		if a.Fault == "" {
+			v.Finished++
+			times = append(times, a.Took)
+		} else {
+			failures[a.Fault]++
+			if examples[a.Fault] == "" && a.Words != "" {
+				examples[a.Fault] = a.Words
+			}
+		}
+		if a.App != "" {
+			apps[a.App]++
+		}
+		if a.Kind != "" {
+			kinds[a.Kind]++
+		}
+	}
+	v.Median = median(times)
+	v.Apps = ranked(apps, nil, 8)
+	v.Failures = ranked(failures, examples, 6)
+	v.Kinds = ranked(kinds, nil, 8)
+	if len(v.Rows) > testerRows {
+		v.Rows = v.Rows[:testerRows]
+	}
+
+	v.Habits, err = c.Books.Habits(ctx, name)
+	return err
 }
 
 func (c *Console) activity(ctx context.Context, v *view, r *http.Request) error {
