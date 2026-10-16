@@ -2189,7 +2189,7 @@ Vedansh's own.
 |---|---|---|
 | #209 | A welcome on first run, and "What VANS can do" from the engine | D-247 |
 | #210 | Release build fixed (engine per chip, update key in the config) | — |
-| this one | A page for each tester in the console | D-248 |
+| #211 | A page for each tester in the console | D-248 |
 
 Vedansh read and approved #190 (privacy page) and #202 (install page) on
 2026-10-16; they are merged after this. Everything else in G14's "Waiting on
