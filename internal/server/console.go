@@ -263,6 +263,7 @@ type view struct {
 	Page  string
 	Error string
 	Made  *Tester
+	Get   string
 
 	Days      []dayBar
 	Today     int
@@ -344,6 +345,7 @@ func (c *Console) show(w http.ResponseWriter, r *http.Request, fill func(ctx con
 
 func (c *Console) render(w http.ResponseWriter, status int, v view) {
 	v.Base = c.base()
+	v.Get = DownloadLink()
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	_ = consoleTemplate.Execute(w, v)

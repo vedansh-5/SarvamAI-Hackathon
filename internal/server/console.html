@@ -135,8 +135,13 @@ a { color: var(--accent); text-decoration: none; }
   <h1>Testers</h1>
   {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
   {{with .Made}}
-  <div class="made">{{.Name}} can use VANS with the code <code>{{.Code}}</code>, up to {{.Daily}} requests a day. Copy it now; it is shown here once.</div>
+  <div class="made">{{.Name}} can use VANS with the code <code>{{.Code}}</code>, up to {{.Daily}} requests a day. Send them the download link, <code>{{$.Get}}</code>, and this code.</div>
   {{end}}
+  <div class="card" style="margin-bottom:16px">
+    <h2>Download link</h2>
+    <code style="user-select:all;-webkit-user-select:all">{{$.Get}}</code>
+    <p class="mute" style="margin:8px 0 0">The same for everyone, and always the newest build. VANS does nothing without a code, so send each tester the link and their own code.</p>
+  </div>
   <div class="card" style="margin-bottom:16px">
     <h2>Add a tester</h2>
     <form method="post" action="{{$.Base}}/testers/add" class="row">

@@ -2190,6 +2190,8 @@ Vedansh's own.
 | #209 | A welcome on first run, and "What VANS can do" from the engine | D-247 |
 | #210 | Release build fixed (engine per chip, update key in the config) | — |
 | #211 | A page for each tester in the console | D-248 |
+| #212 | Visits counted by Cloudflare; Clarity only after Allow | D-249 |
+| this one | One download link for everyone: `summonvans.in/download` | D-250 |
 
 Vedansh read and approved #190 (privacy page) and #202 (install page) on
 2026-10-16; they are merged after this. Everything else in G14's "Waiting on
@@ -2198,3 +2200,6 @@ Vedansh" list still stands, from item 2 on.
 **Released 2026-10-16:** VANS 0.1.0, the first tester build, is in
 `vans-releases`. Vedansh installs it himself first, from the install page, before
 any tester gets a link.
+
+**To invite a tester:** add them in the console (Testers), then send
+`summonvans.in/download` and their code. The link always gives the newest build.

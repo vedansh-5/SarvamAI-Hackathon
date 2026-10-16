@@ -53,3 +53,21 @@ export function asMail(from: string, to: string, entry: Entry, id: string): stri
     "",
   ].join("\r\n");
 }
+
+export function downloadFrom(server: string): string | null {
+  const base = server.trim().replace(/\/+$/, "");
+  return base ? `${base}/v1/download` : null;
+}
+
+const PASSED_ON = ["content-type", "location"];
+
+export function passOn(from: Headers): Headers {
+  const out = new Headers();
+  for (const name of PASSED_ON) {
+    const value = from.get(name);
+    if (value !== null) out.set(name, value);
+  }
+  out.set("cache-control", "no-store");
+  out.set("x-robots-tag", "noindex, nofollow");
+  return out;
+}

@@ -88,6 +88,9 @@ func TestTheConsoleRunsTheTesters(t *testing.T) {
 	if code == "" || !strings.Contains(body, "Arjun can use VANS") {
 		t.Fatalf("no code shown after adding a tester:\n%s", body)
 	}
+	if !strings.Contains(body, DownloadLink()) {
+		t.Error("the download link is not shown with the new code")
+	}
 	if got, found, _ := ledger.Tester(ctx, code); !found || got.Name != "Arjun" || got.Daily != 50 {
 		t.Errorf("tester = %+v, %v", got, found)
 	}

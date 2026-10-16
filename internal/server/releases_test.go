@@ -95,3 +95,36 @@ func TestVersionsCompareByNumberNotByText(t *testing.T) {
 		}
 	}
 }
+
+func TestTheDownloadLinkAlwaysGivesTheNewestDmg(t *testing.T) {
+	srv, releases := updateServer(t, Release{Version: "0.2.0"})
+	client := srv.Client()
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, err := client.Get(srv.URL + DownloadPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusFound || resp.Header.Get("Location") != "https://downloads.example/0.2.0/VANS_0.2.0.dmg?signed" {
+		t.Fatalf("download answered %d to %q", resp.StatusCode, resp.Header.Get("Location"))
+	}
+	if resp.Header.Get("X-Robots-Tag") == "" || resp.Header.Get("Cache-Control") != "no-store" {
+		t.Error("the download is not kept out of search and caches")
+	}
+	if len(releases.linked) != 1 {
+		t.Errorf("linked %v", releases.linked)
+	}
+}
+
+func TestWithNoReleaseThereIsNothingToDownload(t *testing.T) {
+	srv := httptest.NewServer(&Server{Ledger: NewMemory(nil)})
+	t.Cleanup(srv.Close)
+	resp, err := http.Get(srv.URL + DownloadPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("download with no release answered %d", resp.StatusCode)
+	}
+}

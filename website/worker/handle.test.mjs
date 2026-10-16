@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { asMail, judge } from "./handle.ts";
+import { asMail, downloadFrom, judge, passOn } from "./handle.ts";
 
 const good = (extra = {}) => JSON.stringify({ email: "asha@example.com", note: "Excel", company: "", waited: 5000, ...extra });
 
@@ -40,4 +40,18 @@ test("the mail carries the entry and nothing can add a header", () => {
   assert.match(head, /^Reply-To: <asha@example\.com>$/m);
   assert.equal(head.split("\r\n").length, 9);
   assert.match(body, /line one\r\nline two/);
+});
+
+test("the download goes to the VANS server's download, whatever the slashes", () => {
+  assert.equal(downloadFrom("https://server.example/"), "https://server.example/v1/download");
+  assert.equal(downloadFrom("https://server.example"), "https://server.example/v1/download");
+  assert.equal(downloadFrom("  "), null);
+});
+
+test("only the address to go to is passed on, never cached, kept out of search", () => {
+  const h = passOn(new Headers({ location: "https://s3.example/x", "set-cookie": "a=b", "cache-control": "max-age=60" }));
+  assert.equal(h.get("location"), "https://s3.example/x");
+  assert.equal(h.get("set-cookie"), null);
+  assert.equal(h.get("cache-control"), "no-store");
+  assert.equal(h.get("x-robots-tag"), "noindex, nofollow");
 });
