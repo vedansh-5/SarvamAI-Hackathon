@@ -128,6 +128,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.ask(w, r)
 	case strings.HasPrefix(r.URL.Path, UpdatePath) && r.Method == http.MethodGet:
 		s.update(w, r)
+	case strings.HasPrefix(r.URL.Path, UpdateFilePath) && r.Method == http.MethodGet:
+		s.updateFile(w, r)
 	case r.URL.Path == DownloadPath && (r.Method == http.MethodGet || r.Method == http.MethodHead):
 		s.download(w, r)
 	case r.URL.Path == synth.AskPath:

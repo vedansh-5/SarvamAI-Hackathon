@@ -2206,3 +2206,11 @@ any tester gets a link.
 
 **To invite a tester:** add them in the console (Testers), then send
 `summonvans.in/download` and their code. The link always gives the newest build.
+
+**Updates, found 2026-10-16 (D-257).** The first installed copy (0.1.0) was
+offered 0.1.1 and 0.1.2 but installed neither: the updater sends the invite code
+with the file download too, and S3 refuses a request with two kinds of login.
+The server now hands out a link to itself that checks the code and redirects to
+S3; the updater drops the code on that redirect. Fixed on the server, so copies
+already out update without being reinstalled. Anyone working on releases: the
+update file is served from `/v1/update-file/`, never as a direct S3 link.

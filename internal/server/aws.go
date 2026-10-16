@@ -114,6 +114,7 @@ func FunctionURL(h http.Handler) func(ctx context.Context, in events.LambdaFunct
 			req.Header.Set(k, v)
 		}
 		req.RemoteAddr = in.RequestContext.HTTP.SourceIP
+		req.Host = in.RequestContext.DomainName
 
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, req)

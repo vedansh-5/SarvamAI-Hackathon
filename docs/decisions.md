@@ -6180,3 +6180,23 @@ and would not look again for six hours.
 - After a restart into a new version the panel says "Updated to VANS 0.1.2".
 
 Released as 0.1.2.
+
+## D-257 — Updates are fetched through the server, so the code never reaches storage
+
+Found by Vedansh on 2026-10-16: his installed 0.1.0 was offered 0.1.1 and then
+0.1.2 (the server's log says so) and installed neither. The updater sends the
+`Authorization: Bearer <invite code>` header it is given with every request it
+makes, the download as well as the check. The download was a presigned S3 link,
+and S3 refuses a request that carries both: "Only one auth mechanism allowed".
+0.1.0 said nothing about the failure, which D-256 fixes for later versions.
+
+The copies already out cannot be changed, so the fix is on the server. The
+update it offers now points at the server itself,
+`/v1/update-file/<version>/VANS.app.tar.gz`, which checks the invite code like
+any request and then redirects to the hour-long S3 link. The updater's HTTP
+client (reqwest 0.13) removes `Authorization` when a redirect goes to another
+host (`remove_sensitive_headers` in its `redirect.rs`), so S3 sees only its own
+signature. Only names of that exact shape are served, so the route cannot be
+used to fetch anything else from the bucket. The Lambda adapter now passes the
+function's own address on as the request's host, which is what the link is
+built from.

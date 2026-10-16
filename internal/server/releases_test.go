@@ -48,7 +48,7 @@ func checkForUpdate(t *testing.T, srv *httptest.Server, code, path string) (*htt
 
 var released = Release{
 	Version: "0.2.0", Notes: "Habits", PubDate: "2026-10-15T10:00:00Z",
-	Platforms: map[string]Build{"darwin-aarch64": {Key: "0.2.0/VANS_aarch64.app.tar.gz", Signature: "sig"}},
+	Platforms: map[string]Build{"darwin-aarch64": {Key: "0.2.0/VANS.app.tar.gz", Signature: "sig"}},
 }
 
 func TestANewerReleaseIsOfferedOnlyToATester(t *testing.T) {
@@ -65,8 +65,49 @@ func TestANewerReleaseIsOfferedOnlyToATester(t *testing.T) {
 	}
 
 	resp, got := checkForUpdate(t, srv, riya, "darwin/aarch64/0.1.0")
-	if resp.StatusCode != http.StatusOK || got.Version != "0.2.0" || got.Signature != "sig" || got.URL != "https://downloads.example/0.2.0/VANS_aarch64.app.tar.gz?signed" {
+	if resp.StatusCode != http.StatusOK || got.Version != "0.2.0" || got.Signature != "sig" || got.URL != srv.URL+UpdateFilePath+"0.2.0/VANS.app.tar.gz" {
 		t.Fatalf("offered %d %+v", resp.StatusCode, got)
+	}
+	if len(releases.linked) != 0 {
+		t.Errorf("a storage link was made before the file was asked for: %v", releases.linked)
+	}
+}
+
+func fetchUpdate(t *testing.T, srv *httptest.Server, code, url string) *http.Response {
+	t.Helper()
+	req, _ := http.NewRequest(http.MethodGet, url, nil)
+	if code != "" {
+		req.Header.Set("Authorization", "Bearer "+code)
+	}
+	client := srv.Client()
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	return resp
+}
+
+func TestTheUpdateFileIsFetchedThroughTheServerSoTheCodeNeverReachesStorage(t *testing.T) {
+	srv, releases := updateServer(t, released)
+	file := srv.URL + UpdateFilePath + "0.2.0/VANS.app.tar.gz"
+
+	if resp := fetchUpdate(t, srv, "", file); resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("without a code: %d, want 401", resp.StatusCode)
+	}
+	for _, bad := range []string{"0.2.0/../latest.json", "latest.json", "0.2.0/VANS_0.2.0.dmg", "0.2.0/VANS.app.tar.gz.sig"} {
+		if resp := fetchUpdate(t, srv, riya, srv.URL+UpdateFilePath+bad); resp.StatusCode != http.StatusNotFound {
+			t.Errorf("%s: %d, want 404", bad, resp.StatusCode)
+		}
+	}
+	if len(releases.linked) != 0 {
+		t.Fatalf("storage links made for refused requests: %v", releases.linked)
+	}
+
+	resp := fetchUpdate(t, srv, riya, file)
+	if resp.StatusCode != http.StatusFound || resp.Header.Get("Location") != "https://downloads.example/0.2.0/VANS.app.tar.gz?signed" {
+		t.Fatalf("fetching the update answered %d to %q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 }
 
