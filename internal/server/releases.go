@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +18,7 @@ import (
 
 const (
 	UpdatePath      = "/v1/update/"
+	UpdateFilePath  = "/v1/update-file/"
 	DownloadPath    = "/v1/download"
 	EnvDownloadLink = "VANS_DOWNLOAD_LINK"
 	downloadLink    = "https://summonvans.in/download"
@@ -77,20 +79,45 @@ func (s *Server) update(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	link, err := s.Releases.Link(r.Context(), build.Key)
-	if err != nil {
-		s.logf("could not make a download link for %s: %v", build.Key, err)
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
 	s.logf("%s is offered %s on %s, from %s", who.Name, latest.Version, platform, current)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	_ = json.NewEncoder(w).Encode(offered{
 		Version: latest.Version, Notes: latest.Notes, PubDate: latest.PubDate,
-		URL: link, Signature: build.Signature,
+		URL: selfURL(r) + UpdateFilePath + build.Key, Signature: build.Signature,
 	})
 }
+
+func selfURL(r *http.Request) string {
+	scheme := "https"
+	if r.TLS == nil && (strings.HasPrefix(r.Host, "127.0.0.1") || strings.HasPrefix(r.Host, "localhost")) {
+		scheme = "http"
+	}
+	return scheme + "://" + r.Host
+}
+
+func (s *Server) updateFile(w http.ResponseWriter, r *http.Request) {
+	who, ok := s.tester(w, r)
+	if !ok {
+		return
+	}
+	key := strings.TrimPrefix(r.URL.Path, UpdateFilePath)
+	if s.Releases == nil || !releaseFile.MatchString(key) {
+		refuse(w, http.StatusNotFound, "not found")
+		return
+	}
+	link, err := s.Releases.Link(r.Context(), key)
+	if err != nil {
+		s.logf("could not make a download link for %s: %v", key, err)
+		refuse(w, http.StatusServiceUnavailable, "the update could not be fetched; it is tried again later")
+		return
+	}
+	s.logf("%s is downloading %s", who.Name, key)
+	w.Header().Set("Cache-Control", "no-store")
+	http.Redirect(w, r, link, http.StatusFound)
+}
+
+var releaseFile = regexp.MustCompile(`^\d+\.\d+\.\d+/VANS\.app\.tar\.gz$`)
 
 func DmgKey(version string) string { return fmt.Sprintf("%s/VANS_%s.dmg", version, version) }
 
