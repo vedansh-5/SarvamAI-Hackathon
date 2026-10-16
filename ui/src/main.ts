@@ -2708,6 +2708,76 @@ listen("engine://habits", () => {
   loadHabit().catch(console.error);
 });
 
+interface UpdateState {
+  current: string;
+  updates: boolean;
+  ready?: string | null;
+  looked: boolean;
+  error?: string | null;
+}
+
+const SEEN_VERSION_KEY = "vans.version";
+
+function renderUpdate(u: UpdateState) {
+  const box = $("update-ready");
+  clear(box);
+  box.hidden = !u.ready;
+  if (u.ready) {
+    const row = el("div", "row");
+    row.appendChild(el("span", "field-note", `VANS ${u.ready} is ready. It restarts by itself when you are away.`));
+    const now = el("button", "btn secondary", "Restart now") as HTMLButtonElement;
+    now.addEventListener("click", () => invoke("restart_app").catch(console.error));
+    row.appendChild(now);
+    box.appendChild(row);
+  }
+  $("version-line").textContent = u.ready ? `VANS ${u.current}, ${u.ready} ready` : `VANS ${u.current}`;
+  $("restart-now").hidden = !u.ready;
+  ($("check-updates") as HTMLButtonElement).hidden = !!u.ready;
+  const note = $("update-note");
+  note.hidden = true;
+  if (!u.updates) {
+    note.textContent = "This copy was built from the code, so it does not update itself.";
+    note.hidden = false;
+  } else if (u.error) {
+    note.textContent = `Could not look for updates: ${u.error}.`;
+    note.hidden = false;
+  } else if (u.looked && !u.ready) {
+    note.textContent = "Up to date.";
+    note.hidden = false;
+  }
+  fitWindow();
+}
+
+async function loadUpdate() {
+  const u = await invoke<UpdateState>("update_state");
+  renderUpdate(u);
+  try {
+    const seen = localStorage.getItem(SEEN_VERSION_KEY);
+    if (seen && seen !== u.current) toast(`Updated to VANS ${u.current}`);
+    localStorage.setItem(SEEN_VERSION_KEY, u.current);
+  } catch {}
+}
+
+$("check-updates").addEventListener("click", async () => {
+  const button = $("check-updates") as HTMLButtonElement;
+  button.disabled = true;
+  button.textContent = "Looking…";
+  try {
+    renderUpdate(await invoke<UpdateState>("check_updates"));
+  } finally {
+    button.disabled = false;
+    button.textContent = "Check for updates";
+  }
+});
+
+$("restart-now").addEventListener("click", () => invoke("restart_app").catch(console.error));
+
+listen<string>("vans://updated", () => {
+  invoke<UpdateState>("update_state").then(renderUpdate).catch(console.error);
+});
+
+loadUpdate().catch(console.error);
+
 function renderDue() {
   const box = $("due");
   clear(box);

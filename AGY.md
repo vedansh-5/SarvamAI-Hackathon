@@ -2193,6 +2193,8 @@ Vedansh's own.
 | #212 | Visits counted by Cloudflare; Clarity only after Allow | D-249 |
 | #214 | One download link for everyone: `summonvans.in/download` | D-250 |
 | #215 | 0.1.1: opening from Applications opens the panel; dark mode takes the panel; marking "by someone"; four suggestions when unsure | D-251 to D-253 |
+| #216 | Granted permissions fold; switch glow; console icon; site colours copied | D-254, D-255 |
+| this one | 0.1.2: updates shown in the panel and Setup, hourly, restart when away | D-256 |
 
 Vedansh read and approved #190 (privacy page) and #202 (install page) on
 2026-10-16; they are merged after this. Everything else in G14's "Waiting on

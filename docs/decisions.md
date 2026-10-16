@@ -6159,3 +6159,24 @@ Asked for by Vedansh on 2026-10-16.
   and CI fails if they differ; the site's rule that nothing is read from
   outside `website/` stays. The picker itself is in the site plan, for the
   site's builder.
+
+## D-256 — Updates you can see, check for, and that restart when you are away
+
+Asked for by Vedansh on 2026-10-16, after 0.1.1 was released and his copy did
+not hear of it: it had looked 90 seconds after starting, before the release,
+and would not look again for six hours.
+
+- **It looks every hour,** and also when the panel opens if the last look was
+  more than half an hour ago.
+- **It says so in the panel.** When a new version has been downloaded, the ask
+  screen shows "VANS 0.1.2 is ready. It restarts by itself when you are away."
+  with Restart now, as well as the line below the dot.
+- **Setup › Updates** shows the version running, Check for updates (which also
+  downloads one if there is one), and Restart now once one is ready. A copy built
+  from the code says it does not update itself.
+- **It restarts by itself at a quiet moment:** when nothing has been typed or
+  clicked for ten minutes, the panel is closed and no guide is on screen. It is
+  checked once a minute.
+- After a restart into a new version the panel says "Updated to VANS 0.1.2".
+
+Released as 0.1.2.

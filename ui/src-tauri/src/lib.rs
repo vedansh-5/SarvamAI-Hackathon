@@ -166,6 +166,16 @@ fn restart_app(app: tauri::AppHandle) {
 }
 
 #[tauri::command]
+fn update_state(app: tauri::AppHandle) -> update::UpdateState {
+    update::state(&app)
+}
+
+#[tauri::command]
+async fn check_updates(app: tauri::AppHandle) -> update::UpdateState {
+    update::look_now(&app).await
+}
+
+#[tauri::command]
 fn quit_app(app: tauri::AppHandle) {
     app.exit(0);
 }
@@ -622,6 +632,8 @@ pub fn run() {
             invite,
             set_invite,
             restart_app,
+            update_state,
+            check_updates,
             quit_app,
             model_settings,
             set_model_settings,

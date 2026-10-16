@@ -67,6 +67,7 @@ pub fn window(app: &AppHandle) -> Option<WebviewWindow> {
 /// fails with the window apparently closed.
 pub fn show(app: &AppHandle) {
     let Some(win) = window(app) else { return };
+    crate::update::look_if_stale(app);
 
     // Capture context before VANS seizes the active focus
     let context = crate::screen::capture_active_context(false);
