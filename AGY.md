@@ -2214,3 +2214,26 @@ The server now hands out a link to itself that checks the code and redirects to
 S3; the updater drops the code on that redirect. Fixed on the server, so copies
 already out update without being reinstalled. Anyone working on releases: the
 update file is served from `/v1/update-file/`, never as a direct S3 link.
+
+**Proven 2026-10-16:** the first real update. 0.1.0 installed from the download
+became 0.1.2 through the updater, and every permission stayed granted, so the
+one signing certificate does what D-243 needed.
+
+**Later: Setup needs a redesign (Vedansh, 2026-10-16: "this UI has to be
+improved a lot - we get to it later").** Not started. What is visibly wrong today:
+
+- It is one long scroll of everything: permissions, readiness, invite code,
+  model, rules, feedback, record, start, updates, learning, appearance. Group it
+  (for example: Getting started, How VANS behaves, About this copy) and show what
+  is done as done, the way permissions now fold.
+- "Granted" is used for things that are not permissions: the invite code is
+  "Saved", the browser is "Connected".
+- The invite code appears twice: once under Ready and again as its own section
+  with an empty box and Save and check.
+- "Grant these once. This window stays put while you switch apps." still shows
+  when everything is granted.
+- Rules are three bare text boxes with examples as placeholders and one Save;
+  they read as a form, not as settings.
+
+Before redesigning, list every control Setup has and what each is for, so
+nothing is lost; check against AGY.md G11.
