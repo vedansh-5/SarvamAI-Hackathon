@@ -6058,3 +6058,27 @@ that loads Clarity.
 
 The privacy page and RULES.md §6 say all of this in the same change, as §6
 requires of anything the site starts receiving.
+
+## D-250 — One download link, and the code is the gate
+
+Decided by Vedansh on 2026-10-16, after first asking for a link per tester:
+one download link for everyone, `summonvans.in/download`, that always gives
+the newest build and never runs out. The invite code typed into VANS is what
+lets it work and what counts each tester's use, so the download itself needs
+no gate.
+
+The site's Worker passes `/download` (and nothing else new) to the VANS server
+at `/v1/download`, which reads `latest.json` and answers with a one-hour S3
+link to `<version>/VANS_<version>.dmg`, the file `release.sh` already uploads.
+A new release needs no new link. The answer is never cached and is kept out of
+search. Nothing on the site links to it yet. The console shows the link on the
+Testers page and next to each new code.
+
+**Why not a link per tester** (tried as #213 and closed): one signed app
+cannot carry a person's code without building and signing a copy per person,
+and a link that handed out codes by itself would let anyone spend the model
+allowance. Later, the public path is the same link as a Download button, with
+the invite code replaced by signing in with an email inside VANS; the testers
+table becomes accounts and the daily allowance becomes the plan's limit.
+
+`infra/mac/tester-link.sh` still makes a plain seven-day link to one version.

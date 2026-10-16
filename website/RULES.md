@@ -51,6 +51,7 @@ These are the standing rules for `summonvans.in`. They hold for every change, wh
 - `content/privacy.md` is Vedansh's text. Render it as written. Do not reword, shorten or add to it.
 - The privacy page carries no personal details and no dates: no name, city or address of the person behind VANS, no "last updated".
 - **If the site starts receiving anything from a visitor, the privacy page says so in the same pull request.** That includes a form field, a log, a counter.
+- `/download` is passed on to the VANS server, which sends the newest build. Nothing on the site links to it yet; it is sent to testers with their code (2026-10-16, D-250).
 - Nothing a visitor sends is stored by the site. The Windows form's entries are passed on as an email and kept nowhere else.
 
 ## 7. This repository is private; the site is public

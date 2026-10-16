@@ -5,7 +5,7 @@ VANS is in private testing. If you have a download link and an invite code from 
 ## What you need
 
 - A Mac. The test build runs on Apple silicon and on Intel.
-- The download link and the invite code. The link works for seven days; ask for a new one if it has run out.
+- The download link and your invite code. The link always gives the newest build and keeps working. The code is yours alone: it is what lets VANS work, and what counts your use.
 
 ## Install it
 

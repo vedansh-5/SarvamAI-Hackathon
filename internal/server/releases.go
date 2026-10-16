@@ -17,6 +17,9 @@ import (
 
 const (
 	UpdatePath      = "/v1/update/"
+	DownloadPath    = "/v1/download"
+	EnvDownloadLink = "VANS_DOWNLOAD_LINK"
+	downloadLink    = "https://summonvans.in/download"
 	EnvReleases     = "VANS_RELEASES_BUCKET"
 	LatestKey       = "latest.json"
 	DownloadLasts   = time.Hour
@@ -87,6 +90,40 @@ func (s *Server) update(w http.ResponseWriter, r *http.Request) {
 		Version: latest.Version, Notes: latest.Notes, PubDate: latest.PubDate,
 		URL: link, Signature: build.Signature,
 	})
+}
+
+func DmgKey(version string) string { return fmt.Sprintf("%s/VANS_%s.dmg", version, version) }
+
+func DownloadLink() string {
+	if link := strings.TrimSpace(os.Getenv(EnvDownloadLink)); link != "" {
+		return link
+	}
+	return downloadLink
+}
+
+func (s *Server) download(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Robots-Tag", "noindex, nofollow")
+	if s.Releases == nil {
+		http.Error(w, "There is no build to download yet.", http.StatusServiceUnavailable)
+		return
+	}
+	latest, err := s.Releases.Latest(r.Context())
+	if err != nil {
+		s.logf("could not read the latest release for a download: %v", err)
+		http.Error(w, "VANS could not be reached. Try again in a minute.", http.StatusServiceUnavailable)
+		return
+	}
+	link, err := s.Releases.Link(r.Context(), DmgKey(latest.Version))
+	if err != nil {
+		s.logf("could not make a download link for %s: %v", latest.Version, err)
+		http.Error(w, "VANS could not be reached. Try again in a minute.", http.StatusServiceUnavailable)
+		return
+	}
+	if r.Method == http.MethodGet {
+		s.logf("someone downloaded %s", latest.Version)
+	}
+	http.Redirect(w, r, link, http.StatusFound)
 }
 
 func newer(latest, current string) bool {

@@ -1,10 +1,11 @@
 import { EmailMessage } from "cloudflare:email";
-import { asMail, judge } from "./handle";
+import { asMail, downloadFrom, judge, passOn } from "./handle";
 
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
   LIST_MAIL: { send(message: EmailMessage): Promise<void> };
   LIST_TO?: string;
+  VANS_SERVER?: string;
 }
 
 const FROM = "windows-list@summonvans.in";
@@ -19,6 +20,7 @@ function say(status: number, ok: boolean): Response {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    if (url.pathname === "/download") return download(request, env);
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
 
     const verdict = judge(request.method, url.pathname, await request.text());
@@ -40,3 +42,17 @@ export default {
     }
   },
 };
+
+async function download(request: Request, env: Env): Promise<Response> {
+  const target = downloadFrom(env.VANS_SERVER ?? "");
+  if (!target || (request.method !== "GET" && request.method !== "HEAD")) {
+    return new Response("Not found", { status: 404, headers: { "x-robots-tag": "noindex, nofollow" } });
+  }
+  try {
+    const answer = await fetch(target, { method: request.method, redirect: "manual" });
+    return new Response(answer.body, { status: answer.status, headers: passOn(answer.headers) });
+  } catch (err) {
+    console.error("could not reach the VANS server for a download", err);
+    return new Response("VANS could not be reached. Try again in a minute.", { status: 502 });
+  }
+}
