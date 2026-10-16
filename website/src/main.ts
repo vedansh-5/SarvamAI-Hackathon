@@ -4,6 +4,7 @@ import { initLivePanel } from "./panel-demo.ts";
 import { initConfirmDemo } from "./confirm-demo.ts";
 import { initHeroDotBackground } from "./bg-dots.ts";
 import { initSheets } from "./sheets.ts";
+import { initConsent } from "./consent.ts";
 
 function initTheme() {
   const toggles = document.querySelectorAll<HTMLElement>(".theme-toggle");
@@ -115,4 +116,5 @@ document.addEventListener("DOMContentLoaded", () => {
   if (confirmRoot) initConfirmDemo(confirmRoot);
 
   initSheets();
+  initConsent();
 });

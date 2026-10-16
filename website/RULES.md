@@ -47,7 +47,7 @@ These are the standing rules for `summonvans.in`. They hold for every change, wh
 
 ## 6. Privacy
 
-- No cookies, no analytics, no trackers, nothing loaded from another company. Fonts are served from the site.
+- Visits are counted by Cloudflare Web Analytics, which sets no cookies. Microsoft Clarity loads only after a visitor presses Allow on the cookie banner, and never before (2026-10-16, D-249). Nothing else is loaded from another company. Fonts are served from the site.
 - `content/privacy.md` is Vedansh's text. Render it as written. Do not reword, shorten or add to it.
 - The privacy page carries no personal details and no dates: no name, city or address of the person behind VANS, no "last updated".
 - **If the site starts receiving anything from a visitor, the privacy page says so in the same pull request.** That includes a form field, a log, a counter.
