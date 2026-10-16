@@ -1,4 +1,4 @@
-const CLARITY_ID = "";
+const CLARITY_ID = "yyjihcwwah";
 const KEY = "vans-consent";
 
 type Choice = "yes" | "no";
@@ -32,6 +32,7 @@ function loadClarity() {
     stub.q = queue;
     w.clarity = stub;
   }
+  w.clarity("consentv2", { ad_Storage: "denied", analytics_Storage: "granted" });
   const tag = document.createElement("script");
   tag.async = true;
   tag.src = "https://www.clarity.ms/tag/" + encodeURIComponent(CLARITY_ID);

@@ -6049,9 +6049,11 @@ asked for, so nothing is built to show them:
   browser; "Cookie choice" in the footer asks again. The Windows form is marked
   `data-clarity-mask` so what is typed into it is never recorded.
 
-**The project ID lives in `website/src/consent.ts`.** With it empty, as it is
-until Vedansh makes the Clarity project, there is no banner and no link, and
-the site behaves as before. The ID is public by nature: it is in every page
+**The project ID lives in `website/src/consent.ts`** (`yyjihcwwah`, the
+project Vedansh made the same day). With it empty there is no banner and no
+link, and the site behaves as before. After Allow, Clarity is also told
+`consentv2` with analytics granted and ads denied, so it records the visit but
+never uses it for advertising. The ID is public by nature: it is in every page
 that loads Clarity.
 
 The privacy page and RULES.md §6 say all of this in the same change, as §6
