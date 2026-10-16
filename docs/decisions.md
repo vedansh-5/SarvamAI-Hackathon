@@ -5981,3 +5981,29 @@ applications in front, so it waits for a moment Vedansh chooses.
 **What leaves the Mac.** The recognised words go to the model as part of the
 window description, like the names of controls in any other window. The picture
 is still sent for the icon look, as D-169 said.
+
+## D-247 — A welcome on first run, and "What VANS can do"
+
+Asked for by Vedansh on 2026-10-16, so testers know what to ask before they ask.
+
+**The welcome.** Shown once, after the setup checks first pass, instead of going
+straight to the box. It leads with teaching ("VANS shows you how"), gives one
+example from each of the first three things this copy can do, and lists the
+three keys a tester needs: ⌥Space to open VANS, Esc to stop and take marks off,
+holding Return to say yes. Start, or any example, marks it seen; it is kept in
+the panel's own storage, and if that cannot be read the welcome is skipped
+rather than shown every time. Setup › Record brings it back.
+
+**The list comes from the engine.** `Engine.Abilities` returns only what this
+build can actually run: a copy with no guide does not offer "Show you how", one
+with no memory does not offer "Remember things". The panel never keeps its own
+list, so it cannot promise something the engine was built without. Teaching is
+always first.
+
+**Examples fill the box, they do not run.** Picking one puts the words in the box
+and waits for Return, so trying an example never changes anything by surprise.
+The marking examples are ones the engine understands with no model call, and a
+test holds them to that.
+
+**Where it is reached.** The welcome's second button, a quiet chip below the box
+("What can VANS do?"), and Setup › Record.

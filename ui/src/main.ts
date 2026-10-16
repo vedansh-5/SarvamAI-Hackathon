@@ -487,7 +487,8 @@ async function runPreflight(advance = true) {
   }
 
   if (result.ready && !mustAsk(perms) && advance) {
-    show("ask");
+    if (welcomed()) show("ask");
+    else void showWelcome();
   }
 }
 
@@ -2448,6 +2449,108 @@ function backToAsk() {
   intent.focus();
   intent.select();
 }
+
+interface Ability {
+  title: string;
+  says: string;
+  examples?: string[];
+}
+
+let abilitiesKnown: Ability[] | null = null;
+
+async function abilities(): Promise<Ability[]> {
+  if (!abilitiesKnown) {
+    try {
+      abilitiesKnown = await invoke<Ability[]>("abilities");
+    } catch {
+      return [];
+    }
+  }
+  return abilitiesKnown ?? [];
+}
+
+function tryExample(text: string) {
+  ($("intent") as HTMLInputElement).value = text;
+  backToAsk();
+  renderMode();
+}
+
+function exampleChip(text: string): HTMLElement {
+  const chip = el("button", "chip") as HTMLButtonElement;
+  chip.type = "button";
+  chip.appendChild(el("span", "dot"));
+  chip.appendChild(el("span", undefined, text));
+  chip.addEventListener("click", () => {
+    welcomeDone();
+    tryExample(text);
+  });
+  return chip;
+}
+
+function abilityRow(a: Ability, examples: string[]): HTMLElement {
+  const row = el("div", "ability");
+  row.appendChild(el("div", "ability-title", a.title));
+  row.appendChild(el("p", "ability-says", a.says));
+  if (examples.length) {
+    const box = el("div", "ability-examples");
+    for (const text of examples) box.appendChild(exampleChip(text));
+    row.appendChild(box);
+  }
+  return row;
+}
+
+let abilitiesFrom = "ask";
+
+async function showAbilities() {
+  abilitiesFrom = showing === "abilities" ? abilitiesFrom : showing;
+  show("abilities");
+  const list = $("ability-list");
+  clear(list);
+  for (const a of await abilities()) list.appendChild(abilityRow(a, a.examples ?? []));
+  fitWindow();
+}
+
+const WELCOME_KEY = "vans.welcomed";
+
+function welcomed(): boolean {
+  try {
+    return localStorage.getItem(WELCOME_KEY) === "yes";
+  } catch {
+    return true;
+  }
+}
+
+function welcomeDone() {
+  try {
+    localStorage.setItem(WELCOME_KEY, "yes");
+  } catch {}
+}
+
+async function showWelcome() {
+  show("welcome");
+  const tries = $("welcome-tries");
+  clear(tries);
+  const withExamples = (await abilities()).filter((a) => a.examples?.length).slice(0, 3);
+  for (const a of withExamples) tries.appendChild(abilityRow(a, [a.examples![0]]));
+  fitWindow();
+}
+
+$("welcome-start").addEventListener("click", () => {
+  welcomeDone();
+  backToAsk();
+});
+$("welcome-more").addEventListener("click", () => {
+  welcomeDone();
+  void showAbilities();
+});
+$("abilities-back").addEventListener("click", () => {
+  if (abilitiesFrom === "ask" || !abilitiesFrom) backToAsk();
+  else show(abilitiesFrom);
+  fitWindow();
+});
+$("show-abilities").addEventListener("click", () => void showAbilities());
+$("setup-abilities").addEventListener("click", () => void showAbilities());
+$("setup-welcome").addEventListener("click", () => void showWelcome());
 
 for (const button of Array.from($("mode").querySelectorAll("button"))) {
   button.addEventListener("click", () => {

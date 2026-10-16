@@ -1392,6 +1392,65 @@ td:last-child {
   color: var(--mute);
 }
 
+.abilities {
+  display: flex;
+  flex-direction: column;
+}
+
+.ability {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.ability-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ability-says {
+  margin: 3px 0 8px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--mute);
+}
+
+.ability-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.quiet-chip {
+  background: transparent;
+  color: var(--mute);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.keys {
+  margin: 4px 0 6px;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--mute);
+}
+
+.keys li {
+  padding: 3px 0;
+}
+
+.keys kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 6px;
+  margin-right: 4px;
+  border-radius: 5px;
+  background: var(--fill);
+  color: var(--ink);
+  font: 600 12px var(--font);
+  text-align: center;
+}
+
 .setup-list {
   display: flex;
   flex-direction: column;
