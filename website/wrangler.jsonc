@@ -8,5 +8,9 @@
     "run_worker_first": ["/api/*", "/download"]
   },
   "send_email": [{ "name": "LIST_MAIL" }],
-  "vars": { "VANS_SERVER": "https://dcebecm6rhedpylmqas2q3hxyq0holhl.lambda-url.ap-south-1.on.aws" }
+  "vars": { "VANS_SERVER": "https://dcebecm6rhedpylmqas2q3hxyq0holhl.lambda-url.ap-south-1.on.aws" },
+  "previews": {
+    "send_email": [{ "name": "LIST_MAIL" }],
+    "vars": { "VANS_SERVER": "https://dcebecm6rhedpylmqas2q3hxyq0holhl.lambda-url.ap-south-1.on.aws" }
+  }
 }
