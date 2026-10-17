@@ -214,7 +214,7 @@ function buildPage({ name, title, description }) {
           </div>
         </div>
         <div class="footer-bottom">
-          <div class="footer-copy">© 2026 Vedansh Saini · <a href="/privacy" class="text-link">Privacy</a></div>
+          <div class="footer-copy">© 2026 Vedansh Saini · <a href="/install" class="text-link">Install</a> · <a href="/privacy" class="text-link">Privacy</a></div>
           <div class="footer-disclaimer">VANS is not affiliated with any clothing or footwear brand.</div>
         </div>
       </div>
