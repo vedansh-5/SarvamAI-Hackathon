@@ -39,7 +39,7 @@ func (e *Engine) Abilities() []Ability {
 	_, marks := e.pageAsker()
 	add(marks || e.canRun(route.KindPageStyle), Ability{
 		Title:    "Mark things on a page",
-		Says:     "Highlights only the words that matter, in your colour. Esc on the page takes the marks off.",
+		Says:     "Highlights only the words that matter, in your colour. Ask to clear the highlighting to take the marks off.",
 		Examples: []string{"highlight the ones that start with 23", `highlight "Pending"`},
 	})
 	add(e.canRun(route.KindWebSearch), Ability{

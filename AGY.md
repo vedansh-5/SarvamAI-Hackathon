@@ -2242,7 +2242,7 @@ nothing is lost; check against AGY.md G11.
 
 Highlighting works end to end: on a page of 64 IDs, "highlight the ones that
 start with 7742" marked 36 in the theme colour, and the marks came off. Two
-rough edges showed up on the way. Neither is fixed yet.
+rough edges showed up on the way. Both are fixed in D-258.
 
 **1. With more than one Chrome open, VANS can read the wrong one.**
 `AskFront` in `internal/adapter/appleevents/chrome.go` asks for

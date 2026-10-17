@@ -128,10 +128,25 @@ func (c *Chrome) run(ctx context.Context, script string, out any) error {
 // reports failures as data rather than as an osascript error, so the reason
 // survives into Go instead of being flattened into an exit status.
 const preamble = `function chrome() {
-  const app = Application('Google Chrome');
+  const app = frontChrome();
   if (!app.running()) throw new Error('Chrome is not running');
   if (app.windows.length === 0) throw new Error('Chrome has no window open');
   return app;
+}
+function frontChrome() {
+  ObjC.import('AppKit');
+  const running = $.NSRunningApplication.runningApplicationsWithBundleIdentifier('com.google.Chrome');
+  if (running.count < 2) return Application('Google Chrome');
+  const pids = [];
+  for (let i = 0; i < running.count; i++) pids.push(running.objectAtIndex(i).processIdentifier);
+  ObjC.import('CoreGraphics');
+  const shown = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(
+    $.kCGWindowListOptionOnScreenOnly | $.kCGWindowListExcludeDesktopElements, $.kCGNullWindowID))) || [];
+  for (let i = 0; i < shown.length; i++) {
+    const w = shown[i];
+    if (w.kCGWindowLayer === 0 && pids.indexOf(w.kCGWindowOwnerPID) >= 0) return Application(w.kCGWindowOwnerPID);
+  }
+  return Application('Google Chrome');
 }
 function tabById(app, id) {
   for (let w = 0; w < app.windows.length; w++) {

@@ -80,7 +80,7 @@ export const REQUEST_FACTS: RequestFact[] = [
   {
     id: "mark-end",
     query: "highlight the IDs ending in 07",
-    whatHappens: "The same, for the end of the number. Esc on the page takes the marks off",
+    whatHappens: "The same, for the end of the number. Ask to clear the highlighting to take the marks off",
     kind: "marking",
     group: "mark",
     colorToken: "violet",
