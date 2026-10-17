@@ -2237,3 +2237,28 @@ improved a lot - we get to it later").** Not started. What is visibly wrong toda
 
 Before redesigning, list every control Setup has and what each is for, so
 nothing is lost; check against AGY.md G11.
+
+## G16. Found while recording the highlight demo, 2026-10-18
+
+Highlighting works end to end: on a page of 64 IDs, "highlight the ones that
+start with 7742" marked 36 in the theme colour, and the marks came off. Two
+rough edges showed up on the way. Neither is fixed yet.
+
+**1. With more than one Chrome open, VANS can read the wrong one.**
+`AskFront` in `internal/adapter/appleevents/chrome.go` asks for
+`Application('Google Chrome')`. When several Chrome processes are running (the
+user's own, plus a copy another tool started, such as an editor's built-in
+browser), macOS hands back one of them, not always the one in front. VANS then
+reads a page the user is not looking at and answers "Nothing on this page seems
+to start with …". Seen with three Chromes open: VANS read a GitHub page in
+another tool's Chrome while the demo page was in front. Closing the extra
+Chromes fixed it. The fix should aim at the Chrome process that owns the
+frontmost window, and if it cannot tell, say which page it read.
+
+**2. "Press Esc on the page" only works when the page has keyboard focus.**
+The hint in `internal/engine/marks.go` and the line in
+`internal/engine/abilities.go` both say Esc on the page takes the marks off.
+Right after an ask, focus is often still on the panel or nowhere in the page,
+so Esc does nothing and the marks stay. The panel's "Clear highlighting" always
+works. Either make Esc work without page focus, or change the hint to point at
+"Clear highlighting" (or say "click the page, then Esc").
