@@ -180,7 +180,7 @@ Cold: LLM expands the goal into concrete actions. Warm: cache hit, deterministic
 
 **Tradeoff.** If first-party local MCP adoption accelerates, this tier becomes valuable and we will have built a parallel mechanism (D-009). Judged acceptable because D-009 is useful regardless.
 
-**Confidence note.** Landscape assessment current as of the assistant's May 2026 knowledge cutoff and not independently verified against live sources. Worth re-checking before committing further; this space moves fast.
+**Confidence note.** Landscape assessment as of May 2026, not checked against live sources. Worth re-checking before committing further; this space moves fast.
 
 ---
 
