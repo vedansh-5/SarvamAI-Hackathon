@@ -6304,3 +6304,12 @@ testers: switch off, switch on, set the allowance, set a trial's version, or
 remove. Remove needs its own sure box, as on the tester's page. The console
 has no scripts, so the tick boxes belong to one form outside the table and
 each button says what to do.
+
+## D-262 — The panel window has no system shadow
+
+Seen 2026-10-18: a thin square line ran round the panel window, outside its
+rounded corners. The window is transparent and the panel is rounded inside it,
+but the shadow macOS draws for a window follows the window's square frame, and
+its edge showed as that line. The panel now asks for no shadow, as the dot, the
+nudge line and the pointer windows already did. The glass and the panel's own
+inset edge (`--edge`) mark where it ends.
