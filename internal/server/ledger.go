@@ -20,6 +20,7 @@ type Memory struct {
 	activity []Activity
 	learned  map[string]string
 	sentAt   map[string]time.Time
+	content  string
 }
 
 var (
@@ -76,6 +77,19 @@ func (m *Memory) Habits(_ context.Context, from string) (Habits, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return habitsFrom(m.sentAt[from], m.learned[from])
+}
+
+func (m *Memory) Content(_ context.Context) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.content, nil
+}
+
+func (m *Memory) SetContent(_ context.Context, raw string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.content = raw
+	return nil
 }
 
 func (m *Memory) Learned(from string) string {

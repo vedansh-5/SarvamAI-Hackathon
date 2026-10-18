@@ -43,6 +43,8 @@ type Books interface {
 	Feedback(ctx context.Context) ([]Feedback, error)
 	Handled(ctx context.Context, id string) error
 	Habits(ctx context.Context, from string) (Habits, error)
+	Content(ctx context.Context) (string, error)
+	SetContent(ctx context.Context, raw string) error
 }
 
 type Habits struct {
@@ -184,6 +186,11 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.show(w, r, func(ctx context.Context, v *view) error { return c.activity(ctx, v, r) })
 	case "feedback":
 		c.show(w, r, c.feedback)
+	case "content":
+		c.show(w, r, func(ctx context.Context, v *view) error {
+			v.Saved = r.URL.Query().Get("saved") == "1"
+			return c.content(ctx, v)
+		})
 	default:
 		name, ok := strings.CutPrefix(page, "testers/")
 		if !ok || name == "" {
@@ -244,6 +251,21 @@ func (c *Console) act(w http.ResponseWriter, r *http.Request, page string) {
 	case "feedback/handled":
 		back = c.base() + "/feedback"
 		err = c.Books.Handled(ctx, r.PostFormValue("id"))
+	case "content/save":
+		back = c.base() + "/content?saved=1"
+		raw := strings.TrimSpace(r.PostFormValue("doc"))
+		if _, bad := synth.ParseContent(raw); bad != nil {
+			c.show(w, r, func(ctx context.Context, v *view) error {
+				v.Error = "Not saved: " + bad.Error()
+				v.Doc = raw
+				return nil
+			})
+			return
+		}
+		err = c.Books.SetContent(ctx, raw)
+	case "content/clear":
+		back = c.base() + "/content?saved=1"
+		err = c.Books.SetContent(ctx, "")
 	default:
 		http.NotFound(w, r)
 		return
@@ -285,6 +307,10 @@ type view struct {
 	Who    *testerRow
 	Kinds  []countRow
 	Habits Habits
+
+	Doc     string
+	BuiltIn bool
+	Saved   bool
 }
 
 type dayBar struct {
@@ -615,6 +641,19 @@ func (c *Console) feedback(ctx context.Context, v *view) error {
 			v.Open++
 		}
 	}
+	return nil
+}
+
+func (c *Console) content(ctx context.Context, v *view) error {
+	raw, err := c.Books.Content(ctx)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(raw) == "" {
+		v.Doc, v.BuiltIn = synth.BuiltInContent().Spelled(), true
+		return nil
+	}
+	v.Doc = raw
 	return nil
 }
 

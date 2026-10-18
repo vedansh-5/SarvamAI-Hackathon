@@ -45,6 +45,7 @@ code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: va
 .bar { height: 8px; border-radius: 4px; background: var(--bar); min-width: 2px; }
 .track { background: var(--fill); border-radius: 4px; }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+textarea { width: 100%; box-sizing: border-box; font: 13px/1.5 ui-monospace, Menlo, monospace; color: var(--ink); background: var(--fill); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
 input, select { font: inherit; color: var(--ink); background: var(--fill); border: 1px solid var(--line);
                 border-radius: 10px; padding: 7px 10px; }
 input[type=number] { width: 90px; }
@@ -82,6 +83,7 @@ a { color: var(--accent); text-decoration: none; }
     <a href="{{$.Base}}/testers" {{if or (eq .Page "testers") (eq .Page "tester")}}class="on"{{end}}>Testers</a>
     <a href="{{$.Base}}/activity" {{if eq .Page "activity"}}class="on"{{end}}>Activity</a>
     <a href="{{$.Base}}/feedback" {{if eq .Page "feedback"}}class="on"{{end}}>Feedback</a>
+    <a href="{{$.Base}}/content" {{if eq .Page "content"}}class="on"{{end}}>Wording</a>
   </nav>
   <form method="post" action="{{$.Base}}/logout"><button class="plain" type="submit">Sign out</button></form>
 </header>
@@ -297,6 +299,24 @@ a { color: var(--accent); text-decoration: none; }
     <p class="note">{{.Text}}</p>
   </div>
   {{else}}<p class="mute">No feedback yet.</p>{{end}}
+
+{{else if eq .Page "content"}}
+  <h1>Wording</h1>
+  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+  {{if .Saved}}<div class="made">Saved. Each copy of VANS picks it up within 15 minutes, the next time it shows the welcome or What VANS can do.</div>{{end}}
+  <div class="card">
+    <p class="note">The welcome and the list in What VANS can do. {{if .BuiltIn}}Nothing is saved, so every copy shows what it was built with; this is that text, to start from.{{else}}This is what every copy shows now.{{end}}</p>
+    <p class="note mute">Leave out a field to keep the built-in one. <code>"hidden": true</code> takes an ability off the list. The order here is the order shown. The list only ever shows what that copy of VANS can do, so an id cannot add an ability.</p>
+    <form method="post" action="{{$.Base}}/content/save">
+      <textarea name="doc" rows="28" spellcheck="false">{{.Doc}}</textarea>
+      <div class="row" style="margin-top:12px"><button type="submit">Save</button></div>
+    </form>
+    {{if not .BuiltIn}}
+    <form method="post" action="{{$.Base}}/content/clear" style="margin-top:12px">
+      <button class="plain" type="submit">Go back to the built-in wording</button>
+    </form>
+    {{end}}
+  </div>
 {{end}}
 </main>
 {{end}}

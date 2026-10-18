@@ -199,16 +199,12 @@
           <section id="welcome" hidden>
             <div class="setup">
               <span class="kicker volt">Welcome</span>
-              <h2 class="screen-title">VANS shows you how</h2>
-              <p class="lede">Ask how to do something and VANS points at each step on your own screen while you do it. When you would rather not, it can do it for you, where you can watch.</p>
+              <h2 id="welcome-title" class="screen-title"></h2>
+              <p id="welcome-lede" class="lede"></p>
               <div class="kicker spaced">Try one</div>
               <div id="welcome-tries" class="abilities"></div>
               <div class="kicker spaced">Keys</div>
-              <ul class="keys">
-                <li><kbd>⌥Space</kbd> opens VANS, from any app. So does the dot at the top of the screen.</li>
-                <li><kbd>Esc</kbd> stops what VANS is doing, and takes marks off a page.</li>
-                <li>Hold <kbd>Return</kbd> to say yes when VANS asks before changing something.</li>
-              </ul>
+              <ul id="welcome-keys" class="keys"></ul>
               <div class="row">
                 <button id="welcome-start" class="btn volt" type="button">Start</button>
                 <button id="welcome-more" class="btn quiet" type="button">Everything VANS can do</button>

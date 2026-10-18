@@ -186,6 +186,10 @@ func (r *Remote) SendLearned(ctx context.Context, l Learned) error {
 	return err
 }
 
+func (r *Remote) Content(ctx context.Context) (Content, error) {
+	return ask[struct{}, Content](ctx, r, KindContent, struct{}{})
+}
+
 func (r *Remote) Ping(ctx context.Context) error {
 	_, err := ask[struct{}, struct{}](ctx, r, KindPing, struct{}{})
 	return err
