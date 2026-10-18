@@ -23,41 +23,73 @@ type ContentSource interface {
 
 const (
 	contentFresh = 15 * time.Minute
-	contentRetry = time.Minute
-	contentWait  = 2 * time.Second
+	trialsFresh  = 5 * time.Minute
+	fetchRetry   = time.Minute
+	fetchWait    = 2 * time.Second
 )
 
-type cachedContent struct {
-	from  ContentSource
+type kept[T any] struct {
+	fetch func(ctx context.Context) (T, error)
+	fresh time.Duration
 	mu    sync.Mutex
-	got   synth.Content
+	got   T
 	at    time.Time
 	tried time.Time
 }
+
+func (k *kept[T]) get(ctx context.Context) T {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	now := time.Now()
+	if (!k.at.IsZero() && now.Sub(k.at) < k.fresh) || now.Sub(k.tried) < fetchRetry {
+		return k.got
+	}
+	k.tried = now
+	ctx, cancel := context.WithTimeout(ctx, fetchWait)
+	defer cancel()
+	got, err := k.fetch(ctx)
+	if err != nil {
+		return k.got
+	}
+	k.got, k.at = got, now
+	return got
+}
+
+type cachedContent struct{ k *kept[synth.Content] }
+
+func (c cachedContent) Content(ctx context.Context) (synth.Content, error) { return c.k.get(ctx), nil }
 
 func Cached(from ContentSource) ContentSource {
 	if from == nil {
 		return nil
 	}
-	return &cachedContent{from: from}
+	return cachedContent{&kept[synth.Content]{fetch: from.Content, fresh: contentFresh}}
 }
 
-func (c *cachedContent) Content(ctx context.Context) (synth.Content, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	now := time.Now()
-	if (!c.at.IsZero() && now.Sub(c.at) < contentFresh) || now.Sub(c.tried) < contentRetry {
-		return c.got, nil
+type TrialSource interface {
+	Trials(ctx context.Context) (synth.Trials, error)
+}
+
+type cachedTrials struct{ k *kept[synth.Trials] }
+
+func (c cachedTrials) Trials(ctx context.Context) (synth.Trials, error) { return c.k.get(ctx), nil }
+
+func CachedTrials(from TrialSource) TrialSource {
+	if from == nil {
+		return nil
 	}
-	c.tried = now
-	ctx, cancel := context.WithTimeout(ctx, contentWait)
-	defer cancel()
-	got, err := c.from.Content(ctx)
+	return cachedTrials{&kept[synth.Trials]{fetch: from.Trials, fresh: trialsFresh}}
+}
+
+func (e *Engine) TrialsNow(ctx context.Context) synth.Trials {
+	if e.Trials == nil {
+		return synth.TrialsFor(nil)
+	}
+	got, err := e.Trials.Trials(ctx)
 	if err != nil {
-		return c.got, nil
+		return synth.TrialsFor(nil)
 	}
-	c.got, c.at = got, now
-	return got, nil
+	return synth.TrialsFor(got)
 }
 
 func (e *Engine) wording(ctx context.Context) synth.Content {

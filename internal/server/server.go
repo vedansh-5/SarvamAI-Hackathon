@@ -19,10 +19,11 @@ const (
 )
 
 type Tester struct {
-	Name  string
-	Code  string
-	Daily int
-	Off   bool
+	Name   string
+	Code   string
+	Daily  int
+	Off    bool
+	Trials map[string]string
 }
 
 type Ledger interface {
@@ -41,17 +42,19 @@ type Feedback struct {
 	Text    string
 	At      time.Time
 	Handled bool
+	Trials  string
 }
 
 type Activity struct {
-	At    time.Time
-	From  string
-	Kind  string
-	Words string
-	App   string
-	Fault string
-	Took  time.Duration
-	By    string
+	At     time.Time
+	From   string
+	Kind   string
+	Words  string
+	App    string
+	Fault  string
+	Took   time.Duration
+	By     string
+	Trials string
 }
 
 const MostWords = 500
@@ -203,7 +206,7 @@ func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	answerer, known := kinds[asked.Kind]
-	if !known && asked.Kind != synth.KindFeedback && asked.Kind != synth.KindLearned && asked.Kind != synth.KindContent {
+	if !known && asked.Kind != synth.KindFeedback && asked.Kind != synth.KindLearned && asked.Kind != synth.KindContent && asked.Kind != synth.KindTrials {
 		refuse(w, http.StatusBadRequest, fmt.Sprintf("%q is not a kind of question VANS asks", asked.Kind))
 		return
 	}
@@ -216,9 +219,14 @@ func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
 		s.content(w, r, who)
 		return
 	}
+	if asked.Kind == synth.KindTrials {
+		encoded, _ := json.Marshal(synth.TrialsFor(who.Trials))
+		reply(w, http.StatusOK, synth.Answered{Answer: encoded})
+		return
+	}
 
 	words, app := said(asked.Request)
-	seen := Activity{At: s.now(), From: who.Name, Kind: asked.Kind, Words: words, App: app}
+	seen := Activity{At: s.now(), From: who.Name, Kind: asked.Kind, Words: words, App: app, Trials: synth.TrialsFor(who.Trials).Spelled()}
 
 	if asked.Kind != synth.KindPing {
 		mine, all, err := s.Ledger.Spend(r.Context(), codeOf(r), Day(s.now()))
@@ -301,7 +309,7 @@ func (s *Server) feedback(w http.ResponseWriter, r *http.Request, who Tester, ra
 		refuse(w, http.StatusBadRequest, "the feedback is empty or too long")
 		return
 	}
-	kept := Feedback{From: who.Name, Kind: f.Kind, Text: f.Text, At: s.now()}
+	kept := Feedback{From: who.Name, Kind: f.Kind, Text: f.Text, At: s.now(), Trials: synth.TrialsFor(who.Trials).Spelled()}
 	if err := s.Ledger.Keep(r.Context(), kept); err != nil {
 		s.logf("could not keep feedback from %s: %v", who.Name, err)
 		reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the VANS server could not keep the feedback"}})

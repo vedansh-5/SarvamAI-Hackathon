@@ -39,6 +39,7 @@ type Books interface {
 	SetDaily(ctx context.Context, code string, daily int) error
 	SetOff(ctx context.Context, code string, off bool) error
 	DeleteTester(ctx context.Context, code string) error
+	SetTrial(ctx context.Context, code, name, variant string) error
 	Used(ctx context.Context, day string) (map[string]int, error)
 	Activity(ctx context.Context, day string) ([]Activity, error)
 	Feedback(ctx context.Context) ([]Feedback, error)
@@ -187,6 +188,8 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.show(w, r, func(ctx context.Context, v *view) error { return c.activity(ctx, v, r) })
 	case "feedback":
 		c.show(w, r, c.feedback)
+	case "trials":
+		c.show(w, r, c.trials)
 	case "content":
 		c.show(w, r, func(ctx context.Context, v *view) error {
 			v.Saved = r.URL.Query().Get("saved") == "1"
@@ -249,6 +252,8 @@ func (c *Console) act(w http.ResponseWriter, r *http.Request, page string) {
 		}
 	case "testers/off", "testers/on":
 		err = c.Books.SetOff(ctx, r.PostFormValue("code"), page == "testers/off")
+	case "testers/trial":
+		err = c.Books.SetTrial(ctx, r.PostFormValue("code"), r.PostFormValue("trial"), r.PostFormValue("variant"))
 	case "testers/delete":
 		if r.PostFormValue("sure") != "yes" {
 			c.render(w, http.StatusBadRequest, view{Page: "error", Error: "Tick the box to say you mean it; nothing was deleted."})
@@ -321,6 +326,24 @@ type view struct {
 	Doc     string
 	BuiltIn bool
 	Saved   bool
+
+	Trials []trialView
+}
+
+type trialView struct {
+	Name     string
+	Says     string
+	Variants []variantView
+}
+
+type variantView struct {
+	Name     string
+	Chosen   bool
+	Testers  []string
+	Asked    int
+	Finished int
+	Median   time.Duration
+	Feedback []Feedback
 }
 
 type dayBar struct {
@@ -533,6 +556,7 @@ func (c *Console) tester(ctx context.Context, v *view, name string) error {
 	for _, t := range testers {
 		if t.Name == name {
 			v.Who = &testerRow{Tester: t}
+			v.Trials = c.trialsFor(synth.TrialsFor(t.Trials))
 			break
 		}
 	}
@@ -664,6 +688,62 @@ func (c *Console) content(ctx context.Context, v *view) error {
 		return nil
 	}
 	v.Doc = raw
+	return nil
+}
+
+func (c *Console) trialsFor(chosen synth.Trials) []trialView {
+	var out []trialView
+	for _, t := range synth.KnownTrials() {
+		tv := trialView{Name: t.Name, Says: t.Says}
+		for _, v := range t.Variants {
+			tv.Variants = append(tv.Variants, variantView{Name: v, Chosen: chosen[t.Name] == v})
+		}
+		out = append(out, tv)
+	}
+	return out
+}
+
+func (c *Console) trials(ctx context.Context, v *view) error {
+	testers, err := c.Books.Testers(ctx)
+	if err != nil {
+		return err
+	}
+	week, err := c.recent(ctx, activityDays)
+	if err != nil {
+		return err
+	}
+	feedback, err := c.Books.Feedback(ctx)
+	if err != nil {
+		return err
+	}
+	v.Trials = c.trialsFor(nil)
+	for ti, t := range v.Trials {
+		for vi := range t.Variants {
+			row := &v.Trials[ti].Variants[vi]
+			for _, who := range testers {
+				if synth.TrialsFor(who.Trials)[t.Name] == row.Name {
+					row.Testers = append(row.Testers, who.Name)
+				}
+			}
+			var took []time.Duration
+			for _, a := range week {
+				if synth.TrialsSpelled(a.Trials)[t.Name] != row.Name {
+					continue
+				}
+				row.Asked++
+				if a.Fault == "" {
+					row.Finished++
+					took = append(took, a.Took)
+				}
+			}
+			row.Median = median(took)
+			for _, f := range feedback {
+				if synth.TrialsSpelled(f.Trials)[t.Name] == row.Name {
+					row.Feedback = append(row.Feedback, f)
+				}
+			}
+		}
+	}
 	return nil
 }
 

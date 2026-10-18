@@ -59,7 +59,7 @@ func fromServer(url string) brain {
 	invite := &setup.Invite{Remote: remote, Keys: keychain.System{}}
 	invite.Load()
 	fmt.Fprintf(os.Stderr, "[model] asking the VANS server at %s\n", url)
-	return brain{synthesizer: remote, meter: remote.Usage, learner: remote, content: remote, invite: invite, ready: invite.Ready, reaches: url}
+	return brain{synthesizer: remote, meter: remote.Usage, learner: remote, content: remote, trials: remote, invite: invite, ready: invite.Ready, reaches: url}
 }
 
 type unconfigured struct{ err error }

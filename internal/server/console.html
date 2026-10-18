@@ -84,6 +84,7 @@ a { color: var(--accent); text-decoration: none; }
     <a href="{{$.Base}}/testers" {{if or (eq .Page "testers") (eq .Page "tester")}}class="on"{{end}}>Testers</a>
     <a href="{{$.Base}}/activity" {{if eq .Page "activity"}}class="on"{{end}}>Activity</a>
     <a href="{{$.Base}}/feedback" {{if eq .Page "feedback"}}class="on"{{end}}>Feedback</a>
+    <a href="{{$.Base}}/trials" {{if eq .Page "trials"}}class="on"{{end}}>Trials</a>
     <a href="{{$.Base}}/content" {{if eq .Page "content"}}class="on"{{end}}>Wording</a>
   </nav>
   <form method="post" action="{{$.Base}}/logout"><button class="plain" type="submit">Sign out</button></form>
@@ -199,6 +200,16 @@ a { color: var(--accent); text-decoration: none; }
         <button class="plain" type="submit">{{if .Off}}Switch on{{else}}Switch off{{end}}</button>
       </form>
     </div>
+    {{$who := .}}
+    {{range $.Trials}}
+    <form method="post" action="{{$.Base}}/testers/trial" class="row" style="margin-top:12px">
+      <input type="hidden" name="code" value="{{$who.Code}}"><input type="hidden" name="back" value="{{$who.Name}}">
+      <input type="hidden" name="trial" value="{{.Name}}">
+      <span class="mute">{{.Says}}</span>
+      <select name="variant">{{range .Variants}}<option value="{{.Name}}" {{if .Chosen}}selected{{end}}>{{.Name}}</option>{{end}}</select>
+      <button class="plain" type="submit">Save</button>
+    </form>
+    {{end}}
     <form method="post" action="{{$.Base}}/testers/delete" class="row" style="margin-top:12px">
       <input type="hidden" name="code" value="{{.Code}}">
       <label class="row mute"><input type="checkbox" name="sure" value="yes" required> Delete {{.Name}} and their code. The code stops working at once; their habits go too, and their requests and feedback stay until they expire or are handled.</label>
@@ -295,7 +306,7 @@ a { color: var(--accent); text-decoration: none; }
   {{range .Feedback}}
   <div class="card {{if .Handled}}done{{end}}" style="margin-bottom:12px">
     <div class="row">
-      <b>{{.From}}</b><span class="mute">{{words .Kind}} · {{when .At}}</span>
+      <b>{{.From}}</b><span class="mute">{{words .Kind}} · {{when .At}}{{if .Trials}} · {{.Trials}}{{end}}</span>
       {{if not .Handled}}
       <form method="post" action="{{$.Base}}/feedback/handled" style="margin-left:auto">
         <input type="hidden" name="id" value="{{.ID}}"><button class="plain" type="submit">Mark handled</button>
@@ -305,6 +316,33 @@ a { color: var(--accent); text-decoration: none; }
     <p class="note">{{.Text}}</p>
   </div>
   {{else}}<p class="mute">No feedback yet.</p>{{end}}
+
+{{else if eq .Page "trials"}}
+  <h1>Trials</h1>
+  <p class="mute">Each tester sees one version of each trial, set on their page. A copy of VANS picks up a change within five minutes, with no update. Requests are the last 7 days.</p>
+  {{range .Trials}}
+  <h2>{{.Says}}</h2>
+  <div class="grid">
+    {{range .Variants}}
+    <div class="card">
+      <h2>{{.Name}} <span class="mute">· {{len .Testers}} tester{{if ne (len .Testers) 1}}s{{end}}</span></h2>
+      <p class="mute">{{range $i, $n := .Testers}}{{if $i}}, {{end}}{{$n}}{{else}}Nobody yet.{{end}}</p>
+      <table>
+        <tr><td>Requests</td><td>{{.Asked}}</td></tr>
+        <tr><td>Finished</td><td>{{pct .Finished .Asked}}%</td></tr>
+        <tr><td>Typical answer time</td><td>{{took .Median}}</td></tr>
+        <tr><td>Feedback</td><td>{{len .Feedback}}</td></tr>
+      </table>
+      {{range .Feedback}}
+      <div class="{{if .Handled}}done{{end}}" style="margin-top:12px">
+        <div class="mute">{{.From}} · {{when .At}}</div>
+        <p class="note">{{.Text}}</p>
+      </div>
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+  {{end}}
 
 {{else if eq .Page "content"}}
   <h1>Wording</h1>

@@ -6252,3 +6252,34 @@ never asks and keeps its own words; a server older than it answers that
 
 The built-in welcome no longer says Esc takes marks off a page, for the reason
 in D-258.
+
+## D-260 — Setup is regrouped as a trial, chosen per tester
+
+Wanted 2026-10-18: try the Setup layout in
+`docs/plans/2026-10-18-setup-redesign.md` on some testers before it replaces
+the old one, and keep the same way open for voice later.
+
+A trial is a name and its versions, listed once in `synth.KnownTrials`. The
+first version is the default, so a tester nobody has put in a trial gets the
+old Setup. The console's tester page picks a version per trial and keeps it on
+the tester as `trials`; a version the list does not name is refused. The app
+asks with a `trials` request, which is neither counted nor recorded, and the
+engine keeps the answer for 5 minutes, with the same retry and fallback as
+D-259. A copy that cannot ask, or a build without this change, shows the old
+Setup.
+
+Every activity and feedback record carries the tester's versions, spelled like
+`setup=new`, so the console's Trials page can put, for each version, who is on
+it, how many requests they made in the last 7 days, how many finished, the
+median time, and the feedback sent while on it. With a handful of testers this
+is something to read, not a score: nothing picks a winner on its own.
+
+The new layout moves the same controls into three groups (Getting started, How
+VANS behaves, About this copy) without copying any of them, so a fix to a
+control reaches both versions. The tags read Granted, Connected, Saved or
+Ready by what the check is; a saved invite code folds to one line with Change;
+each rule is a line with its value and Edit, and saves on its own. Getting
+started folds to "VANS is ready" when nothing is needed.
+
+This branch is not merged. Shipping it to testers needs a server deploy and a
+release from main, so it waits until the layout is approved.

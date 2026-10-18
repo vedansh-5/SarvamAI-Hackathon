@@ -190,6 +190,10 @@ func (r *Remote) Content(ctx context.Context) (Content, error) {
 	return ask[struct{}, Content](ctx, r, KindContent, struct{}{})
 }
 
+func (r *Remote) Trials(ctx context.Context) (Trials, error) {
+	return ask[struct{}, Trials](ctx, r, KindTrials, struct{}{})
+}
+
 func (r *Remote) Ping(ctx context.Context) error {
 	_, err := ask[struct{}, struct{}](ctx, r, KindPing, struct{}{})
 	return err

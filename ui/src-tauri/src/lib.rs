@@ -310,6 +310,11 @@ async fn welcome(engine: State<'_, Engine>) -> Result<Value, RpcError> {
 }
 
 #[tauri::command]
+async fn trials(engine: State<'_, Engine>) -> Result<Value, RpcError> {
+    engine.call("trials", None).await
+}
+
+#[tauri::command]
 async fn set_accent(engine: State<'_, Engine>, accent: String) -> Result<Value, RpcError> {
     engine.call("set_accent", Some(json!({ "accent": accent }))).await
 }
@@ -634,6 +639,7 @@ pub fn run() {
             send_feedback,
             abilities,
             welcome,
+            trials,
             set_accent,
             invite,
             set_invite,

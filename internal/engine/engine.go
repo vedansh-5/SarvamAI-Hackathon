@@ -201,6 +201,7 @@ type Engine struct {
 	ClickAt func(x, y int) (uiact.Noticed, bool)
 	Learner LearnedSender
 	Content ContentSource
+	Trials  TrialSource
 
 	Question func(ctx context.Context, question string, options []string) (string, error)
 
