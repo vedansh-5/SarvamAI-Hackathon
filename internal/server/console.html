@@ -282,7 +282,7 @@ a { color: var(--accent); text-decoration: none; }
         <tr>
           <td class="mute">{{when .At}}</td><td>{{if .Words}}{{.Words}}{{else}}<span class="mute">-</span>{{end}}</td>
           <td>{{.App}}</td><td class="mute">{{words .Kind}}</td>
-          <td>{{if .Fault}}<span class="bad">{{words .Fault}}</span>{{else}}<span class="good">answered</span>{{end}}</td>
+          <td>{{if .Fault}}<span class="bad">{{words .Fault}}</span>{{with .Why}}<div class="mute">{{.}}</div>{{end}}{{else}}<span class="good">answered</span>{{end}}</td>
           <td>{{took .Took}}</td><td class="mute">{{.By}}</td>
         </tr>
         {{else}}<tr><td colspan="7" class="mute">No requests in the last 30 days.</td></tr>{{end}}
@@ -314,7 +314,7 @@ a { color: var(--accent); text-decoration: none; }
       <tr>
         <td class="mute">{{when .At}}</td><td>{{.From}}</td><td>{{if .Words}}{{.Words}}{{else}}<span class="mute">-</span>{{end}}</td>
         <td>{{.App}}</td><td class="mute">{{words .Kind}}</td>
-        <td>{{if .Fault}}<span class="bad">{{words .Fault}}</span>{{else}}<span class="good">answered</span>{{end}}</td>
+        <td>{{if .Fault}}<span class="bad">{{words .Fault}}</span>{{with .Why}}<div class="mute">{{.}}</div>{{end}}{{else}}<span class="good">answered</span>{{end}}</td>
         <td>{{took .Took}}</td><td class="mute">{{.By}}</td>
       </tr>
       {{else}}<tr><td colspan="8" class="mute">Nothing matches.</td></tr>{{end}}

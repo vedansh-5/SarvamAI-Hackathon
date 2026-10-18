@@ -85,7 +85,7 @@ In the test builds the VANS server keeps:
 
 - **Your name and your invite code,** and how many requests the code may make in a day.
 - **How many requests you made each day,** so one tester cannot use up everyone's share.
-- **A short record of each request:** when, the words you typed (at most 500 characters), which application it was for, whether it worked, how long it took and which model provider answered. It never includes what was on your screen, text you selected, file names or a picture. These records are deleted automatically after 30 days.
+- **A short record of each request:** when, the words you typed (at most 500 characters), which application or website it was for (the site's name, not the page's address), whether it worked, how long it took and which model provider answered. When it did not work, the record also keeps the model's one-line reason, such as "Notes has no way to do that". It never includes what was on your screen, text you selected, file names or a picture. These records are deleted automatically after 30 days.
 - **The habits VANS found, and how you answered them:** for example "Start in Clockify, after you open Mail, seen on 4 days, run 3 times". It is sent when the list changes, and replaces the last one. The notes it was found from are never sent. It is deleted when you ask me, or when testing ends.
 - **Feedback you choose to send** from the panel, exactly as shown to you before you press Send. It is also emailed to me.
 

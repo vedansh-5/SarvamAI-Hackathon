@@ -136,7 +136,7 @@ func (d *Dynamo) Record(ctx context.Context, a Activity) error {
 		"ms":   &types.AttributeValueMemberN{Value: strconv.FormatInt(a.Took.Milliseconds(), 10)},
 		"gone": &types.AttributeValueMemberN{Value: strconv.FormatInt(a.At.Add(KeepActivity).Unix(), 10)},
 	}
-	for name, value := range map[string]string{"words": a.Words, "app": a.App, "fault": a.Fault, "by": a.By, "trials": a.Trials} {
+	for name, value := range map[string]string{"words": a.Words, "app": a.App, "fault": a.Fault, "by": a.By, "trials": a.Trials, "why": a.Why} {
 		if value != "" {
 			item[name] = &types.AttributeValueMemberS{Value: value}
 		}
@@ -154,7 +154,7 @@ func (d *Dynamo) Activity(ctx context.Context, day string) ([]Activity, error) {
 	for _, item := range items {
 		out = append(out, Activity{
 			At: timeOf(str(item, "sk")), From: str(item, "from"), Kind: str(item, "kind"),
-			Words: str(item, "words"), App: str(item, "app"), Fault: str(item, "fault"),
+			Words: str(item, "words"), App: str(item, "app"), Fault: str(item, "fault"), Why: str(item, "why"),
 			Took: time.Duration(num(item, "ms")) * time.Millisecond, By: str(item, "by"), Trials: str(item, "trials"),
 		})
 	}

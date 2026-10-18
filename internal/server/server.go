@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -55,12 +56,14 @@ type Activity struct {
 	Took   time.Duration
 	By     string
 	Trials string
+	Why    string
 }
 
 const MostWords = 500
 
-var wordFields = []string{"Instruction", "Task", "Question", "Ask"}
+var wordFields = []string{"Instruction", "Task", "Question", "Ask", "Action", "Intent"}
 var appFields = []string{"App", "InFront"}
+var heldIn = []string{"Surface", "Tree"}
 
 func said(raw json.RawMessage) (words, app string) {
 	var fields map[string]json.RawMessage
@@ -78,11 +81,34 @@ func said(raw json.RawMessage) (words, app string) {
 		}
 		return ""
 	}
-	words = pick(wordFields)
-	if runes := []rune(words); len(runes) > MostWords {
-		words = string(runes[:MostWords]) + "…"
+	words = clip(pick(wordFields))
+	if app = pick(appFields); app != "" {
+		return words, app
 	}
-	return words, pick(appFields)
+	for _, name := range heldIn {
+		for field, value := range fields {
+			if strings.EqualFold(field, name) {
+				if _, inner := said(value); inner != "" {
+					return words, inner
+				}
+			}
+		}
+	}
+	return words, siteOf(pick([]string{"URL"}))
+}
+
+func clip(text string) string {
+	if runes := []rune(text); len(runes) > MostWords {
+		return string(runes[:MostWords]) + "…"
+	}
+	return text
+}
+
+func siteOf(address string) string {
+	if u, err := url.Parse(address); err == nil && u.Host != "" {
+		return strings.TrimPrefix(u.Hostname(), "www.")
+	}
+	return ""
 }
 
 func (s *Server) record(ctx context.Context, a Activity) {
@@ -270,7 +296,13 @@ func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
 		}
 		s.logf("%s asked %s: failed after %s and %d call(s): %v", who.Name, asked.Kind, time.Since(started).Round(10*time.Millisecond), spent.Calls, err)
 		fault := synth.FaultOf(err)
-		seen.Fault, seen.Took, seen.By = fault.Kind, time.Since(started), used.By()
+		seen.Fault, seen.Took, seen.By, seen.Why = fault.Kind, time.Since(started), used.By(), clip(fault.Why)
+		if seen.App == "" {
+			seen.App = fault.App
+			if site := siteOf(fault.App); site != "" {
+				seen.App = site
+			}
+		}
 		if asked.Kind != synth.KindPing {
 			s.record(r.Context(), seen)
 		}
