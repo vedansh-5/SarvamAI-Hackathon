@@ -232,6 +232,7 @@ func run() error {
 			Prefs:      st,
 			Learner:    learner,
 			Content:    engine.Cached(b.content),
+			Trials:     engine.CachedTrials(b.trials),
 			UIScreen:   desktop,
 			PageScreen: page,
 			Eyes:       looking(synthesizer, desktop),

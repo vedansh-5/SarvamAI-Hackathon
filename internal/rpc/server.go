@@ -223,6 +223,8 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 		result = s.Engine.Abilities(ctx)
 	case "welcome":
 		result = s.Engine.Welcome(ctx)
+	case "trials":
+		result = s.Engine.TrialsNow(ctx)
 	case "set_accent":
 		result, err = s.setAccent(ctx, req)
 	case "update_source":

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vedansh/vans/internal/synth"
 )
 
 type Memory struct {
@@ -142,6 +144,17 @@ func (m *Memory) AddTester(_ context.Context, t Tester) error {
 	}
 	m.testers[t.Code] = t
 	return nil
+}
+
+func (m *Memory) SetTrial(_ context.Context, code, name, variant string) error {
+	if err := synth.CheckTrial(name, variant); err != nil {
+		return err
+	}
+	return m.change(code, func(t *Tester) {
+		chosen := synth.TrialsFor(t.Trials)
+		chosen[name] = variant
+		t.Trials = chosen
+	})
 }
 
 func (m *Memory) DeleteTester(_ context.Context, code string) error {

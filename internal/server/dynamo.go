@@ -14,6 +14,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+
+	"github.com/vedansh/vans/internal/synth"
 )
 
 const (
@@ -69,7 +71,11 @@ func flag(item map[string]types.AttributeValue, name string) bool {
 }
 
 func testerFrom(item map[string]types.AttributeValue) Tester {
-	return Tester{Name: str(item, "name"), Code: str(item, "sk"), Daily: num(item, "daily"), Off: flag(item, "off")}
+	t := Tester{Name: str(item, "name"), Code: str(item, "sk"), Daily: num(item, "daily"), Off: flag(item, "off")}
+	if spelled := str(item, "trials"); spelled != "" {
+		t.Trials = synth.TrialsSpelled(spelled)
+	}
+	return t
 }
 
 func (d *Dynamo) Tester(ctx context.Context, code string) (Tester, bool, error) {
@@ -130,7 +136,7 @@ func (d *Dynamo) Record(ctx context.Context, a Activity) error {
 		"ms":   &types.AttributeValueMemberN{Value: strconv.FormatInt(a.Took.Milliseconds(), 10)},
 		"gone": &types.AttributeValueMemberN{Value: strconv.FormatInt(a.At.Add(KeepActivity).Unix(), 10)},
 	}
-	for name, value := range map[string]string{"words": a.Words, "app": a.App, "fault": a.Fault, "by": a.By} {
+	for name, value := range map[string]string{"words": a.Words, "app": a.App, "fault": a.Fault, "by": a.By, "trials": a.Trials} {
 		if value != "" {
 			item[name] = &types.AttributeValueMemberS{Value: value}
 		}
@@ -149,7 +155,7 @@ func (d *Dynamo) Activity(ctx context.Context, day string) ([]Activity, error) {
 		out = append(out, Activity{
 			At: timeOf(str(item, "sk")), From: str(item, "from"), Kind: str(item, "kind"),
 			Words: str(item, "words"), App: str(item, "app"), Fault: str(item, "fault"),
-			Took: time.Duration(num(item, "ms")) * time.Millisecond, By: str(item, "by"),
+			Took: time.Duration(num(item, "ms")) * time.Millisecond, By: str(item, "by"), Trials: str(item, "trials"),
 		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].At.After(out[j].At) })
@@ -160,11 +166,12 @@ func (d *Dynamo) Keep(ctx context.Context, f Feedback) error {
 	_, err := d.Client.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: &d.Table,
 		Item: map[string]types.AttributeValue{
-			"pk":   &types.AttributeValueMemberS{Value: feedbackKey},
-			"sk":   &types.AttributeValueMemberS{Value: stamp(f.At)},
-			"from": &types.AttributeValueMemberS{Value: f.From},
-			"kind": &types.AttributeValueMemberS{Value: f.Kind},
-			"text": &types.AttributeValueMemberS{Value: f.Text},
+			"pk":     &types.AttributeValueMemberS{Value: feedbackKey},
+			"sk":     &types.AttributeValueMemberS{Value: stamp(f.At)},
+			"from":   &types.AttributeValueMemberS{Value: f.From},
+			"kind":   &types.AttributeValueMemberS{Value: f.Kind},
+			"text":   &types.AttributeValueMemberS{Value: f.Text},
+			"trials": &types.AttributeValueMemberS{Value: f.Trials},
 		},
 	})
 	return err
@@ -273,6 +280,22 @@ func (d *Dynamo) DeleteTester(ctx context.Context, code string) error {
 	return err
 }
 
+func (d *Dynamo) SetTrial(ctx context.Context, code, name, variant string) error {
+	if err := synth.CheckTrial(name, variant); err != nil {
+		return err
+	}
+	t, ok, err := d.Tester(ctx, code)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrNoTester
+	}
+	chosen := synth.TrialsFor(t.Trials)
+	chosen[name] = variant
+	return d.set(ctx, testersKey, code, "trials", &types.AttributeValueMemberS{Value: chosen.Spelled()}, ErrNoTester)
+}
+
 func (d *Dynamo) SetOff(ctx context.Context, code string, off bool) error {
 	return d.set(ctx, testersKey, code, "off", &types.AttributeValueMemberBOOL{Value: off}, ErrNoTester)
 }
@@ -343,7 +366,7 @@ func (d *Dynamo) Feedback(ctx context.Context) ([]Feedback, error) {
 	for _, item := range items {
 		out = append(out, Feedback{
 			ID: str(item, "sk"), From: str(item, "from"), Kind: str(item, "kind"), Text: str(item, "text"),
-			At: timeOf(str(item, "sk")), Handled: flag(item, "handled"),
+			At: timeOf(str(item, "sk")), Handled: flag(item, "handled"), Trials: str(item, "trials"),
 		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].At.After(out[j].At) })

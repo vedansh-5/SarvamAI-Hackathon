@@ -235,10 +235,11 @@
           </section>
 
           <section id="preflight" hidden>
-            <div class="setup">
+            <div id="setup-body" class="setup">
               <h2 class="screen-title">Set up VANS</h2>
-              <p class="lede">Grant these once. This window stays put while you switch apps.</p>
+              <p id="setup-lede" class="lede">Grant these once. This window stays put while you switch apps.</p>
 
+              <div class="setup-block" data-block="perms">
               <div class="kicker">Permissions</div>
               <p id="perms-note" class="note">VANS asks for all of them now, so nothing stops you halfway through a step. Allow all opens Safari, Chrome and Notes in the background for a moment, because macOS only asks about an app that is open, and closes them again.</p>
               <div id="perms" class="setup-list"></div>
@@ -248,26 +249,35 @@
                 <span id="perms-state" class="note inline"></span>
                 <button id="perms-fold" class="btn link" type="button" hidden>Show</button>
               </div>
+              </div>
 
+              <div class="setup-block" data-block="ready">
               <div class="kicker spaced">Ready</div>
               <div id="checks" class="setup-list"></div>
 
               <div class="row">
                 <button id="recheck" class="btn" type="button">Check again</button>
               </div>
+              </div>
 
-              <div id="invite-section" hidden>
+              <div id="invite-section" data-block="invite" hidden>
                 <div class="kicker spaced">Invite code</div>
                 <p class="note">The code Vedansh sent you. It is kept in your Mac’s Keychain and lets this copy ask the VANS server.</p>
+                <div id="invite-saved" class="setting-row" hidden>
+                  <span class="note inline">Saved in your Mac’s Keychain.</span>
+                  <button id="invite-change" class="btn link" type="button">Change</button>
+                </div>
+                <div id="invite-entry">
                 <input id="invite-code" class="line-input" type="text" autocomplete="off" spellcheck="false"
                        placeholder="vans-…" />
                 <div class="row">
                   <button id="invite-save" class="btn volt" type="button">Save and check</button>
                   <span id="invite-state" class="note inline"></span>
                 </div>
+                </div>
               </div>
 
-              <div id="model-section">
+              <div id="model-section" data-block="model">
               <div class="kicker spaced">Model</div>
               <p id="model-note" class="note">VANS needs a key for the model it thinks with. It is kept in your Mac’s Keychain and sent only to that model.</p>
               <input id="model-key" class="line-input" type="password" autocomplete="off" spellcheck="false"
@@ -294,22 +304,30 @@
               </div>
               </div>
 
+              <div class="setup-block" data-block="rules">
               <div class="kicker spaced">Rules</div>
+              <div class="rule" data-rule="never" data-name="Never act in" data-empty="Nowhere">
               <p class="note">VANS will never act in these apps or sites. It can still show you how.</p>
               <input id="rules-never" class="line-input" type="text" autocomplete="off" spellcheck="false"
                      placeholder="e.g. Mail, mybank.com" />
+              </div>
+              <div class="rule" data-rule="ask" data-name="Ask every step" data-empty="Nowhere">
               <p class="note">In these, ask before every step.</p>
               <input id="rules-ask" class="line-input" type="text" autocomplete="off" spellcheck="false"
                      placeholder="e.g. Mail, WhatsApp" />
+              </div>
+              <div class="rule" data-rule="limit" data-name="Spending limit" data-empty="No limit">
               <p class="note">Never take a step that pays more than this. Leave empty for no limit.</p>
               <input id="rules-limit" class="line-input" type="text" inputmode="decimal" autocomplete="off"
                      placeholder="e.g. 5000" />
-              <div class="row">
+              </div>
+              <div id="rules-row" class="row">
                 <button id="rules-save" class="btn" type="button">Save rules</button>
                 <span id="rules-saved" class="note inline"></span>
               </div>
+              </div>
 
-              <div id="tell" hidden>
+              <div id="tell" data-block="tell" hidden>
                 <div class="kicker spaced">Tell Vedansh</div>
                 <p class="note">What worked, what didn't, what you wish it did. Exactly what you type is sent.</p>
                 <textarea id="tell-text" class="line-input feedback-box" rows="3" placeholder="Write here"></textarea>
@@ -319,13 +337,16 @@
                 </div>
               </div>
 
+              <div class="setup-block" data-block="record">
               <div class="kicker spaced">Record</div>
               <div class="row">
                 <button id="show-history" class="btn" type="button">What VANS has done</button>
                 <button id="setup-abilities" class="btn quiet" type="button">What VANS can do</button>
                 <button id="setup-welcome" class="btn quiet" type="button">The welcome again</button>
               </div>
+              </div>
 
+              <div class="setup-block" data-block="start">
               <div class="kicker spaced">Start</div>
               <div class="setting-row">
                 <label for="login-item">Open VANS when you log in</label>
@@ -335,7 +356,9 @@
               <div class="row">
                 <button id="quit" class="btn quiet" type="button">Quit VANS</button>
               </div>
+              </div>
 
+              <div class="setup-block" data-block="updates">
               <div class="kicker spaced">Updates</div>
               <div class="row">
                 <span id="version-line" class="note inline"></span>
@@ -343,7 +366,9 @@
                 <button id="restart-now" class="btn volt" type="button" hidden>Restart now</button>
               </div>
               <p id="update-note" class="note" hidden></p>
+              </div>
 
+              <div class="setup-block" data-block="learning">
               <div class="kicker spaced">Learning</div>
               <div class="setting-row">
                 <label for="watching">Learn from what I do</label>
@@ -355,7 +380,9 @@
                 <button id="watching-clear" class="btn link" type="button">Clear</button>
               </div>
               <ol id="watching-list" class="noted" hidden></ol>
+              </div>
 
+              <div class="setup-block" data-block="appearance">
               <div class="kicker spaced">Appearance</div>
               <div class="setting-row">
                 <span class="setting-label" id="accent-label">Colour</span>
@@ -374,8 +401,9 @@
                 <label for="dark">Dark</label>
                 <input id="dark" type="checkbox" class="switch" />
               </div>
+              </div>
 
-              <p class="helper">
+              <p id="setup-helper" class="helper">
                 Allow all opens Safari, Chrome and Notes for a moment to ask
                 macOS about them. Apart from that, VANS never opens anything on
                 its own.

@@ -22,7 +22,7 @@ func chooseModel(context.Context, *store.Store) brain {
 	invite := &setup.Invite{Remote: remote, Keys: keychain.System{}}
 	invite.Load()
 	fmt.Fprintf(os.Stderr, "[model] asking the VANS server at %s\n", serverURL)
-	return brain{synthesizer: remote, meter: remote.Usage, learner: remote, content: remote, invite: invite, ready: invite.Ready, reaches: serverURL}
+	return brain{synthesizer: remote, meter: remote.Usage, learner: remote, content: remote, trials: remote, invite: invite, ready: invite.Ready, reaches: serverURL}
 }
 
 func modelLabel() string { return "the VANS server" }

@@ -473,6 +473,7 @@ async function runPreflight(advance = true) {
     [result, perms] = await Promise.all([
       invoke<Preflight>("preflight"),
       loadPermissions(),
+      loadTrials(),
     ]);
   } catch (e) {
     clear(checks);
@@ -483,9 +484,12 @@ async function runPreflight(advance = true) {
   }
 
   clear(checks);
-  for (const c of result.checks.filter((c) => c.name !== "accessibility")) {
+  const shown = result.checks.filter((c) => c.name !== "accessibility" && !(newSetup() && c.name === "llm" && lastInvite.tester));
+  for (const c of shown) {
     checks.appendChild(checkRow(c));
   }
+  setupReady = result.ready && !mustAsk(perms) && perms.every((p) => p.state === "granted");
+  renderSetupGroups();
 
   if (result.ready && !mustAsk(perms) && advance) {
     if (welcomed()) show("ask");
@@ -781,8 +785,154 @@ function checkRow(c: Check): HTMLElement {
   if (!c.ok && c.fix) text.appendChild(el("pre", "fix", c.fix));
   box.appendChild(text);
 
-  box.appendChild(el("span", "check-tag", c.ok ? "Granted" : "Needed"));
+  box.appendChild(el("span", "check-tag", checkTag(c)));
   return box;
+}
+
+function checkTag(c: Check): string {
+  if (!c.ok) return "Needed";
+  if (!newSetup()) return "Granted";
+  if (c.name === "browser") return "Connected";
+  if (c.name === "llm" && lastInvite.tester) return "Saved";
+  return "Ready";
+}
+
+// --- Setup, in the layout this copy's trial picked ---
+
+let setupLayout = "old";
+let setupReady = false;
+let startOpen: boolean | null = null;
+const setupGroups: { id: string; title: string; blocks: string[] }[] = [
+  { id: "start", title: "Getting started", blocks: ["perms", "ready", "invite", "model"] },
+  { id: "behave", title: "How VANS behaves", blocks: ["rules", "learning"] },
+  { id: "about", title: "About this copy", blocks: ["tell", "record", "updates", "start", "appearance"] },
+];
+let setupOrder: HTMLElement[] = [];
+const groupOpen: Record<string, boolean> = { behave: true, about: true };
+
+function newSetup(): boolean {
+  return setupLayout === "new";
+}
+
+async function loadTrials() {
+  let layout = "old";
+  try {
+    layout = (await invoke<Record<string, string>>("trials"))?.setup === "new" ? "new" : "old";
+  } catch {}
+  if (layout !== setupLayout) {
+    setupLayout = layout;
+    arrangeSetup();
+  }
+}
+
+function block(name: string): HTMLElement | null {
+  return document.querySelector<HTMLElement>(`[data-block="${name}"]`);
+}
+
+function arrangeSetup() {
+  const body = $("setup-body");
+  const helper = $("setup-helper");
+  if (!setupOrder.length) {
+    setupOrder = Array.from(body.querySelectorAll<HTMLElement>(":scope > [data-block]"));
+  }
+  for (const g of Array.from(body.querySelectorAll(":scope > .setup-group"))) g.remove();
+  if (newSetup()) {
+    for (const g of setupGroups) {
+      const group = el("div", "setup-group");
+      group.dataset.group = g.id;
+      const head = el("button", "group-head") as HTMLButtonElement;
+      head.type = "button";
+      head.appendChild(el("span", "group-title", g.title));
+      head.appendChild(el("span", "group-state"));
+      head.appendChild(el("span", "group-chev"));
+      head.addEventListener("click", () => {
+        const open = !groupIsOpen(g.id);
+        if (g.id === "start") startOpen = open;
+        else groupOpen[g.id] = open;
+        renderSetupGroups();
+      });
+      const inside = el("div", "group-body");
+      for (const name of g.blocks) {
+        const b = block(name);
+        if (b) inside.appendChild(b);
+      }
+      group.appendChild(head);
+      group.appendChild(inside);
+      body.insertBefore(group, helper);
+    }
+  } else {
+    for (const b of setupOrder) body.insertBefore(b, helper);
+  }
+  helper.hidden = newSetup();
+  $("rules-row").hidden = newSetup();
+  arrangeRules();
+  showInvite(lastInvite);
+  if (lastPerms.length) renderPermissions(lastPerms);
+  renderSetupGroups();
+}
+
+function groupIsOpen(id: string): boolean {
+  if (id === "start") return startOpen ?? !setupReady;
+  return groupOpen[id] ?? true;
+}
+
+function renderSetupGroups() {
+  $("setup-lede").hidden = newSetup() && setupReady;
+  if (!newSetup()) return;
+  for (const g of setupGroups) {
+    const group = document.querySelector<HTMLElement>(`.setup-group[data-group="${g.id}"]`);
+    if (!group) continue;
+    const open = groupIsOpen(g.id);
+    group.classList.toggle("open", open);
+    (group.querySelector(".group-head") as HTMLElement).setAttribute("aria-expanded", String(open));
+    (group.querySelector(".group-body") as HTMLElement).hidden = !open;
+    const state = group.querySelector(".group-state") as HTMLElement;
+    if (g.id === "start") state.textContent = setupReady ? "VANS is ready" : "Something still needs you";
+    if (g.id === "about") state.textContent = $("version-line").textContent ?? "";
+  }
+  fitWindow();
+}
+
+function ruleValue(rule: HTMLElement): string {
+  const value = (rule.querySelector("input") as HTMLInputElement).value.trim();
+  return value || rule.dataset.empty || "";
+}
+
+function arrangeRules() {
+  for (const rule of Array.from(document.querySelectorAll<HTMLElement>(".rule[data-rule]"))) {
+    let view = rule.querySelector<HTMLElement>(".rule-view");
+    let save = rule.querySelector<HTMLElement>(".rule-save");
+    if (!view) {
+      view = el("div", "setting-row rule-view");
+      view.appendChild(el("span", "setting-label", rule.dataset.name));
+      view.appendChild(el("span", "rule-value"));
+      const edit = el("button", "btn link", "Edit") as HTMLButtonElement;
+      edit.type = "button";
+      edit.addEventListener("click", () => editRule(rule, true));
+      view.appendChild(edit);
+      rule.prepend(view);
+      save = el("div", "row rule-save");
+      const button = el("button", "btn", "Save") as HTMLButtonElement;
+      button.type = "button";
+      button.addEventListener("click", async () => {
+        if (await saveRules()) editRule(rule, false);
+      });
+      save.appendChild(button);
+      rule.appendChild(save);
+    }
+    editRule(rule, !newSetup());
+  }
+}
+
+function editRule(rule: HTMLElement, editing: boolean) {
+  const view = rule.querySelector<HTMLElement>(".rule-view")!;
+  view.hidden = editing || !newSetup();
+  (view.querySelector(".rule-value") as HTMLElement).textContent = ruleValue(rule);
+  (rule.querySelector(".note") as HTMLElement).hidden = !editing;
+  (rule.querySelector("input") as HTMLElement).hidden = !editing;
+  (rule.querySelector(".rule-save") as HTMLElement).hidden = !editing || !newSetup();
+  if (editing && newSetup()) (rule.querySelector("input") as HTMLInputElement).focus();
+  fitWindow();
 }
 
 // --- the task ---
@@ -2763,6 +2913,7 @@ function renderUpdate(u: UpdateState) {
   $("version-line").textContent = u.ready ? `VANS ${u.current}, ${u.ready} ready` : `VANS ${u.current}`;
   $("restart-now").hidden = !u.ready;
   ($("check-updates") as HTMLButtonElement).hidden = !!u.ready;
+  renderSetupGroups();
   const note = $("update-note");
   note.hidden = true;
   if (!u.updates) {
@@ -3038,9 +3189,10 @@ async function loadRules() {
   } catch (e) {
     console.error(e);
   }
+  arrangeRules();
 }
 
-$("rules-save").addEventListener("click", async () => {
+async function saveRules(): Promise<boolean> {
   const never = namesIn("rules-never");
   const askFirst = namesIn("rules-ask");
   const limit = Number(($("rules-limit") as HTMLInputElement).value.replace(/[^0-9.]/g, "")) || 0;
@@ -3048,11 +3200,15 @@ $("rules-save").addEventListener("click", async () => {
     await invoke<Rules>("set_rules", { never, spendLimit: limit, askFirst });
     $("rules-saved").textContent = "Saved";
     window.setTimeout(() => ($("rules-saved").textContent = ""), 1800);
+    return true;
   } catch (e) {
     $("rules-saved").textContent = "Could not save";
     console.error(e);
+    return false;
   }
-});
+}
+
+$("rules-save").addEventListener("click", () => void saveRules());
 void loadRules();
 
 let canSendFeedback = false;
@@ -3169,12 +3325,26 @@ interface InviteState {
   has: boolean;
 }
 
+let lastInvite: InviteState = { tester: false, has: false };
+let changingInvite = false;
+
 function showInvite(i: InviteState) {
+  lastInvite = i;
   $("invite-section").hidden = !i.tester;
   $("model-section").hidden = i.tester;
   field("invite-code").value = "";
   field("invite-code").placeholder = i.has ? "Saved. Paste a new code to replace it" : "vans-\u2026";
+  const folded = newSetup() && i.has && !changingInvite;
+  $("invite-saved").hidden = !folded;
+  $("invite-entry").hidden = folded;
 }
+
+$("invite-change").addEventListener("click", () => {
+  changingInvite = true;
+  showInvite(lastInvite);
+  field("invite-code").focus();
+  fitWindow();
+});
 
 async function loadInvite() {
   try {
@@ -3192,6 +3362,7 @@ $("invite-save").addEventListener("click", async () => {
   button.disabled = true;
   $("invite-state").textContent = "Checking\u2026";
   try {
+    changingInvite = false;
     showInvite(await invoke<InviteState>("set_invite", { code }));
     $("invite-state").textContent = "Saved. The VANS server knows this code.";
     runPreflight(false);

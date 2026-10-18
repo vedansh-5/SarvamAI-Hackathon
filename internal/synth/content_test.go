@@ -75,3 +75,13 @@ func TestTheWelcomeDoesNotSendPeopleToEscForMarks(t *testing.T) {
 		}
 	}
 }
+
+func TestEveryTesterHasAVersionOfEveryTrial(t *testing.T) {
+	got := TrialsFor(map[string]string{TrialSetup: "nonsense", "gone": "x"})
+	if got[TrialSetup] != SetupOld || len(got) != len(KnownTrials()) {
+		t.Errorf("got %v", got)
+	}
+	if back := TrialsSpelled(got.Spelled()); back[TrialSetup] != SetupOld {
+		t.Errorf("read back %v", back)
+	}
+}

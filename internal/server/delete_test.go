@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -52,5 +53,56 @@ func TestTheTableDeletesATesterAndTheirHabits(t *testing.T) {
 	}
 	if err := d.DeleteTester(ctx, riya); err != ErrNoTester {
 		t.Errorf("deleting twice gave %v", err)
+	}
+}
+
+func TestTheListChangesManyTestersAtOnce(t *testing.T) {
+	srv, ledger, client := consoleServer(t)
+	signIn(t, srv, client)
+	ctx := context.Background()
+	const asha, dev = "asha-code-0123456789", "dev-code-01234567890"
+	_ = ledger.AddTester(ctx, Tester{Name: "Asha", Code: asha, Daily: 10})
+	_ = ledger.AddTester(ctx, Tester{Name: "Dev", Code: dev, Daily: 10})
+	many := func(v url.Values) (int, string) {
+		return page(t, client, http.MethodPost, srv.URL+"/console/testers/many", v)
+	}
+	who := func(code string) Tester {
+		got, _, _ := ledger.Tester(ctx, code)
+		return got
+	}
+
+	if _, body := many(url.Values{"do": {"off"}}); !strings.Contains(body, "Tick at least one tester") {
+		t.Errorf("with nobody ticked:\n%s", body)
+	}
+
+	many(url.Values{"do": {"off"}, "code": {riya, asha}})
+	if !who(riya).Off || !who(asha).Off || who(dev).Off {
+		t.Error("switch off did not reach exactly the ticked testers")
+	}
+	many(url.Values{"do": {"daily"}, "daily": {"50"}, "code": {asha, dev}})
+	if who(asha).Daily != 50 || who(dev).Daily != 50 || who(riya).Daily != 10 {
+		t.Error("the allowance did not reach exactly the ticked testers")
+	}
+	many(url.Values{"do": {"trial"}, "trial": {"setup=new"}, "code": {riya, dev}})
+	if who(riya).Trials["setup"] != "new" || who(dev).Trials["setup"] != "new" || who(asha).Trials["setup"] != "" {
+		t.Error("the Setup version did not reach exactly the ticked testers")
+	}
+	if _, body := many(url.Values{"do": {"trial"}, "trial": {"setup=sideways"}, "code": {asha}}); !strings.Contains(body, "not a version") {
+		t.Errorf("an unknown version:\n%s", body)
+	}
+
+	many(url.Values{"do": {"delete"}, "code": {riya, dev}})
+	if _, ok, _ := ledger.Tester(ctx, riya); !ok {
+		t.Fatal("removed without the tick")
+	}
+	many(url.Values{"do": {"delete"}, "sure": {"yes"}, "code": {riya, dev}})
+	_, riyaThere, _ := ledger.Tester(ctx, riya)
+	_, devThere, _ := ledger.Tester(ctx, dev)
+	_, ashaThere, _ := ledger.Tester(ctx, asha)
+	if riyaThere || devThere || !ashaThere {
+		t.Errorf("after removing Riya and Dev: Riya %v, Dev %v, Asha %v", riyaThere, devThere, ashaThere)
+	}
+	if _, body := page(t, client, http.MethodGet, srv.URL+"/console/testers", nil); !strings.Contains(body, `name="code" value="`+asha+`"`) || !strings.Contains(body, "setup=old") {
+		t.Errorf("the list has no tick box or versions for Asha:\n%s", body)
 	}
 }

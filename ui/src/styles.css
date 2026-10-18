@@ -1563,6 +1563,75 @@ details > summary.note {
   cursor: pointer;
 }
 
+.setup-block {
+  display: contents;
+}
+
+.setup-group {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 16px 0 6px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.group-title {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.group-state {
+  flex: 1;
+  font-size: 13px;
+  color: var(--mute);
+}
+
+.group-chev {
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--faint);
+  border-bottom: 1.5px solid var(--faint);
+  transform: translateY(-2px) rotate(-45deg);
+  transition: transform 0.2s ease;
+}
+
+.setup-group.open .group-chev {
+  transform: translateY(-4px) rotate(45deg);
+}
+
+.group-body > :first-child > .kicker.spaced,
+.group-body > [hidden]:first-child + * > .kicker.spaced {
+  margin-top: 6px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.rule-value {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  color: var(--mute);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.setting-row.rule-view .setting-label {
+  width: 8.5rem;
+}
+
 .setting-row {
   display: flex;
   align-items: center;

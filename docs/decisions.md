@@ -6252,3 +6252,55 @@ never asks and keeps its own words; a server older than it answers that
 
 The built-in welcome no longer says Esc takes marks off a page, for the reason
 in D-258.
+
+## D-260 — Setup is regrouped as a trial, chosen per tester
+
+Wanted 2026-10-18: try the Setup layout in
+`docs/plans/2026-10-18-setup-redesign.md` on some testers before it replaces
+the old one, and keep the same way open for voice later.
+
+A trial is a name and its versions, listed once in `synth.KnownTrials`. The
+first version is the default, so a tester nobody has put in a trial gets the
+old Setup. The console's tester page picks a version per trial and keeps it on
+the tester as `trials`; a version the list does not name is refused. The app
+asks with a `trials` request, which is neither counted nor recorded, and the
+engine keeps the answer for 5 minutes, with the same retry and fallback as
+D-259. A copy that cannot ask, or a build without this change, shows the old
+Setup.
+
+Every activity and feedback record carries the tester's versions, spelled like
+`setup=new`, so the console's Trials page can put, for each version, who is on
+it, how many requests they made in the last 7 days, how many finished, the
+median time, and the feedback sent while on it. With a handful of testers this
+is something to read, not a score: nothing picks a winner on its own.
+
+The new layout moves the same controls into three groups (Getting started, How
+VANS behaves, About this copy) without copying any of them, so a fix to a
+control reaches both versions. The tags read Granted, Connected, Saved or
+Ready by what the check is; a saved invite code folds to one line with Change;
+each rule is a line with its value and Edit, and saves on its own. Getting
+started folds to "VANS is ready" when nothing is needed.
+
+This branch is not merged. Shipping it to testers needs a server deploy and a
+release from main, so it waits until the layout is approved.
+
+## D-261 — The console edits wording in boxes and testers in batches
+
+Wanted 2026-10-18: the Wording page showed the JSON from D-259, and the tester
+list could only change one tester at a time.
+
+The Wording page is now a form: the welcome's title, line and key lines (with
+two spare lines), and for each ability its place, title, line, examples one to
+a line, and Hide. What is saved is still the JSON of D-259, but only what
+differs from the built-in text: a box left as it was, or emptied, keeps the
+built-in words, so a later build's better wording still reaches everyone. Once
+any ability changes or moves, every ability is saved in the order shown,
+because the server's order puts the ones it names first. Saving the page
+unchanged saves nothing. A key line with words but no key is refused, and the
+page comes back with what was typed.
+
+The tester list has a tick box on each row and one bar above it for the ticked
+testers: switch off, switch on, set the allowance, set a trial's version, or
+remove. Remove needs its own sure box, as on the tester's page. The console
+has no scripts, so the tick boxes belong to one form outside the table and
+each button says what to do.
