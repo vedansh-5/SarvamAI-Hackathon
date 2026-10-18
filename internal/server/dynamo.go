@@ -33,6 +33,7 @@ type DynamoAPI interface {
 	PutItem(ctx context.Context, in *dynamodb.PutItemInput, opts ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
 	UpdateItem(ctx context.Context, in *dynamodb.UpdateItemInput, opts ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error)
 	Query(ctx context.Context, in *dynamodb.QueryInput, opts ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
+	DeleteItem(ctx context.Context, in *dynamodb.DeleteItemInput, opts ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error)
 }
 
 type Dynamo struct {
@@ -254,6 +255,21 @@ func (d *Dynamo) set(ctx context.Context, pk, sk, field string, value types.Attr
 	if errors.As(err, &gone) {
 		return missing
 	}
+	return err
+}
+
+func (d *Dynamo) DeleteTester(ctx context.Context, code string) error {
+	t, ok, err := d.Tester(ctx, code)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrNoTester
+	}
+	if _, err := d.Client.DeleteItem(ctx, &dynamodb.DeleteItemInput{TableName: &d.Table, Key: key(testersKey, code)}); err != nil {
+		return err
+	}
+	_, err = d.Client.DeleteItem(ctx, &dynamodb.DeleteItemInput{TableName: &d.Table, Key: key(learnedKey, t.Name)})
 	return err
 }
 
