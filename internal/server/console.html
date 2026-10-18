@@ -58,6 +58,14 @@ button.plain { background: var(--fill); color: var(--ink); }
 .error { color: var(--bad); margin: 0 0 16px; }
 .note { white-space: pre-wrap; margin: 8px 0 0; }
 .done { opacity: 0.5; }
+.many { margin-bottom: 12px; }
+.field { display: block; margin-top: 12px; }
+.field > span { display: block; font-size: 13px; margin-bottom: 4px; }
+.field > input { width: 100%; }
+.wording textarea { font: inherit; }
+.keyline { display: grid; grid-template-columns: 1fr 1fr 3fr; gap: 8px; margin-top: 8px; }
+.ability { border-top: 1px solid var(--line); padding: 16px 0; }
+.ability:last-child { padding-bottom: 0; }
 .login { max-width: 360px; margin: 15vh auto; }
 .login input { width: 100%; margin: 12px 0; }
 svg text { fill: var(--mute); font-size: 10px; }
@@ -155,24 +163,36 @@ a { color: var(--accent); text-decoration: none; }
       <button type="submit">Make a code</button>
     </form>
   </div>
+  <form id="many" method="post" action="{{$.Base}}/testers/many"></form>
   <div class="card">
+    {{if .Testers}}
+    <div class="row many">
+      <span class="mute">For the ticked testers:</span>
+      <button class="plain" type="submit" form="many" name="do" value="off">Switch off</button>
+      <button class="plain" type="submit" form="many" name="do" value="on">Switch on</button>
+      <span class="row"><input form="many" name="daily" type="number" min="0" placeholder="200" title="Requests a day"><button class="plain" type="submit" form="many" name="do" value="daily">Set allowance</button></span>
+      {{range .Trials}}{{$t := .}}<span class="row"><select form="many" name="trial" title="{{.Says}}">{{range .Variants}}<option value="{{$t.Name}}={{.Name}}">{{$t.Says}}: {{.Name}}</option>{{end}}</select><button class="plain" type="submit" form="many" name="do" value="trial">Set</button></span>{{end}}
+      <span class="row" style="margin-left:auto"><label class="row mute"><input form="many" type="checkbox" name="sure" value="yes"> sure</label><button class="danger" type="submit" form="many" name="do" value="delete">Remove</button></span>
+    </div>
+    {{end}}
     <table>
-      <tr><th>Name</th><th>Code</th><th>Today</th><th>Daily allowance</th><th>Last seen</th><th>Last 7 days</th><th></th></tr>
+      <tr><th></th><th>Name</th><th>Code</th><th>Today</th><th>Daily allowance</th><th>Last seen</th><th>Last 7 days</th><th>Versions</th><th></th></tr>
       {{range .Testers}}
       <tr {{if .Off}}class="done"{{end}}>
+        <td><input form="many" type="checkbox" name="code" value="{{.Code}}" aria-label="Tick {{.Name}}"></td>
         <td><a href="{{$.Base}}/testers/{{.Name}}">{{.Name}}</a></td><td><code>{{.Code}}</code></td>
         <td>{{.Today}}{{if .Daily}} <span class="mute">({{pct .Today .Daily}}%)</span>{{end}}</td>
         <td><form method="post" action="{{$.Base}}/testers/daily" class="row">
           <input type="hidden" name="code" value="{{.Code}}">
           <input name="daily" type="number" min="0" value="{{.Daily}}"><button class="plain" type="submit">Save</button>
         </form></td>
-        <td>{{when .LastSeen}}</td><td>{{.Week}}</td>
+        <td>{{when .LastSeen}}</td><td>{{.Week}}</td><td class="mute">{{.Versions}}</td>
         <td><form method="post" action="{{$.Base}}/testers/{{if .Off}}on{{else}}off{{end}}">
           <input type="hidden" name="code" value="{{.Code}}">
           <button class="plain" type="submit">{{if .Off}}Switch on{{else}}Switch off{{end}}</button>
         </form></td>
       </tr>
-      {{else}}<tr><td colspan="7" class="mute">No testers yet.</td></tr>{{end}}
+      {{else}}<tr><td colspan="9" class="mute">No testers yet.</td></tr>{{end}}
     </table>
   </div>
 
@@ -348,19 +368,36 @@ a { color: var(--accent); text-decoration: none; }
   <h1>Wording</h1>
   {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
   {{if .Saved}}<div class="made">Saved. Each copy of VANS picks it up within 15 minutes, the next time it shows the welcome or What VANS can do.</div>{{end}}
-  <div class="card">
-    <p class="note">The welcome and the list in What VANS can do. {{if .BuiltIn}}Nothing is saved, so every copy shows what it was built with; this is that text, to start from.{{else}}This is what every copy shows now.{{end}}</p>
-    <p class="note mute">Leave out a field to keep the built-in one. <code>"hidden": true</code> takes an ability off the list. The order here is the order shown. The list only ever shows what that copy of VANS can do, so an id cannot add an ability.</p>
-    <form method="post" action="{{$.Base}}/content/save">
-      <textarea name="doc" rows="28" spellcheck="false">{{.Doc}}</textarea>
-      <div class="row" style="margin-top:12px"><button type="submit">Save</button></div>
-    </form>
-    {{if not .BuiltIn}}
-    <form method="post" action="{{$.Base}}/content/clear" style="margin-top:12px">
-      <button class="plain" type="submit">Go back to the built-in wording</button>
-    </form>
-    {{end}}
-  </div>
+  <p class="mute">{{if .BuiltIn}}Nothing is saved, so every copy shows what it was built with; this is that text, to start from.{{else}}This is what every copy shows now.{{end}} A box left empty keeps the built-in text.</p>
+  <form method="post" action="{{$.Base}}/content/save" class="wording">
+    <div class="card" style="margin-bottom:16px">
+      <h2>Welcome</h2>
+      <label class="field"><span class="mute">Title</span><input name="title" value="{{.Wording.Title}}"></label>
+      <label class="field"><span class="mute">Line under the title</span><textarea name="lede" rows="3">{{.Wording.Lede}}</textarea></label>
+      <div class="field"><span class="mute">Keys: words before, the key, words after. Empty a line to drop it.</span>
+        {{range .Wording.Keys}}<div class="keyline"><input name="key.before" value="{{.Before}}" placeholder="Before"><input name="key.key" value="{{.Key}}" placeholder="Key"><input name="key.after" value="{{.After}}" placeholder="After"></div>{{end}}
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <h2>What VANS can do</h2>
+      <p class="mute" style="margin-top:0">The number is the place in the list. Hide takes it off the list. A copy only lists what it can do, whatever is here.</p>
+      {{range .Wording.Abilities}}
+      <div class="ability">
+        <div class="row"><input type="number" name="a.{{.ID}}.order" value="{{.Order}}" min="0" title="Place in the list"><strong>{{.Name}}</strong>
+          <label class="row mute" style="margin-left:auto"><input type="checkbox" name="a.{{.ID}}.hidden" value="yes" {{if .Hidden}}checked{{end}}> Hide</label></div>
+        <label class="field"><span class="mute">Title</span><input name="a.{{.ID}}.title" value="{{.Title}}"></label>
+        <label class="field"><span class="mute">What it says</span><textarea name="a.{{.ID}}.says" rows="2">{{.Says}}</textarea></label>
+        <label class="field"><span class="mute">Examples, one a line</span><textarea name="a.{{.ID}}.examples" rows="2">{{.Examples}}</textarea></label>
+      </div>
+      {{end}}
+    </div>
+    <div class="row"><button type="submit">Save</button></div>
+  </form>
+  {{if not .BuiltIn}}
+  <form method="post" action="{{$.Base}}/content/clear" style="margin-top:12px">
+    <button class="plain" type="submit">Go back to the built-in wording</button>
+  </form>
+  {{end}}
 {{end}}
 </main>
 {{end}}

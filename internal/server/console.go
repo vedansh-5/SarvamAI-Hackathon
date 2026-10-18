@@ -254,6 +254,15 @@ func (c *Console) act(w http.ResponseWriter, r *http.Request, page string) {
 		err = c.Books.SetOff(ctx, r.PostFormValue("code"), page == "testers/off")
 	case "testers/trial":
 		err = c.Books.SetTrial(ctx, r.PostFormValue("code"), r.PostFormValue("trial"), r.PostFormValue("variant"))
+	case "testers/many":
+		_ = r.ParseForm()
+		if bad := c.many(ctx, r.PostForm); bad != nil {
+			c.show(w, r, func(ctx context.Context, v *view) error {
+				v.Error = bad.Error()
+				return c.testers(ctx, v)
+			})
+			return
+		}
 	case "testers/delete":
 		if r.PostFormValue("sure") != "yes" {
 			c.render(w, http.StatusBadRequest, view{Page: "error", Error: "Tick the box to say you mean it; nothing was deleted."})
@@ -268,11 +277,12 @@ func (c *Console) act(w http.ResponseWriter, r *http.Request, page string) {
 		err = c.Books.Handled(ctx, r.PostFormValue("id"))
 	case "content/save":
 		back = c.base() + "/content?saved=1"
-		raw := strings.TrimSpace(r.PostFormValue("doc"))
-		if _, bad := synth.ParseContent(raw); bad != nil {
+		_ = r.ParseForm()
+		typed, raw, bad := wordingToKeep(r.PostForm)
+		if bad != nil {
 			c.show(w, r, func(ctx context.Context, v *view) error {
 				v.Error = "Not saved: " + bad.Error()
-				v.Doc = raw
+				v.Wording = typed
 				return nil
 			})
 			return
@@ -323,7 +333,7 @@ type view struct {
 	Kinds  []countRow
 	Habits Habits
 
-	Doc     string
+	Wording wordingForm
 	BuiltIn bool
 	Saved   bool
 
@@ -373,6 +383,7 @@ type testerRow struct {
 	Today    int
 	LastSeen time.Time
 	Week     int
+	Versions string
 }
 
 type activityFilter struct {
@@ -542,8 +553,9 @@ func (c *Console) testers(ctx context.Context, v *view) error {
 		}
 	}
 	for _, t := range testers {
-		v.Testers = append(v.Testers, testerRow{Tester: t, Today: used[t.Code], LastSeen: seen[t.Name], Week: asked[t.Name]})
+		v.Testers = append(v.Testers, testerRow{Tester: t, Today: used[t.Code], LastSeen: seen[t.Name], Week: asked[t.Name], Versions: synth.TrialsFor(t.Trials).Spelled()})
 	}
+	v.Trials = c.trialsFor(nil)
 	return nil
 }
 
@@ -683,11 +695,49 @@ func (c *Console) content(ctx context.Context, v *view) error {
 	if err != nil {
 		return err
 	}
-	if strings.TrimSpace(raw) == "" {
-		v.Doc, v.BuiltIn = synth.BuiltInContent().Spelled(), true
-		return nil
+	saved, err := synth.ParseContent(raw)
+	if err != nil {
+		return err
 	}
-	v.Doc = raw
+	v.BuiltIn = strings.TrimSpace(raw) == ""
+	v.Wording = wordingFrom(saved)
+	return nil
+}
+
+func (c *Console) many(ctx context.Context, form url.Values) error {
+	codes := form["code"]
+	if len(codes) == 0 {
+		return errors.New("Tick at least one tester; nothing changed.")
+	}
+	var each func(code string) error
+	switch do := form.Get("do"); do {
+	case "off", "on":
+		each = func(code string) error { return c.Books.SetOff(ctx, code, do == "off") }
+	case "daily":
+		daily, err := strconv.Atoi(strings.TrimSpace(form.Get("daily")))
+		if err != nil || daily < 0 {
+			return errors.New("A daily allowance is a whole number, 0 or more; nothing changed.")
+		}
+		each = func(code string) error { return c.Books.SetDaily(ctx, code, daily) }
+	case "trial":
+		name, variant, _ := strings.Cut(form.Get("trial"), "=")
+		if err := synth.CheckTrial(name, variant); err != nil {
+			return err
+		}
+		each = func(code string) error { return c.Books.SetTrial(ctx, code, name, variant) }
+	case "delete":
+		if form.Get("sure") != "yes" {
+			return errors.New("Tick the box to say you mean it; nothing was deleted.")
+		}
+		each = func(code string) error { return c.Books.DeleteTester(ctx, code) }
+	default:
+		return fmt.Errorf("%q is not something the list can do", do)
+	}
+	for _, code := range codes {
+		if err := each(code); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

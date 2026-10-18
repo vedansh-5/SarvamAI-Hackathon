@@ -6283,3 +6283,24 @@ started folds to "VANS is ready" when nothing is needed.
 
 This branch is not merged. Shipping it to testers needs a server deploy and a
 release from main, so it waits until the layout is approved.
+
+## D-261 — The console edits wording in boxes and testers in batches
+
+Wanted 2026-10-18: the Wording page showed the JSON from D-259, and the tester
+list could only change one tester at a time.
+
+The Wording page is now a form: the welcome's title, line and key lines (with
+two spare lines), and for each ability its place, title, line, examples one to
+a line, and Hide. What is saved is still the JSON of D-259, but only what
+differs from the built-in text: a box left as it was, or emptied, keeps the
+built-in words, so a later build's better wording still reaches everyone. Once
+any ability changes or moves, every ability is saved in the order shown,
+because the server's order puts the ones it names first. Saving the page
+unchanged saves nothing. A key line with words but no key is refused, and the
+page comes back with what was typed.
+
+The tester list has a tick box on each row and one bar above it for the ticked
+testers: switch off, switch on, set the allowance, set a trial's version, or
+remove. Remove needs its own sure box, as on the tester's page. The console
+has no scripts, so the tick boxes belong to one form outside the table and
+each button says what to do.
