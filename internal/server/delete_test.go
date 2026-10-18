@@ -57,6 +57,7 @@ func TestTheTableDeletesATesterAndTheirHabits(t *testing.T) {
 }
 
 func TestTheListChangesManyTestersAtOnce(t *testing.T) {
+	runVoiceTrial(t)
 	srv, ledger, client := consoleServer(t)
 	signIn(t, srv, client)
 	ctx := context.Background()
@@ -83,11 +84,11 @@ func TestTheListChangesManyTestersAtOnce(t *testing.T) {
 	if who(asha).Daily != 50 || who(dev).Daily != 50 || who(riya).Daily != 10 {
 		t.Error("the allowance did not reach exactly the ticked testers")
 	}
-	many(url.Values{"do": {"trial"}, "trial": {"setup=new"}, "code": {riya, dev}})
-	if who(riya).Trials["setup"] != "new" || who(dev).Trials["setup"] != "new" || who(asha).Trials["setup"] != "" {
+	many(url.Values{"do": {"trial"}, "trial": {"voice=on"}, "code": {riya, dev}})
+	if who(riya).Trials["voice"] != "on" || who(dev).Trials["voice"] != "on" || who(asha).Trials["voice"] != "" {
 		t.Error("the Setup version did not reach exactly the ticked testers")
 	}
-	if _, body := many(url.Values{"do": {"trial"}, "trial": {"setup=sideways"}, "code": {asha}}); !strings.Contains(body, "not a version") {
+	if _, body := many(url.Values{"do": {"trial"}, "trial": {"voice=loud"}, "code": {asha}}); !strings.Contains(body, "not a version") {
 		t.Errorf("an unknown version:\n%s", body)
 	}
 
@@ -102,7 +103,7 @@ func TestTheListChangesManyTestersAtOnce(t *testing.T) {
 	if riyaThere || devThere || !ashaThere {
 		t.Errorf("after removing Riya and Dev: Riya %v, Dev %v, Asha %v", riyaThere, devThere, ashaThere)
 	}
-	if _, body := page(t, client, http.MethodGet, srv.URL+"/console/testers", nil); !strings.Contains(body, `name="code" value="`+asha+`"`) || !strings.Contains(body, "setup=old") {
+	if _, body := page(t, client, http.MethodGet, srv.URL+"/console/testers", nil); !strings.Contains(body, `name="code" value="`+asha+`"`) || !strings.Contains(body, "voice=off") {
 		t.Errorf("the list has no tick box or versions for Asha:\n%s", body)
 	}
 }

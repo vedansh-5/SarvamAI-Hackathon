@@ -6313,3 +6313,19 @@ but the shadow macOS draws for a window follows the window's square frame, and
 its edge showed as that line. The panel now asks for no shadow, as the dot, the
 nudge line and the pointer windows already did. The glass and the panel's own
 inset edge (`--edge`) mark where it ends.
+
+## D-263 — Everyone gets the grouped Setup; trials wait for voice
+
+Decided 2026-10-18 by Vedansh: the regrouped Setup goes to every copy in the
+same build, and A/B trials start with voice. The `setup` trial is gone, along
+with the old layout: Setup is always the three groups of D-260, and the Save
+rules button that only the old layout used is removed. A rule that cannot be
+saved now says so next to its own Save, where before the message sat in the
+hidden row.
+
+The trial machinery of D-260 stays: the server still answers `trials`, the
+console still has the Trials page and the version pickers, and every record is
+still tagged. With no trial listed in `synth.KnownTrials`, every tester gets
+none and the pages are empty. Voice will be the first entry. Versions already
+saved on testers for `setup` are ignored, because a version is only read for a
+trial that is listed.

@@ -67,8 +67,6 @@ Setup is a screen in the panel, so rules 1, 4, 5, 7 and 12 apply. Rule 5 matters
 most: Allow all and every "Open" button must still step aside for System
 Settings.
 
-## Built as a trial
+## Built
 
-On branch `setup-redesign`, as the `setup` trial with versions `old` and `new`
-(D-260). The console's tester page chooses the version; the Trials page shows
-how each one is doing.
+First as the `setup` trial (D-260), then given to everyone in 0.4.0 (D-263).
