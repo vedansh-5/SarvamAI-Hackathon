@@ -51,6 +51,7 @@ input, select { font: inherit; color: var(--ink); background: var(--fill); borde
 input[type=number] { width: 90px; }
 button { font: inherit; border: none; border-radius: 980px; padding: 7px 16px; cursor: pointer;
          background: var(--accent); color: #fff; }
+button.danger { background: var(--bad); color: #fff; }
 button.plain { background: var(--fill); color: var(--ink); }
 .made { background: var(--fill); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
 .made code { font-size: 15px; padding: 4px 10px; }
@@ -198,6 +199,11 @@ a { color: var(--accent); text-decoration: none; }
         <button class="plain" type="submit">{{if .Off}}Switch on{{else}}Switch off{{end}}</button>
       </form>
     </div>
+    <form method="post" action="{{$.Base}}/testers/delete" class="row" style="margin-top:12px">
+      <input type="hidden" name="code" value="{{.Code}}">
+      <label class="row mute"><input type="checkbox" name="sure" value="yes" required> Delete {{.Name}} and their code. The code stops working at once; their habits go too, and their requests and feedback stay until they expire or are handled.</label>
+      <button class="danger" type="submit">Delete tester</button>
+    </form>
   </div>
   {{end}}
   <div class="grid">

@@ -38,6 +38,7 @@ type Books interface {
 	AddTester(ctx context.Context, t Tester) error
 	SetDaily(ctx context.Context, code string, daily int) error
 	SetOff(ctx context.Context, code string, off bool) error
+	DeleteTester(ctx context.Context, code string) error
 	Used(ctx context.Context, day string) (map[string]int, error)
 	Activity(ctx context.Context, day string) ([]Activity, error)
 	Feedback(ctx context.Context) ([]Feedback, error)
@@ -248,6 +249,15 @@ func (c *Console) act(w http.ResponseWriter, r *http.Request, page string) {
 		}
 	case "testers/off", "testers/on":
 		err = c.Books.SetOff(ctx, r.PostFormValue("code"), page == "testers/off")
+	case "testers/delete":
+		if r.PostFormValue("sure") != "yes" {
+			c.render(w, http.StatusBadRequest, view{Page: "error", Error: "Tick the box to say you mean it; nothing was deleted."})
+			return
+		}
+		if err = c.Books.DeleteTester(ctx, r.PostFormValue("code")); err == nil {
+			http.Redirect(w, r, back, http.StatusSeeOther)
+			return
+		}
 	case "feedback/handled":
 		back = c.base() + "/feedback"
 		err = c.Books.Handled(ctx, r.PostFormValue("id"))

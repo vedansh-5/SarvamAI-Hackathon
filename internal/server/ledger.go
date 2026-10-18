@@ -144,6 +144,19 @@ func (m *Memory) AddTester(_ context.Context, t Tester) error {
 	return nil
 }
 
+func (m *Memory) DeleteTester(_ context.Context, code string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	t, ok := m.testers[code]
+	if !ok {
+		return ErrNoTester
+	}
+	delete(m.testers, code)
+	delete(m.learned, t.Name)
+	delete(m.sentAt, t.Name)
+	return nil
+}
+
 func (m *Memory) change(code string, f func(*Tester)) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

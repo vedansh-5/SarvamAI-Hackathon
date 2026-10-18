@@ -40,6 +40,13 @@ func (t *table) PutItem(_ context.Context, in *dynamodb.PutItemInput, _ ...func(
 	return &dynamodb.PutItemOutput{}, nil
 }
 
+func (t *table) DeleteItem(_ context.Context, in *dynamodb.DeleteItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	delete(t.items, keyOf(in.Key))
+	return &dynamodb.DeleteItemOutput{}, nil
+}
+
 func (t *table) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
