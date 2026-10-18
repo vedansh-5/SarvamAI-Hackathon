@@ -12,9 +12,28 @@ target=universal-apple-darwin
 notes=${1:-}
 
 version=$(python3 -I -c 'import json;print(json.load(open("ui/src-tauri/tauri.conf.json"))["version"])')
+case "$version" in
+  [0-9]*.[0-9]*.[0-9]*) ;;
+  *) echo "$version is not a version like 0.2.0."; exit 1 ;;
+esac
+cargo=$(sed -n 's/^version = "\(.*\)"/\1/p' ui/src-tauri/Cargo.toml | head -1)
+npm=$(python3 -I -c 'import json;print(json.load(open("ui/package.json"))["version"])')
+if [ "$cargo" != "$version" ] || [ "$npm" != "$version" ]; then
+  echo "The versions differ: tauri.conf.json $version, Cargo.toml $cargo, package.json $npm. Run infra/mac/bump.sh $version."
+  exit 1
+fi
 
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
   echo "Commit or put away the changes first: a release is built from what is committed."
+  exit 1
+fi
+git fetch -q origin main --tags
+if ! git merge-base --is-ancestor HEAD origin/main; then
+  echo "Release from main: this commit is not on origin/main."
+  exit 1
+fi
+if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+  echo "v$version is already tagged. Raise the version with infra/mac/bump.sh."
   exit 1
 fi
 if ! security find-identity -v -p codesigning | grep -q "\"$name\""; then
@@ -85,5 +104,8 @@ aws s3 cp --profile $profile --region $region "$tarball" "s3://$bucket/$version/
 aws s3 cp --profile $profile --region $region "$dmg" "s3://$bucket/$version/VANS_$version.dmg"
 aws s3 cp --profile $profile --region $region --content-type application/json "$latest" "s3://$bucket/latest.json"
 
-echo "Released $version. Copies already out update within six hours. For a new tester:"
-echo "  ./infra/mac/tester-link.sh"
+git tag -a "v$version" -m "VANS $version${notes:+: $notes}"
+git push -q origin "v$version"
+
+echo "Released $version and tagged it v$version. Copies already out pick it up within the hour."
+echo "For a new tester: add them in the console, then send summonvans.in/download and their code."

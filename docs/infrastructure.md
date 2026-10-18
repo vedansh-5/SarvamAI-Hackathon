@@ -157,14 +157,32 @@ Parameter Store and hands out hour-long download links to testers only
 
 ```bash
 ./infra/mac/signing-setup.sh            # once: the signing certificate and the update key
-./infra/mac/release.sh "what changed"   # build, sign, check and upload the version in tauri.conf.json
-./infra/mac/tester-link.sh              # a seven-day download link for a new tester
-./infra/aws/deploy-server.sh            # build and deploy the server, then check it answers
+./infra/mac/bump.sh 0.2.0               # set the version in every file that holds it
+./infra/mac/release.sh "what changed"   # build, sign, check, upload and tag the version in tauri.conf.json
+./infra/aws/deploy-server.sh            # build and deploy the server, label it with the commit, check it answers
 go run ./cmd/vans-testers add Riya      # a new tester and their code (200 a day unless -daily)
 go run ./cmd/vans-testers list          # every tester and what each used today
 go run ./cmd/vans-testers off Riya      # switch a code off at once; "on" puts it back
 go run ./cmd/vans-testers feedback      # what testers sent, newest first
 ```
+
+**Versions** follow semantic versioning, `MAJOR.MINOR.PATCH`, and stay below
+1.0 while VANS is in testing:
+
+- **Minor** (0.1.2 to 0.2.0) when a release adds something a tester can see or
+  do.
+- **Patch** (0.2.0 to 0.2.1) when it only fixes what was there.
+- **1.0.0** when VANS leaves testing.
+
+The version lives in `tauri.conf.json`, `Cargo.toml`, `package.json` and its
+lock file; `bump.sh` sets all of them and `release.sh` refuses to build if they
+differ. A release is built only from a commit on `main`, and is tagged
+`vX.Y.Z` on it, so `git log v0.2.0..v0.2.1` is what changed between two
+releases. Earlier releases were tagged afterwards, matched to `main` by upload
+time: v0.1.0 at #210, v0.1.1 at #215, v0.1.2 at #217. The server has no
+version of its own: each deploy writes its commit into the function's
+description, which `aws lambda get-function-configuration --function-name
+vans-server --query Description` reads back.
 
 Measured 2026-10-14 from this Mac: a health check in 0.12 to 0.17 seconds,
 most of it opening the connection; "which application" answered in 0.65 to
