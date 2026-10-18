@@ -7,7 +7,7 @@ VANS is in private testing, and this page changes as VANS does.
 - VANS has no account and no sign-up. Testers get an invite code instead.
 - In the test builds, your requests go through the VANS server, which passes them to a model provider. The server keeps a short record of each request for 30 days, and nothing from your screen.
 - VANS looks at your screen only when you ask it something, and only at what the question is about.
-- VANS learns what you do often, so it can offer it at the right moment. It is on from the start, and you can switch it off in Setup. It notes the names of buttons you click, never what you type.
+- VANS learns what you do often, so it can offer it at the right moment. It is on from the start, and you can switch it off in Setup. It notes the names of buttons you click, never what you type. The notes stay on your Mac; in the test builds, a summary of the habits found goes to the VANS server.
 - To answer, it sends your request and the relevant text to the model provider. The panel tells you when it has done so.
 - What VANS remembers is kept in one folder on your Mac. You can delete it at any time.
 - This website counts visits without cookies. Only if you allow it, it also uses Microsoft Clarity to see how the pages are read, which sets cookies.
@@ -50,7 +50,7 @@ While it is on, VANS notes:
 
 It never notes what you type, keystrokes, window titles, the contents of a window, anything inside a web page, or anything in a password manager, and it takes no pictures. Nothing is noted while VANS itself is guiding you or doing steps.
 
-These notes stay on your Mac, in `~/.vans`, and anything older than seven days is deleted. Setup › Learning shows every note, and Clear deletes them.
+These notes stay on your Mac, in `~/.vans`, and anything older than seven days is deleted. Setup › Learning shows every note, and Clear deletes them. In the test builds, a summary of the habits found from them, not the notes, goes to the VANS server, and "What the VANS server keeps", below, says what is in it.
 
 From the notes, VANS finds habits by counting, on your Mac, with no model involved: clicks you make in the same order, and things you do at the same time of day, after your Mac is opened, or after a particular application comes forward. It offers one with a short line below its dot. Nothing runs unless you choose Run, or you choose Always and do not press Cancel in the five seconds it gives you.
 
