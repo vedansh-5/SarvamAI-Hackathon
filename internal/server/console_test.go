@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -13,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vedansh/vans/internal/capability"
 	"github.com/vedansh/vans/internal/synth"
 )
 
@@ -162,11 +164,14 @@ func TestTheConsoleShowsWhatTestersAskedAndSent(t *testing.T) {
 
 func TestOnlyTheTypedWordsAndTheApplicationAreKept(t *testing.T) {
 	for raw, want := range map[string][2]string{
-		`{"Instruction":"what does the build line say","Shape":"what does the {x}"}`:      {"what does the build line say", ""},
-		`{"Task":"dark mode","InFront":"Safari","Installed":["Safari"]}`:                  {"dark mode", "Safari"},
-		`{"task":"crop","app":"Photos","tree":"secret window contents"}`:                  {"crop", "Photos"},
-		`{"Ask":"make it shorter","Text":"a private letter the person selected"}`:         {"make it shorter", ""},
-		`{"Question":"what is the total","App":"Numbers","Text":"the numbers on screen"}`: {"what is the total", "Numbers"},
+		`{"Instruction":"what does the build line say","Shape":"what does the {x}"}`:                             {"what does the build line say", ""},
+		`{"Task":"dark mode","InFront":"Safari","Installed":["Safari"]}`:                                         {"dark mode", "Safari"},
+		`{"task":"crop","app":"Photos","tree":"secret window contents"}`:                                         {"crop", "Photos"},
+		`{"Ask":"make it shorter","Text":"a private letter the person selected"}`:                                {"make it shorter", ""},
+		`{"Question":"what is the total","App":"Numbers","Text":"the numbers on screen"}`:                        {"what is the total", "Numbers"},
+		`{"Action":"make it purple","Surface":{"App":"Notes","Things":["a note"]}}`:                              {"make it purple", "Notes"},
+		`{"Task":"open settings","Tree":{"app":"Antigravity","nodes":[{"name":"private"}]}}`:                     {"open settings", "Antigravity"},
+		`{"Intent":"highlight Pending","URL":"https://www.github.com/vedansh-5/VANS/pulls?q=x","Structure":"."}`: {"highlight Pending", "github.com"},
 		`not json`: {"", ""},
 	} {
 		words, app := said(json.RawMessage(raw))
@@ -269,5 +274,18 @@ func TestATesterPageNeedsTheKey(t *testing.T) {
 	status, body := page(t, client, http.MethodGet, srv.URL+"/console/testers/Riya", nil)
 	if status != http.StatusUnauthorized || strings.Contains(body, riya) {
 		t.Errorf("Riya's page answered %d without the key", status)
+	}
+}
+
+func TestAFailureKeepsTheAppAndTheModelsReason(t *testing.T) {
+	srv, ledger := feedbackServer(t, 10, &postbox{})
+	_, err := synth.NewRemote(srv.URL, riya).WriteAction(context.Background(), synth.AppActRequest{Action: "make it purple", Surface: capability.Surface{App: "Notes"}})
+	var cannot *synth.UnwritableError
+	if !errors.As(err, &cannot) {
+		t.Fatalf("got %v", err)
+	}
+	got, _ := ledger.Activity(context.Background(), "2026-10-14")
+	if len(got) != 1 || got[0].App != "Notes" || got[0].Words != "make it purple" || got[0].Fault != synth.FaultUnwritable || got[0].Why != "Notes has no way to do that" {
+		t.Errorf("kept %+v", got)
 	}
 }

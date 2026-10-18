@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vedansh/vans/internal/appact"
 	"github.com/vedansh/vans/internal/synth"
 	"github.com/vedansh/vans/internal/uiact"
 )
@@ -27,6 +28,10 @@ func (s *standIn) WritePlan(_ context.Context, req synth.PlanRequest) (synth.Pla
 }
 
 func (s *standIn) Ping(context.Context) error { return nil }
+
+func (s *standIn) WriteAction(_ context.Context, req synth.AppActRequest) (appact.Program, error) {
+	return appact.Program{}, &synth.UnwritableError{App: req.Surface.App, Why: "Notes has no way to do that"}
+}
 
 func (s *standIn) WhichApp(context.Context, synth.AppChoiceRequest) (synth.AppChoice, error) {
 	return synth.AppChoice{App: "System Settings"}, nil

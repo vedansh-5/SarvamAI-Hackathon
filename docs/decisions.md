@@ -6329,3 +6329,41 @@ still tagged. With no trial listed in `synth.KnownTrials`, every tester gets
 none and the pages are empty. Voice will be the first entry. Versions already
 saved on testers for `setup` are ignored, because a version is only read for a
 trial that is listed.
+
+## D-264 — A model that has not answered in time is joined by the next
+
+Found 2026-10-18 in the server's log: gemini flash-lite, first in line for most
+kinds, answered in 1.5 s in the middle and took over 10 s on 3 of 15 requests:
+two restyles took 34 and 38 s for about 1,500 tokens in and 24 out, and a
+routing request 12 s. Nothing was retried; the model was simply slow, and the
+pool waited up to 45 s (`DefaultAnswerWait`) before trying another.
+
+The pool now asks the next model as well when the first has not answered by
+three times its usual pace for that class, never sooner than 5 s and never
+later than 12 s (3 × the 3 s assumed for a model not yet timed: 9 s). Whichever
+answers first is used and the other request is cancelled. A prompt answer is
+never doubled. Failures behave as before: a busy or silent model makes way for
+the next, and a request refused as wrong is not sent on.
+
+The cost is a second call on the slow ones only, which on the free tiers the
+pool uses is a share of the daily allowance, not money.
+
+## D-265 — A failure on the server keeps what went wrong
+
+Both of a tester's first requests to act in an application failed as
+`unwritable`, and the record kept no application, no reason and no model, so
+the console could not say what happened. Three causes:
+
+- The words and the application were looked for only in top-level fields. A
+  request also keeps them as `Action` and `Intent`, inside `Surface` and
+  `Tree`, and as a page's `URL`. All are read now; for a page only the site's
+  name is kept, never the address.
+- A model answering that the application cannot do it was counted like a
+  model failing, so which model answered was never noted. It is noted now, and
+  the answer is final: no other model is asked to second-guess it.
+- The fault's reason was dropped. It is kept as `why` (the model's sentence,
+  at most 500 characters, not the person's words) and shown under the result on
+  the Activity and tester pages.
+
+The privacy page says the record now keeps the site's name and, on a failure,
+the model's reason.

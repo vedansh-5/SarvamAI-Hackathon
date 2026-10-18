@@ -3,11 +3,14 @@ package synth
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/vedansh/vans/internal/capability"
 )
 
 type provider struct {
@@ -15,12 +18,19 @@ type provider struct {
 	status int
 	body   string
 	answer string
+	slow   time.Duration
 }
 
 func (p *provider) serve(t *testing.T) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		p.asked.Add(1)
+		_, _ = io.Copy(io.Discard, r.Body)
+		select {
+		case <-time.After(p.slow):
+		case <-r.Context().Done():
+			return
+		}
 		if p.status != 0 && p.status != http.StatusOK {
 			w.WriteHeader(p.status)
 			_, _ = w.Write([]byte(p.body))
@@ -210,5 +220,71 @@ func TestTheSeatThatAnsweredIsRecorded(t *testing.T) {
 	}
 	if used.By() != "fast/fast-model" {
 		t.Errorf("by = %q", used.By())
+	}
+}
+
+func TestASlowModelIsJoinedByTheNextOne(t *testing.T) {
+	stuck, quick := &provider{answer: settingsChoice, slow: 5 * time.Second}, &provider{answer: settingsChoice}
+	pool := &Pool{Seats: []Seat{seat(t, "stuck", stuck, 1, Quick), seat(t, "quick", quick, 1, Quick)}, SecondAfter: 50 * time.Millisecond}
+	pool.answered(pool.Seats[0], Quick, time.Second)
+	pool.answered(pool.Seats[1], Quick, 2*time.Second)
+	used := &Usage{}
+
+	started := time.Now()
+	if _, err := pool.With(used).WhichApp(context.Background(), AppChoiceRequest{Task: "dark mode", Installed: []string{"System Settings"}}); err != nil {
+		t.Fatal(err)
+	}
+	if took := time.Since(started); took > 2*time.Second {
+		t.Errorf("took %s; the second model was not asked", took)
+	}
+	if used.By() != "quick/quick-model" || stuck.asked.Load() != 1 || quick.asked.Load() != 1 {
+		t.Errorf("by %q, stuck asked %d, quick asked %d", used.By(), stuck.asked.Load(), quick.asked.Load())
+	}
+}
+
+func TestAPromptAnswerIsNotAskedTwice(t *testing.T) {
+	first, spare := &provider{answer: settingsChoice}, &provider{answer: settingsChoice}
+	pool := &Pool{Seats: []Seat{seat(t, "first", first, 1, Quick), seat(t, "spare", spare, 1, Quick)}, SecondAfter: 300 * time.Millisecond}
+	pool.answered(pool.Seats[0], Quick, time.Second)
+	pool.answered(pool.Seats[1], Quick, 2*time.Second)
+
+	if err := choose(t, pool); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(400 * time.Millisecond)
+	if spare.asked.Load() != 0 {
+		t.Error("a model that answered at once was doubled up anyway")
+	}
+}
+
+func TestTheWaitBeforeAskingASecondFollowsTheModelsPace(t *testing.T) {
+	pool := &Pool{Seats: []Seat{seat(t, "m", &provider{}, 1, Write)}}
+	if got := pool.secondAfter(pool.Seats[0], Write); got != 3*unknownSpeed {
+		t.Errorf("unknown pace: %s", got)
+	}
+	pool.answered(pool.Seats[0], Write, 500*time.Millisecond)
+	if got := pool.secondAfter(pool.Seats[0], Write); got != leastSecondAfter {
+		t.Errorf("quick pace: %s", got)
+	}
+	pool.state = nil
+	pool.answered(pool.Seats[0], Write, 20*time.Second)
+	if got := pool.secondAfter(pool.Seats[0], Write); got != mostSecondAfter {
+		t.Errorf("slow pace: %s", got)
+	}
+}
+
+func TestAModelThatSaysItCannotIsNamedAndNotDoubted(t *testing.T) {
+	cannot := &provider{answer: `{"app":"Notes","steps":[],"why":"Notes has no way to do that"}`}
+	spare := &provider{answer: `{"app":"Notes","steps":[],"why":"no"}`}
+	pool := &Pool{Seats: []Seat{seat(t, "cannot", cannot, 1, Write), seat(t, "spare", spare, 2, Write)}}
+	used := &Usage{}
+
+	_, err := pool.With(used).WriteAction(context.Background(), AppActRequest{Action: "make it purple", Surface: capability.Surface{App: "Notes"}})
+	var unwritable *UnwritableError
+	if !errors.As(err, &unwritable) || unwritable.Why != "Notes has no way to do that" {
+		t.Fatalf("got %v", err)
+	}
+	if used.By() != "cannot/cannot-model" || spare.asked.Load() != 0 {
+		t.Errorf("by %q, spare asked %d", used.By(), spare.asked.Load())
 	}
 }
