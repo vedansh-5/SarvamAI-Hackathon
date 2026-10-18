@@ -20,7 +20,8 @@ permissions · 8. Known problems · 9. What happens next · 10. Running it ·
 G1. Code · G2. Git, branches and PRs · G3. Testing and verification ·
 G4. Documentation · G5. Communication · G6. Product rules · G7. UI and design ·
 G8. Decided, and parked for later · G9. The domain and the website ·
-G10. Testers, the server and the accounts
+G10. Testers, the server and the accounts · G11 to G17. Non-negotiables,
+handoffs and where it stands
 
 ---
 
@@ -2262,3 +2263,51 @@ Right after an ask, focus is often still on the panel or nowhere in the page,
 so Esc does nothing and the marks stay. The panel's "Clear highlighting" always
 works. Either make Esc work without page focus, or change the hint to point at
 "Clear highlighting" (or say "click the page, then Esc").
+
+## G17. Where it stands, 2026-10-18
+
+| PR | What | Decision |
+|---|---|---|
+| #224 | Talk to the Chrome in front; the marks hint says to ask to clear | D-258 |
+| #225 | Plan: Setup regrouped (`docs/plans/2026-10-18-setup-redesign.md`) | — |
+| #226 | Privacy page says a summary of habits goes to the server in test builds | — |
+| #227 | The welcome and What VANS can do are worded on the server | D-259 |
+| #228 | Delete a tester from the console | — |
+| #229, #230 | Version numbers, tags and `infra/mac/bump.sh`; 0.2.0 | — |
+| #232 | Trials per tester, the grouped Setup, Wording in boxes, batch tester actions; 0.3.0 | D-260, D-261 |
+| #233 | No square line round the panel (no system shadow); 0.3.1 | D-262 |
+| #234 | The grouped Setup for everyone, no trial running; 0.4.0 | D-263 |
+
+**Versions.** VANS follows semantic versions while below 1.0: the middle
+number for something a tester can see or do, the last for fixes only. Bump with
+`infra/mac/bump.sh X.Y.Z` in its own PR or with the change; `release.sh` builds
+only from a commit on main, refuses a version that is already tagged, and tags
+`vX.Y.Z` after uploading. The server's Lambda description carries the commit it
+was deployed from. See docs/infrastructure.md, "Versions".
+
+**Console, new since G15.**
+- Testers: a tick box on every row and one bar for the ticked testers (switch
+  off or on, allowance, a trial's version, Remove with a "sure" box). Each
+  tester's page also has Delete tester.
+- Wording: the welcome and What VANS can do as boxes; only what differs from
+  the built-in text is saved (D-261). Copies pick it up within 15 minutes.
+- Trials: one card per version of each trial, with testers, requests, finished,
+  typical time and feedback. Empty until a trial is listed.
+
+**Trials (A/B).** Built in D-260, unused since D-263. A trial is an entry in
+`synth.KnownTrials`; its first version is everyone's default; the console picks
+a version per tester; the app asks with a `trials` request every 5 minutes.
+Voice is to be the first trial (Vedansh, 2026-10-18).
+
+**Branches.** On 2026-10-18 every branch but `main` was deleted on GitHub and
+locally, at Vedansh's word. The backup of all 430 refs is
+`/Users/vedansh/Codes/Projects/VANS-branches-2026-10-18.bundle`, with the list
+in the `.txt` beside it. `install-link`, checked out in the main folder, is
+merged and can go once nothing has it checked out.
+
+**Next, in Vedansh's order.** Before voice: list everything that needs fixing
+or speeding up, and widen the apps VANS can work in (Chromium and Electron apps
+are still unreadable, §8.1, and the way in is seeing the screen, §9.6). Then
+think through how VANS is controlled, and what it looks like, once voice is in,
+because the panel as it is will make less sense when you talk to it. That
+plan comes before voice is built.

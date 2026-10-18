@@ -473,7 +473,6 @@ async function runPreflight(advance = true) {
     [result, perms] = await Promise.all([
       invoke<Preflight>("preflight"),
       loadPermissions(),
-      loadTrials(),
     ]);
   } catch (e) {
     clear(checks);
@@ -484,7 +483,7 @@ async function runPreflight(advance = true) {
   }
 
   clear(checks);
-  const shown = result.checks.filter((c) => c.name !== "accessibility" && !(newSetup() && c.name === "llm" && lastInvite.tester));
+  const shown = result.checks.filter((c) => c.name !== "accessibility" && !(c.name === "llm" && lastInvite.tester));
   for (const c of shown) {
     checks.appendChild(checkRow(c));
   }
@@ -791,15 +790,13 @@ function checkRow(c: Check): HTMLElement {
 
 function checkTag(c: Check): string {
   if (!c.ok) return "Needed";
-  if (!newSetup()) return "Granted";
   if (c.name === "browser") return "Connected";
   if (c.name === "llm" && lastInvite.tester) return "Saved";
   return "Ready";
 }
 
-// --- Setup, in the layout this copy's trial picked ---
+// --- Setup, in groups ---
 
-let setupLayout = "old";
 let setupReady = false;
 let startOpen: boolean | null = null;
 const setupGroups: { id: string; title: string; blocks: string[] }[] = [
@@ -807,23 +804,7 @@ const setupGroups: { id: string; title: string; blocks: string[] }[] = [
   { id: "behave", title: "How VANS behaves", blocks: ["rules", "learning"] },
   { id: "about", title: "About this copy", blocks: ["tell", "record", "updates", "start", "appearance"] },
 ];
-let setupOrder: HTMLElement[] = [];
 const groupOpen: Record<string, boolean> = { behave: true, about: true };
-
-function newSetup(): boolean {
-  return setupLayout === "new";
-}
-
-async function loadTrials() {
-  let layout = "old";
-  try {
-    layout = (await invoke<Record<string, string>>("trials"))?.setup === "new" ? "new" : "old";
-  } catch {}
-  if (layout !== setupLayout) {
-    setupLayout = layout;
-    arrangeSetup();
-  }
-}
 
 function block(name: string): HTMLElement | null {
   return document.querySelector<HTMLElement>(`[data-block="${name}"]`);
@@ -832,42 +813,30 @@ function block(name: string): HTMLElement | null {
 function arrangeSetup() {
   const body = $("setup-body");
   const helper = $("setup-helper");
-  if (!setupOrder.length) {
-    setupOrder = Array.from(body.querySelectorAll<HTMLElement>(":scope > [data-block]"));
-  }
-  for (const g of Array.from(body.querySelectorAll(":scope > .setup-group"))) g.remove();
-  if (newSetup()) {
-    for (const g of setupGroups) {
-      const group = el("div", "setup-group");
-      group.dataset.group = g.id;
-      const head = el("button", "group-head") as HTMLButtonElement;
-      head.type = "button";
-      head.appendChild(el("span", "group-title", g.title));
-      head.appendChild(el("span", "group-state"));
-      head.appendChild(el("span", "group-chev"));
-      head.addEventListener("click", () => {
-        const open = !groupIsOpen(g.id);
-        if (g.id === "start") startOpen = open;
-        else groupOpen[g.id] = open;
-        renderSetupGroups();
-      });
-      const inside = el("div", "group-body");
-      for (const name of g.blocks) {
-        const b = block(name);
-        if (b) inside.appendChild(b);
-      }
-      group.appendChild(head);
-      group.appendChild(inside);
-      body.insertBefore(group, helper);
+  for (const g of setupGroups) {
+    const group = el("div", "setup-group");
+    group.dataset.group = g.id;
+    const head = el("button", "group-head") as HTMLButtonElement;
+    head.type = "button";
+    head.appendChild(el("span", "group-title", g.title));
+    head.appendChild(el("span", "group-state"));
+    head.appendChild(el("span", "group-chev"));
+    head.addEventListener("click", () => {
+      const open = !groupIsOpen(g.id);
+      if (g.id === "start") startOpen = open;
+      else groupOpen[g.id] = open;
+      renderSetupGroups();
+    });
+    const inside = el("div", "group-body");
+    for (const name of g.blocks) {
+      const b = block(name);
+      if (b) inside.appendChild(b);
     }
-  } else {
-    for (const b of setupOrder) body.insertBefore(b, helper);
+    group.appendChild(head);
+    group.appendChild(inside);
+    body.insertBefore(group, helper);
   }
-  helper.hidden = newSetup();
-  $("rules-row").hidden = newSetup();
   arrangeRules();
-  showInvite(lastInvite);
-  if (lastPerms.length) renderPermissions(lastPerms);
   renderSetupGroups();
 }
 
@@ -877,8 +846,7 @@ function groupIsOpen(id: string): boolean {
 }
 
 function renderSetupGroups() {
-  $("setup-lede").hidden = newSetup() && setupReady;
-  if (!newSetup()) return;
+  $("setup-lede").hidden = setupReady;
   for (const g of setupGroups) {
     const group = document.querySelector<HTMLElement>(`.setup-group[data-group="${g.id}"]`);
     if (!group) continue;
@@ -914,24 +882,28 @@ function arrangeRules() {
       save = el("div", "row rule-save");
       const button = el("button", "btn", "Save") as HTMLButtonElement;
       button.type = "button";
+      const said = el("span", "note inline");
       button.addEventListener("click", async () => {
+        said.textContent = "";
         if (await saveRules()) editRule(rule, false);
+        else said.textContent = "Could not save";
       });
       save.appendChild(button);
+      save.appendChild(said);
       rule.appendChild(save);
     }
-    editRule(rule, !newSetup());
+    editRule(rule, false);
   }
 }
 
 function editRule(rule: HTMLElement, editing: boolean) {
   const view = rule.querySelector<HTMLElement>(".rule-view")!;
-  view.hidden = editing || !newSetup();
+  view.hidden = editing;
   (view.querySelector(".rule-value") as HTMLElement).textContent = ruleValue(rule);
   (rule.querySelector(".note") as HTMLElement).hidden = !editing;
   (rule.querySelector("input") as HTMLElement).hidden = !editing;
-  (rule.querySelector(".rule-save") as HTMLElement).hidden = !editing || !newSetup();
-  if (editing && newSetup()) (rule.querySelector("input") as HTMLInputElement).focus();
+  (rule.querySelector(".rule-save") as HTMLElement).hidden = !editing;
+  if (editing) (rule.querySelector("input") as HTMLInputElement).focus();
   fitWindow();
 }
 
@@ -3198,17 +3170,13 @@ async function saveRules(): Promise<boolean> {
   const limit = Number(($("rules-limit") as HTMLInputElement).value.replace(/[^0-9.]/g, "")) || 0;
   try {
     await invoke<Rules>("set_rules", { never, spendLimit: limit, askFirst });
-    $("rules-saved").textContent = "Saved";
-    window.setTimeout(() => ($("rules-saved").textContent = ""), 1800);
     return true;
   } catch (e) {
-    $("rules-saved").textContent = "Could not save";
     console.error(e);
     return false;
   }
 }
 
-$("rules-save").addEventListener("click", () => void saveRules());
 void loadRules();
 
 let canSendFeedback = false;
@@ -3334,7 +3302,7 @@ function showInvite(i: InviteState) {
   $("model-section").hidden = i.tester;
   field("invite-code").value = "";
   field("invite-code").placeholder = i.has ? "Saved. Paste a new code to replace it" : "vans-\u2026";
-  const folded = newSetup() && i.has && !changingInvite;
+  const folded = i.has && !changingInvite;
   $("invite-saved").hidden = !folded;
   $("invite-entry").hidden = folded;
 }
@@ -3483,6 +3451,7 @@ applyView(tableView(), false);
 void loadSuggestions();
 
 show("preflight");
+arrangeSetup();
 runPreflight();
 loadLogin().catch(console.error);
 loadWatching().catch(console.error);

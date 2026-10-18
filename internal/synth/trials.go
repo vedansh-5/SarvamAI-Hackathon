@@ -8,22 +8,22 @@ import (
 
 const KindTrials = "trials"
 
-const (
-	TrialSetup = "setup"
-	SetupOld   = "old"
-	SetupNew   = "new"
-)
-
 type Trial struct {
 	Name     string
 	Says     string
 	Variants []string
 }
 
+var running []Trial
+
 func KnownTrials() []Trial {
-	return []Trial{
-		{Name: TrialSetup, Says: "Setup screen", Variants: []string{SetupOld, SetupNew}},
-	}
+	return running
+}
+
+func RunTrials(list []Trial) (restore func()) {
+	was := running
+	running = list
+	return func() { running = was }
 }
 
 func TrialNamed(name string) (Trial, bool) {

@@ -77,11 +77,12 @@ func TestTheWelcomeDoesNotSendPeopleToEscForMarks(t *testing.T) {
 }
 
 func TestEveryTesterHasAVersionOfEveryTrial(t *testing.T) {
-	got := TrialsFor(map[string]string{TrialSetup: "nonsense", "gone": "x"})
-	if got[TrialSetup] != SetupOld || len(got) != len(KnownTrials()) {
+	t.Cleanup(RunTrials([]Trial{{Name: "voice", Says: "Voice", Variants: []string{"off", "on"}}}))
+	got := TrialsFor(map[string]string{"voice": "nonsense", "gone": "x"})
+	if got["voice"] != "off" || len(got) != len(KnownTrials()) {
 		t.Errorf("got %v", got)
 	}
-	if back := TrialsSpelled(got.Spelled()); back[TrialSetup] != SetupOld {
+	if back := TrialsSpelled(got.Spelled()); back["voice"] != "off" {
 		t.Errorf("read back %v", back)
 	}
 }
