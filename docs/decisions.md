@@ -6367,3 +6367,32 @@ the console could not say what happened. Three causes:
 
 The privacy page says the record now keeps the site's name and, on a failure,
 the model's reason.
+
+## D-266 — The selection is read the way the application copies it
+
+Seen 2026-10-18: "what does it mean" with a word selected in a WhatsApp message
+said nothing was selected. VANS asked only the element with keyboard focus for
+its selected text. In WhatsApp the focus stays on a container while a message
+is selected, and no element in its window reports a selection at all (86
+elements, 27 of them text, none with `AXSelectedText`). Many applications
+behave like that.
+
+The selection is now read in this order, stopping at the first answer:
+
+1. The focused element's selected text, as before. Instant, and enough for
+   most native applications.
+2. The application's own Copy: the menu item whose key is ⌘C. If it is off,
+   nothing is selected and that is the answer. If it is on, VANS presses it
+   through accessibility (no keystroke, so the panel having the keyboard does
+   not matter), reads the text copied, and puts back everything that was on the
+   clipboard before, every item in every form. If nothing was copied, nothing is
+   selected.
+3. Only when an application has no Copy: the first element in the front window
+   that reports selected text, looking at no more than 4,000 elements.
+
+What is read is kept for two seconds, because one request may ask up to three
+times, and Copy should be pressed once. The selection is only read when the
+request points at what is in front ("this", "it", "here"), as before.
+
+The cost: a clipboard manager may note the copy before it is put back.
+`go run ./cmd/vans-probe -selection <application>` shows what VANS reads.

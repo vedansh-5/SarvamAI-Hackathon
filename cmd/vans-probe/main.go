@@ -25,6 +25,7 @@ func main() {
 	}
 	tasks := flag.Bool("tasks", false, "list the most recent tasks and how many model calls each took, instead of reading applications")
 	words := flag.Bool("words", false, "measure how exactly the words read from each window's picture land on the controls the window publishes")
+	selection := flag.Bool("selection", false, "say what VANS reads as selected in each named application, without bringing it forward")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -36,6 +37,18 @@ func main() {
 		return
 	}
 	screen := uiact.System{Runner: appleevents.Osascript{}}
+	if *selection {
+		for _, app := range flag.Args() {
+			started := time.Now()
+			text, ok := screen.Selection(ctx, app)
+			if !ok {
+				fmt.Printf("%s: nothing selected (%s)\n", app, time.Since(started).Round(time.Millisecond))
+				continue
+			}
+			fmt.Printf("%s: %d characters selected (%s): %q\n", app, len([]rune(text)), time.Since(started).Round(time.Millisecond), text)
+		}
+		return
+	}
 	if *words {
 		if err := measureWords(ctx, screen, flag.Args()); err != nil {
 			fmt.Fprintln(os.Stderr, err)

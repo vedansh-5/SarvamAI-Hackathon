@@ -631,7 +631,7 @@ func performOn(pid int, path []int, action string) (bool, error) {
 	}
 }
 
-func selectedText(pid int) (string, bool) {
+func focusedSelectedText(pid int) (string, bool) {
 	if !trusted() {
 		return "", false
 	}
