@@ -6200,3 +6200,27 @@ signature. Only names of that exact shape are served, so the route cannot be
 used to fetch anything else from the bucket. The Lambda adapter now passes the
 function's own address on as the request's host, which is what the link is
 built from.
+
+## D-258 — Chrome is the one whose window is in front, and the marks come off by asking
+
+Found while recording the highlight demo on 2026-10-18 (AGY.md G16). With three
+Chrome processes running, the user's and copies started by other tools, every
+script went to `Application('Google Chrome')`, and macOS picks one of them, not
+always the one in front. VANS read a GitHub page in another tool's Chrome and
+said nothing on the demo page matched.
+
+`chrome()` now asks AppKit how many Chrome processes are running. With one, it
+works as before. With more, it takes the window list (front to back, this
+Desktop only) and addresses the Chrome that owns the highest ordinary window by
+its process id. If none of them has a window on this Desktop it falls back to
+the old lookup. Every Chrome command goes through `chrome()`, so reading,
+marking and VANS's own tab all follow. It costs about 40 ms a script (0.16 s
+to 0.20 s, measured on this Mac), which is small next to the model call.
+
+The screen context also carries the front app's process id, but only some
+callers have it; doing it in `chrome()` covers all of them in one place.
+
+The hint after marking said "Press Esc on the page". Esc only reaches the page
+when the page has keyboard focus, and right after an ask it often does not. The
+hint, the ability line and the site now say to ask to clear the highlighting,
+which always works, with click-then-Esc as the second way.

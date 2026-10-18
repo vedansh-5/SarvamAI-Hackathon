@@ -107,7 +107,7 @@ func (e *Engine) aboutMarks(ctx context.Context, in Ask) (*Plan, bool, error) {
 	if got.Scrolled {
 		said += " Scrolled to the first."
 	}
-	plan := saying("Marked on the page", said+" Press Esc on the page, or ask for something else, to take the marks off.")
+	plan := saying("Marked on the page", said+" To take the marks off, ask to clear the highlighting, or click the page and press Esc.")
 	plan.Marked = true
 	return plan, true, nil
 }
