@@ -6224,3 +6224,31 @@ The hint after marking said "Press Esc on the page". Esc only reaches the page
 when the page has keyboard focus, and right after an ask it often does not. The
 hint, the ability line and the site now say to ask to clear the highlighting,
 which always works, with click-then-Esc as the second way.
+
+## D-259 — The welcome and What VANS can do are worded on the server
+
+Wanted 2026-10-18: change what testers read first without shipping a build.
+The words of the welcome and of every ability now live once, in
+`synth.BuiltInContent`, which both the app and the server compile in. The
+server can hold a replacement, edited on the console's Wording page and kept in
+the table under `content/current`. The app asks for it with a `content`
+request, which is neither counted against the allowance nor recorded.
+
+What the server can change: the welcome's title, line and keys, and for each
+ability its title, line, examples, place in the list, or that it is hidden. A
+field left out keeps the built-in one, and with nothing saved every copy shows
+what it was built with. What it cannot change is whether an ability is listed:
+that is still decided on the Mac by what this build can run, so an id the
+server names but the build lacks is dropped, and the console refuses ids it
+does not know. Marking examples from the server are used only if VANS reads
+them without a model, the same rule the built-in ones are tested against;
+otherwise the built-in examples stay.
+
+The engine keeps what it got for 15 minutes, waits at most 2 seconds for it,
+and after a failure (no invite code yet, no network) uses what it had, or the
+built-in words, and tries again a minute later. A copy older than this change
+never asks and keeps its own words; a server older than it answers that
+`content` is not a kind it knows, which the app treats the same way.
+
+The built-in welcome no longer says Esc takes marks off a page, for the reason
+in D-258.

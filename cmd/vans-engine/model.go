@@ -16,6 +16,7 @@ type brain struct {
 	model       *setup.Model
 	meter       *synth.Usage
 	learner     engine.LearnedSender
+	content     engine.ContentSource
 	invite      *setup.Invite
 	ready       func() error
 	reaches     string

@@ -220,7 +220,9 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 	case "set_invite":
 		result, err = s.setInvite(ctx, req)
 	case "abilities":
-		result = s.Engine.Abilities()
+		result = s.Engine.Abilities(ctx)
+	case "welcome":
+		result = s.Engine.Welcome(ctx)
 	case "set_accent":
 		result, err = s.setAccent(ctx, req)
 	case "update_source":

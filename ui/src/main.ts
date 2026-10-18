@@ -2478,22 +2478,51 @@ function backToAsk() {
 }
 
 interface Ability {
+  id: string;
   title: string;
   says: string;
   examples?: string[];
 }
 
-let abilitiesKnown: Ability[] | null = null;
+let abilitiesKnown: Ability[] = [];
 
 async function abilities(): Promise<Ability[]> {
-  if (!abilitiesKnown) {
-    try {
-      abilitiesKnown = await invoke<Ability[]>("abilities");
-    } catch {
-      return [];
-    }
+  try {
+    abilitiesKnown = (await invoke<Ability[]>("abilities")) ?? [];
+  } catch {}
+  return abilitiesKnown;
+}
+
+interface WelcomeKey {
+  before?: string;
+  key: string;
+  after?: string;
+}
+
+interface Welcome {
+  title: string;
+  lede: string;
+  keys?: WelcomeKey[];
+}
+
+async function fillWelcome() {
+  let w: Welcome;
+  try {
+    w = await invoke<Welcome>("welcome");
+  } catch {
+    return;
   }
-  return abilitiesKnown ?? [];
+  $("welcome-title").textContent = w.title;
+  $("welcome-lede").textContent = w.lede;
+  const keys = $("welcome-keys");
+  clear(keys);
+  for (const k of w.keys ?? []) {
+    const line = el("li");
+    if (k.before) line.appendChild(document.createTextNode(k.before + " "));
+    line.appendChild(el("kbd", undefined, k.key));
+    if (k.after) line.appendChild(document.createTextNode(" " + k.after));
+    keys.appendChild(line);
+  }
 }
 
 function tryExample(text: string) {
@@ -2554,10 +2583,11 @@ function welcomeDone() {
 }
 
 async function showWelcome() {
+  const [, all] = await Promise.all([fillWelcome(), abilities()]);
   show("welcome");
   const tries = $("welcome-tries");
   clear(tries);
-  const withExamples = (await abilities()).filter((a) => a.examples?.length).slice(0, 3);
+  const withExamples = all.filter((a) => a.examples?.length).slice(0, 3);
   for (const a of withExamples) tries.appendChild(abilityRow(a, [a.examples![0]]));
   fitWindow();
 }

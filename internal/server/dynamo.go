@@ -21,6 +21,7 @@ const (
 	testersKey   = "tester"
 	feedbackKey  = "feedback"
 	learnedKey   = "learned"
+	contentKey   = "content"
 	everyoneKey  = "all"
 	dayKeyPrefix = "use#"
 	actKeyPrefix = "act#"
@@ -188,6 +189,26 @@ func (d *Dynamo) Habits(ctx context.Context, from string) (Habits, error) {
 	}
 	at, _ := time.Parse(time.RFC3339, str(out.Item, "at"))
 	return habitsFrom(at, str(out.Item, "habits"))
+}
+
+func (d *Dynamo) Content(ctx context.Context) (string, error) {
+	out, err := d.Client.GetItem(ctx, &dynamodb.GetItemInput{TableName: &d.Table, Key: key(contentKey, "current")})
+	if err != nil || len(out.Item) == 0 {
+		return "", err
+	}
+	return str(out.Item, "doc"), nil
+}
+
+func (d *Dynamo) SetContent(ctx context.Context, raw string) error {
+	_, err := d.Client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: &d.Table,
+		Item: map[string]types.AttributeValue{
+			"pk":  &types.AttributeValueMemberS{Value: contentKey},
+			"sk":  &types.AttributeValueMemberS{Value: "current"},
+			"doc": &types.AttributeValueMemberS{Value: raw},
+		},
+	})
+	return err
 }
 
 var ErrCodeTaken = errors.New("server: that code is already in use")

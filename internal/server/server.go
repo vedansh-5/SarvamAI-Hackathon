@@ -31,6 +31,7 @@ type Ledger interface {
 	Keep(ctx context.Context, f Feedback) error
 	Record(ctx context.Context, a Activity) error
 	KeepLearned(ctx context.Context, from string, at time.Time, habits string) error
+	Content(ctx context.Context) (string, error)
 }
 
 type Feedback struct {
@@ -202,13 +203,17 @@ func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	answerer, known := kinds[asked.Kind]
-	if !known && asked.Kind != synth.KindFeedback && asked.Kind != synth.KindLearned {
+	if !known && asked.Kind != synth.KindFeedback && asked.Kind != synth.KindLearned && asked.Kind != synth.KindContent {
 		refuse(w, http.StatusBadRequest, fmt.Sprintf("%q is not a kind of question VANS asks", asked.Kind))
 		return
 	}
 
 	if asked.Kind == synth.KindLearned {
 		s.learned(w, r, who, asked.Request)
+		return
+	}
+	if asked.Kind == synth.KindContent {
+		s.content(w, r, who)
 		return
 	}
 
@@ -330,6 +335,22 @@ func (s *Server) learned(w http.ResponseWriter, r *http.Request, who Tester, raw
 	}
 	s.logf("%s: %d learned habit(s) kept", who.Name, len(l.Habits))
 	reply(w, http.StatusOK, synth.Answered{})
+}
+
+func (s *Server) content(w http.ResponseWriter, r *http.Request, who Tester) {
+	raw, err := s.Ledger.Content(r.Context())
+	if err != nil {
+		s.logf("could not read the content for %s: %v", who.Name, err)
+		reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the VANS server could not read what to show"}})
+		return
+	}
+	c, err := synth.ParseContent(raw)
+	if err != nil {
+		s.logf("the content kept on the server is not usable: %v", err)
+		c = synth.Content{}
+	}
+	encoded, _ := json.Marshal(c)
+	reply(w, http.StatusOK, synth.Answered{Answer: encoded})
 }
 
 type badRequest struct{ kind string }

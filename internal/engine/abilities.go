@@ -1,85 +1,120 @@
 package engine
 
-import "github.com/vedansh/vans/internal/route"
+import (
+	"context"
+	"sync"
+	"time"
+
+	"github.com/vedansh/vans/internal/pagemark"
+	"github.com/vedansh/vans/internal/route"
+	"github.com/vedansh/vans/internal/synth"
+)
 
 type Ability struct {
+	ID       string   `json:"id"`
 	Title    string   `json:"title"`
 	Says     string   `json:"says"`
 	Examples []string `json:"examples,omitempty"`
 }
 
-func (e *Engine) Abilities() []Ability {
-	var out []Ability
-	add := func(can bool, a Ability) {
-		if can {
-			out = append(out, a)
+type ContentSource interface {
+	Content(ctx context.Context) (synth.Content, error)
+}
+
+const (
+	contentFresh = 15 * time.Minute
+	contentRetry = time.Minute
+	contentWait  = 2 * time.Second
+)
+
+type cachedContent struct {
+	from  ContentSource
+	mu    sync.Mutex
+	got   synth.Content
+	at    time.Time
+	tried time.Time
+}
+
+func Cached(from ContentSource) ContentSource {
+	if from == nil {
+		return nil
+	}
+	return &cachedContent{from: from}
+}
+
+func (c *cachedContent) Content(ctx context.Context) (synth.Content, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	now := time.Now()
+	if (!c.at.IsZero() && now.Sub(c.at) < contentFresh) || now.Sub(c.tried) < contentRetry {
+		return c.got, nil
+	}
+	c.tried = now
+	ctx, cancel := context.WithTimeout(ctx, contentWait)
+	defer cancel()
+	got, err := c.from.Content(ctx)
+	if err != nil {
+		return c.got, nil
+	}
+	c.got, c.at = got, now
+	return got, nil
+}
+
+func (e *Engine) wording(ctx context.Context) synth.Content {
+	if e.Content == nil {
+		return synth.Content{}
+	}
+	got, err := e.Content.Content(ctx)
+	if err != nil {
+		return synth.Content{}
+	}
+	return got
+}
+
+func (e *Engine) Welcome(ctx context.Context) synth.Welcome {
+	return e.wording(ctx).WelcomeOver(synth.BuiltInWelcome())
+}
+
+func (e *Engine) Abilities(ctx context.Context) []Ability {
+	_, marks := e.pageAsker()
+	can := map[string]bool{
+		synth.AbilityGuide:    e.canRun(route.KindAppGuide),
+		synth.AbilityDo:       e.canRun(route.KindAppAction),
+		synth.AbilityRead:     e.canRun(route.KindScreenRead),
+		synth.AbilityPage:     e.canRun(route.KindPageHere),
+		synth.AbilityMarks:    marks || e.canRun(route.KindPageStyle),
+		synth.AbilitySearch:   e.canRun(route.KindWebSearch),
+		synth.AbilityOnText:   e.canRun(route.KindText),
+		synth.AbilityFiles:    e.canRun(route.KindFiles),
+		synth.AbilitySetting:  e.canRun(route.KindSetting),
+		synth.AbilityMemory:   e.Memory != nil,
+		synth.AbilityRoutines: e.Routines != nil,
+		synth.AbilityLater:    e.Schedules != nil,
+		synth.AbilityLearning: e.Clicks != nil,
+	}
+	var base []synth.AbilityText
+	builtIn := map[string][]string{}
+	for _, a := range synth.BuiltInAbilities() {
+		if can[a.ID] {
+			base = append(base, a)
+			builtIn[a.ID] = a.Examples
 		}
 	}
-
-	add(e.canRun(route.KindAppGuide), Ability{
-		Title:    "Show you how",
-		Says:     "Ask how to do something in any app. VANS points at each step on your screen while you do it yourself.",
-		Examples: []string{"how do I add a new layer", "show me how to export this as a PDF"},
-	})
-	add(e.canRun(route.KindAppAction), Ability{
-		Title:    "Do it for you",
-		Says:     "Switch to Do it for me and VANS does the steps on screen where you can watch. It asks before anything that changes your work.",
-		Examples: []string{"make a new note called Groceries"},
-	})
-	add(e.canRun(route.KindScreenRead), Ability{
-		Title:    "Read what is on screen",
-		Says:     "Ask about the window in front: an error, a status, a long message.",
-		Examples: []string{"what does this error say", "summarise this window"},
-	})
-	add(e.canRun(route.KindPageHere), Ability{
-		Title:    "Answer about the page you are on",
-		Says:     "Questions about the web page in front of you, answered from the page itself.",
-		Examples: []string{"what is this page about"},
-	})
-	_, marks := e.pageAsker()
-	add(marks || e.canRun(route.KindPageStyle), Ability{
-		Title:    "Mark things on a page",
-		Says:     "Highlights only the words that matter, in your colour. Ask to clear the highlighting to take the marks off.",
-		Examples: []string{"highlight the ones that start with 23", `highlight "Pending"`},
-	})
-	add(e.canRun(route.KindWebSearch), Ability{
-		Title:    "Look things up",
-		Says:     "Searches the web or reads a site, and answers with where it found it.",
-		Examples: []string{"search for flights to Goa", "the top stories on news.ycombinator.com"},
-	})
-	add(e.canRun(route.KindText), Ability{
-		Title:    "Work on text",
-		Says:     "Translate, shorten, correct or reply to text you have selected.",
-		Examples: []string{"translate the selected text to Hindi", "make this shorter"},
-	})
-	add(e.canRun(route.KindFiles), Ability{
-		Title:    "Tidy files",
-		Says:     "Moves, renames and sorts files in the folders you name, and can put them back.",
-		Examples: []string{"move the PDFs on my Desktop into a folder called Papers"},
-	})
-	add(e.canRun(route.KindSetting), Ability{
-		Title:    "Change a setting",
-		Says:     "Volume, mute, dark or light, and a few more, without opening System Settings.",
-		Examples: []string{"turn on dark mode", "set the volume to 30%"},
-	})
-	add(e.Memory != nil, Ability{
-		Title:    "Remember things",
-		Says:     "Facts VANS uses when a task needs them. Ask what it remembers, or tell it to forget.",
-		Examples: []string{"remember that my home city is Delhi", "what do you remember"},
-	})
-	add(e.Routines != nil, Ability{
-		Title:    "Save a routine",
-		Says:     "Keep a request under a name and run it again by saying the name.",
-		Examples: []string{"save that as routine morning report", "list my routines"},
-	})
-	add(e.Schedules != nil, Ability{
-		Title:    "Do it later",
-		Says:     "Runs a request at a time you say, once or every day.",
-		Examples: []string{"every weekday at 9am run morning report", "in 20 minutes remind me to stretch"},
-	})
-	add(e.Clicks != nil, Ability{
-		Title: "Learn what you do often",
-		Says:  "Notices what you do at the same moment each day and offers it in a line below the dot. Switch it off in Setup, under Learning.",
-	})
+	var out []Ability
+	for _, a := range e.wording(ctx).AbilitiesOver(base) {
+		if a.ID == synth.AbilityMarks && !allUnderstood(a.Examples) {
+			a.Examples = builtIn[a.ID]
+		}
+		out = append(out, Ability{ID: a.ID, Title: a.Title, Says: a.Says, Examples: a.Examples})
+	}
 	return out
+}
+
+func allUnderstood(examples []string) bool {
+	for _, example := range examples {
+		if _, ok := pagemark.Understand(example); !ok {
+			return false
+		}
+	}
+	return true
 }

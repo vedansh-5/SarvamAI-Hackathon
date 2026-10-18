@@ -231,6 +231,7 @@ func run() error {
 			Clicks:     st,
 			Prefs:      st,
 			Learner:    learner,
+			Content:    engine.Cached(b.content),
 			UIScreen:   desktop,
 			PageScreen: page,
 			Eyes:       looking(synthesizer, desktop),

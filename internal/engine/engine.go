@@ -200,6 +200,7 @@ type Engine struct {
 	Clicks  ClickLog
 	ClickAt func(x, y int) (uiact.Noticed, bool)
 	Learner LearnedSender
+	Content ContentSource
 
 	Question func(ctx context.Context, question string, options []string) (string, error)
 
