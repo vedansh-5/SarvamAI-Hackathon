@@ -2304,6 +2304,10 @@ was deployed from. See docs/infrastructure.md, "Versions".
   the built-in text is saved (D-261). Copies pick it up within 15 minutes.
 - Trials: one card per version of each trial, with testers, requests, finished,
   typical time and feedback. Empty until a trial is listed.
+- Redesigned (D-271): the ticked-testers bar floats in only when something is
+  ticked; copy buttons for a code and for an invite; usage meters; "ago"
+  times. One script, `internal/server/console.js`, allowed by its hash; the
+  page still works without it.
 
 **Trials (A/B).** Built in D-260, unused since D-263. A trial is an entry in
 `synth.KnownTrials`; its first version is everyone's default; the console picks

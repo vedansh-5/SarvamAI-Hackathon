@@ -6524,3 +6524,29 @@ What they found:
 5. The log said every planned step "came from last time"; only kept ones do.
 
 Each test was checked to fail on the bug it is for.
+
+## D-271 — The console gets one script, allowed by its hash, and a design pass
+
+The console was usable and not pleasant: the bar for ticked testers was always
+on screen, every row carried its own Save, a switched-off tester looked like
+any other, and sending someone their code meant selecting text by hand.
+
+It now follows the panel's design language (system type on a 32/17/15/13
+scale, 8-point spacing, tinted pills, a translucent header), in light and dark.
+What changed in use:
+
+- Testers: the ticked-testers bar floats at the bottom only while something is
+  ticked, with a count, a tick-all box and Done. Save shows only on an
+  allowance that was changed. Each row has copy buttons for the code and for an
+  invite (the download link and the code in two lines); a new code's banner has
+  the same. Usage today is a meter that turns amber at 80% and red when spent.
+  Switched-off testers are greyed with a label.
+- Times read "6 min ago" with the exact time on hover; the Feedback tab shows
+  how many are open from any page; open feedback comes first.
+- Charts are drawn as page bars, not a scaled picture, so labels stay one size.
+
+Everything still works with scripts off: each control is a plain form, and the
+script only hides, shows and copies. The page's policy allowed no script at
+all; it now allows exactly one, `internal/server/console.js`, by its SHA-256,
+worked out when the server starts. Nothing else can run, inline or loaded, and
+a test checks that the script on the page is the one the policy names.

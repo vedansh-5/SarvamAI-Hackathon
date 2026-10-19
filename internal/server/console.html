@@ -7,391 +7,593 @@
 <title>VANS console</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' width='32' height='32'%3E %3Crect width='100' height='100' rx='22' fill='%2310110E'/%3E %3Ccircle cx='50' cy='50' r='27' fill='none' stroke='%23FFD23F' stroke-width='8' stroke-dasharray='120 49.6' stroke-linecap='round' transform='rotate%28100 50 50%29'/%3E %3Cpath d='M52 52 L78 60 L60 78 Z' fill='%23FFD23F' stroke='%23FFD23F' stroke-width='7' stroke-linejoin='round'/%3E %3C/svg%3E">
 <style>
-:root {
-  --bg: #f5f5f7; --card: #ffffff; --ink: #1d1d1f; --mute: #6e6e73; --line: rgba(0,0,0,0.08);
-  --accent: #0071e3; --good: #1f9d55; --bad: #d70015; --bar: #0071e3; --fill: rgba(0,0,0,0.04);
+:root { color-scheme: light dark;
+  --bg: #f5f5f7; --card: #ffffff; --raised: #ffffff; --ink: #1d1d1f; --mute: #6e6e73; --faint: #a1a1a6;
+  --line: rgba(0,0,0,0.08); --fill: rgba(0,0,0,0.045); --fill-strong: rgba(0,0,0,0.08);
+  --accent: #0071e3; --accent-tint: rgba(0,113,227,0.1);
+  --good: #1f8f4e; --good-tint: rgba(52,199,89,0.14); --bad: #d70015; --bad-tint: rgba(255,59,48,0.1);
+  --warn: #b25000; --warn-tint: rgba(255,149,0,0.14);
+  --head: rgba(245,245,247,0.78); --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 24px rgba(0,0,0,0.04);
+  --float: 0 8px 40px rgba(0,0,0,0.16), 0 1px 3px rgba(0,0,0,0.08);
 }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #000000; --card: #1c1c1e; --ink: #f5f5f7; --mute: #98989d; --line: rgba(255,255,255,0.1);
-          --accent: #2997ff; --good: #30d158; --bad: #ff453a; --bar: #2997ff; --fill: rgba(255,255,255,0.06); }
+  :root {
+    --bg: #000000; --card: #161618; --raised: #1f1f22; --ink: #f5f5f7; --mute: #98989d; --faint: #636366;
+    --line: rgba(255,255,255,0.08); --fill: rgba(255,255,255,0.06); --fill-strong: rgba(255,255,255,0.11);
+    --accent: #2997ff; --accent-tint: rgba(41,151,255,0.16);
+    --good: #30d158; --good-tint: rgba(48,209,88,0.15); --bad: #ff453a; --bad-tint: rgba(255,69,58,0.15);
+    --warn: #ff9f0a; --warn-tint: rgba(255,159,10,0.15);
+    --head: rgba(0,0,0,0.72); --shadow: none; --float: 0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08);
+  }
 }
 * { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--ink);
-       font: 15px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; }
-header { display: flex; align-items: center; gap: 24px; padding: 16px 24px; border-bottom: 1px solid var(--line);
-         background: var(--card); position: sticky; top: 0; flex-wrap: wrap; }
-header b { font-size: 17px; letter-spacing: -0.01em; }
-nav { display: flex; gap: 4px; flex-wrap: wrap; }
-nav a { color: var(--mute); text-decoration: none; padding: 6px 12px; border-radius: 980px; }
-nav a.on { color: var(--ink); background: var(--fill); }
-header form { margin-left: auto; }
-main { max-width: 1080px; margin: 0 auto; padding: 24px 16px 64px; }
-h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 8px 0 20px; }
-h2 { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
-.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
-.card { background: var(--card); border-radius: 18px; padding: 20px; border: 1px solid var(--line); overflow-x: auto; }
+       font: 15px/1.47 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+       -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+[hidden] { display: none !important; }
+
+.top { position: sticky; top: 0; z-index: 10; background: var(--head);
+       -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+       border-bottom: 1px solid var(--line); }
+.top-in { max-width: 1200px; margin: 0 auto; padding: 10px 24px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; color: var(--ink); font-weight: 600; font-size: 17px; letter-spacing: -0.01em; }
+.brand:hover { text-decoration: none; }
+.brand small { color: var(--mute); font-weight: 400; font-size: 15px; }
+.mark { width: 26px; height: 26px; flex: none; }
+nav { display: flex; gap: 2px; padding: 3px; background: var(--fill); border-radius: 980px; flex-wrap: wrap; }
+nav a { color: var(--mute); padding: 5px 14px; border-radius: 980px; font-size: 14px; font-weight: 500; transition: color .2s, background .2s; }
+nav a:hover { color: var(--ink); text-decoration: none; }
+nav a.on { color: var(--ink); background: var(--raised); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+nav .count { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 6px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+.top form { margin-left: auto; }
+
+main { max-width: 1200px; margin: 0 auto; padding: 32px 24px 120px; }
+.head { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.head > div:first-child { flex: 1 1 auto; }
+h1 { font-size: 32px; line-height: 1.15; font-weight: 700; letter-spacing: -0.025em; margin: 0; }
+.sub { color: var(--mute); margin: 4px 0 0; }
+h2 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 16px; }
+h2 .mute { font-weight: 400; }
+h3 { font-size: 13px; font-weight: 600; color: var(--mute); margin: 32px 0 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.card { background: var(--card); border-radius: 18px; padding: 24px; border: 1px solid var(--line); box-shadow: var(--shadow); min-width: 0; }
+.card + .card, .stack > * + * { margin-top: 16px; }
+.flush { padding: 0; overflow: hidden; }
+.flush > .pad { padding: 20px 24px 0; }
+.scroll { overflow-x: auto; }
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); margin-top: 16px; }
+.grid > .card + .card { margin-top: 0; }
 .wide { grid-column: 1 / -1; }
-.stats { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 16px; }
-.stat .n { font-size: 32px; font-weight: 600; letter-spacing: -0.02em; }
-.stat .l { color: var(--mute); font-size: 13px; }
+.stats { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.stats > .card + .card { margin-top: 0; }
+.stat { padding: 20px 24px; }
+.stat .n { font-size: 34px; line-height: 1.1; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.stat .n small { font-size: 17px; font-weight: 500; color: var(--mute); letter-spacing: 0; }
+.stat .l { color: var(--mute); font-size: 13px; margin-top: 6px; }
+.stat .n.text { font-size: 22px; padding-top: 8px; }
+
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
-th { text-align: left; color: var(--mute); font-weight: 500; font-size: 12px; padding: 6px 8px; border-bottom: 1px solid var(--line); }
-td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { text-align: left; color: var(--mute); font-weight: 500; font-size: 12px; padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 tr:last-child td { border-bottom: none; }
+.flush th:first-child, .flush td:first-child { padding-left: 24px; }
+.flush th:last-child, .flush td:last-child { padding-right: 24px; }
+tbody tr { transition: background .15s; }
+.rows tbody tr:hover { background: var(--fill); }
+tr.picked, .rows tbody tr.picked:hover { background: var(--accent-tint); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.top { vertical-align: top; }
+.small { font-size: 13px; }
 .mute { color: var(--mute); }
+.faint { color: var(--faint); }
 .good { color: var(--good); }
 .bad { color: var(--bad); }
-code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--fill); padding: 2px 6px; border-radius: 6px; }
-.bar { height: 8px; border-radius: 4px; background: var(--bar); min-width: 2px; }
-.track { background: var(--fill); border-radius: 4px; }
-.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-textarea { width: 100%; box-sizing: border-box; font: 13px/1.5 ui-monospace, Menlo, monospace; color: var(--ink); background: var(--fill); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
-input, select { font: inherit; color: var(--ink); background: var(--fill); border: 1px solid var(--line);
-                border-radius: 10px; padding: 7px 10px; }
-input[type=number] { width: 90px; }
-button { font: inherit; border: none; border-radius: 980px; padding: 7px 16px; cursor: pointer;
-         background: var(--accent); color: #fff; }
-button.danger { background: var(--bad); color: #fff; }
+.nowrap { white-space: nowrap; }
+.why { color: var(--mute); font-size: 13px; margin-top: 4px; }
+.empty { color: var(--mute); text-align: center; padding: 40px 16px; margin: 0; }
+
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 980px; font-size: 12px; font-weight: 500; white-space: nowrap; background: var(--fill); color: var(--mute); }
+.pill.good { background: var(--good-tint); color: var(--good); }
+.pill.bad { background: var(--bad-tint); color: var(--bad); }
+.pill.warn { background: var(--warn-tint); color: var(--warn); }
+.pill.blue { background: var(--accent-tint); color: var(--accent); }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+
+.who { display: flex; align-items: center; gap: 12px; }
+.who a { color: var(--ink); font-weight: 500; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; flex: none; display: grid; place-items: center; font-weight: 600; font-size: 14px;
+          background: var(--accent-tint); color: var(--accent); }
+.avatar.big { width: 56px; height: 56px; font-size: 24px; }
+.off .avatar { background: var(--fill); color: var(--faint); }
+.off .who a, tr.off td { color: var(--mute); }
+
+code { font: 12.5px ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace; background: var(--fill); padding: 3px 8px; border-radius: 7px; white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; gap: 2px; }
+button.icon { background: transparent; color: var(--mute); padding: 5px; border-radius: 8px; line-height: 0; }
+button.icon:hover { background: var(--fill); color: var(--ink); filter: none; }
+button.icon.copied { color: var(--good); }
+button.icon svg { width: 15px; height: 15px; }
+
+.meter { width: 104px; }
+.meter .track { height: 4px; border-radius: 2px; background: var(--fill-strong); overflow: hidden; margin-top: 6px; }
+.meter .bar { height: 100%; border-radius: 2px; background: var(--accent); }
+.meter.warn .bar { background: var(--warn); }
+.meter.full .bar { background: var(--bad); }
+.hbar { height: 6px; border-radius: 3px; background: var(--accent); min-width: 3px; opacity: 0.85; }
+
+input, select, textarea { font: inherit; font-size: 14px; color: var(--ink); background: var(--fill); border: 1px solid transparent;
+  border-radius: 10px; padding: 8px 12px; outline: none; transition: border-color .15s, box-shadow .15s, background .15s; }
+input:hover, select:hover, textarea:hover { background: var(--fill-strong); }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); background: var(--card); }
+input::placeholder, textarea::placeholder { color: var(--faint); }
+input[type=number] { width: 88px; font-variant-numeric: tabular-nums; }
+input[type=checkbox] { width: 16px; height: 16px; padding: 0; margin: 0; accent-color: var(--accent); cursor: pointer; vertical-align: middle; }
+select { padding-right: 30px; -webkit-appearance: none; appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2386868b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 11px center; }
+textarea { width: 100%; line-height: 1.5; resize: vertical; }
+
+button { font: inherit; font-size: 14px; font-weight: 500; border: none; border-radius: 980px; padding: 8px 18px; cursor: pointer;
+  background: var(--accent); color: #fff; white-space: nowrap; transition: filter .15s, background .15s, transform .1s; }
+button:hover { filter: brightness(1.08); }
+button:active { transform: scale(0.98); }
+button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-tint); }
 button.plain { background: var(--fill); color: var(--ink); }
-.made { background: var(--fill); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
-.made code { font-size: 15px; padding: 4px 10px; }
-.error { color: var(--bad); margin: 0 0 16px; }
-.note { white-space: pre-wrap; margin: 8px 0 0; }
-.done { opacity: 0.5; }
-.many { margin-bottom: 12px; }
-.field { display: block; margin-top: 12px; }
-.field > span { display: block; font-size: 13px; margin-bottom: 4px; }
+button.plain:hover { background: var(--fill-strong); filter: none; }
+button.ghost { background: transparent; color: var(--accent); padding: 5px 10px; }
+button.ghost:hover { background: var(--accent-tint); filter: none; }
+button.danger { background: var(--bad); }
+button.sm { font-size: 13px; padding: 5px 12px; }
+button.copied { color: var(--good); }
+
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.push { margin-left: auto; }
+.check { display: inline-flex; gap: 8px; align-items: center; color: var(--mute); font-size: 14px; cursor: pointer; }
+
+.flash { display: flex; gap: 12px; align-items: flex-start; padding: 14px 18px; border-radius: 14px; margin-bottom: 16px; font-size: 14px; animation: fadeUp .3s ease; }
+.flash.bad { background: var(--bad-tint); color: var(--bad); }
+.flash.good { background: var(--good-tint); color: var(--ink); }
+.flash > div { flex: 1; }
+.flash .x { background: none; color: inherit; padding: 0 4px; font-size: 20px; line-height: 1; opacity: 0.55; }
+.flash .x:hover { opacity: 1; filter: none; }
+.flash code { background: var(--card); font-size: 13.5px; }
+.flash .row { margin-top: 12px; }
+
+.invite { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.invite .lbl { color: var(--mute); font-size: 13px; }
+.add { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; }
+.add label { display: flex; align-items: center; gap: 8px; color: var(--mute); font-size: 13px; white-space: nowrap; }
+.add input[name=name] { width: 100%; }
+
+form.allowance { display: inline-flex; gap: 6px; align-items: center; }
+form.allowance input { width: 76px; padding: 6px 10px; }
+.js form.allowance:not(.dirty) button { display: none; }
+
+.many { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 16px 24px; border-bottom: 1px solid var(--line); }
+.many input[type=number] { width: 80px; padding: 6px 10px; }
+.many select { padding-top: 6px; padding-bottom: 6px; }
+.many .sep { width: 1px; height: 24px; background: var(--line); margin: 0 4px; }
+.js .many { position: fixed; left: 50%; bottom: 24px; z-index: 20; transform: translate(-50%, 16px); opacity: 0; pointer-events: none;
+  background: var(--raised); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--float); padding: 10px 12px 10px 20px;
+  width: max-content; max-width: calc(100vw - 32px); transition: opacity .2s ease, transform .25s cubic-bezier(0.25, 0.1, 0.25, 1); }
+.js .many.shown { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.many [data-count] { font-weight: 600; font-size: 14px; margin-right: 4px; }
+
+.bars { display: flex; align-items: flex-end; gap: 8px; height: 168px; border-bottom: 1px solid var(--line); padding-bottom: 0; }
+.bars.thin { gap: 4px; height: 148px; }
+.day { flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; position: relative; }
+.day .b { display: block; width: 100%; max-width: 44px; min-height: 3px; border-radius: 6px 6px 2px 2px; background: var(--accent); opacity: 0.85; transition: opacity .15s; }
+.day:hover .b { opacity: 1; }
+.day .b.zero { background: var(--fill-strong); opacity: 1; }
+.day .v { font-size: 12px; font-weight: 500; color: var(--mute); margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+.day .d { position: absolute; top: 100%; margin-top: 8px; font-size: 11px; color: var(--faint); white-space: nowrap; }
+.chart { padding-bottom: 44px; }
+
+.filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+.filters input[name=app] { width: 180px; }
+
+.note { white-space: pre-wrap; margin: 10px 0 0; line-height: 1.55; }
+.fb { display: flex; gap: 14px; }
+.fb > div { flex: 1; min-width: 0; }
+.fb .meta { color: var(--mute); font-size: 13px; }
+.done { opacity: 0.55; }
+
+.field { display: block; margin-top: 16px; }
+.field > span { display: block; font-size: 13px; color: var(--mute); margin-bottom: 6px; }
 .field > input { width: 100%; }
-.wording textarea { font: inherit; }
 .keyline { display: grid; grid-template-columns: 1fr 1fr 3fr; gap: 8px; margin-top: 8px; }
-.ability { border-top: 1px solid var(--line); padding: 16px 0; }
+.ability { border-top: 1px solid var(--line); padding: 20px 0; }
 .ability:last-child { padding-bottom: 0; }
-.login { max-width: 360px; margin: 15vh auto; }
-.login input { width: 100%; margin: 12px 0; }
-svg text { fill: var(--mute); font-size: 10px; }
-svg rect { fill: var(--bar); }
-a { color: var(--accent); text-decoration: none; }
-.back { display: inline-block; margin-top: 8px; }
+.ability input[type=number] { width: 64px; }
+.savebar { position: sticky; bottom: 16px; display: flex; gap: 12px; align-items: center; margin-top: 24px; }
+
+.setting { display: flex; gap: 16px; align-items: center; justify-content: space-between; padding: 14px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.setting:first-child { border-top: none; padding-top: 0; }
+.setting:last-child { padding-bottom: 0; }
+.setting .what { font-weight: 500; flex: 1 1 280px; }
+.setting .what small { display: block; color: var(--mute); font-weight: 400; font-size: 13px; margin-top: 2px; }
+.setting.danger .what { color: var(--bad); }
+
+.back { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 16px; font-size: 14px; }
+.profile { display: flex; align-items: center; gap: 16px; }
+
+.login { max-width: 380px; margin: 18vh auto 0; text-align: center; padding: 40px 32px; }
+.login .mark { width: 56px; height: 56px; margin: 0 auto 20px; display: block; }
+.login h1 { font-size: 24px; margin-bottom: 4px; }
+.login input { width: 100%; margin: 24px 0 12px; padding: 12px 14px; font-size: 15px; text-align: center; }
+.login button { width: 100%; padding: 12px; font-size: 15px; }
+.login .flash { text-align: left; margin: 16px 0 0; }
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (max-width: 720px) {
+  .top-in { padding: 10px 16px; gap: 12px; }
+  main { padding: 24px 16px 120px; }
+  h1 { font-size: 26px; }
+  .add { grid-template-columns: 1fr; }
+  .keyline { grid-template-columns: 1fr; }
+  .hide-sm { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
+<script>{{script}}</script>
 </head>
 <body>
+{{define "mark"}}<svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#10110E"/><circle cx="50" cy="50" r="27" fill="none" stroke="#FFD23F" stroke-width="8" stroke-dasharray="120 49.6" stroke-linecap="round" transform="rotate(100 50 50)"/><path d="M52 52 L78 60 L60 78 Z" fill="#FFD23F" stroke="#FFD23F" stroke-width="7" stroke-linejoin="round"/></svg>{{end}}
+{{define "copy"}}<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="2"/><path d="M10.5 3.5v-.5a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.5"/></svg>{{end}}
+{{define "send"}}<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 1.5 7 9M14.5 1.5 10 14.5 7 9 1.5 6z"/></svg>{{end}}
+{{define "result"}}{{if .Fault}}<span class="pill bad">{{words .Fault}}</span>{{with .Why}}<div class="why">{{.}}</div>{{end}}{{else}}<span class="pill good">answered</span>{{end}}{{end}}
 {{if eq .Page "login"}}
 <main><div class="card login">
+  {{template "mark"}}
   <h1>VANS console</h1>
-  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+  <p class="sub">Sign in with the console key.</p>
+  {{if .Error}}<div class="flash bad"><div>{{.Error}}</div></div>{{end}}
   <form method="post" action="{{$.Base}}/login">
     <input type="password" name="key" placeholder="Console key" autocomplete="current-password" autofocus>
     <button type="submit">Open</button>
   </form>
 </div></main>
 {{else}}
-<header>
-  <b>VANS</b>
+<header class="top"><div class="top-in">
+  <a class="brand" href="{{$.Base}}/">{{template "mark"}}<span>VANS <small>Console</small></span></a>
   <nav>
     <a href="{{$.Base}}/" {{if eq .Page "overview"}}class="on"{{end}}>Overview</a>
     <a href="{{$.Base}}/testers" {{if or (eq .Page "testers") (eq .Page "tester")}}class="on"{{end}}>Testers</a>
     <a href="{{$.Base}}/activity" {{if eq .Page "activity"}}class="on"{{end}}>Activity</a>
-    <a href="{{$.Base}}/feedback" {{if eq .Page "feedback"}}class="on"{{end}}>Feedback</a>
+    <a href="{{$.Base}}/feedback" {{if eq .Page "feedback"}}class="on"{{end}}>Feedback{{if .Open}}<span class="count">{{.Open}}</span>{{end}}</a>
     <a href="{{$.Base}}/trials" {{if eq .Page "trials"}}class="on"{{end}}>Trials</a>
     <a href="{{$.Base}}/content" {{if eq .Page "content"}}class="on"{{end}}>Wording</a>
   </nav>
-  <form method="post" action="{{$.Base}}/logout"><button class="plain" type="submit">Sign out</button></form>
-</header>
+  <form method="post" action="{{$.Base}}/logout"><button class="plain sm" type="submit">Sign out</button></form>
+</div></header>
 <main>
 {{if eq .Page "error"}}
-  <h1>That did not work</h1>
-  <p class="error">{{.Error}}</p>
-  <p><a href="{{$.Base}}/">Back to the overview</a></p>
+  <div class="head"><div><h1>That did not work</h1></div></div>
+  <div class="flash bad"><div>{{.Error}}</div></div>
+  <p><a href="{{$.Base}}/">‹ Back to the overview</a></p>
 
 {{else if eq .Page "overview"}}
-  <h1>Overview</h1>
+  <div class="head"><div><h1>Overview</h1><p class="sub">The last 7 days, across every tester.</p></div></div>
   <div class="stats">
     <div class="card stat"><div class="n">{{.Today}}</div><div class="l">requests today</div></div>
-    <div class="card stat"><div class="n">{{pct .Finished .Answered}}%</div><div class="l">finished, last 7 days ({{.Finished}} of {{.Answered}})</div></div>
-    <div class="card stat"><div class="n">{{took .Median}}</div><div class="l">typical answer time, last 7 days</div></div>
+    <div class="card stat"><div class="n">{{pct .Finished .Answered}}<small>%</small></div><div class="l">finished ({{.Finished}} of {{.Answered}})</div></div>
+    <div class="card stat"><div class="n">{{took .Median}}</div><div class="l">typical answer time</div></div>
   </div>
   <div class="grid">
-    <div class="card wide">
-      <h2>Requests a day</h2>
-      <svg viewBox="0 0 560 160" width="100%" role="img" aria-label="Requests a day for the last 14 days">
-        {{range .Days}}
-          <rect x="{{.X}}" y="{{subtract 140 .Height}}" width="28" height="{{.Height}}" rx="4"><title>{{.Label}}: {{.Count}}</title></rect>
-          <text x="{{.X}}" y="156">{{.Label}}</text>
-        {{end}}
-      </svg>
+    <div class="card wide chart">
+      <h2>Requests a day <span class="mute">· last 14 days</span></h2>
+      <div class="bars" role="img" aria-label="Requests a day for the last 14 days">
+        {{range .Days}}<div class="day" title="{{.Label}}: {{.Count}}"><span class="v">{{if .Count}}{{.Count}}{{end}}</span><span class="b {{if not .Count}}zero{{end}}" style="height: {{.Height}}px"></span><span class="d">{{.Label}}</span></div>{{end}}
+      </div>
     </div>
-    <div class="card wide">
-      <h2>Models, last 7 days</h2>
+    <div class="card wide flush">
+      <div class="pad"><h2>Models</h2></div>
       {{if .Providers}}
-      <table>
-        <tr><th>Model</th><th>Answered</th><th>Typical time</th><th>Today</th><th>Free allowance today</th></tr>
+      <div class="scroll"><table class="rows">
+        <thead><tr><th>Model</th><th class="num">Answered</th><th class="num">Typical time</th><th class="num">Today</th><th>Free allowance today</th></tr></thead>
+        <tbody>
         {{range .Providers}}
-        <tr><td>{{.Name}}</td><td>{{.Count}}</td><td>{{took .Median}}</td><td>{{.Today}}</td>
-          <td>{{if .Limit}}<div class="track"><div class="bar" style="width: {{pct .Today .Limit}}%"></div></div><span class="mute">{{.Today}} of {{.Limit}}</span>{{else}}<span class="mute">not set</span>{{end}}</td></tr>
+        <tr><td><b>{{.Name}}</b></td><td class="num">{{.Count}}</td><td class="num">{{took .Median}}</td><td class="num">{{.Today}}</td>
+          <td>{{if .Limit}}{{$p := pct .Today .Limit}}<div class="meter {{if ge $p 100}}full{{else if ge $p 80}}warn{{end}}" style="width:200px"><span class="small">{{.Today}} <span class="mute">of {{.Limit}}</span></span><div class="track"><div class="bar" style="width: {{$p}}%"></div></div></div>{{else}}<span class="faint">not set</span>{{end}}</td></tr>
         {{end}}
-      </table>
-      {{else}}<p class="mute">Nothing answered yet.</p>{{end}}
+        </tbody>
+      </table></div>
+      {{else}}<p class="empty">Nothing answered yet.</p>{{end}}
     </div>
     <div class="card">
       <h2>Applications used most</h2>
-      {{if .Apps}}<table>{{range .Apps}}<tr><td>{{.Name}}</td><td style="width:50%"><div class="bar" style="width: {{.Width}}%"></div></td><td>{{.Count}}</td></tr>{{end}}</table>
-      {{else}}<p class="mute">None yet.</p>{{end}}
+      {{if .Apps}}<table>{{range .Apps}}<tr><td>{{.Name}}</td><td style="width:45%"><div class="hbar" style="width: {{.Width}}%"></div></td><td class="num">{{.Count}}</td></tr>{{end}}</table>
+      {{else}}<p class="empty">None yet.</p>{{end}}
     </div>
     <div class="card">
       <h2>Commonest failures</h2>
-      {{if .Failures}}<table>{{range .Failures}}<tr><td>{{words .Name}}{{if .Example}}<div class="mute">e.g. {{.Example}}</div>{{end}}</td><td>{{.Count}}</td></tr>{{end}}</table>
-      {{else}}<p class="mute">None in the last 7 days.</p>{{end}}
+      {{if .Failures}}<table>{{range .Failures}}<tr><td>{{words .Name}}{{if .Example}}<div class="why">e.g. {{.Example}}</div>{{end}}</td><td class="num"><span class="pill bad">{{.Count}}</span></td></tr>{{end}}</table>
+      {{else}}<p class="empty">None in the last 7 days.</p>{{end}}
     </div>
   </div>
 
 {{else if eq .Page "testers"}}
-  <h1>Testers</h1>
-  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
-  {{with .Made}}
-  <div class="made">{{.Name}} can use VANS with the code <code>{{.Code}}</code>, up to {{.Daily}} requests a day. Send them the download link, <code>{{$.Get}}</code>, and this code.</div>
-  {{end}}
-  <div class="card" style="margin-bottom:16px">
-    <h2>Download link</h2>
-    <code style="user-select:all;-webkit-user-select:all">{{$.Get}}</code>
-    <p class="mute" style="margin:8px 0 0">The same for everyone, and always the newest build. VANS does nothing without a code, so send each tester the link and their own code.</p>
+  <form id="many" method="post" action="{{$.Base}}/testers/many"></form>
+  <div class="head">
+    <div><h1>Testers</h1><p class="sub">{{len .Testers}} tester{{if ne (len .Testers) 1}}s{{end}}. Each one needs the download link and their own code.</p></div>
+    <div class="invite"><span class="lbl">Download link</span><code style="user-select:all;-webkit-user-select:all">{{$.Get}}</code><button class="plain sm" type="button" data-copy="{{$.Get}}" hidden>Copy</button></div>
   </div>
-  <div class="card" style="margin-bottom:16px">
+  {{if .Error}}<div class="flash bad"><div>{{.Error}}</div><button class="x" type="button" data-close hidden aria-label="Dismiss">×</button></div>{{end}}
+  {{with .Made}}
+  <div class="flash good"><div>
+    <b>{{.Name}} can use VANS</b> with the code <code>{{.Code}}</code>, up to {{.Daily}} requests a day. Send them the download link, <code>{{$.Get}}</code>, and this code.
+    <div class="row"><button class="sm" type="button" data-copy="Download VANS: {{$.Get}}&#10;Your code: {{.Code}}" hidden>Copy the invite</button><button class="plain sm" type="button" data-copy="{{.Code}}" hidden>Copy the code</button></div>
+  </div><button class="x" type="button" data-close hidden aria-label="Dismiss">×</button></div>
+  {{end}}
+  <div class="card">
     <h2>Add a tester</h2>
-    <form method="post" action="{{$.Base}}/testers/add" class="row">
-      <input name="name" placeholder="Name" required>
-      <input name="daily" type="number" min="0" value="200" title="Requests a day">
+    <form method="post" action="{{$.Base}}/testers/add" class="add">
+      <input name="name" placeholder="Their name" required autocomplete="off">
+      <label><input name="daily" type="number" min="0" value="200" title="Requests a day"> requests a day</label>
       <button type="submit">Make a code</button>
     </form>
   </div>
-  <form id="many" method="post" action="{{$.Base}}/testers/many"></form>
-  <div class="card">
+  <div class="card flush">
     {{if .Testers}}
-    <div class="row many">
-      <span class="mute">For the ticked testers:</span>
-      <button class="plain" type="submit" form="many" name="do" value="off">Switch off</button>
-      <button class="plain" type="submit" form="many" name="do" value="on">Switch on</button>
-      <span class="row"><input form="many" name="daily" type="number" min="0" placeholder="200" title="Requests a day"><button class="plain" type="submit" form="many" name="do" value="daily">Set allowance</button></span>
-      {{range .Trials}}{{$t := .}}<span class="row"><select form="many" name="trial" title="{{.Says}}">{{range .Variants}}<option value="{{$t.Name}}={{.Name}}">{{$t.Says}}: {{.Name}}</option>{{end}}</select><button class="plain" type="submit" form="many" name="do" value="trial">Set</button></span>{{end}}
-      <span class="row" style="margin-left:auto"><label class="row mute"><input form="many" type="checkbox" name="sure" value="yes"> sure</label><button class="danger" type="submit" form="many" name="do" value="delete">Remove</button></span>
+    <div class="many">
+      <span data-count></span>
+      <span class="sep hide-sm"></span>
+      <button class="plain sm" type="submit" form="many" name="do" value="off">Switch off</button>
+      <button class="plain sm" type="submit" form="many" name="do" value="on">Switch on</button>
+      <span class="row"><input form="many" name="daily" type="number" min="0" placeholder="200" title="Requests a day"><button class="plain sm" type="submit" form="many" name="do" value="daily">Set allowance</button></span>
+      {{range .Trials}}{{$t := .}}<span class="row"><select form="many" name="trial" title="{{.Says}}">{{range .Variants}}<option value="{{$t.Name}}={{.Name}}">{{$t.Says}}: {{.Name}}</option>{{end}}</select><button class="plain sm" type="submit" form="many" name="do" value="trial">Set</button></span>{{end}}
+      <span class="sep hide-sm"></span>
+      <label class="check"><input form="many" type="checkbox" name="sure" value="yes"> sure</label><button class="danger sm" type="submit" form="many" name="do" value="delete">Remove</button>
+      <button class="ghost sm" type="button" data-clear hidden>Done</button>
     </div>
     {{end}}
-    <table>
-      <tr><th></th><th>Name</th><th>Code</th><th>Today</th><th>Daily allowance</th><th>Last seen</th><th>Last 7 days</th><th>Versions</th><th></th></tr>
+    <div class="scroll"><table class="rows">
+      <thead><tr><th style="width:1%"><input type="checkbox" data-all hidden aria-label="Tick every tester"></th><th>Name</th><th>Code</th><th>Today</th><th>Daily allowance</th><th>Last seen</th><th class="num">7 days</th><th class="hide-sm">Versions</th><th></th></tr></thead>
+      <tbody>
       {{range .Testers}}
-      <tr {{if .Off}}class="done"{{end}}>
+      <tr {{if .Off}}class="off"{{end}}>
         <td><input form="many" type="checkbox" name="code" value="{{.Code}}" aria-label="Tick {{.Name}}"></td>
-        <td><a href="{{$.Base}}/testers/{{.Name}}">{{.Name}}</a></td><td><code>{{.Code}}</code></td>
-        <td>{{.Today}}{{if .Daily}} <span class="mute">({{pct .Today .Daily}}%)</span>{{end}}</td>
-        <td><form method="post" action="{{$.Base}}/testers/daily" class="row">
+        <td><div class="who"><span class="avatar">{{initial .Name}}</span><div><a href="{{$.Base}}/testers/{{.Name}}">{{.Name}}</a>{{if .Off}}<div><span class="pill">switched off</span></div>{{end}}</div></div></td>
+        <td><span class="chip"><code>{{.Code}}</code><button class="icon" type="button" data-copy="{{.Code}}" data-icon title="Copy the code" aria-label="Copy {{.Name}}'s code" hidden>{{template "copy"}}</button><button class="icon" type="button" data-copy="Download VANS: {{$.Get}}&#10;Your code: {{.Code}}" data-icon title="Copy an invite with the link and the code" aria-label="Copy an invite for {{.Name}}" hidden>{{template "send"}}</button></span></td>
+        <td>{{if .Daily}}{{$p := pct .Today .Daily}}<div class="meter {{if ge $p 100}}full{{else if ge $p 80}}warn{{end}}"><span class="small">{{.Today}} <span class="mute">of {{.Daily}}</span></span><div class="track"><div class="bar" style="width: {{$p}}%"></div></div></div>{{else}}{{.Today}}{{end}}</td>
+        <td><form method="post" action="{{$.Base}}/testers/daily" class="allowance">
           <input type="hidden" name="code" value="{{.Code}}">
-          <input name="daily" type="number" min="0" value="{{.Daily}}"><button class="plain" type="submit">Save</button>
+          <input name="daily" type="number" min="0" value="{{.Daily}}" aria-label="Daily allowance for {{.Name}}"><button class="sm" type="submit">Save</button>
         </form></td>
-        <td>{{when .LastSeen}}</td><td>{{.Week}}</td><td class="mute">{{.Versions}}</td>
-        <td><form method="post" action="{{$.Base}}/testers/{{if .Off}}on{{else}}off{{end}}">
+        <td class="nowrap" title="{{when .LastSeen}}">{{if .LastSeen.IsZero}}<span class="faint">never</span>{{else}}{{ago $.Now .LastSeen}}{{end}}</td>
+        <td class="num">{{.Week}}</td>
+        <td class="mute small hide-sm">{{if .Versions}}{{.Versions}}{{else}}<span class="faint">–</span>{{end}}</td>
+        <td class="num"><form method="post" action="{{$.Base}}/testers/{{if .Off}}on{{else}}off{{end}}">
           <input type="hidden" name="code" value="{{.Code}}">
-          <button class="plain" type="submit">{{if .Off}}Switch on{{else}}Switch off{{end}}</button>
+          <button class="{{if .Off}}sm{{else}}plain sm{{end}}" type="submit">{{if .Off}}Switch on{{else}}Switch off{{end}}</button>
         </form></td>
       </tr>
-      {{else}}<tr><td colspan="9" class="mute">No testers yet.</td></tr>{{end}}
-    </table>
+      {{else}}<tr><td colspan="9" class="empty">No testers yet. Add one above to make their code.</td></tr>{{end}}
+      </tbody>
+    </table></div>
   </div>
 
 {{else if eq .Page "tester"}}
   {{with .Who}}
   <a class="back" href="{{$.Base}}/testers">‹ Testers</a>
-  <h1>{{.Name}}{{if .Off}} <span class="mute">· switched off</span>{{end}}</h1>
+  <div class="head">
+    <div class="profile {{if .Off}}off{{end}}"><span class="avatar big">{{initial .Name}}</span><div>
+      <h1>{{.Name}}</h1>
+      <div class="row" style="margin-top:6px">{{if .Off}}<span class="pill">switched off</span>{{else}}<span class="pill good"><span class="dot"></span>active</span>{{end}}<code>{{.Code}}</code><button class="ghost sm" type="button" data-copy="{{.Code}}" hidden>Copy code</button><button class="ghost sm" type="button" data-copy="Download VANS: {{$.Get}}&#10;Your code: {{.Code}}" hidden>Copy invite</button></div>
+    </div></div>
+  </div>
   <div class="stats">
-    <div class="card stat"><div class="n">{{.Today}}{{if .Daily}}<span class="mute" style="font-size:17px"> of {{.Daily}}</span>{{end}}</div><div class="l">requests today{{if .Daily}} ({{pct .Today .Daily}}% of the allowance){{end}}</div></div>
+    <div class="card stat"><div class="n">{{.Today}}{{if .Daily}}<small> of {{.Daily}}</small>{{end}}</div><div class="l">requests today{{if .Daily}} ({{pct .Today .Daily}}% of the allowance){{end}}</div></div>
     <div class="card stat"><div class="n">{{.Week}}</div><div class="l">requests, last 7 days</div></div>
     <div class="card stat"><div class="n">{{$.Answered}}</div><div class="l">requests, last 30 days</div></div>
-    <div class="card stat"><div class="n">{{pct $.Finished $.Answered}}%</div><div class="l">finished, last 30 days</div></div>
+    <div class="card stat"><div class="n">{{pct $.Finished $.Answered}}<small>%</small></div><div class="l">finished, last 30 days</div></div>
     <div class="card stat"><div class="n">{{took $.Median}}</div><div class="l">typical answer time</div></div>
-    <div class="card stat"><div class="n" style="font-size:20px;padding-top:10px">{{when .LastSeen}}</div><div class="l">last seen</div></div>
+    <div class="card stat"><div class="n text" title="{{when .LastSeen}}">{{ago $.Now .LastSeen}}</div><div class="l">last seen</div></div>
   </div>
-  <div class="card" style="margin-bottom:16px">
-    <div class="row">
-      <form method="post" action="{{$.Base}}/testers/daily" class="row">
-        <input type="hidden" name="code" value="{{.Code}}"><input type="hidden" name="back" value="{{.Name}}">
-        <span class="mute">Daily allowance</span>
-        <input name="daily" type="number" min="0" value="{{.Daily}}"><button class="plain" type="submit">Save</button>
-      </form>
-      <form method="post" action="{{$.Base}}/testers/{{if .Off}}on{{else}}off{{end}}" style="margin-left:auto">
-        <input type="hidden" name="code" value="{{.Code}}"><input type="hidden" name="back" value="{{.Name}}">
-        <button class="plain" type="submit">{{if .Off}}Switch on{{else}}Switch off{{end}}</button>
-      </form>
+  <div class="card" style="margin-top:16px">
+    <h2>Settings</h2>
+    <div class="settings">
+      <div class="setting">
+        <div class="what">Daily allowance<small>Requests a day before VANS says the day's use is up.</small></div>
+        <form method="post" action="{{$.Base}}/testers/daily" class="row">
+          <input type="hidden" name="code" value="{{.Code}}"><input type="hidden" name="back" value="{{.Name}}">
+          <input name="daily" type="number" min="0" value="{{.Daily}}" aria-label="Daily allowance"><button class="plain sm" type="submit">Save</button>
+        </form>
+      </div>
+      {{$who := .}}
+      {{range $.Trials}}
+      <div class="setting">
+        <div class="what">{{.Says}}<small>The version of this trial they see.</small></div>
+        <form method="post" action="{{$.Base}}/testers/trial" class="row">
+          <input type="hidden" name="code" value="{{$who.Code}}"><input type="hidden" name="back" value="{{$who.Name}}">
+          <input type="hidden" name="trial" value="{{.Name}}">
+          <select name="variant">{{range .Variants}}<option value="{{.Name}}" {{if .Chosen}}selected{{end}}>{{.Name}}</option>{{end}}</select>
+          <button class="plain sm" type="submit">Save</button>
+        </form>
+      </div>
+      {{end}}
+      <div class="setting">
+        <div class="what">{{if .Off}}Switched off{{else}}Switched on{{end}}<small>{{if .Off}}Their code does nothing until it is switched on again.{{else}}Switching off stops their code at once and keeps everything else.{{end}}</small></div>
+        <form method="post" action="{{$.Base}}/testers/{{if .Off}}on{{else}}off{{end}}">
+          <input type="hidden" name="code" value="{{.Code}}"><input type="hidden" name="back" value="{{.Name}}">
+          <button class="{{if .Off}}sm{{else}}plain sm{{end}}" type="submit">{{if .Off}}Switch on{{else}}Switch off{{end}}</button>
+        </form>
+      </div>
+      <div class="setting danger">
+        <div class="what">Delete tester<small>Delete {{.Name}} and their code. The code stops working at once; their habits go too, and their requests and feedback stay until they expire or are handled.</small></div>
+        <form method="post" action="{{$.Base}}/testers/delete" class="row">
+          <input type="hidden" name="code" value="{{.Code}}">
+          <label class="check"><input type="checkbox" name="sure" value="yes" required> sure</label>
+          <button class="danger sm" type="submit">Delete tester</button>
+        </form>
+      </div>
     </div>
-    {{$who := .}}
-    {{range $.Trials}}
-    <form method="post" action="{{$.Base}}/testers/trial" class="row" style="margin-top:12px">
-      <input type="hidden" name="code" value="{{$who.Code}}"><input type="hidden" name="back" value="{{$who.Name}}">
-      <input type="hidden" name="trial" value="{{.Name}}">
-      <span class="mute">{{.Says}}</span>
-      <select name="variant">{{range .Variants}}<option value="{{.Name}}" {{if .Chosen}}selected{{end}}>{{.Name}}</option>{{end}}</select>
-      <button class="plain" type="submit">Save</button>
-    </form>
-    {{end}}
-    <form method="post" action="{{$.Base}}/testers/delete" class="row" style="margin-top:12px">
-      <input type="hidden" name="code" value="{{.Code}}">
-      <label class="row mute"><input type="checkbox" name="sure" value="yes" required> Delete {{.Name}} and their code. The code stops working at once; their habits go too, and their requests and feedback stay until they expire or are handled.</label>
-      <button class="danger" type="submit">Delete tester</button>
-    </form>
   </div>
   {{end}}
   <div class="grid">
-    <div class="card wide">
-      <h2>Requests a day, last 30 days</h2>
-      <svg viewBox="0 0 1080 160" width="100%" role="img" aria-label="Requests a day for the last 30 days">
-        {{range $i, $d := .Days}}
-          <rect x="{{$d.X}}" y="{{subtract 140 $d.Height}}" width="24" height="{{$d.Height}}" rx="3"><title>{{$d.Label}}: {{$d.Count}}</title></rect>
-          {{if eq (mod $i 5) 0}}<text x="{{$d.X}}" y="156">{{$d.Label}}</text>{{end}}
-        {{end}}
-      </svg>
+    <div class="card wide chart">
+      <h2>Requests a day <span class="mute">· last 30 days</span></h2>
+      <div class="bars thin" role="img" aria-label="Requests a day for the last 30 days">
+        {{range $i, $d := .Days}}<div class="day" title="{{$d.Label}}: {{$d.Count}}"><span class="b {{if not $d.Count}}zero{{end}}" style="height: {{$d.Height}}px"></span><span class="d">{{if eq (mod $i 5) 0}}{{$d.Label}}{{end}}</span></div>{{end}}
+      </div>
     </div>
     <div class="card">
       <h2>What they ask for</h2>
-      {{if .Kinds}}<table>{{range .Kinds}}<tr><td>{{words .Name}}</td><td style="width:50%"><div class="bar" style="width: {{.Width}}%"></div></td><td>{{.Count}}</td></tr>{{end}}</table>
-      {{else}}<p class="mute">Nothing yet.</p>{{end}}
+      {{if .Kinds}}<table>{{range .Kinds}}<tr><td>{{words .Name}}</td><td style="width:45%"><div class="hbar" style="width: {{.Width}}%"></div></td><td class="num">{{.Count}}</td></tr>{{end}}</table>
+      {{else}}<p class="empty">Nothing yet.</p>{{end}}
     </div>
     <div class="card">
       <h2>Applications</h2>
-      {{if .Apps}}<table>{{range .Apps}}<tr><td>{{.Name}}</td><td style="width:50%"><div class="bar" style="width: {{.Width}}%"></div></td><td>{{.Count}}</td></tr>{{end}}</table>
-      {{else}}<p class="mute">None yet.</p>{{end}}
+      {{if .Apps}}<table>{{range .Apps}}<tr><td>{{.Name}}</td><td style="width:45%"><div class="hbar" style="width: {{.Width}}%"></div></td><td class="num">{{.Count}}</td></tr>{{end}}</table>
+      {{else}}<p class="empty">None yet.</p>{{end}}
     </div>
     <div class="card">
       <h2>Failures</h2>
-      {{if .Failures}}<table>{{range .Failures}}<tr><td>{{words .Name}}{{if .Example}}<div class="mute">e.g. {{.Example}}</div>{{end}}</td><td>{{.Count}}</td></tr>{{end}}</table>
-      {{else}}<p class="mute">None in the last 30 days.</p>{{end}}
+      {{if .Failures}}<table>{{range .Failures}}<tr><td>{{words .Name}}{{if .Example}}<div class="why">e.g. {{.Example}}</div>{{end}}</td><td class="num"><span class="pill bad">{{.Count}}</span></td></tr>{{end}}</table>
+      {{else}}<p class="empty">None in the last 30 days.</p>{{end}}
     </div>
-    <div class="card wide">
-      <h2>Habits VANS found{{if not .Habits.At.IsZero}} <span class="mute">· sent {{when .Habits.At}}</span>{{end}}</h2>
+    <div class="card wide flush">
+      <div class="pad"><h2>Habits VANS found{{if not .Habits.At.IsZero}} <span class="mute">· sent {{when .Habits.At}}</span>{{end}}</h2></div>
       {{if .Habits.List}}
-      <table>
-        <tr><th>What</th><th>When</th><th>Days seen</th><th>Times done</th><th>Offers taken</th><th>Skipped</th><th>Now</th></tr>
+      <div class="scroll"><table class="rows">
+        <thead><tr><th>What</th><th>When</th><th class="num">Days seen</th><th class="num">Times done</th><th class="num">Offers taken</th><th class="num">Skipped</th><th>Now</th></tr></thead>
+        <tbody>
         {{range .Habits.List}}
-        <tr><td>{{.What}}</td><td class="mute">{{.When}}</td><td>{{.Days}}</td><td>{{.Times}}</td><td>{{.Yes}}</td><td>{{.Skips}}</td>
-          <td>{{if .Stopped}}<span class="mute">stopped</span>{{else if .Always}}<span class="good">always</span>{{else if .Answer}}{{words .Answer}}{{else}}<span class="mute">not asked yet</span>{{end}}</td></tr>
+        <tr><td>{{.What}}</td><td class="mute">{{.When}}</td><td class="num">{{.Days}}</td><td class="num">{{.Times}}</td><td class="num">{{.Yes}}</td><td class="num">{{.Skips}}</td>
+          <td>{{if .Stopped}}<span class="pill">stopped</span>{{else if .Always}}<span class="pill good">always</span>{{else if .Answer}}<span class="pill blue">{{words .Answer}}</span>{{else}}<span class="faint">not asked yet</span>{{end}}</td></tr>
         {{end}}
-      </table>
-      {{else}}<p class="mute">None sent yet. VANS sends them when its list changes, and not at all when Learning is off.</p>{{end}}
+        </tbody>
+      </table></div>
+      {{else}}<p class="empty">None sent yet. VANS sends them when its list changes, and not at all when Learning is off.</p>{{end}}
     </div>
-    <div class="card wide">
-      <h2>Their latest requests</h2>
-      <table>
-        <tr><th>When</th><th>What they asked</th><th>Application</th><th>Kind</th><th>Result</th><th>Took</th><th>Model</th></tr>
+    <div class="card wide flush">
+      <div class="pad"><h2>Their latest requests</h2></div>
+      <div class="scroll"><table class="rows">
+        <thead><tr><th>When</th><th>What they asked</th><th>Application</th><th>Kind</th><th>Result</th><th class="num">Took</th><th>Model</th></tr></thead>
+        <tbody>
         {{range .Rows}}
         <tr>
-          <td class="mute">{{when .At}}</td><td>{{if .Words}}{{.Words}}{{else}}<span class="mute">-</span>{{end}}</td>
-          <td>{{.App}}</td><td class="mute">{{words .Kind}}</td>
-          <td>{{if .Fault}}<span class="bad">{{words .Fault}}</span>{{with .Why}}<div class="mute">{{.}}</div>{{end}}{{else}}<span class="good">answered</span>{{end}}</td>
-          <td>{{took .Took}}</td><td class="mute">{{.By}}</td>
+          <td class="mute nowrap top" title="{{when .At}}">{{ago $.Now .At}}</td><td class="top">{{if .Words}}{{.Words}}{{else}}<span class="faint">–</span>{{end}}</td>
+          <td class="top">{{.App}}</td><td class="mute top">{{words .Kind}}</td>
+          <td class="top">{{template "result" .}}</td>
+          <td class="num top">{{took .Took}}</td><td class="mute small top">{{.By}}</td>
         </tr>
-        {{else}}<tr><td colspan="7" class="mute">No requests in the last 30 days.</td></tr>{{end}}
-      </table>
+        {{else}}<tr><td colspan="7" class="empty">No requests in the last 30 days.</td></tr>{{end}}
+        </tbody>
+      </table></div>
     </div>
   </div>
 
 {{else if eq .Page "activity"}}
-  <h1>Activity</h1>
-  <div class="card" style="margin-bottom:16px">
-    <form method="get" action="{{$.Base}}/activity" class="row">
-      <select name="tester"><option value="">Every tester</option>
-        {{$t := .Filter.Tester}}{{range .Names}}<option {{if eq . $t}}selected{{end}}>{{.}}</option>{{end}}
-      </select>
-      <input name="app" placeholder="Application" value="{{.Filter.App}}">
-      <select name="days">
-        <option value="1" {{if eq .Filter.Days 1}}selected{{end}}>Today</option>
-        <option value="3" {{if eq .Filter.Days 3}}selected{{end}}>Last 3 days</option>
-        <option value="7" {{if eq .Filter.Days 7}}selected{{end}}>Last 7 days</option>
-      </select>
-      <label class="row"><input type="checkbox" name="failed" value="1" {{if .Filter.Failed}}checked{{end}}> Failed only</label>
-      <button type="submit">Show</button>
-    </form>
-  </div>
-  <div class="card">
-    <table>
-      <tr><th>When</th><th>Who</th><th>What they asked</th><th>Application</th><th>Kind</th><th>Result</th><th>Took</th><th>Model</th></tr>
+  <div class="head"><div><h1>Activity</h1><p class="sub">Every request, newest first.</p></div></div>
+  <form method="get" action="{{$.Base}}/activity" class="filters">
+    <select name="tester"><option value="">Every tester</option>
+      {{$t := .Filter.Tester}}{{range .Names}}<option {{if eq . $t}}selected{{end}}>{{.}}</option>{{end}}
+    </select>
+    <input name="app" placeholder="Application" value="{{.Filter.App}}">
+    <select name="days">
+      <option value="1" {{if eq .Filter.Days 1}}selected{{end}}>Today</option>
+      <option value="3" {{if eq .Filter.Days 3}}selected{{end}}>Last 3 days</option>
+      <option value="7" {{if eq .Filter.Days 7}}selected{{end}}>Last 7 days</option>
+    </select>
+    <label class="check"><input type="checkbox" name="failed" value="1" {{if .Filter.Failed}}checked{{end}}> Failed only</label>
+    <button type="submit">Show</button>
+  </form>
+  <div class="card flush">
+    <div class="scroll"><table class="rows">
+      <thead><tr><th>When</th><th>Who</th><th>What they asked</th><th>Application</th><th>Kind</th><th>Result</th><th class="num">Took</th><th>Model</th></tr></thead>
+      <tbody>
       {{range .Rows}}
       <tr>
-        <td class="mute">{{when .At}}</td><td>{{.From}}</td><td>{{if .Words}}{{.Words}}{{else}}<span class="mute">-</span>{{end}}</td>
-        <td>{{.App}}</td><td class="mute">{{words .Kind}}</td>
-        <td>{{if .Fault}}<span class="bad">{{words .Fault}}</span>{{with .Why}}<div class="mute">{{.}}</div>{{end}}{{else}}<span class="good">answered</span>{{end}}</td>
-        <td>{{took .Took}}</td><td class="mute">{{.By}}</td>
+        <td class="mute nowrap top" title="{{when .At}}">{{ago $.Now .At}}</td><td class="top nowrap">{{.From}}</td><td class="top">{{if .Words}}{{.Words}}{{else}}<span class="faint">–</span>{{end}}</td>
+        <td class="top">{{.App}}</td><td class="mute top">{{words .Kind}}</td>
+        <td class="top">{{template "result" .}}</td>
+        <td class="num top">{{took .Took}}</td><td class="mute small top">{{.By}}</td>
       </tr>
-      {{else}}<tr><td colspan="8" class="mute">Nothing matches.</td></tr>{{end}}
-    </table>
+      {{else}}<tr><td colspan="8" class="empty">Nothing matches.</td></tr>{{end}}
+      </tbody>
+    </table></div>
   </div>
 
 {{else if eq .Page "feedback"}}
-  <h1>Feedback{{if .Open}} <span class="mute">· {{.Open}} open</span>{{end}}</h1>
+  <div class="head"><div><h1>Feedback</h1><p class="sub">{{if .Open}}{{.Open}} open{{else}}Nothing open{{end}}.</p></div></div>
+  <div class="stack">
   {{range .Feedback}}
-  <div class="card {{if .Handled}}done{{end}}" style="margin-bottom:12px">
-    <div class="row">
-      <b>{{.From}}</b><span class="mute">{{words .Kind}} · {{when .At}}{{if .Trials}} · {{.Trials}}{{end}}</span>
-      {{if not .Handled}}
-      <form method="post" action="{{$.Base}}/feedback/handled" style="margin-left:auto">
-        <input type="hidden" name="id" value="{{.ID}}"><button class="plain" type="submit">Mark handled</button>
-      </form>
-      {{else}}<span class="mute" style="margin-left:auto">handled</span>{{end}}
+  <div class="card {{if .Handled}}done{{end}}">
+    <div class="fb">
+      <span class="avatar">{{initial .From}}</span>
+      <div>
+        <div class="row">
+          <b>{{.From}}</b><span class="pill blue">{{words .Kind}}</span><span class="meta" title="{{when .At}}">{{ago $.Now .At}}{{if .Trials}} · {{.Trials}}{{end}}</span>
+          {{if not .Handled}}
+          <form method="post" action="{{$.Base}}/feedback/handled" class="push">
+            <input type="hidden" name="id" value="{{.ID}}"><button class="plain sm" type="submit">Mark handled</button>
+          </form>
+          {{else}}<span class="pill good push">handled</span>{{end}}
+        </div>
+        <p class="note">{{.Text}}</p>
+      </div>
     </div>
-    <p class="note">{{.Text}}</p>
   </div>
-  {{else}}<p class="mute">No feedback yet.</p>{{end}}
+  {{else}}<div class="card"><p class="empty">No feedback yet.</p></div>{{end}}
+  </div>
 
 {{else if eq .Page "trials"}}
-  <h1>Trials</h1>
-  <p class="mute">Each tester sees one version of each trial, set on their page. A copy of VANS picks up a change within five minutes, with no update. Requests are the last 7 days.</p>
+  <div class="head"><div><h1>Trials</h1><p class="sub">Each tester sees one version of each trial, set on their page. A copy of VANS picks up a change within five minutes, with no update. Requests are the last 7 days.</p></div></div>
   {{range .Trials}}
-  <h2>{{.Says}}</h2>
-  <div class="grid">
+  <h3>{{.Says}}</h3>
+  <div class="grid" style="margin-top:0">
     {{range .Variants}}
     <div class="card">
       <h2>{{.Name}} <span class="mute">· {{len .Testers}} tester{{if ne (len .Testers) 1}}s{{end}}</span></h2>
-      <p class="mute">{{range $i, $n := .Testers}}{{if $i}}, {{end}}{{$n}}{{else}}Nobody yet.{{end}}</p>
+      <p class="mute small">{{range $i, $n := .Testers}}{{if $i}}, {{end}}{{$n}}{{else}}Nobody yet.{{end}}</p>
       <table>
-        <tr><td>Requests</td><td>{{.Asked}}</td></tr>
-        <tr><td>Finished</td><td>{{pct .Finished .Asked}}%</td></tr>
-        <tr><td>Typical answer time</td><td>{{took .Median}}</td></tr>
-        <tr><td>Feedback</td><td>{{len .Feedback}}</td></tr>
+        <tr><td class="mute">Requests</td><td class="num">{{.Asked}}</td></tr>
+        <tr><td class="mute">Finished</td><td class="num">{{pct .Finished .Asked}}%</td></tr>
+        <tr><td class="mute">Typical answer time</td><td class="num">{{took .Median}}</td></tr>
+        <tr><td class="mute">Feedback</td><td class="num">{{len .Feedback}}</td></tr>
       </table>
       {{range .Feedback}}
-      <div class="{{if .Handled}}done{{end}}" style="margin-top:12px">
-        <div class="mute">{{.From}} · {{when .At}}</div>
-        <p class="note">{{.Text}}</p>
+      <div class="{{if .Handled}}done{{end}}" style="margin-top:16px">
+        <div class="mute small">{{.From}} · {{ago $.Now .At}}</div>
+        <p class="note" style="margin-top:4px">{{.Text}}</p>
       </div>
       {{end}}
     </div>
     {{end}}
   </div>
-  {{end}}
+  {{else}}<div class="card"><p class="empty">No trials running.</p></div>{{end}}
 
 {{else if eq .Page "content"}}
-  <h1>Wording</h1>
-  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
-  {{if .Saved}}<div class="made">Saved. Each copy of VANS picks it up within 15 minutes, the next time it shows the welcome or What VANS can do.</div>{{end}}
-  <p class="mute">{{if .BuiltIn}}Nothing is saved, so every copy shows what it was built with; this is that text, to start from.{{else}}This is what every copy shows now.{{end}} A box left empty keeps the built-in text.</p>
+  <div class="head"><div><h1>Wording</h1><p class="sub">{{if .BuiltIn}}Nothing is saved, so every copy shows what it was built with; this is that text, to start from.{{else}}This is what every copy shows now.{{end}} A box left empty keeps the built-in text.</p></div></div>
+  {{if .Error}}<div class="flash bad"><div>{{.Error}}</div><button class="x" type="button" data-close hidden aria-label="Dismiss">×</button></div>{{end}}
+  {{if .Saved}}<div class="flash good"><div>Saved. Each copy of VANS picks it up within 15 minutes, the next time it shows the welcome or What VANS can do.</div><button class="x" type="button" data-close hidden aria-label="Dismiss">×</button></div>{{end}}
   <form method="post" action="{{$.Base}}/content/save" class="wording">
-    <div class="card" style="margin-bottom:16px">
+    <div class="card">
       <h2>Welcome</h2>
-      <label class="field"><span class="mute">Title</span><input name="title" value="{{.Wording.Title}}"></label>
-      <label class="field"><span class="mute">Line under the title</span><textarea name="lede" rows="3">{{.Wording.Lede}}</textarea></label>
-      <div class="field"><span class="mute">Keys: words before, the key, words after. Empty a line to drop it.</span>
+      <label class="field"><span>Title</span><input name="title" value="{{.Wording.Title}}"></label>
+      <label class="field"><span>Line under the title</span><textarea name="lede" rows="3">{{.Wording.Lede}}</textarea></label>
+      <div class="field"><span>Keys: words before, the key, words after. Empty a line to drop it.</span>
         {{range .Wording.Keys}}<div class="keyline"><input name="key.before" value="{{.Before}}" placeholder="Before"><input name="key.key" value="{{.Key}}" placeholder="Key"><input name="key.after" value="{{.After}}" placeholder="After"></div>{{end}}
       </div>
     </div>
-    <div class="card" style="margin-bottom:16px">
+    <div class="card">
       <h2>What VANS can do</h2>
-      <p class="mute" style="margin-top:0">The number is the place in the list. Hide takes it off the list. A copy only lists what it can do, whatever is here.</p>
+      <p class="mute small" style="margin-top:-8px">The number is the place in the list. Hide takes it off the list. A copy only lists what it can do, whatever is here.</p>
       {{range .Wording.Abilities}}
       <div class="ability">
         <div class="row"><input type="number" name="a.{{.ID}}.order" value="{{.Order}}" min="0" title="Place in the list"><strong>{{.Name}}</strong>
-          <label class="row mute" style="margin-left:auto"><input type="checkbox" name="a.{{.ID}}.hidden" value="yes" {{if .Hidden}}checked{{end}}> Hide</label></div>
-        <label class="field"><span class="mute">Title</span><input name="a.{{.ID}}.title" value="{{.Title}}"></label>
-        <label class="field"><span class="mute">What it says</span><textarea name="a.{{.ID}}.says" rows="2">{{.Says}}</textarea></label>
-        <label class="field"><span class="mute">Examples, one a line</span><textarea name="a.{{.ID}}.examples" rows="2">{{.Examples}}</textarea></label>
+          <label class="check push"><input type="checkbox" name="a.{{.ID}}.hidden" value="yes" {{if .Hidden}}checked{{end}}> Hide</label></div>
+        <label class="field"><span>Title</span><input name="a.{{.ID}}.title" value="{{.Title}}"></label>
+        <label class="field"><span>What it says</span><textarea name="a.{{.ID}}.says" rows="2">{{.Says}}</textarea></label>
+        <label class="field"><span>Examples, one a line</span><textarea name="a.{{.ID}}.examples" rows="2">{{.Examples}}</textarea></label>
       </div>
       {{end}}
     </div>
-    <div class="row"><button type="submit">Save</button></div>
+    <div class="savebar"><button type="submit">Save</button></div>
   </form>
   {{if not .BuiltIn}}
   <form method="post" action="{{$.Base}}/content/clear" style="margin-top:12px">
