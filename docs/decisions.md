@@ -6462,3 +6462,7 @@ Mac-only file changes (`*_darwin*.go`, `internal/keychain`, the test window,
 is billed as ten. The selection test skips there unless the runner may use
 accessibility. What no CI can check: real applications, the Keychain prompt,
 and anything that is a look rather than a command.
+
+Its first run found two tests in `internal/eyes` that passed only on a screen
+wider than 1,080 points: a control is trimmed to the displays, and GitHub's Mac
+has one 1,024 wide. Their picture is now 800 wide.
