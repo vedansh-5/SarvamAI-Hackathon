@@ -6467,3 +6467,20 @@ and anything that is a look rather than a command.
 Its first run found two tests in `internal/eyes` that passed only on a screen
 wider than 1,080 points: a control is trimmed to the displays, and GitHub's Mac
 has one 1,024 wide. Their picture is now 800 wide.
+
+## D-269 — The basics run on this Mac, not on GitHub's
+
+Vedansh's call, 2026-10-19: no Mac CI for now. A minute on GitHub's Macs counts
+as ten against a private repository's monthly allowance, and when the
+allowance runs out every check stops, the Linux ones included. The Mac job of
+D-268 (`.github/workflows/mac.yml`) is removed. `infra/mac/basics.sh` stays,
+and is run on his Mac by whoever made the change: the quiet part after every
+third change that lands and before every release (`release.sh` runs it), and
+`--screen` when he says the moment suits. What the job found stays fixed: the
+two `internal/eyes` tests no longer depend on the screen's size.
+
+Checks that could run on a Mac CI later, if it comes back: the panel landing in
+the same place three times, the window list, pointer sweeps opening nothing,
+the hotkey giving the panel the keyboard, a hovered panel closing and a
+summoned one staying, and two differently built engines sharing a Keychain
+item without a prompt.
