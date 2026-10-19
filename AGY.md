@@ -1948,7 +1948,8 @@ after every third change that lands and before every release.
 `infra/mac/basics.sh` runs what a command can check (the Mac-only code and its
 tests, the tester bundle, the panel); `infra/mac/basics.sh --screen` adds rule
 13 and the window list, and takes the screen for a few seconds, so it waits for
-Vedansh's word. `release.sh` runs the quiet part itself. There is no Mac CI
+Vedansh's word. `--model` adds the runs that need the real model (D-270): a few
+calls, nothing on screen. `release.sh` runs the quiet part itself. There is no Mac CI
 (D-269): whoever makes the change runs these on Vedansh's Mac and says what ran.
 
 | # | Rule | How to check, cheaply |

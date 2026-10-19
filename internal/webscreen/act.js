@@ -118,6 +118,7 @@
   }
 
   if (a.verb === 'type') {
+    var text = a.text == null ? '' : String(a.text);
     if (el.focus) el.focus();
     var tag = el.tagName.toLowerCase();
     if (tag === 'select') {
@@ -132,12 +133,12 @@
       el.selectedIndex = pick;
     } else if (tag === 'input' || tag === 'textarea') {
       var proto = tag === 'textarea' ? W.HTMLTextAreaElement.prototype : W.HTMLInputElement.prototype;
-      Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, a.text);
+      Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, text);
     } else if (el.isContentEditable) {
       var sel = W.getSelection();
       sel.selectAllChildren(el);
       sel.collapseToEnd();
-      D.execCommand('insertText', false, a.text);
+      D.execCommand('insertText', false, text);
       return JSON.stringify({ ok: true });
     } else {
       return fail('that control does not hold typed text');

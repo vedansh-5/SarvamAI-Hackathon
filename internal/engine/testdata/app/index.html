@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Planner</title>
+<style>body { font: 14px sans-serif; margin: 20px; } button, label { display: block; margin: 8px 0; }</style>
+</head>
+<body>
+<main id="screen"></main>
+<script>
+  var state = { dark: false, large: false, motion: false };
+  var screens = {
+    home: [['Inbox', 'inbox'], ['Calendar', 'calendar'], ['Contacts', 'contacts'], ['Settings', 'settings']],
+    inbox: [['Back', 'home'], ['Compose', 'inbox']],
+    calendar: [['Back', 'home'], ['New event', 'calendar']],
+    contacts: [['Back', 'home'], ['New contact', 'contacts']],
+    settings: [['Back', 'home'], ['Account', 'account'], ['Notifications', 'notifications'], ['Appearance', 'appearance']],
+    account: [['Back', 'settings'], ['Change password', 'account']],
+    notifications: [['Back', 'settings'], ['Mute all', 'notifications']]
+  };
+  function show(name) {
+    var main = document.getElementById('screen');
+    main.innerHTML = '';
+    var h = document.createElement('h1');
+    h.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+    main.appendChild(h);
+    if (name === 'appearance') {
+      var back = document.createElement('button');
+      back.textContent = 'Back';
+      back.onclick = function () { show('settings'); };
+      main.appendChild(back);
+      [['Dark mode', 'dark'], ['Large text', 'large'], ['Reduce motion', 'motion']].forEach(function (s) {
+        var label = document.createElement('label');
+        var box = document.createElement('input');
+        box.type = 'checkbox';
+        box.checked = state[s[1]];
+        box.onchange = function () { state[s[1]] = box.checked; };
+        label.appendChild(box);
+        label.appendChild(document.createTextNode(' ' + s[0]));
+        main.appendChild(label);
+      });
+      return;
+    }
+    screens[name].forEach(function (b) {
+      var button = document.createElement('button');
+      button.textContent = b[0];
+      button.onclick = function () { show(b[1]); };
+      main.appendChild(button);
+    });
+  }
+  show('home');
+</script>
+</body>
+</html>

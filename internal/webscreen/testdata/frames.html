@@ -1,0 +1,10 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Pages inside pages</title></head>
+<body>
+<p id="log"></p>
+<iframe id="inline" width="400" height="120" srcdoc="<label>Coupon <input id='coupon'></label><button onclick=&quot;parent.document.getElementById('log').textContent='applied '+document.getElementById('coupon').value&quot;>Apply coupon</button>"></iframe>
+<iframe id="same" width="400" height="120" src="/inner.html"></iframe>
+<iframe id="other" width="400" height="120" src="OTHER/inner.html"></iframe>
+</body>
+</html>

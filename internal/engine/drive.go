@@ -340,8 +340,12 @@ func (e *Engine) runDrive(ctx context.Context, plan *Plan) (Receipt, error) {
 	}
 
 	if run.Replayed > 0 {
-		e.logf("%d of %d step(s) came from last time, and the model was asked %d time(s)",
-			run.Replayed, run.Steps(), run.Calls)
+		from := "were planned ahead"
+		if d.Kept {
+			from = "came from last time"
+		}
+		e.logf("%d of %d step(s) %s, and the model was asked %d time(s)",
+			run.Replayed, run.Steps(), from, run.Calls)
 	}
 
 	// Before the empty-run check below, not after it. A trace that goes off on its
