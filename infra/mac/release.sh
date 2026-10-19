@@ -50,6 +50,8 @@ if aws s3api head-object --profile $profile --region $region --bucket "$bucket" 
 fi
 rustup target list --installed | grep -q x86_64-apple-darwin || rustup target add x86_64-apple-darwin
 
+sh infra/mac/basics.sh
+
 server=$(aws lambda get-function-url-config --profile $profile --region $region --function-name vans-server --query FunctionUrl --output text)
 server=${server%/}
 

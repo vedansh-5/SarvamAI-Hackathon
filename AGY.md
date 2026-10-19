@@ -1943,6 +1943,15 @@ the dot, the coach, a guide or anything that puts a window on screen is
 checked against this list before it is called done. Each check is a look or
 one command, not a test suite: it costs seconds.
 
+When: before calling a change done (the rows it touches), and the whole list
+after every third change that lands and before every release.
+`infra/mac/basics.sh` runs what a command can check (the Mac-only code and its
+tests, the tester bundle, the panel); `infra/mac/basics.sh --screen` adds rule
+13 and the window list, and takes the screen for a few seconds, so it waits for
+Vedansh's word. `release.sh` runs the quiet part itself. The Mac CI job
+(`.github/workflows/mac.yml`) runs the same on GitHub's Macs whenever a Mac-only
+file changes.
+
 | # | Rule | How to check, cheaply |
 |---|---|---|
 | 1 | The panel opens in the same place every time: centred, about a fifth of the way down, on the screen with the pointer. Like Spotlight | Open it three times from different apps; it lands in the same spot |
@@ -1957,6 +1966,8 @@ one command, not a test suite: it costs seconds.
 | 10 | Nothing shows in a full-screen app unless the person asked for VANS there | Open a full-screen app; only what was summoned appears |
 | 11 | The first sign of an answer within 3 seconds; a whole step within 6. Slower than that is a bug to log, not a fact | `[vans] timing:` lines in the log |
 | 12 | Say what was checked and what was not. "Builds" is not "works" | The PR body names each rule above that the change touched and how it was checked |
+| 13 | Selected text is read in every application, WhatsApp included (it only gives the selection through Copy), and the clipboard is left as it was | `infra/mac/basics.sh --screen`; then select a word in WhatsApp and run `go run ./cmd/vans-probe -selection WhatsApp` |
+| 14 | VANS never asks for the Keychain password after an update or a rebuild. Asked once, ever, with "Always Allow" | After an update, open VANS and ask something: no Keychain box. `codesign -dr - ui/vans-engine` after `npm run dev` names `certificate leaf`, not `cdhash` |
 
 List VANS's windows on screen, with size and layer:
 

@@ -31,6 +31,14 @@ else
   echo "Made \"$name\". Back up $dir: without it, testers grant permissions again after the next update."
 fi
 
+if [ -f "$dir/codesign-allowed" ]; then
+  echo "codesign already uses \"$name\" without asking."
+else
+  echo "Type your login password once more, so codesign can use \"$name\" at every build without asking."
+  security set-key-partition-list -S apple-tool:,apple:,codesign: -s -l "$name" "$keychain" >/dev/null
+  touch "$dir/codesign-allowed"
+fi
+
 if [ -f "$updater" ]; then
   echo "The update signing key is already at $updater."
 else
