@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	_ "embed"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -90,6 +91,14 @@ func LimitsFromEnv() map[string]int {
 //go:embed console.html
 var consolePage string
 
+//go:embed console.js
+var consoleScript string
+
+var consoleScriptHash = func() string {
+	sum := sha256.Sum256([]byte(consoleScript))
+	return "'sha256-" + base64.StdEncoding.EncodeToString(sum[:]) + "'"
+}()
+
 var consoleTemplate = template.Must(template.New("console").Funcs(template.FuncMap{
 	"when": func(t time.Time) string {
 		if t.IsZero() {
@@ -106,10 +115,33 @@ var consoleTemplate = template.Must(template.New("console").Funcs(template.FuncM
 		}
 		return fmt.Sprintf("%.1f s", d.Seconds())
 	},
-	"words":    func(s string) string { return strings.ReplaceAll(s, "_", " ") },
-	"pct":      func(n, of int) int { return percent(n, of) },
-	"subtract": func(a, b int) int { return a - b },
-	"mod":      func(a, b int) int { return a % b },
+	"ago": func(now, t time.Time) string {
+		if t.IsZero() {
+			return "never"
+		}
+		d := now.Sub(t)
+		switch {
+		case d < time.Minute:
+			return "just now"
+		case d < time.Hour:
+			return fmt.Sprintf("%d min ago", int(d.Minutes()))
+		case d < 24*time.Hour:
+			return fmt.Sprintf("%d h ago", int(d.Hours()))
+		case d < 7*24*time.Hour:
+			return fmt.Sprintf("%d d ago", int(d.Hours()/24))
+		}
+		return t.In(india).Format("2 Jan")
+	},
+	"initial": func(s string) string {
+		for _, r := range strings.TrimSpace(s) {
+			return strings.ToUpper(string(r))
+		}
+		return "?"
+	},
+	"script": func() template.JS { return template.JS(consoleScript) },
+	"words":  func(s string) string { return strings.ReplaceAll(s, "_", " ") },
+	"pct":    func(n, of int) int { return percent(n, of) },
+	"mod":    func(a, b int) int { return a % b },
 }).Parse(consolePage))
 
 var india = time.FixedZone("IST", 5*3600+1800)
@@ -156,7 +188,7 @@ func (c *Console) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("Referrer-Policy", "no-referrer")
-	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'self'; frame-ancestors 'none'")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src "+consoleScriptHash+"; style-src 'unsafe-inline'; img-src data:; form-action 'self'; frame-ancestors 'none'")
 
 	if c.Gate != "" && subtle.ConstantTimeCompare([]byte(r.Header.Get(GateHeader)), []byte(c.Gate)) != 1 {
 		http.NotFound(w, r)
@@ -311,6 +343,7 @@ type view struct {
 	Error string
 	Made  *Tester
 	Get   string
+	Now   time.Time
 
 	Days      []dayBar
 	Today     int
@@ -360,7 +393,6 @@ type dayBar struct {
 	Label  string
 	Count  int
 	Height int
-	X      int
 }
 
 type providerRow struct {
@@ -410,12 +442,22 @@ func (c *Console) show(w http.ResponseWriter, r *http.Request, fill func(ctx con
 		c.render(w, status, view{Page: "error", Error: err.Error()})
 		return
 	}
+	if page != "feedback" {
+		if all, err := c.Books.Feedback(r.Context()); err == nil {
+			for _, f := range all {
+				if !f.Handled {
+					v.Open++
+				}
+			}
+		}
+	}
 	c.render(w, http.StatusOK, v)
 }
 
 func (c *Console) render(w http.ResponseWriter, status int, v view) {
 	v.Base = c.base()
 	v.Get = DownloadLink()
+	v.Now = c.now()
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	_ = consoleTemplate.Execute(w, v)
@@ -463,7 +505,6 @@ func (c *Console) overview(ctx context.Context, v *view) error {
 	}
 	for i := range v.Days {
 		v.Days[i].Height = v.Days[i].Count * 120 / most
-		v.Days[i].X = i * 40
 	}
 	v.Today = v.Days[len(v.Days)-1].Count
 
@@ -590,7 +631,6 @@ func (c *Console) tester(ctx context.Context, v *view, name string) error {
 	}
 	for i := range v.Days {
 		v.Days[i].Height = v.Days[i].Count * 120 / most
-		v.Days[i].X = i * 36
 	}
 	v.Who.Today = v.Days[len(v.Days)-1].Count
 
@@ -681,6 +721,7 @@ func (c *Console) feedback(ctx context.Context, v *view) error {
 	if err != nil {
 		return err
 	}
+	sort.SliceStable(all, func(i, j int) bool { return !all[i].Handled && all[j].Handled })
 	v.Feedback = all
 	for _, f := range all {
 		if !f.Handled {

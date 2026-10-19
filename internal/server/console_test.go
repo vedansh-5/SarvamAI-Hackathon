@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -287,5 +289,23 @@ func TestAFailureKeepsTheAppAndTheModelsReason(t *testing.T) {
 	got, _ := ledger.Activity(context.Background(), "2026-10-14")
 	if len(got) != 1 || got[0].App != "Notes" || got[0].Words != "make it purple" || got[0].Fault != synth.FaultUnwritable || got[0].Why != "Notes has no way to do that" {
 		t.Errorf("kept %+v", got)
+	}
+}
+
+func TestTheConsoleRunsOnlyTheScriptItShips(t *testing.T) {
+	console := &Console{Books: NewMemory(nil), Key: consoleKey}
+	rec := httptest.NewRecorder()
+	console.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/console", nil))
+
+	body := rec.Body.String()
+	start := strings.Index(body, "<script>")
+	end := strings.Index(body, "</script>")
+	if start < 0 || end < start || strings.Count(body, "<script") != 1 {
+		t.Fatal("the page should carry exactly one script")
+	}
+	sum := sha256.Sum256([]byte(body[start+len("<script>") : end]))
+	allowed := "script-src 'sha256-" + base64.StdEncoding.EncodeToString(sum[:]) + "';"
+	if policy := rec.Header().Get("Content-Security-Policy"); !strings.Contains(policy, allowed) {
+		t.Errorf("the script on the page is not the one the policy allows:\n%s", policy)
 	}
 }
