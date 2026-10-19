@@ -5,6 +5,7 @@
   var MOST = 400;
   var MOST_CELLS = 120;
 
+  var MOST_LOOKED = 6000;
   var MOST_FRAMES = 12;
   var DEEPEST_FRAME = 3;
   var inFrame = new Map();
@@ -46,7 +47,7 @@
   }
 
   function squash(s, n) {
-    s = String(s || '').replace(/\s+/g, ' ').trim();
+    s = String(s || '').replace(/[\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]/g, '').replace(/\s+/g, ' ').trim();
     return s.length > n ? s.slice(0, n) : s;
   }
 
@@ -61,14 +62,40 @@
     return /\b(cvv|cvc|card ?number|cardnumber|otp|one[- ]time|passcode|upi pin|\bpin\b|captcha|security code)\b/.test(hint);
   }
 
+  var DATE_WORDS = /\b(date|dates|depart|departure|departing|return|returning|check[- ]?in|check[- ]?out|arrival|arrive|pick[- ]?up|drop[- ]?off|when|dob|birth)\b/i;
+  var SEARCHY = /search/i;
+
+  function hint(el) {
+    return [el.id, el.getAttribute('name'), el.getAttribute('placeholder'), el.getAttribute('aria-label'), el.title].join(' ');
+  }
+
+  function suggests(el) {
+    var tag = el.tagName.toLowerCase();
+    var role = (el.getAttribute('role') || '').toLowerCase();
+    var type = (el.getAttribute('type') || '').toLowerCase();
+    if (tag === 'select' || type === 'search' || role === 'searchbox' || SEARCHY.test([el.getAttribute('placeholder'), el.getAttribute('aria-label'), el.title].join(' '))) return false;
+    var auto = (el.getAttribute('aria-autocomplete') || '').toLowerCase();
+    return role === 'combobox' || auto === 'list' || auto === 'both' || (tag === 'input' && el.hasAttribute('list'));
+  }
+
+  function datey(el, name) {
+    var tag = el.tagName.toLowerCase();
+    var type = (el.getAttribute('type') || '').toLowerCase();
+    if (tag === 'input' && (type === 'date' || type === 'datetime-local')) return true;
+    var fixed = tag === 'input' ? el.readOnly : !(tag === 'textarea' || el.isContentEditable);
+    return fixed && DATE_WORDS.test(String(name).split(' ').slice(0, 3).join(' ') + ' ' + hint(el)) && tag !== 'a' && !/^(tab|link|menuitem|option|checkbox|radio|switch)$/.test((el.getAttribute('role') || '').toLowerCase());
+  }
+
   function roleOf(el) {
     var tag = el.tagName.toLowerCase();
     var role = (el.getAttribute('role') || '').toLowerCase();
     var type = (el.getAttribute('type') || '').toLowerCase();
+    if (steppers.has(el)) return 'AXIncrementor';
     if (secret(el)) return 'AXSecureTextField';
+    if (role === 'spinbutton') return 'AXIncrementor';
     if (role === 'slider' || (tag === 'input' && type === 'range')) return 'AXSlider';
     if (role === 'textbox' || role === 'searchbox') return 'AXTextField';
-    if (role === 'combobox') return 'AXComboBox';
+    if (role === 'combobox') return suggests(el) ? 'AXComboBox' : 'AXTextField';
     if (role === 'checkbox' || role === 'switch') return 'AXCheckBox';
     if (role === 'radio') return 'AXRadioButton';
     if (role === 'tab') return 'AXTab';
@@ -82,13 +109,50 @@
       if (type === 'checkbox') return 'AXCheckBox';
       if (type === 'radio') return 'AXRadioButton';
       if (type === 'button' || type === 'submit' || type === 'reset' || type === 'image' || type === 'file') return 'AXButton';
-      return 'AXTextField';
+      if (type === 'number') return 'AXIncrementor';
+      return suggests(el) ? 'AXComboBox' : 'AXTextField';
     }
     if (el.isContentEditable) return 'AXTextArea';
     return 'AXButton';
   }
 
+  function groupOf(el) {
+    var group = el.closest && el.closest('[role=group],[role=radiogroup],fieldset');
+    if (group) {
+      var said = squash(group.getAttribute('aria-label') || (group.querySelector('legend') || {}).innerText, 60);
+      if (said) return said;
+    }
+    var node = el;
+    for (var up = 0; up < 5 && node && node !== document.body; up++, node = node.parentElement) {
+      var peer = node.previousElementSibling;
+      for (var k = 0; peer && k < 4; k++, peer = peer.previousElementSibling) {
+        if (picked.has(peer) || (peer.querySelector && peer.querySelector(PICK))) continue;
+        var first = String(peer.innerText || '').split('\n').map(function (l) { return squash(l, 60); }).filter(Boolean)[0] || '';
+        if (/[a-z]/i.test(first)) return first;
+      }
+    }
+    return '';
+  }
+
+  function plainName(el) {
+    var name = ownName(el);
+    if (!name) {
+      var mark = [el.id, typeof el.className === 'string' ? el.className : '', el.getAttribute('data-cy'), el.getAttribute('data-testid')].join(' ');
+      if (/close|dismiss/i.test(mark)) return 'Close';
+    }
+    if (name && name.length <= 4 && !/[a-z]/i.test(name)) {
+      var group = groupOf(el);
+      if (group) return group + ': ' + name;
+    }
+    return name;
+  }
+
   function nameOf(el) {
+    if (steppers.has(el)) return steppers.get(el).name;
+    return plainName(el);
+  }
+
+  function ownName(el) {
     var tag = el.tagName.toLowerCase();
     var by = el.getAttribute('aria-labelledby');
     if (by) {
@@ -114,6 +178,7 @@
   }
 
   function valueOf(el) {
+    if (steppers.has(el)) return steppers.get(el).value;
     var tag = el.tagName.toLowerCase();
     var type = (el.getAttribute('type') || '').toLowerCase();
     if (type === 'password') return '';
@@ -127,6 +192,7 @@
     }
     if (tag === 'input' || tag === 'textarea') return squash(el.value, 200);
     if (el.isContentEditable) return squash(el.innerText, 200);
+    if (!picked.has(el) && typeof el.className === 'string' && /(^|[\s_-])(selected|active|checked|current|chosen)($|[\s_-])/i.test(el.className)) return 'selected';
     return '';
   }
 
@@ -162,6 +228,75 @@
   var found = [];
   gather(document, found, null, 0);
 
+  var INC = /^(\+|＋|﹢)$|^(increase|increment|add|plus|more)\b/i;
+  var DEC = /^(-|−|–|－|﹣)$|^(decrease|decrement|remove|minus|fewer|less)\b/i;
+  var steppers = new Map();
+  var picked = new Set(found);
+
+  function said(el) {
+    return squash(el.getAttribute('aria-label') || el.getAttribute('title') || el.innerText, 40);
+  }
+
+  function pointy(el) {
+    try { return getComputedStyle(el).cursor === 'pointer'; } catch (e) { return false; }
+  }
+
+  var looked = document.body ? document.body.querySelectorAll('*') : [];
+  var extra = [];
+  for (var p = 0; p < looked.length && p < MOST_LOOKED; p++) {
+    var cand = looked[p];
+    if (picked.has(cand) || !pointy(cand)) continue;
+    if (cand.parentElement && pointy(cand.parentElement) && cand.parentElement !== document.body) continue;
+    if (/^(svg|path|img|html|body|option)$/i.test(cand.tagName)) continue;
+    if (cand.closest(PICK) && cand.closest(PICK) !== cand) continue;
+    var inner = cand.querySelectorAll(PICK), covers = false;
+    for (var q = 0; q < inner.length; q++) {
+      var ib = inner[q].getBoundingClientRect();
+      if (ib.width >= 2 && ib.height >= 2 && (!inner[q].checkVisibility || inner[q].checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }))) { covers = true; break; }
+    }
+    if (covers) continue;
+    extra.push(cand);
+  }
+
+  var buttons = found.concat(extra);
+  for (var b = 0; b < buttons.length; b++) {
+    var up = buttons[b];
+    if (!INC.test(said(up))) continue;
+    var box = up.parentElement;
+    for (var lift = 0; lift < 3 && box && box !== document.body; lift++, box = box.parentElement) {
+      var down = null, count = null;
+      var kids = box.querySelectorAll('*');
+      for (var z = 0; z < kids.length; z++) {
+        var kid = kids[z];
+        if (kid === up || up.contains(kid)) continue;
+        if (!down && buttons.indexOf(kid) >= 0 && DEC.test(said(kid))) down = kid;
+        else if (!count && kid.children.length === 0 && /^\d+$/.test(squash(kid.innerText, 8))) count = kid;
+        else if (!count && kid.tagName === 'INPUT' && /^\d+$/.test(String(kid.value).trim())) count = kid;
+      }
+      if (down && count) {
+        if (!steppers.has(box)) {
+          var label = squash(box.getAttribute('aria-label'), 60);
+          if (!label && box.parentElement) {
+            var whole = String(box.parentElement.innerText || '').replace(String(box.innerText || ''), '');
+            label = whole.split('\n').map(function (l) { return squash(l, 60); }).filter(function (l) { return /[a-z]/i.test(l); })[0] || '';
+          }
+          if (!label) label = groupOf(box);
+          steppers.set(box, { name: label, value: count.tagName === 'INPUT' ? String(count.value).trim() : squash(count.innerText, 8) });
+          extra.push(box);
+        }
+        break;
+      }
+    }
+  }
+
+  if (extra.length) {
+    found = found.concat(extra);
+    found.sort(function (a, b) {
+      if (a === b || a.ownerDocument !== b.ownerDocument) return 0;
+      return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
+    });
+  }
+
   var cells = 0;
   for (var c = 0; c < found.length; c++) {
     if ((found[c].getAttribute('role') || '').toLowerCase() === 'gridcell') cells++;
@@ -186,6 +321,7 @@
     }
     var name = nameOf(el);
     var role = roleOf(el);
+    if ((role === 'AXButton' || role === 'AXTextField') && datey(el, name)) role = 'AXDateField';
     if (!name && (role === 'AXButton' || role === 'AXLink' || role === 'AXTab' || role === 'AXMenuItem')) continue;
     var item = {
       el: el,

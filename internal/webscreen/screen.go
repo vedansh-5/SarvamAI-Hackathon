@@ -3,9 +3,9 @@ package webscreen
 import (
 	"context"
 	_ "embed"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -308,15 +308,8 @@ func (s *Screen) chooseFile(ctx context.Context, step uiact.Step, t uiact.Tree) 
 }
 
 func (s *Screen) send(ctx context.Context, a act) error {
-	arg, err := json.Marshal(a)
+	out, err := s.ask(ctx, a)
 	if err != nil {
-		return err
-	}
-	var out struct {
-		OK    bool   `json:"ok"`
-		Error string `json:"error"`
-	}
-	if err := s.Page.AskFront(ctx, actOnPage+"("+string(arg)+")", &out); err != nil {
 		return err
 	}
 	if !out.OK {
@@ -368,6 +361,7 @@ func (s *Screen) Act(ctx context.Context, p uiact.Program, t uiact.Tree) error {
 			continue
 		}
 
+		var el uiact.Element
 		if a.Verb == "press" {
 			key, ok := domKeys[step.Key]
 			if !ok {
@@ -387,7 +381,8 @@ func (s *Screen) Act(ctx context.Context, p uiact.Program, t uiact.Tree) error {
 				}
 			}
 		} else {
-			el, why := t.Resolve(step.Target)
+			var why string
+			el, why = t.Resolve(step.Target)
 			if why != "" {
 				return &uiact.InvalidError{App: t.App, Reasons: []string{why}}
 			}
@@ -401,24 +396,49 @@ func (s *Screen) Act(ctx context.Context, p uiact.Program, t uiact.Tree) error {
 			a.ID = id
 		}
 
-		if err := s.send(ctx, a); err != nil {
+		var err error
+		switch {
+		case step.Verb() == "type" && el.Role == "AXDateField":
+			err = s.pickDate(ctx, t, step)
+		case step.Verb() == "set":
+			err = s.setCount(ctx, step)
+		default:
+			err = s.actOn(ctx, a, step, el, t)
+		}
+		if err != nil {
 			var invalid *uiact.InvalidError
 			if errors.As(err, &invalid) {
 				invalid.App = t.App
 			}
 			return err
 		}
+	}
+	return nil
+}
 
-		if ctx.Err() != nil {
-			return ctx.Err()
+func (s *Screen) actOn(ctx context.Context, a act, step uiact.Step, el uiact.Element, t uiact.Tree) error {
+	out, err := s.ask(ctx, a)
+	if err != nil {
+		return err
+	}
+	if out.Opens && step.Verb() == "type" {
+		return s.typeWhereItOpens(ctx, t, a.ID, el, step.Text)
+	}
+	if !out.OK {
+		return &uiact.InvalidError{App: t.App, Reasons: []string{out.Error}}
+	}
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	if !s.waitForAnAnswer(ctx, t) {
+		if step.Verb() == "hover" {
+			s.pointForReal(ctx, step, t)
+			return nil
 		}
-		if !s.waitForAnAnswer(ctx, t) {
-			if step.Verb() == "hover" {
-				s.pointForReal(ctx, step, t)
-				continue
-			}
-			s.byHand(ctx, step, t)
-		}
+		s.byHand(ctx, step, t)
+	}
+	if step.Verb() == "type" && el.Role == "AXComboBox" {
+		s.pickSuggestion(ctx, t, step.Text)
 	}
 	return nil
 }
@@ -483,6 +503,16 @@ func (s *Screen) ValueOf(ctx context.Context, t uiact.Tree, sel uiact.Selector) 
 	if !ok {
 		return "", false
 	}
+	if el.Role == "AXDateField" {
+		if at, ok := wantedDate(strings.TrimSpace(el.Value+" "+el.Title), time.Now()); ok {
+			return at.Format("2 Jan 2006"), true
+		}
+	}
+	if el.Role == "AXIncrementor" {
+		if _, err := strconv.Atoi(strings.TrimSpace(el.Value)); err == nil {
+			return strings.TrimSpace(el.Value), true
+		}
+	}
 	var out struct {
 		OK    bool   `json:"ok"`
 		Value string `json:"value"`
@@ -511,6 +541,12 @@ func (s *Screen) PutBack(ctx context.Context, _ string, sel uiact.Selector, valu
 	id, ok := idOf(el)
 	if !ok {
 		return fmt.Errorf("webscreen: that is not a field on the page")
+	}
+	if el.Role == "AXIncrementor" {
+		return s.Act(ctx, uiact.Program{App: tree.App, Steps: []uiact.Step{{Do: "set", Target: sel, Text: value}}}, tree)
+	}
+	if value != "" {
+		return s.Act(ctx, uiact.Program{App: tree.App, Steps: []uiact.Step{{Do: "type", Target: sel, Text: value}}}, tree)
 	}
 	return s.send(ctx, act{Verb: "type", ID: id, Text: value})
 }

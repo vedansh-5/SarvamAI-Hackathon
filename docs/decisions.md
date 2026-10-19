@@ -6550,3 +6550,64 @@ script only hides, shows and copies. The page's policy allowed no script at
 all; it now allows exactly one, `internal/server/console.js`, by its SHA-256,
 worked out when the server starts. Nothing else can run, inline or loaded, and
 a test checks that the script on the page is the one the policy names.
+
+## D-272 — A booking form is read as a person sees it, and its three hard controls are worked in code
+
+"Book a flight on makemytrip" failed four times, four ways (plan B2). Loaded
+in a Chrome of its own (headless, a throwaway profile, nothing searched), the
+page showed why: of the whole search form the reader saw From and To. One Way,
+Departure, Return, Travellers, Search and the sign-in popup's close were plain
+blocks with a click handler and no role, so they were never listed, and the
+model said the form needed "custom inputs that are not accessible". It was
+right.
+
+What the reader does now (`internal/webscreen/page.js`):
+
+- Anything drawn with a pointing-hand cursor is a control, the outermost one,
+  unless it is inside a control already or holds a visible one. That alone
+  lists the whole form.
+- Invisible direction marks are taken out of names, as D-154 did for app
+  names: MakeMyTrip writes every passenger number as a mark and a digit.
+- A name that is only a number or a symbol gets its group's label: the rows of
+  1 to 9 under "ADULTS (12y +)" read "ADULTS (12y +): 2", where before every
+  row read "1", "2" and the model could not tell adults from children.
+- An unnamed control whose id or class says close is "Close". A clickable tile
+  whose class marks it selected reads "selected", so picking it is a change on
+  screen and not a step that "changed nothing".
+
+Three kinds of control, decided by the reader and worked by
+`internal/webscreen/kinds.go`, each one step for the model:
+
+- **A box that suggests** (AXComboBox: autocomplete, a datalist or a combobox,
+  not a search box). After typing, the suggestion that fits is clicked: the
+  same name, or the same first part ("Goa (South)"), over one that starts with
+  the text, over a matching airport code, over one that only contains it.
+  MakeMyTrip puts the code first, and "GOA" is Genoa. A read-only box (the
+  From and To you see) is clicked, and the text goes into the box that opens.
+- **A date** (AXDateField: a date input, or a read-only box or clickable block
+  whose name starts with Departure, Return, Check-in, Date and the like). An
+  input takes the date; otherwise the calendar is opened, its days read from
+  their labels, moved a month at a time, and the day clicked. A greyed-out day
+  is refused with that reason. Dates are read in the shapes pages label them
+  ("Thu Oct 01 2026", "Choose Saturday, March 7th, 2027"); one without a year
+  is the next to come.
+- **A count** (AXIncrementor: a + and a − around a number, number inputs,
+  spinbuttons). Setting it presses + or − until the number shows.
+
+MakeMyTrip answers only real clicks on these blocks, so opening one tries a
+scripted click and, if what it needs has not appeared within half a second,
+the real pointer. Undo keeps the box's text, the date and the count, and puts
+each back through the same path.
+
+The model is told the three kinds; Search and Book join Submit, Send and Save
+as buttons pressed only when asked; a task that says fill in is done when its
+fields hold what it gave. The step loop stops after three steps in a row that
+changed nothing, and says the last step that changed something, where before
+it could take all 24.
+
+Measured: VANS's own steps filled MakeMyTrip's real form (To Goa, 5 Dec 2026,
+2 adults) in the hidden Chrome. On a test page built like it, the real model
+filled a one-way trip, two cities, a date two months on, 2 adults and 2 rooms
+in 8 steps and 3 calls, about 8 seconds, three runs out of three. Not done:
+the real model on MakeMyTrip itself (it needs Vedansh's Chrome), and number
+rows such as ADULTS are clicks, which undo does not put back.

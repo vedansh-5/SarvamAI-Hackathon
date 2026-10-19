@@ -35,10 +35,10 @@ step "The panel type-checks"
 if [ "$model" = yes ]; then
   env=.env
   [ -f "$env" ] || env="$(git rev-parse --path-format=absolute --git-common-dir)/../.env"
-  step "With the real model, in a hidden Chrome: the map saves calls, a form is filled with yes to all and put back, a file task runs and is put back"
+  step "With the real model, in a hidden Chrome: the map saves calls, a form is filled with yes to all and put back, a file task runs and is put back, a booking form is filled"
   (
     if [ -f "$env" ]; then set -a; . "$env"; set +a; fi
-    cd internal/engine && VANS_LIVE_MODEL=1 go test -tags integration -count=1 -run 'TestLiveTheMapSaves|TestLiveYesToAll|TestLiveAFileTask' .
+    cd internal/engine && VANS_LIVE_MODEL=1 go test -tags integration -count=1 -run 'TestLiveTheMapSaves|TestLiveYesToAll|TestLiveAFileTask|TestLiveABookingForm' .
   )
 fi
 

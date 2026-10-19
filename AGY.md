@@ -1968,6 +1968,7 @@ calls, nothing on screen. `release.sh` runs the quiet part itself. There is no M
 | 12 | Say what was checked and what was not. "Builds" is not "works" | The PR body names each rule above that the change touched and how it was checked |
 | 13 | Selected text is read in every application, WhatsApp included (it only gives the selection through Copy), and the clipboard is left as it was | `infra/mac/basics.sh --screen`; then select a word in WhatsApp and run `go run ./cmd/vans-probe -selection WhatsApp` |
 | 14 | VANS never asks for the Keychain password after an update or a rebuild. Asked once, ever, with "Always Allow" | After an update, open VANS and ask something: no Keychain box. `codesign -dr - ui/vans-engine` after `npm run dev` names `certificate leaf`, not `cdhash` |
+| 15 | On a page, a box that suggests as you type, a date with a calendar and a + / − count are each filled in one step, and undo puts them back (D-272) | `infra/mac/basics.sh` runs the booking page in a hidden Chrome every time; `--model` fills it with the real model |
 
 List VANS's windows on screen, with size and layer:
 

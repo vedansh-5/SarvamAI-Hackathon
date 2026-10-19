@@ -28,7 +28,7 @@ func openHeadless(t *testing.T) *tab {
 func (h *tab) eval(script string) string { return h.Eval(script) }
 
 func (h *tab) screen() *Screen {
-	return &Screen{Page: h.Chrome, Browser: "Google Chrome", RealDrag: h.Drag, Log: h.t.Logf}
+	return &Screen{Page: h.Chrome, Browser: "Google Chrome", RealDrag: h.Drag, RealClick: h.Click, RealType: h.TypeText, RealMove: h.Move, Log: h.t.Logf}
 }
 
 func servePages(t *testing.T) (string, string) { return headless.Serve(t, "testdata") }

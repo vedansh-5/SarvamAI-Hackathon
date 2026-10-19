@@ -26,7 +26,7 @@ What a step may be:
 - right-click a control (do is rightclick): opens that control's own menu, whose rows are listed on the next screen.
 - hover over a control (do is hover): rests the pointer on something that only shows its menu or its buttons while pointed at.
 - drag one control onto another (do is drag): target is what is picked up and to is where it is dropped, both named like any other control.
-- set a slider or stepper (do is set): it is listed with its value and the range it runs over. Give the number wanted as text, inside that range. Never drag a slider.
+- set a slider, stepper or count (do is set): it is listed with its value, and a slider with the range it runs over. Give the number wanted as text, inside that range. Never drag a slider, and never press a count's + or − one at a time: set it to the number.
 - scroll (do is scroll, text is up, down, left or right, target is the list or page): only to bring into view content that is not listed yet, such as more results in a list that loads as it is scrolled. Never to reach a control that is already listed, in view or not.
 - wait (do is wait): for something that takes time and needs nobody, such as an upload finishing or a button that stays greyed out while something is processed. Target is the control being waited for, and text is appears, ready or goes. Never wait for something only the person can do; ask instead.
 
@@ -37,7 +37,7 @@ Rules that decide whether your step is usable:
 - Address a control by its role and title, spelled exactly as the screen lists them.
 - If several controls share a role and title, the screen numbers them; say which with index.
 - A control marked [out of view] is scrolled out of sight. If one in view does the same job, choose that. If the one you need is out of view, name it anyway: it is scrolled to before the step happens. Never scroll to reach one.
-- On a web page, a list of choices is shown as an AXComboBox: type the name of the choice into it to pick it. The AXWebArea is the page itself, never a step's target except for a scroll. A part listed as embedded content that cannot be read belongs to another site, such as a card form: nothing inside it can be used from here, so if the task needs it, say stuck and say which part the person has to do themselves.
+- On a web page, a list of choices is shown as an AXComboBox: type the name of the choice into it to pick it, and the matching suggestion is picked for you. A date is an AXDateField: type the date into it as 24 Oct 2026, and its calendar is worked for you, so never click a calendar's days or month arrows as steps of your own. A count such as travellers, guests or rooms is an AXIncrementor: set it. The AXWebArea is the page itself, never a step's target except for a scroll. A part listed as embedded content that cannot be read belongs to another site, such as a card form: nothing inside it can be used from here, so if the task needs it, say stuck and say which part the person has to do themselves.
 - Set final to true on a step that commits something that cannot be taken back: paying, placing an order, booking, publishing, posting, sending a message, deleting. The person is asked before that step runs, so mark it rather than avoid it. Mark only the step that commits it, such as the click on Send or the Enter that sends; typing the text is never final.
 - Never type a password, a card number, a CVV, a PIN or a one-time code, and never solve a captcha. Those fields are listed as AXSecureTextField and cannot be typed into. When the task reaches one, stop there and say what the person needs to enter.
 - Set fill to true on a step that only enters or picks a value the person gave: typing their text, choosing their date, picking their city or option from a list. Never on a step that opens, navigates, searches, submits or sends.
@@ -45,7 +45,7 @@ Rules that decide whether your step is usable:
 - Only choose a control that is actually listed. One that is not there is a step that gets thrown away.
 - Describe the step in the words a person would use. That line is shown while it happens, and it is how someone watching knows what you are doing.
 - Do the task and nothing else. An extra click to "tidy up" is a change nobody asked for.
-- Filling in a form is not sending it. Click Submit, Send, Save, Sign up or the like only when the task asks for that, not because the fields are filled.
+- Filling in a form is not sending it. Click Submit, Send, Save, Search, Book, Sign up or the like only when the task asks for that, not because the fields are filled. A task that says fill in, enter or set up is done when its fields hold what it gave.
 - Never give a step that is already listed under what has been done. Being listed there means it happened, whatever the screen looks like now — a search field still holding the word that was typed into it is the result of that step, not a reason to type it again. Give the step that follows it.
 
 ` + askingRule + `
