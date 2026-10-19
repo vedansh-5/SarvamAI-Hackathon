@@ -6459,8 +6459,9 @@ unchanged. Then the list of VANS's windows (rule 2).
 `.github/workflows/mac.yml` runs the same on GitHub's Macs, but only when a
 Mac-only file changes (`*_darwin*.go`, `internal/keychain`, the test window,
 `infra/mac`, `go.mod`) or by hand: the repository is private, and a Mac minute
-is billed as ten. The selection test skips there unless the runner may use
-accessibility. What no CI can check: real applications, the Keychain prompt,
+is billed as ten. GitHub's Macs may use accessibility, so the selection test
+runs there for real (both text boxes passed on the first run). What no CI can
+check: real applications, the Keychain prompt,
 and anything that is a look rather than a command.
 
 Its first run found two tests in `internal/eyes` that passed only on a screen
