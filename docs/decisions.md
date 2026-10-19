@@ -6484,3 +6484,43 @@ the same place three times, the window list, pointer sweeps opening nothing,
 the hotkey giving the panel the keyboard, a hovered panel closing and a
 summoned one staying, and two differently built engines sharing a Keychain
 item without a prompt.
+
+## D-270 — What was built and never run is run in a hidden Chrome, and what that found
+
+The plan before voice (docs/plans/2026-10-18-before-voice.md, part A) listed
+pieces marked built and never tried for real. The ones that do not need a
+person's window are now tests that run in a Chrome of their own: started
+headless with a throwaway profile, no window, nothing of the person's touched
+(`internal/headless`). Pages are served from the test's own folders, one of
+them under a second name so a frame from "another site" is real.
+
+- `internal/webscreen/headless_live_test.go`: every kind of step on a page
+  (double-click, right-click, hover, both kinds of slider, a control scrolled
+  out of its list, drag through the real-pointer path), frames written inline,
+  from the same site and from another one, and typing put back.
+  `infra/mac/basics.sh` runs it every time.
+- `internal/engine/*_live_test.go`, with the real model (`basics.sh --model`):
+  the map (D-167) on a three-screen app, "yes to all" (D-214) on a sign-up form,
+  and a file task (D-199) on a made-up home folder, each with its undo.
+
+What they found:
+
+1. **Putting back an empty field wrote "undefined" into it.** The step's text
+   is left out of what is sent to the page when it is empty, and the page script
+   used it as it came. An empty field is what most typing starts from, so most
+   undos on a page did this. The script now takes missing text as empty.
+2. **A guided run asked the model once per step even when it could see them
+   all.** The coach's wording of the task asked for "the step to take", and the
+   planner was given the same wording, so it planned one. It now asks for the
+   steps in order, each shown in turn; the step writer still gives one, since
+   that is all its answer holds. A three-field form went from six calls to two.
+3. **Filling in a form was taken to mean sending it.** With the fields filled the
+   model asked for Submit, on a form with none, then scrolled to look for it.
+   The plan and step prompts, and the coach's wording, now say that filling is
+   not sending: Submit, Send or Save only when asked.
+4. The map works as meant: the second task in the same app took two or three
+   calls with it and four without, because the planner could plan through the
+   screens it had been told about.
+5. The log said every planned step "came from last time"; only kept ones do.
+
+Each test was checked to fail on the bug it is for.

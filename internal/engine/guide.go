@@ -764,7 +764,7 @@ func detailOf(step uiact.Step) string {
 func asTask(question string) string {
 	return fmt.Sprintf(
 		"The person is looking at this window and asked: %q\n\n"+
-			"Work out which control on screen answers that, or the next step in completing it, and give it as the step to take. "+
+			"Work out which control on screen answers that, or the steps that complete it, and give them in order: each is shown to the person in turn. "+
 			"Describe it as you would to someone who cannot find it. "+
 			"They are performing every action themselves, and are learning as they go. "+
 			"Give one small action per step: one click, one thing to type, or one key to press. Never fold two into one step, "+
@@ -775,7 +775,8 @@ func asTask(question string) string {
 			"Pointing at a control is the only way you can answer: describing where something is in words reaches nobody. "+
 			"Never mark done on the first turn — the control has not been pointed at yet. "+
 			"If they asked where something is, point at it, and mark done on the next turn, once it appears in what has been done so far. "+
-			"If they asked how to accomplish something, mark done only when it is fully accomplished or nothing further is needed.",
+			"If they asked how to accomplish something, mark done only when it is fully accomplished or nothing further is needed. "+
+			"Filling in a form is accomplished when its fields hold what was asked: sending it is a further thing, only when they asked for it.",
 		question)
 }
 

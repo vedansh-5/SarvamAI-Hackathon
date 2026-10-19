@@ -7,6 +7,16 @@ trap 'rm -rf "$out"' EXIT
 
 step() { printf '\n== %s\n' "$1"; }
 
+screen=no
+model=no
+for arg in "$@"; do
+  case "$arg" in
+    --screen) screen=yes ;;
+    --model) model=yes ;;
+    *) echo "usage: basics.sh [--screen] [--model]"; exit 1 ;;
+  esac
+done
+
 step "The Mac-only code builds and its tests pass"
 CGO_ENABLED=1 go vet ./...
 CGO_ENABLED=1 go test -count=1 ./...
@@ -16,11 +26,24 @@ mkdir -p "$out/tester.app"
 CGO_ENABLED=1 go build -tags tester -trimpath -ldflags "-s -w" -o "$out/tester.app/vans-engine" ./cmd/vans-engine
 python3 -I infra/mac/check-bundle.py "$out/tester.app"
 
-step "The panel type-checks"
-(cd ui && npx tsc --noEmit)
+step "Every kind of step works on a page, frames and undo included (in a hidden Chrome of its own)"
+(cd internal/webscreen && go test -tags integration -count=1 -run Headless .)
 
-if [ "${1:-}" != "--screen" ]; then
-  printf '\nDone. Run with --screen to also check what needs a window (it takes the screen for a few seconds).\n'
+step "The panel type-checks"
+(cd ui && { [ -d node_modules ] || npm ci --silent; } && npx tsc --noEmit)
+
+if [ "$model" = yes ]; then
+  env=.env
+  [ -f "$env" ] || env="$(git rev-parse --path-format=absolute --git-common-dir)/../.env"
+  step "With the real model, in a hidden Chrome: the map saves calls, a form is filled with yes to all and put back, a file task runs and is put back"
+  (
+    if [ -f "$env" ]; then set -a; . "$env"; set +a; fi
+    cd internal/engine && VANS_LIVE_MODEL=1 go test -tags integration -count=1 -run 'TestLiveTheMapSaves|TestLiveYesToAll|TestLiveAFileTask' .
+  )
+fi
+
+if [ "$screen" = no ]; then
+  printf '\nDone. --screen also checks what needs a window (it takes the screen for a few seconds); --model spends a few model calls.\n'
   exit 0
 fi
 

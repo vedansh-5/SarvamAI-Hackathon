@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Every kind of control</title>
+<style>
+  body { font: 14px sans-serif; margin: 20px; }
+  #list { height: 120px; overflow: auto; border: 1px solid #ccc; }
+  #list div { height: 30px; }
+  #menu, #signout { display: none; }
+  .card, .column { display: inline-block; padding: 10px; border: 1px solid #888; margin: 10px; }
+  .column { width: 160px; height: 80px; }
+</style>
+</head>
+<body>
+<p id="log"></p>
+<button id="row" ondblclick="note('opened the row')">Quarterly report</button>
+<div id="photo" role="button" aria-label="Photo" tabindex="0"
+     oncontextmenu="event.preventDefault(); document.getElementById('menu').style.display = 'inline-block'">Photo</div>
+<button id="menu" onclick="note('renamed')">Rename</button>
+<div id="account" role="button" aria-label="Account" tabindex="0"
+     onmouseenter="document.getElementById('signout').style.display = 'inline-block'">Account</div>
+<button id="signout" onclick="note('signed out')">Sign out</button>
+<label>Volume <input id="volume" type="range" min="0" max="100" value="20"></label>
+<div id="brightness" role="slider" aria-label="Brightness" tabindex="0"
+     aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">Brightness</div>
+<label>Name <input id="name" type="text" value="Ada"></label>
+<label>Email <input id="email" type="email"></label>
+<div id="list"></div>
+<div class="card" id="card" role="button" aria-label="Card A">Card A</div>
+<div class="column" id="done" role="button" aria-label="Done column">Done column</div>
+<script>
+  function note(s) { document.getElementById('log').textContent = s; }
+  var list = document.getElementById('list');
+  for (var i = 1; i <= 40; i++) {
+    var row = document.createElement('div');
+    row.textContent = 'Row ' + i;
+    list.appendChild(row);
+  }
+  var later = document.createElement('button');
+  later.textContent = 'Load more';
+  later.onclick = function () { note('loaded more'); };
+  list.appendChild(later);
+  var b = document.getElementById('brightness');
+  b.addEventListener('keydown', function (e) {
+    var now = Number(b.getAttribute('aria-valuenow'));
+    if (e.key === 'ArrowRight') now = Math.min(100, now + 10);
+    if (e.key === 'ArrowLeft') now = Math.max(0, now - 10);
+    b.setAttribute('aria-valuenow', String(now));
+  });
+  var card = document.getElementById('card'), done = document.getElementById('done'), held = false;
+  card.addEventListener('mousedown', function () { held = true; });
+  document.addEventListener('mouseup', function (e) {
+    if (!held) return;
+    held = false;
+    var r = done.getBoundingClientRect();
+    if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
+      done.appendChild(card);
+      note('moved Card A to Done');
+    }
+  });
+</script>
+</body>
+</html>
