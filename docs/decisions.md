@@ -6396,3 +6396,74 @@ request points at what is in front ("this", "it", "here"), as before.
 
 The cost: a clipboard manager may note the copy before it is put back.
 `go run ./cmd/vans-probe -selection <application>` shows what VANS reads.
+
+## D-267 — Every build of the engine is signed the same way
+
+Reported 2026-10-19: macOS kept asking for the Keychain password. The engine
+reads the invite code (and, in a build from the code, the model key) from the
+login Keychain once each time it starts. macOS lets a program read an item
+without asking only if it meets the requirement written on the item when it was
+saved, and that requirement is the program's designated requirement.
+
+- A release is signed with "VANS Developer": `identifier "vans-engine" and
+  certificate leaf = H"…"`. That stays the same across releases. Tried on a
+  throwaway keychain: a second, different build signed with the same
+  certificate read the item without a prompt.
+- A build from the code (`npm run dev`, `npm run build`) was signed only by the
+  Go linker, so its requirement is its own `cdhash`, new at every build. Each
+  rebuild was a stranger to the item, and both kinds of build share
+  `dev.vedansh.vans`, so each one asked.
+- `codesign` itself needs the "VANS Developer" key. The key was imported
+  trusting `/usr/bin/codesign`, but macOS also checks a partition list, and
+  without `apple:` and `codesign:` on it, `codesign` asks at every signing; a
+  release signs several files.
+
+So:
+
+1. `npm run dev` and `npm run build` sign the engine they build with
+   `infra/mac/sign-engine.sh`: "VANS Developer", identifier `vans-engine`, the
+   same requirement as a release. Without the certificate (another Mac, CI) it
+   does nothing.
+2. `infra/mac/signing-setup.sh` adds `apple-tool:,apple:,codesign:` to that
+   key's partition list, once (it asks for the login password then, and notes
+   it in `~/.vans-signing/codesign-allowed`).
+
+An item last saved by an unsigned build still names that build. The first time
+a signed build reads it, macOS asks once; "Always Allow" adds the shared
+requirement and ends it.
+
+What would end it for testers too, on any future change of certificate: an
+Apple Developer ID gives a Team ID, and items can then be tied to the team
+rather than one certificate. Not needed while the certificate is kept
+(`~/.vans-signing`, backed up).
+
+## D-268 — The non-negotiables are run, not only read
+
+Reading selected text in WhatsApp broke without anyone noticing, and it is as
+basic as the panel opening. AGY.md G11 gains rule 13 (selected text in every
+application, the clipboard left as it was) and rule 14 (no Keychain password
+after an update or a rebuild), and says when the list is gone through: the rows
+a change touches before it is called done, the whole list after every third
+change that lands and before every release.
+
+What a command can check is in `infra/mac/basics.sh`: vet and tests with the
+Mac-only code built (CI's Linux machines skip every `darwin && cgo` file), the
+tester bundle check on a real Mac build, the panel's type check. `release.sh`
+runs it before building. `--screen` adds what needs a window and takes the
+screen for a few seconds: `TestLiveTheSelectionIsReadInEveryKindOfTextBox`
+builds a small window (`internal/uiact/testdata/textpad.swift`) with a text box
+that says what is selected and one that only gives it through Copy, as WhatsApp
+does, and checks both are read, in under a second, with the clipboard
+unchanged. Then the list of VANS's windows (rule 2).
+
+`.github/workflows/mac.yml` runs the same on GitHub's Macs, but only when a
+Mac-only file changes (`*_darwin*.go`, `internal/keychain`, the test window,
+`infra/mac`, `go.mod`) or by hand: the repository is private, and a Mac minute
+is billed as ten. GitHub's Macs may use accessibility, so the selection test
+runs there for real (both text boxes passed on the first run). What no CI can
+check: real applications, the Keychain prompt,
+and anything that is a look rather than a command.
+
+Its first run found two tests in `internal/eyes` that passed only on a screen
+wider than 1,080 points: a control is trimmed to the displays, and GitHub's Mac
+has one 1,024 wide. Their picture is now 800 wide.

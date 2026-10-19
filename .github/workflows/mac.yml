@@ -1,0 +1,49 @@
+name: Mac
+
+on:
+  pull_request:
+    paths:
+      - '**/*_darwin*.go'
+      - 'internal/keychain/**'
+      - 'internal/uiact/testdata/**'
+      - 'infra/mac/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/mac.yml'
+  push:
+    branches: [main]
+    paths:
+      - '**/*_darwin*.go'
+      - 'internal/keychain/**'
+      - 'internal/uiact/testdata/**'
+      - 'infra/mac/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/mac.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: mac-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  engine:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Vet the Mac-only code
+        run: CGO_ENABLED=1 go vet ./...
+      - name: Tests on a Mac
+        run: CGO_ENABLED=1 go test ./...
+      - name: The selection is read in every kind of text box
+        working-directory: internal/uiact
+        run: CGO_ENABLED=1 go test -tags integration -count=1 -v -run TestLiveTheSelectionIsReadInEveryKindOfTextBox .
+      - name: The tester engine carries no instructions
+        run: |
+          mkdir -p "$RUNNER_TEMP/tester.app"
+          CGO_ENABLED=1 go build -tags tester -trimpath -ldflags "-s -w" -o "$RUNNER_TEMP/tester.app/vans-engine" ./cmd/vans-engine
+          python3 -I infra/mac/check-bundle.py "$RUNNER_TEMP/tester.app"

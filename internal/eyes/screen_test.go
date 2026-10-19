@@ -40,7 +40,7 @@ type camera struct {
 
 func (c *camera) Shot(context.Context, string) (uiact.Shot, error) {
 	c.shots++
-	return uiact.Shot{JPEG: c.jpeg, X: 100, Y: 50, W: 1000, H: 500}, nil
+	return uiact.Shot{JPEG: c.jpeg, X: 100, Y: 50, W: 800, H: 500}, nil
 }
 
 type reader struct{ looks int }
@@ -72,7 +72,7 @@ func TestAWindowIsReadFromItsPictureWithControlsWhereTheyAreOnScreen(t *testing.
 		t.Fatalf("tree = %+v", tree)
 	}
 	x, y, w, h, why := tree.RectFor(uiact.Selector{Role: "AXButton", Title: "Export"})
-	if why != "" || x != 1000 || y != 60 || w != 80 || h != 20 {
+	if why != "" || x != 820 || y != 60 || w != 64 || h != 20 {
 		t.Errorf("Export at (%d,%d %dx%d) %q, want its place on screen worked out from the picture", x, y, w, h, why)
 	}
 	if err := uiact.Validate(uiact.Program{App: "Lightroom", Steps: []uiact.Step{

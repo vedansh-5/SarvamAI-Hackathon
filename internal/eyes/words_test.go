@@ -39,8 +39,8 @@ func TestWordsOnScreenAreExactAndAButtonTheModelSawTakesTheirPlace(t *testing.T)
 		t.Fatal(err)
 	}
 	export := element(t, tree, "AXButton", "Export")
-	if export.Estimated || export.Position[0] != 1005 || export.Position[1] != 75 {
-		t.Errorf("Export = %+v, want the word's exact place at (1005, 75), not the model's guess", export)
+	if export.Estimated || export.Position[0] != 824 || export.Position[1] != 75 {
+		t.Errorf("Export = %+v, want the word's exact place at (824, 75), not the model's guess", export)
 	}
 	search := element(t, tree, "AXTextField", "Search")
 	if !search.Estimated {
