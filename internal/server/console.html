@@ -521,6 +521,18 @@ form.allowance input { width: 76px; padding: 6px 10px; }
 {{else if eq .Page "feedback"}}
   <div class="head"><div><h1>Feedback</h1><p class="sub">{{if .Open}}{{.Open}} open{{else}}Nothing open{{end}}.</p></div></div>
   <div class="stack">
+  {{if .Stops}}
+  <div class="card">
+    <h2>Why guides were stopped</h2>
+    <table>{{range .Stopped}}<tr><td>{{.Name}}</td><td style="width:45%"><div class="hbar" style="width: {{.Width}}%"></div></td><td class="num">{{.Count}}</td></tr>{{end}}</table>
+    <div class="scroll" style="margin-top:16px">
+    <table>
+      <thead><tr><th>When</th><th>Who</th><th>Why</th><th>Application</th><th>Stopped at</th><th>What they asked</th></tr></thead>
+      <tbody>{{range .Stops}}<tr><td class="mute top" title="{{when .At}}">{{ago $.Now .At}}</td><td class="top">{{.From}}</td><td class="top"><span class="pill {{if eq .Why "Wrong step"}}bad{{else if eq .Why "Too slow"}}warn{{else}}blue{{end}}">{{.Why}}</span></td><td class="top">{{.App}}</td><td class="top">{{.Step}}</td><td class="mute top">{{.Asked}}</td></tr>{{end}}</tbody>
+    </table>
+    </div>
+  </div>
+  {{end}}
   {{range .Feedback}}
   <div class="card {{if .Handled}}done{{end}}">
     <div class="fb">
@@ -538,7 +550,7 @@ form.allowance input { width: 76px; padding: 6px 10px; }
       </div>
     </div>
   </div>
-  {{else}}<div class="card"><p class="empty">No feedback yet.</p></div>{{end}}
+  {{else}}{{if not $.Stops}}<div class="card"><p class="empty">No feedback yet.</p></div>{{end}}{{end}}
   </div>
 
 {{else if eq .Page "trials"}}
