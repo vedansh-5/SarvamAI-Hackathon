@@ -44,6 +44,9 @@ func (t Tree) resolve(sel Selector) (Element, string) {
 		}
 		return matches[sel.Index-1], ""
 	case len(matches) > 1:
+		if el, ok := t.onlyOneInView(matches); ok {
+			return el, ""
+		}
 		return Element{}, fmt.Sprintf("%d elements are a %s%s, so it does not say which one",
 			len(matches), sel.Role, named)
 	default:
@@ -52,6 +55,19 @@ func (t Tree) resolve(sel Selector) (Element, string) {
 }
 
 func (t Tree) Resolve(sel Selector) (Element, string) { return t.resolve(sel) }
+
+func (t Tree) onlyOneInView(matches []Element) (Element, bool) {
+	var seen []Element
+	for _, m := range matches {
+		if _, visible := t.visibleBox(m); visible {
+			seen = append(seen, m)
+		}
+	}
+	if len(seen) != 1 {
+		return Element{}, false
+	}
+	return seen[0], true
+}
 
 func Validate(p Program, t Tree) error { return validate(p, t, false) }
 

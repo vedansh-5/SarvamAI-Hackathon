@@ -6676,3 +6676,19 @@ is kept as it is.
 
 Only guided runs. "Do it for me" runs end on their own messages, which D-171
 already covers.
+
+## D-276 — Of two controls that fit, the one in view is the one meant
+
+A step names a control by its kind and its name. When two controls fit and the
+step gives no number, the step was refused as not saying which one (plan B6),
+which costs a model call to ask again or ends the run. Often only one of the
+two is on screen: a second "Sonoma" further down a list, or a "Save" in a pane
+scrolled away. A person reading the window sees one, and that is the one they
+mean.
+
+So when exactly one of the controls that fit is in view, it is chosen. Both in
+view, or both out of view, is still refused: that is a real choice and it is
+the model's to make. A number the model gives is followed as before. This holds
+for guided runs and for "do it for me", which read the window the same way.
+The model was already told to prefer a control in view (D-144); this covers
+the step that names one without choosing.

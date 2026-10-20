@@ -44,3 +44,28 @@ func TestTheScrollHintSaysWhichWayAndWhere(t *testing.T) {
 		t.Error("gave a scroll hint for a control already in view")
 	}
 }
+
+func twoOfTheSameName(second int) Tree {
+	t := scrolledList(150)
+	t.Elements = append(t.Elements, Element{Role: "AXButton", Title: "Sonoma", Enabled: true, Position: []int{20, second}, Size: []int{100, 20}, Path: []int{0, 2}})
+	return t
+}
+
+func TestOfTwoThatFitTheOneInViewIsChosen(t *testing.T) {
+	sonoma := Selector{Role: "AXButton", Title: "Sonoma"}
+
+	el, why := twoOfTheSameName(700).Resolve(sonoma)
+	if why != "" || el.Position[1] != 40 {
+		t.Fatalf("resolved %+v (%q), want the Sonoma in view", el, why)
+	}
+	if twoOfTheSameName(700).OutOfView(sonoma) {
+		t.Error("the step was sent to scroll for a control already in view")
+	}
+
+	if _, why := twoOfTheSameName(200).Resolve(sonoma); !strings.Contains(why, "does not say which one") {
+		t.Errorf("why = %q; with both in view it is still the model's to say which", why)
+	}
+	if _, why := twoOfTheSameName(700).Resolve(Selector{Role: "AXButton", Title: "Sonoma", Index: 2}); why != "" {
+		t.Errorf("why = %q; a number the model gave is still followed", why)
+	}
+}
