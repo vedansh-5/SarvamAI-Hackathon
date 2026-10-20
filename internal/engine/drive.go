@@ -640,6 +640,7 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 	open := e.openApps()
 	var typed typedSoFar
 	committedSomething := false
+	stalled, gotTo := 0, ""
 
 	state := func() taskRun {
 		return taskRun{
@@ -1067,6 +1068,19 @@ func (e *Engine) stepThroughTask(ctx context.Context, w walk) (taskRun, error) {
 			done = append(done, describe+" — "+effect)
 			did = append(did, answer.Step)
 			soFar.did(answer.Step, describe)
+			if changed {
+				stalled, gotTo = 0, describe
+			} else {
+				stalled++
+			}
+			if stalled >= mostStalled {
+				far := "nothing it did changed anything"
+				if gotTo != "" {
+					far = "the last step that changed something was: " + gotTo
+				}
+				return state(), stopped(app,
+					"engine: the last %d steps in %s changed nothing on screen, so it stopped there; %s", stalled, app, far)
+			}
 			if verb := answer.Step.Verb(); verb == "type" || verb == "set" {
 				filled[uiact.FieldKey(answer.Step.Target.Role, answer.Step.Target.Title)] = true
 			}

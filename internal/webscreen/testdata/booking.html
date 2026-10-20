@@ -1,0 +1,182 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Booking</title>
+<style>
+body { font: 15px sans-serif; margin: 20px; }
+.tile, label, .day, li, .search, .close, .step { cursor: pointer; }
+.trip li { display: inline-block; padding: 6px 10px; }
+.fields { display: flex; gap: 12px; margin: 12px 0; }
+.fields label { display: block; border: 1px solid #ccc; padding: 8px; width: 180px; }
+.fields input[readonly] { border: 0; width: 100%; font-size: 18px; }
+.fields .hidden { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.pop { border: 1px solid #888; padding: 8px; margin: 4px 0; background: #fff; }
+.month { display: inline-block; vertical-align: top; margin-right: 16px; }
+.days { display: grid; grid-template-columns: repeat(7, 32px); }
+.day[aria-disabled=true] { color: #bbb; cursor: default; }
+.modal { position: fixed; left: 100px; top: 60px; width: 400px; height: 200px; background: #fff; border: 2px solid #333; }
+.modal .close { position: absolute; right: 8px; top: 8px; width: 16px; height: 16px; background: #333; }
+.counts ul { list-style: none; padding: 0; display: flex; gap: 6px; }
+.step { display: inline-block; width: 24px; text-align: center; border: 1px solid #aaa; }
+</style>
+</head>
+<body>
+<div class="modal" id="modal"><span class="close" data-cy="closeModal"></span><p>Sign in for the best fares</p></div>
+
+<ul class="trip"><li class="tile" data-trip="one">One Way</li><li class="tile selected" data-trip="round">Round Trip</li></ul>
+
+<div class="fields">
+  <div>
+    <label for="from" id="fromBox"><span>From</span><input id="from" readonly value="Delhi"></label>
+    <div id="fromPop" class="pop" hidden>
+      <input id="fromSearch" placeholder="From" aria-autocomplete="list" aria-controls="fromList" autocomplete="off">
+      <ul id="fromList" role="listbox"></ul>
+    </div>
+  </div>
+  <div>
+    <label for="to" id="toBox"><span>To</span><input id="to" readonly value="Bengaluru"></label>
+    <div id="toPop" class="pop" hidden>
+      <input id="toSearch" placeholder="To" aria-autocomplete="list" aria-controls="toList" autocomplete="off">
+      <ul id="toList" role="listbox"></ul>
+    </div>
+  </div>
+  <div>
+    <label for="departure" id="departBox"><span>Departure</span><input class="hidden" id="departure" readonly><p id="departShown"></p></label>
+    <div id="calendar" class="pop" hidden>
+      <span role="button" aria-label="Previous Month" class="nav" id="prev">‹</span>
+      <span role="button" aria-label="Next Month" class="nav" id="next">›</span>
+      <div id="months"></div>
+    </div>
+  </div>
+  <div>
+    <label id="travellersBox"><span>Travellers</span><p id="travellersShown">1 Adult</p></label>
+    <div id="travellers" class="pop counts" hidden>
+      <p>ADULTS (12y +)<br><small>on the day of travel</small></p>
+      <ul id="adults"></ul>
+      <p>CHILDREN (2y - 12y)<br><small>on the day of travel</small></p>
+      <ul id="children"></ul>
+      <div class="rooms"><div><span>Rooms</span></div><div class="stepper"><span class="step" data-d="-1">−</span><span id="roomCount">1</span><span class="step" data-d="1">+</span></div></div>
+      <button id="apply">APPLY</button>
+    </div>
+  </div>
+</div>
+<a class="search" id="search">SEARCH</a>
+<pre id="log"></pre>
+<script>
+var state = { trip: 'round', from: 'Delhi', to: 'Bengaluru', date: '', adults: 1, children: 0, rooms: 1, searched: false };
+var today = new Date(2026, 9, 19);
+var shown = new Date(2026, 9, 1);
+var cities = ['Goa, India GOI Dabolim Airport', 'Mopa, Goa, India GOX Manohar International', 'Mumbai, India BOM Chhatrapati Shivaji', 'Navi Mumbai, India NMI', 'Delhi, India DEL Indira Gandhi International'];
+function render() { document.getElementById('log').textContent = JSON.stringify(state); }
+function on(id, kind, fn) { document.getElementById(id).addEventListener(kind, fn); }
+render();
+
+on('modal', 'click', function (e) { if (e.target.dataset.cy === 'closeModal') document.getElementById('modal').remove(); });
+document.querySelectorAll('.trip li').forEach(function (li) {
+  li.addEventListener('click', function () {
+    state.trip = li.dataset.trip;
+    document.querySelectorAll('.trip li').forEach(function (other) { other.classList.toggle('selected', other === li); });
+    render();
+  });
+});
+
+function cityBox(key) {
+  on(key + 'Box', 'click', function (e) {
+    e.preventDefault();
+    document.getElementById(key + 'Pop').hidden = false;
+    setTimeout(function () { document.getElementById(key + 'Search').focus(); }, 30);
+  });
+  on(key + 'Search', 'input', function () {
+    var typed = this.value.toLowerCase();
+    setTimeout(function () {
+      var list = document.getElementById(key + 'List');
+      list.innerHTML = '';
+      if (!typed) return;
+      cities.filter(function (c) { return c.toLowerCase().indexOf(typed) >= 0; }).forEach(function (c) {
+        var li = document.createElement('li');
+        li.setAttribute('role', 'option');
+        li.textContent = c;
+        li.addEventListener('click', function () {
+          state[key] = c.split(',')[0];
+          document.getElementById(key).value = state[key];
+          document.getElementById(key + 'Pop').hidden = true;
+          render();
+        });
+        list.appendChild(li);
+      });
+    }, 150);
+  });
+}
+cityBox('from');
+cityBox('to');
+
+var names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+function drawMonths() {
+  var holder = document.getElementById('months');
+  holder.innerHTML = '';
+  for (var m = 0; m < 2; m++) {
+    var first = new Date(shown.getFullYear(), shown.getMonth() + m, 1);
+    var box = document.createElement('div');
+    box.className = 'month';
+    box.innerHTML = '<div class="caption">' + months[first.getMonth()] + ' ' + first.getFullYear() + '</div><div class="days" role="grid"></div>';
+    var grid = box.querySelector('.days');
+    var last = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+    for (var d = 1; d <= last; d++) {
+      var at = new Date(first.getFullYear(), first.getMonth(), d);
+      var cell = document.createElement('div');
+      cell.className = 'day';
+      cell.setAttribute('role', 'gridcell');
+      cell.setAttribute('aria-label', names[at.getDay()] + ' ' + months[at.getMonth()] + ' ' + pad(d) + ' ' + at.getFullYear());
+      cell.setAttribute('aria-disabled', at < today ? 'true' : 'false');
+      cell.textContent = d;
+      (function (at, cell) {
+        cell.addEventListener('click', function () {
+          if (cell.getAttribute('aria-disabled') === 'true') return;
+          state.date = at.getFullYear() + '-' + pad(at.getMonth() + 1) + '-' + pad(at.getDate());
+          document.getElementById('departShown').textContent = at.getDate() + ' ' + months[at.getMonth()];
+          document.getElementById('calendar').hidden = true;
+          render();
+        });
+      })(at, cell);
+      grid.appendChild(cell);
+    }
+    holder.appendChild(box);
+  }
+}
+on('departBox', 'click', function (e) { e.preventDefault(); drawMonths(); document.getElementById('calendar').hidden = false; });
+on('next', 'click', function () { shown = new Date(shown.getFullYear(), shown.getMonth() + 1, 1); setTimeout(drawMonths, 40); });
+on('prev', 'click', function () { shown = new Date(shown.getFullYear(), shown.getMonth() - 1, 1); setTimeout(drawMonths, 40); });
+
+function numbers(id, from, to, key) {
+  var ul = document.getElementById(id);
+  for (var n = from; n <= to; n++) {
+    var li = document.createElement('li');
+    li.textContent = '‎' + n;
+    if (n === state[key]) li.className = 'selected';
+    (function (n, li) {
+      li.addEventListener('click', function () {
+        state[key] = n;
+        ul.querySelectorAll('li').forEach(function (other) { other.classList.toggle('selected', other === li); });
+        render();
+      });
+    })(n, li);
+    ul.appendChild(li);
+  }
+}
+numbers('adults', 1, 9, 'adults');
+numbers('children', 0, 6, 'children');
+on('travellersBox', 'click', function () { document.getElementById('travellers').hidden = false; });
+document.querySelectorAll('.stepper .step').forEach(function (s) {
+  s.addEventListener('click', function () {
+    var next = Math.max(1, Math.min(5, state.rooms + Number(s.dataset.d)));
+    setTimeout(function () { state.rooms = next; document.getElementById('roomCount').textContent = next; render(); }, 40);
+  });
+});
+on('apply', 'click', function () { document.getElementById('travellers').hidden = true; });
+on('search', 'click', function () { state.searched = true; render(); });
+</script>
+</body>
+</html>

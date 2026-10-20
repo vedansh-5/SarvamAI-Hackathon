@@ -122,6 +122,20 @@ func (c *Chrome) mouse(kind string, x, y int) {
 	}
 }
 
+func (c *Chrome) Click(x, y int) {
+	c.mouse("mouseMoved", x, y)
+	c.mouse("mousePressed", x, y)
+	c.mouse("mouseReleased", x, y)
+}
+
+func (c *Chrome) Move(x, y int) { c.mouse("mouseMoved", x, y) }
+
+func (c *Chrome) TypeText(text string) {
+	if err := c.conn.Call(c.Ctx, c.page.SessionID(), "Input.insertText", map[string]any{"text": text}, nil); err != nil {
+		c.tb.Fatal(err)
+	}
+}
+
 func (c *Chrome) Drag(x1, y1, x2, y2 int) {
 	c.mouse("mouseMoved", x1, y1)
 	c.mouse("mousePressed", x1, y1)

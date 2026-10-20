@@ -86,3 +86,38 @@ func TestARequestThePlannerCannotStartIsNotOfferedForConfirmation(t *testing.T) 
 		t.Errorf("why = %q, want the planner's own reason", cannot.Why)
 	}
 }
+
+func buttonsTree(names ...string) uiact.Tree {
+	t := uiact.Tree{App: "Editor", Window: "Editor"}
+	for i, n := range names {
+		t.Elements = append(t.Elements, uiact.Element{
+			Role: "AXButton", Title: n, Enabled: true,
+			Position: []int{10 + 60*i, 10}, Size: []int{50, 20}, Path: []int{0, i},
+		})
+	}
+	return t
+}
+
+func clickOn(name string) synth.StepAnswer {
+	return synth.StepAnswer{Step: uiact.Step{Do: "click", Target: uiact.Selector{Role: "AXButton", Title: name}, Describe: "Click " + name}}
+}
+
+func TestARunWhoseStepsChangeNothingStopsAfterAFewWithWhatItGotTo(t *testing.T) {
+	before := buttonsTree("Flights", "One", "Two", "Three", "Four", "Five")
+	after := buttonsTree("Flights", "One", "Two", "Three", "Four", "Five", "Search")
+	steps := &scriptedSteps{answers: []synth.StepAnswer{
+		clickOn("Flights"), clickOn("One"), clickOn("Two"), clickOn("Three"), clickOn("Four"), clickOn("Five"),
+	}}
+	e := &Engine{UIScreen: &fakeScreen{tree: before, afterwards: &after}, Steps: steps}
+
+	_, err := e.runDrive(context.Background(), drivePlan())
+	if err == nil {
+		t.Fatal("a run of steps that change nothing carried on to the end")
+	}
+	if !strings.Contains(err.Error(), "changed nothing") || !strings.Contains(err.Error(), "Click Flights") {
+		t.Errorf("err = %v, want it to say the steps changed nothing and how far it got", err)
+	}
+	if steps.calls != 1+mostStalled {
+		t.Errorf("the model was asked for %d steps, want %d: the one that worked and %d that did nothing", steps.calls, 1+mostStalled, mostStalled)
+	}
+}

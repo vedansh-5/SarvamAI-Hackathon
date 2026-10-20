@@ -51,6 +51,7 @@ var typeable = map[string]bool{
 	"textarea":    true,
 	"combobox":    true,
 	"searchfield": true,
+	"datefield":   true,
 }
 
 func role(s string) string {

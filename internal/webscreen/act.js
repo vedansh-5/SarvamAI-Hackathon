@@ -85,9 +85,43 @@
     return JSON.stringify({ ok: true });
   }
 
+  if (a.verb === 'date') {
+    var kind = (el.getAttribute('type') || '').toLowerCase();
+    if (el.tagName.toLowerCase() === 'input' && (kind === 'date' || kind === 'datetime-local')) {
+      var day = kind === 'date' ? a.text : a.text + 'T09:00';
+      if (el.focus) el.focus();
+      Object.getOwnPropertyDescriptor(W.HTMLInputElement.prototype, 'value').set.call(el, day);
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      return JSON.stringify({ ok: true });
+    }
+    return JSON.stringify({ ok: true, opens: true });
+  }
+
   if (a.verb === 'set') {
     var want = Number(a.text);
     if (isNaN(want)) return fail('that is not a number');
+    var said = function (n) { return String(n.getAttribute('aria-label') || n.getAttribute('title') || n.innerText || '').replace(/[\u200b-\u200f\ufeff]/g, '').trim(); };
+    var inc = /^(\+|＋|﹢)$|^(increase|increment|add|plus|more)\b/i, dec = /^(-|−|–|－|﹣)$|^(decrease|decrement|remove|minus|fewer|less)\b/i;
+    if (el.tagName.toLowerCase() !== 'input' && el.getAttribute('aria-valuenow') == null) {
+      var up = null, down = null, shows = null;
+      el.querySelectorAll('*').forEach(function (n) {
+        var t = said(n);
+        if (!up && inc.test(t)) up = n;
+        else if (!down && dec.test(t)) down = n;
+        else if (!shows && ((n.children.length === 0 && /^\d+$/.test(t)) || (n.tagName === 'INPUT' && /^\d+$/.test(String(n.value).trim())))) shows = n;
+      });
+      if (!up || !down || !shows) return fail('that is not a counter with a + and a −');
+      var now = Number(shows.tagName === 'INPUT' ? shows.value : said(shows));
+      if (now === want) return JSON.stringify({ ok: true });
+      var press = now < want ? up : down;
+      if (press.getAttribute('aria-disabled') === 'true' || press.disabled) return fail('the counter stops at ' + now);
+      var pr = press.getBoundingClientRect();
+      var pat = { bubbles: true, cancelable: true, view: W, clientX: pr.left + pr.width / 2, clientY: pr.top + pr.height / 2, button: 0 };
+      ['pointerdown', 'mousedown', 'pointerup', 'mouseup'].forEach(function (t) { press.dispatchEvent(new MouseEvent(t, pat)); });
+      press.click();
+      return JSON.stringify({ ok: true, more: true, now: now });
+    }
     if (el.tagName.toLowerCase() === 'input') {
       Object.getOwnPropertyDescriptor(W.HTMLInputElement.prototype, 'value').set.call(el, String(want));
       el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -131,6 +165,8 @@
       }
       if (pick < 0) return fail('that list has no choice called ' + a.text);
       el.selectedIndex = pick;
+    } else if ((tag === 'input' || tag === 'textarea') && el.readOnly) {
+      return JSON.stringify({ ok: false, opens: true, error: 'that field cannot be typed into' });
     } else if (tag === 'input' || tag === 'textarea') {
       var proto = tag === 'textarea' ? W.HTMLTextAreaElement.prototype : W.HTMLInputElement.prototype;
       Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, text);
@@ -141,7 +177,7 @@
       D.execCommand('insertText', false, text);
       return JSON.stringify({ ok: true });
     } else {
-      return fail('that control does not hold typed text');
+      return JSON.stringify({ ok: false, opens: true, error: 'that control does not hold typed text' });
     }
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));

@@ -23,6 +23,7 @@ const (
 	backAndForthMin = 3
 	mostSamePair    = 2
 	mostWarnings    = 2
+	mostStalled     = 3
 )
 
 func (e *Engine) waitForItToArrive(ctx context.Context, app string, step uiact.Step) (uiact.Tree, bool) {
