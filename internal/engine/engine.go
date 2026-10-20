@@ -90,6 +90,8 @@ type StepWork struct {
 
 	TokensIn  int64
 	TokensOut int64
+
+	Noticed Noticing
 }
 
 // Warm reports that the whole run came from what was kept last time.

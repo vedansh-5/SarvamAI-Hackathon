@@ -1198,14 +1198,6 @@ listen<{
   }).catch(console.error);
 });
 
-// The shell saw the person click what the coach pointed at. That is the step
-// done, told to the runtime immediately rather than inferred from the window a
-// poll later.
-listen("coach://acted", () => {
-  if ($("guiding").hidden) return;
-  invoke("advance_guide").catch(console.error);
-});
-
 let cameFrom = "ask";
 
 async function answerQuestion(answer: string) {

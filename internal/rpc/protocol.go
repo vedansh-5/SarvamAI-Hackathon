@@ -164,6 +164,10 @@ type StopGuideResult struct {
 	Stopped bool `json:"stopped"`
 }
 
+type AdvanceGuideParams struct {
+	Clicked bool `json:"clicked,omitempty"`
+}
+
 type AdvanceGuideResult struct {
 	Advanced bool `json:"advanced"`
 }

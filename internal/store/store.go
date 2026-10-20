@@ -316,7 +316,7 @@ CREATE TABLE IF NOT EXISTS schedules (
 		!strings.Contains(err.Error(), "duplicate column name") {
 		return fmt.Errorf("store: add runs.failed: %w", err)
 	}
-	for _, column := range []string{"tokens_in", "tokens_out"} {
+	for _, column := range []string{"tokens_in", "tokens_out", "clicked", "next_pressed", "seen"} {
 		if _, err := s.db.ExecContext(ctx,
 			`ALTER TABLE runs ADD COLUMN `+column+` INTEGER NOT NULL DEFAULT 0`); err != nil &&
 			!strings.Contains(err.Error(), "duplicate column name") {

@@ -90,7 +90,7 @@ type Server struct {
 	plans        map[string]*engine.Plan
 	running      map[int]context.CancelFunc
 	guideCancel  context.CancelFunc
-	guideAdvance chan struct{}
+	guideAdvance chan engine.Advance
 	guideReply   chan engine.OfferReply
 	answers      chan string
 
@@ -198,7 +198,7 @@ func (s *Server) dispatch(ctx context.Context, req Request) {
 	case "stop_guide":
 		result, err = s.stopGuide()
 	case "advance_guide":
-		result, err = s.advanceGuide()
+		result, err = s.advanceGuide(req)
 	case "resume_drive":
 		result, err = s.resumeDrive()
 	case "answer_guide":
@@ -901,7 +901,7 @@ func (s *Server) guide(ctx context.Context, req Request) (GuideResult, error) {
 	}
 
 	guideCtx, cancel := context.WithCancel(ctx)
-	advance := make(chan struct{}, 1)
+	advance := make(chan engine.Advance, 1)
 	reply := make(chan engine.OfferReply, 1)
 
 	s.mu.Lock()
@@ -978,14 +978,25 @@ func (s *Server) stopGuide() (StopGuideResult, error) {
 	return StopGuideResult{Stopped: true}, nil
 }
 
-func (s *Server) advanceGuide() (AdvanceGuideResult, error) {
+func (s *Server) advanceGuide(req Request) (AdvanceGuideResult, error) {
+	var p AdvanceGuideParams
+	if len(req.Params) > 0 && string(req.Params) != "null" {
+		if err := json.Unmarshal(req.Params, &p); err != nil {
+			return AdvanceGuideResult{}, &Error{Code: CodeBadRequest, Message: err.Error()}
+		}
+	}
+	by := engine.ByNext
+	if p.Clicked {
+		by = engine.ByClick
+	}
+
 	s.mu.Lock()
 	advance := s.guideAdvance
 	s.mu.Unlock()
 
 	if advance != nil {
 		select {
-		case advance <- struct{}{}:
+		case advance <- by:
 		default:
 		}
 	}

@@ -546,6 +546,8 @@ type taskRun struct {
 	Asked int
 	Told  []string
 
+	Noticed Noticing
+
 	Typed     []TypedField
 	Committed bool
 }

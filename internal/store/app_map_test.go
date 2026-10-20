@@ -43,7 +43,7 @@ func TestRunsAreRecordedNewestFirst(t *testing.T) {
 	defer s.Close()
 
 	_ = s.RecordTask(ctx, Run{App: "WhatsApp", Shape: "send {s0}", Mode: "do", Steps: 3, Calls: 4})
-	_ = s.RecordTask(ctx, Run{App: "WhatsApp", Shape: "send {s0}", Mode: "do", Steps: 3, Replayed: 3, Calls: 0, Finished: true})
+	_ = s.RecordTask(ctx, Run{App: "WhatsApp", Shape: "send {s0}", Mode: "do", Steps: 3, Replayed: 3, Calls: 0, Finished: true, Clicked: 2, NextPressed: 1})
 
 	runs, err := s.RecentTasks(ctx, 10)
 	if err != nil || len(runs) != 2 {
@@ -51,5 +51,8 @@ func TestRunsAreRecordedNewestFirst(t *testing.T) {
 	}
 	if runs[0].Calls != 0 || !runs[0].Finished || runs[1].Calls != 4 {
 		t.Errorf("runs = %+v, want the newest first", runs)
+	}
+	if runs[0].Clicked != 2 || runs[0].NextPressed != 1 || runs[0].Seen != 0 {
+		t.Errorf("runs[0] = %+v, want how its steps were noticed kept", runs[0])
 	}
 }

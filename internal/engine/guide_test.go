@@ -122,7 +122,7 @@ func TestGuideAdvancesOnChannel(t *testing.T) {
 		answers: []synth.StepAnswer{{Step: typeIntoMessage()}, {Done: true}},
 	}}
 
-	advance := make(chan struct{}, 1)
+	advance := make(chan Advance, 1)
 	finished := make(chan struct{})
 	go func() {
 		for {
@@ -131,7 +131,7 @@ func TestGuideAdvancesOnChannel(t *testing.T) {
 				return
 			case <-time.After(5 * time.Millisecond):
 				select {
-				case advance <- struct{}{}:
+				case advance <- ByNext:
 				default:
 				}
 			}
@@ -177,10 +177,10 @@ func TestGuideStepsThroughMultipleControls(t *testing.T) {
 		},
 	}}
 
-	advance := make(chan struct{}, 1)
+	advance := make(chan Advance, 1)
 	go func() {
 		time.Sleep(30 * time.Millisecond)
-		advance <- struct{}{}
+		advance <- ByNext
 	}()
 
 	var shown []GuideStep
@@ -342,8 +342,8 @@ func TestGuideIgnoresAnAdvanceFromBeforeTheStep(t *testing.T) {
 		answers: []synth.StepAnswer{{Step: typeIntoMessage()}, {Done: true}},
 	}}
 
-	advance := make(chan struct{}, 1)
-	advance <- struct{}{}
+	advance := make(chan Advance, 1)
+	advance <- ByNext
 
 	_, err := e.RunGuide(context.Background(), guidePlan(), func(GuideStep) {}, advance)
 	if err == nil {
@@ -731,9 +731,9 @@ func TestPressingNextBeforeOpeningTheAppDoesNotSkipTheStep(t *testing.T) {
 	}
 	e := &Engine{UIScreen: screenReader, Steps: &alwaysStep{step: typeIntoMessage()}}
 
-	advance := make(chan struct{}, 4)
-	advance <- struct{}{}
-	advance <- struct{}{}
+	advance := make(chan Advance, 4)
+	advance <- ByNext
+	advance <- ByNext
 
 	var shown []GuideStep
 	plan := &Plan{Guide: &GuidePlan{App: "Editor", Task: "say hello", MustOpen: true}}
@@ -844,8 +844,8 @@ func TestAskedWhereSomethingIsTheGuideStopsOnceItHasPointedAtIt(t *testing.T) {
 	quickGuide(t)
 
 	planner := &pointsAgain{}
-	advance := make(chan struct{}, 4)
-	advance <- struct{}{}
+	advance := make(chan Advance, 4)
+	advance <- ByNext
 	e := &Engine{UIScreen: &movingScreen{}, Plans: planner, Steps: &countingSteps{}}
 
 	var shown []GuideStep
@@ -853,7 +853,7 @@ func TestAskedWhereSomethingIsTheGuideStopsOnceItHasPointedAtIt(t *testing.T) {
 	_, err := e.RunGuide(context.Background(), plan, func(g GuideStep) {
 		shown = append(shown, g)
 		select {
-		case advance <- struct{}{}:
+		case advance <- ByNext:
 		default:
 		}
 	}, advance)
@@ -865,5 +865,56 @@ func TestAskedWhereSomethingIsTheGuideStopsOnceItHasPointedAtIt(t *testing.T) {
 	}
 	if planner.calls != 2 {
 		t.Errorf("the planner was asked %d time(s), want 2", planner.calls)
+	}
+}
+
+func TestARunKeepsHowEachStepWasNoticed(t *testing.T) {
+	quickGuide(t)
+
+	m := &memoryMap{}
+	e := &Engine{UIScreen: &fakeScreen{tree: editorTree()}, Tasks: m, Steps: &scriptedSteps{
+		answers: []synth.StepAnswer{{Step: typeIntoMessage()}, {Step: clickMessage()}, {Done: true, Why: "that is all"}},
+	}}
+
+	advance := make(chan Advance, 1)
+	by := []Advance{ByClick, ByNext}
+	work, err := e.RunGuideCounted(context.Background(), guidePlan(), func(GuideStep) {
+		if len(by) == 0 {
+			return
+		}
+		next := by[0]
+		by = by[1:]
+		go func() {
+			time.Sleep(20 * time.Millisecond)
+			advance <- next
+		}()
+	}, advance)
+	if err != nil {
+		t.Fatalf("RunGuideCounted: %v", err)
+	}
+	want := Noticing{Clicked: 1, NextPressed: 1}
+	if work.Noticed != want {
+		t.Errorf("noticed = %+v, want %+v", work.Noticed, want)
+	}
+	if len(m.tasks) != 1 || m.tasks[0].Clicked != 1 || m.tasks[0].NextPressed != 1 || m.tasks[0].Seen != 0 {
+		t.Errorf("tasks = %+v, want one click and one Next kept", m.tasks)
+	}
+}
+
+func TestAStepSeenInTheWindowIsKeptAsSeen(t *testing.T) {
+	quickGuide(t)
+
+	moved := editorTree()
+	moved.Elements[0].Value = "hello"
+	m := &memoryMap{}
+	e := &Engine{UIScreen: &fakeScreen{tree: editorTree(), afterwards: &moved, changesAfter: 1}, Tasks: m, Steps: &scriptedSteps{
+		answers: []synth.StepAnswer{{Step: typeIntoMessage()}, {Done: true, Why: "that is all"}},
+	}}
+
+	if _, err := e.RunGuide(context.Background(), guidePlan(), func(GuideStep) {}, nil); err != nil {
+		t.Fatalf("RunGuide: %v", err)
+	}
+	if len(m.tasks) != 1 || m.tasks[0].Seen != 1 || m.tasks[0].Clicked != 0 {
+		t.Errorf("tasks = %+v, want the one step kept as seen in the window", m.tasks)
 	}
 }

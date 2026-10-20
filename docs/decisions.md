@@ -6637,3 +6637,23 @@ allowance, one each) but does not mail them, and the console does not count
 them as open: they are numbers to read, not messages to answer. The Feedback
 page shows how many of each, then the last twenty, with the application and
 the step.
+
+## D-274 — Each guided run keeps how its steps were noticed, and a click goes straight to the runtime
+
+Noticing that a step was done could take up to about 1.4 seconds (plan B4,
+AGY §9.7): 900 ms of settling and 500 ms between looks. The shell reports a
+click on the ring directly (D-082, D-109), which should make it immediate, so
+a wait that long would mean the click is not getting through and the looking
+is doing all the work. Nothing recorded which one it was.
+
+So each guided run now keeps three counts with its record: steps noticed from
+a click on the ring, from Next, and from seeing the window change.
+`vans-probe -tasks` shows them as CLICK/NEXT/SEEN. On a run of click steps, a
+high SEEN means the click is being lost, and the timers are the next thing to
+look at; a high CLICK means the delay is somewhere else.
+
+The click also took a detour. The shell sent it to the panel, and the panel
+passed it to the runtime. The panel is narrowed out of the way while a guide
+runs, and a page in a window nobody is looking at is the part most likely to
+be slowed down. The shell now tells the runtime itself, marked as a click, so
+the runtime can count it apart from Next. The panel's own Next is unchanged.
