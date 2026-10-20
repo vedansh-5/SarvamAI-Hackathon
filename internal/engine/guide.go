@@ -312,7 +312,7 @@ func (e *Engine) planGuideIn(ctx context.Context, task, shape string, literals m
 		}
 	}
 	if len(tree.Elements) == 0 {
-		return nil, stopped(app, "engine: %s has nothing on screen to point at", app)
+		return nil, stopped(app, "engine: VANS cannot read anything in %s's window. Click into it so it is in front, then ask again.", app)
 	}
 
 	return &Plan{
@@ -446,7 +446,8 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 		}
 		x, y, w, h, why := tree.RectFor(step.Target)
 		if why != "" {
-			return tree, stopped(here, "engine: %s", why)
+			on.logf("step %d: %s", number, why)
+			return tree, cannotPointAt(here, step.Target, why)
 		}
 
 		// A step nobody has done yet is still the step. Pointing at it again
@@ -531,7 +532,7 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 				return tree, err
 			}
 			if attempt >= timesToRepeatAStep {
-				return tree, stopped(here, "engine: nothing happened in %s, so the steps stopped", here)
+				return tree, stopped(here, "engine: Nothing changed in %s for a while, so VANS stopped waiting. Ask again when you are ready.", here)
 			}
 			on.logf("still on step %d: %s", number, describe)
 		}
@@ -578,9 +579,9 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 	// other than the one being looked at.
 	if run.Steps() == 0 {
 		if why := strings.TrimSpace(run.Why); why != "" {
-			return work, stopped(g.App, "engine: nothing in %s to point at — %s", g.App, why)
+			return work, stopped(g.App, "engine: VANS found nothing in %s to point at: %s", g.App, why)
 		}
-		return work, stopped(g.App, "engine: there was nothing in %s to point at", g.App)
+		return work, stopped(g.App, "engine: VANS found nothing in %s that does this. If it happens in another app, open that one and ask again.", g.App)
 	}
 	e.rememberThePlace(ctx, g)
 	e.finished(ctx, plan, work.Calls)
@@ -718,13 +719,13 @@ func (e *Engine) waitForTheAppToOpen(ctx context.Context, g *GuidePlan, show fun
 		e.logf("still waiting for %s to be opened", g.App)
 	}
 
-	return stopped(g.App, "engine: %s was never opened, so the steps stopped", g.App)
+	return stopped(g.App, "engine: VANS stopped waiting for %s to be opened. Open it, then ask again.", g.App)
 }
 
 func (e *Engine) waitForTheScroll(ctx context.Context, app string, tree uiact.Tree, step uiact.Step, number int, show func(GuideStep), advance <-chan Advance, changed <-chan struct{}) (uiact.Tree, error) {
 	x, y, w, h, way, ok := tree.ScrollHint(step.Target)
 	if !ok {
-		return tree, stopped(app, "engine: the %s %q is out of view and there is nothing to scroll to reach it", step.Target.Role, step.Target.Title)
+		return tree, stopped(app, "engine: VANS cannot reach %s: it is out of view, and there is nothing to scroll. Scroll to it yourself, then ask again.", called(step.Target))
 	}
 
 	name := strings.TrimSpace(step.Target.Title)
@@ -757,7 +758,7 @@ func (e *Engine) waitForTheScroll(ctx context.Context, app string, tree uiact.Tr
 			}
 		}
 	}
-	return tree, stopped(app, "engine: %s was never scrolled into view, so the steps stopped", name)
+	return tree, stopped(app, "engine: VANS stopped waiting for %s to be scrolled into view. Scroll until you can see it, then ask again.", called(step.Target))
 }
 
 // What the verb needs spelled out: the text to type, or the keys to hold down.
@@ -1023,5 +1024,5 @@ func (e *Engine) waitForTheSwitch(ctx context.Context, app string, number int, d
 		}
 		e.logf("still waiting for %s to be brought to the front", app)
 	}
-	return stopped(app, "engine: %s was never brought to the front, so the steps stopped", app)
+	return stopped(app, "engine: VANS stopped waiting for %s to come to the front. Click its window, then ask again.", app)
 }

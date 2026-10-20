@@ -95,7 +95,7 @@ func TestGuideStopsWhenNothingHappens(t *testing.T) {
 	if err == nil {
 		t.Fatal("waited forever on a window nobody touched")
 	}
-	if !strings.Contains(err.Error(), "nothing happened") {
+	if !strings.Contains(err.Error(), "Nothing changed in Editor") {
 		t.Errorf("err = %v", err)
 	}
 }
@@ -273,7 +273,7 @@ func TestGuideWaitsOutAWindowThatStopsPublishing(t *testing.T) {
 	if err == nil {
 		t.Fatal("waited forever on a window that never came back")
 	}
-	if !strings.Contains(err.Error(), "nothing happened") {
+	if !strings.Contains(err.Error(), "Nothing changed in Editor") {
 		t.Errorf("err = %v, want the same answer as a window nobody touched", err)
 	}
 }
@@ -349,7 +349,7 @@ func TestGuideIgnoresAnAdvanceFromBeforeTheStep(t *testing.T) {
 	if err == nil {
 		t.Fatal("a stale advance carried into the step and skipped the wait")
 	}
-	if !strings.Contains(err.Error(), "nothing happened") {
+	if !strings.Contains(err.Error(), "Nothing changed in Editor") {
 		t.Errorf("err = %v, want the step to have waited and timed out", err)
 	}
 }
@@ -648,7 +648,7 @@ func TestGuideGivesUpWhenTheAppIsNeverOpened(t *testing.T) {
 	if err == nil {
 		t.Fatal("want an error")
 	}
-	if !strings.Contains(err.Error(), "never opened") {
+	if !strings.Contains(err.Error(), "stopped waiting for Editor to be opened") {
 		t.Errorf("err = %v, want it to say the application was never opened", err)
 	}
 }
@@ -705,7 +705,7 @@ func TestGuideDoesNotMistakeAWindowSettlingForSomebodyActing(t *testing.T) {
 	if err == nil {
 		t.Fatal("the run finished, though nobody ever acted on the step")
 	}
-	if !strings.Contains(err.Error(), "nothing happened") {
+	if !strings.Contains(err.Error(), "Nothing changed in Editor") {
 		t.Errorf("err = %v, want it to give up waiting rather than move on", err)
 	}
 
@@ -739,7 +739,7 @@ func TestPressingNextBeforeOpeningTheAppDoesNotSkipTheStep(t *testing.T) {
 	plan := &Plan{Guide: &GuidePlan{App: "Editor", Task: "say hello", MustOpen: true}}
 	_, err := e.RunGuide(context.Background(), plan, func(s GuideStep) { shown = append(shown, s) }, advance)
 
-	if err == nil || !strings.Contains(err.Error(), "never opened") {
+	if err == nil || !strings.Contains(err.Error(), "stopped waiting for Editor to be opened") {
 		t.Fatalf("err = %v; pressing Next must not stand in for opening the application", err)
 	}
 	for _, s := range shown {

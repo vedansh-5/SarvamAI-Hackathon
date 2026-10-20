@@ -6657,3 +6657,22 @@ passed it to the runtime. The panel is narrowed out of the way while a guide
 runs, and a page in a window nobody is looking at is the part most likely to
 be slowed down. The shell now tells the runtime itself, marked as a click, so
 the runtime can count it apart from Next. The panel's own Next is unchanged.
+
+## D-275 — A guide that stops says what happened and what to do
+
+When a guide stops because of the window, the panel shows the engine's own
+sentence (D-111). Those sentences were accurate and written
+for whoever reads the code: "no part of the AXButton \"Tahoe\" is visible on
+screen", "Editor was never brought to the front, so the steps stopped". A
+tester reads the first as VANS breaking and the second as a dead end (plan B5).
+
+Each one now says what happened in everyday words and ends on what to do:
+"VANS cannot see “Tahoe”: it is covered or off screen. Move the window so it
+shows, then ask again." A control is called by its name, or by a plain word
+for its kind (button, box, checkbox, menu) when it has none, never by its
+accessibility role. The exact reason the window gave is still written to the
+log. The model's own sentence, when it is the reason nothing was pointed at,
+is kept as it is.
+
+Only guided runs. "Do it for me" runs end on their own messages, which D-171
+already covers.

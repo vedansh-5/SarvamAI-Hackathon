@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/vedansh/vans/internal/synth"
+	"github.com/vedansh/vans/internal/uiact"
 )
 
 // Every way a coached run can end short has to be tellable from VANS breaking,
@@ -64,5 +65,32 @@ func TestAMissingPieceIsStillAFault(t *testing.T) {
 	}
 	if errors.Is(err, ErrCoachStopped) {
 		t.Errorf("a build that cannot coach at all was reported as the steps stopping: %v", err)
+	}
+}
+
+func TestAControlThatCannotBePointedAtIsNamedPlainlyWithWhatToDo(t *testing.T) {
+	for _, c := range []struct {
+		sel  uiact.Selector
+		why  string
+		want string
+	}{
+		{uiact.Selector{Role: "AXButton", Title: "Save"}, `nothing on screen is a AXButton named "Save"`, "VANS cannot see “Save” any more"},
+		{uiact.Selector{Role: "AXButton", Title: "Tahoe"}, `no part of the AXButton "Tahoe" is visible on screen`, "VANS cannot see “Tahoe”: it is covered or off screen"},
+		{uiact.Selector{Role: "AXCheckBox"}, `3 elements are a AXCheckBox, so it does not say which one`, "more than one checkbox here"},
+		{uiact.Selector{Role: "AXGroup"}, `nothing on screen is a AXGroup`, "VANS cannot see that control any more"},
+	} {
+		said := cannotPointAt("Editor", c.sel, c.why).Error()
+		if !strings.Contains(said, c.want) {
+			t.Errorf("%q, want it to contain %q", said, c.want)
+		}
+		if strings.Contains(said, "AX") {
+			t.Errorf("%q names a kind of control the way the code does", said)
+		}
+		if !strings.Contains(strings.ToLower(said), "ask again") {
+			t.Errorf("%q does not say what to do next", said)
+		}
+		if !errors.Is(cannotPointAt("Editor", c.sel, c.why), ErrCoachStopped) {
+			t.Errorf("%q is not marked as a stop", said)
+		}
 	}
 }

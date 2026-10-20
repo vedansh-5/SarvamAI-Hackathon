@@ -3,6 +3,9 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"strings"
+
+	"github.com/vedansh/vans/internal/uiact"
 )
 
 // ErrCoachStopped marks a coached run that ended because of what was on screen,
@@ -41,4 +44,42 @@ func WhereItStopped(err error) string {
 		return s.App()
 	}
 	return ""
+}
+
+var plainKinds = map[string]string{
+	"AXButton": "button", "AXTextField": "box", "AXTextArea": "box", "AXSearchField": "search box",
+	"AXComboBox": "box", "AXSecureTextField": "box", "AXCheckBox": "checkbox", "AXRadioButton": "option",
+	"AXPopUpButton": "menu", "AXMenuButton": "menu", "AXMenuItem": "menu item", "AXLink": "link",
+	"AXTab": "tab", "AXSlider": "slider", "AXRow": "row", "AXCell": "cell", "AXImage": "picture",
+}
+
+func called(sel uiact.Selector) string {
+	if title := strings.TrimSpace(sel.Title); title != "" {
+		return "“" + title + "”"
+	}
+	if kind, ok := plainKinds[sel.Role]; ok {
+		return "the " + kind
+	}
+	return "that control"
+}
+
+func oneOfSeveral(sel uiact.Selector) string {
+	if title := strings.TrimSpace(sel.Title); title != "" {
+		return "“" + title + "”"
+	}
+	if kind, ok := plainKinds[sel.Role]; ok {
+		return kind
+	}
+	return "control like it"
+}
+
+func cannotPointAt(app string, sel uiact.Selector, why string) error {
+	name := called(sel)
+	switch {
+	case strings.Contains(why, "visible"):
+		return stopped(app, "engine: VANS cannot see %s: it is covered or off screen. Move the window so it shows, then ask again.", name)
+	case strings.Contains(why, "does not say which"), strings.Contains(why, "number"):
+		return stopped(app, "engine: There is more than one %s here, and VANS could not tell which one is meant. Ask again and say where it is.", oneOfSeveral(sel))
+	}
+	return stopped(app, "engine: VANS cannot see %s any more. Ask again to start from what the window shows now.", name)
 }
