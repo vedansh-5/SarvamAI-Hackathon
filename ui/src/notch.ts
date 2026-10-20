@@ -38,6 +38,10 @@ invoke<unknown[]>("habits")
   .then((offers) => offering(offers.length))
   .catch(() => {});
 
+listen<string>("pill://calm", (e) => {
+  pill.dataset.calm = e.payload;
+});
+
 pill.addEventListener("click", () => {
   invoke("summon").catch(() => {});
 });

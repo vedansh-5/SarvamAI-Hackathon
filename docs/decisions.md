@@ -6692,3 +6692,22 @@ the model's to make. A number the model gives is followed as before. This holds
 for guided runs and for "do it for me", which read the window the same way.
 The model was already told to prefer a control in view (D-144); this covers
 the step that names one without choosing.
+
+## D-277 — The menu-bar dot fades when left alone and goes out when the cursor is still
+
+The dot sat at one brightness all day. In a video or a long read it is a
+bright yellow point that nobody is using, and the eye keeps going to it.
+
+The dot now has three levels, set by the shell from the cursor it already
+polls (`notch.rs`, `calm_for`):
+
+- Bright while the cursor is on the dot, and for 1.5 seconds after it leaves.
+- Faded (about a third) the rest of the time the cursor is moving.
+- Out after the cursor has been still for 5 seconds. Moving it brings the dot
+  back faded, not bright; only the dot itself brings it to bright.
+
+Working, guiding and the "VANS has something to offer" mark stay fully bright
+at every level: they say something the person should see. The page starts
+faded, so a missed first message never leaves it bright. The fade needs no
+new permission; it reads the same pointer position the hover-to-open already
+reads. The times are constants at the top of `notch.rs`.
