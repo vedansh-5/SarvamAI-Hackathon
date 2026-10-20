@@ -2,7 +2,7 @@ use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 pub const LABEL: &str = "notch";
 pub const DOT_BOX: f64 = 24.0;
@@ -11,6 +11,35 @@ const BAR_HEIGHT: f64 = 24.0;
 const HOVER: Duration = Duration::from_millis(300);
 const LOOK: Duration = Duration::from_millis(50);
 const LEFT_ALONE: Duration = Duration::from_millis(1200);
+const STAYS_BRIGHT: Duration = Duration::from_millis(1500);
+const GOES_OUT: Duration = Duration::from_secs(5);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Calm {
+    Bright,
+    Faded,
+    Out,
+}
+
+impl Calm {
+    fn word(self) -> &'static str {
+        match self {
+            Calm::Bright => "bright",
+            Calm::Faded => "faded",
+            Calm::Out => "out",
+        }
+    }
+}
+
+fn calm_for(since_on_pill: Option<Duration>, cursor_still_for: Duration) -> Calm {
+    if since_on_pill.is_some_and(|d| d < STAYS_BRIGHT) {
+        Calm::Bright
+    } else if cursor_still_for >= GOES_OUT {
+        Calm::Out
+    } else {
+        Calm::Faded
+    }
+}
 
 static ON_TRIAL: AtomicBool = AtomicBool::new(false);
 
@@ -130,16 +159,20 @@ fn follow_the_screens(app: &AppHandle) {
 fn follow_the_screens(_app: &AppHandle) {}
 
 #[cfg(target_os = "macos")]
-fn pointer_on_pill() -> bool {
-    use objc2_app_kit::NSEvent;
-    let Some((x, y, w, h)) = *FRAME.lock().unwrap() else { return false };
-    let at = NSEvent::mouseLocation();
-    at.x >= x && at.x <= x + w && at.y >= y - 1.0 && at.y <= y + h + 1.0
+fn pointer() -> Option<(f64, f64)> {
+    let at = objc2_app_kit::NSEvent::mouseLocation();
+    Some((at.x, at.y))
 }
 
 #[cfg(not(target_os = "macos"))]
+fn pointer() -> Option<(f64, f64)> {
+    None
+}
+
 fn pointer_on_pill() -> bool {
-    false
+    let Some((x, y, w, h)) = *FRAME.lock().unwrap() else { return false };
+    let Some(at) = pointer() else { return false };
+    at.0 >= x && at.0 <= x + w && at.1 >= y - 1.0 && at.1 <= y + h + 1.0
 }
 
 #[cfg(target_os = "macos")]
@@ -176,11 +209,29 @@ fn open_on_hover(app: &AppHandle) {
         let mut since: Option<Instant> = None;
         let mut away: Option<Instant> = None;
         let mut opened = false;
+        let mut last_at = pointer();
+        let mut last_moved = Instant::now();
+        let mut last_on_pill: Option<Instant> = None;
+        let mut calm: Option<Calm> = None;
         loop {
             std::thread::sleep(LOOK);
             let Some(panel) = crate::overlay::window(&handle) else { continue };
             let showing = panel.is_visible().unwrap_or(false);
             let on_pill = pointer_on_pill();
+
+            let at = pointer();
+            if at != last_at {
+                last_at = at;
+                last_moved = Instant::now();
+            }
+            if on_pill {
+                last_on_pill = Some(Instant::now());
+            }
+            let now = calm_for(last_on_pill.map(|t| t.elapsed()), last_moved.elapsed());
+            if calm != Some(now) {
+                calm = Some(now);
+                let _ = handle.emit_to(LABEL, "pill://calm", now.word());
+            }
 
             if !showing {
                 ON_TRIAL.store(false, Ordering::Relaxed);
@@ -244,4 +295,28 @@ pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     follow_the_screens(app);
     open_on_hover(app);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_dot_is_bright_while_the_pointer_is_on_it_and_for_a_moment_after() {
+        assert_eq!(calm_for(Some(Duration::ZERO), Duration::from_secs(60)), Calm::Bright);
+        assert_eq!(calm_for(Some(Duration::from_millis(1400)), Duration::ZERO), Calm::Bright);
+    }
+
+    #[test]
+    fn the_dot_fades_after_the_pointer_leaves_and_comes_back_faded_when_it_moves() {
+        assert_eq!(calm_for(Some(Duration::from_millis(1600)), Duration::ZERO), Calm::Faded);
+        assert_eq!(calm_for(None, Duration::from_secs(1)), Calm::Faded);
+        assert_eq!(calm_for(None, Duration::ZERO), Calm::Faded);
+    }
+
+    #[test]
+    fn the_dot_goes_out_when_the_pointer_has_been_still_for_a_while() {
+        assert_eq!(calm_for(None, Duration::from_secs(5)), Calm::Out);
+        assert_eq!(calm_for(Some(Duration::from_secs(30)), Duration::from_secs(30)), Calm::Out);
+    }
 }
