@@ -176,6 +176,7 @@ func (e *Engine) noteTheTask(ctx context.Context, app, shape, mode string, run t
 		App: app, Shape: shape, Mode: mode,
 		Steps: run.Steps(), Replayed: run.Replayed, Calls: run.Calls + planCalls, Finished: run.Finished,
 		Failed: why, TokensIn: used.In, TokensOut: used.Out,
+		Clicked: run.Noticed.Clicked, NextPressed: run.Noticed.NextPressed, Seen: run.Noticed.Seen,
 	})
 	if err != nil {
 		e.logf("could not note what this task cost: %v", err)

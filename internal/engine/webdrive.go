@@ -252,7 +252,7 @@ func (e *Engine) openThePage(ctx context.Context, d *DrivePlan) error {
 
 var siteWait = 90 * time.Second
 
-func (e *Engine) waitForTheSite(ctx context.Context, g *GuidePlan, number int, show func(GuideStep), advance <-chan struct{}) (bool, error) {
+func (e *Engine) waitForTheSite(ctx context.Context, g *GuidePlan, number int, show func(GuideStep), advance <-chan Advance) (bool, error) {
 	there := func() bool {
 		tree, err := e.UIScreen.Capture(ctx, g.Browser)
 		return err == nil && pageBelongsTo("https://"+tree.App, hostOf(g.Site))

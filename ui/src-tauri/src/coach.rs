@@ -24,9 +24,6 @@ pub const LABEL: &str = "coach";
 /// inside the ring is the person doing the step, now and without ambiguity.
 static POINTED_AT: Mutex<Option<(f64, f64, f64, f64)>> = Mutex::new(None);
 
-/// Emitted to the panel when the person clicks what the coach pointed at.
-pub const ACTED: &str = "coach://acted";
-
 pub const NEXT: &str = "coach://next";
 
 pub const YES: &str = "coach://yes";
@@ -309,9 +306,16 @@ fn watch_for_the_click(app: &AppHandle) {
             if typing {
                 return;
             }
-            if let Err(e) = handle.emit(ACTED, ()) {
-                eprintln!("[vans] could not report the click on the tip: {e}");
-            }
+            let telling = handle.clone();
+            tauri::async_runtime::spawn(async move {
+                let Some(engine) = telling.try_state::<crate::engine::Engine>() else {
+                    return;
+                };
+                let clicked = Some(serde_json::json!({ "clicked": true }));
+                if let Err(e) = engine.call("advance_guide", clicked).await {
+                    eprintln!("[vans] could not report the click on the tip: {e}");
+                }
+            });
         });
 
         let _ = NSEvent::addGlobalMonitorForEventsMatchingMask_handler(

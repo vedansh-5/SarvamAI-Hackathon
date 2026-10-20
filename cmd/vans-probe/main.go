@@ -153,10 +153,14 @@ func listTasks(ctx context.Context) error {
 		fmt.Println("no tasks recorded yet")
 		return nil
 	}
-	fmt.Printf("%-12s %-5s %-22s %5s %8s %5s %8s  %s\n", "WHEN", "MODE", "WHERE", "STEPS", "FROM MEM", "CALLS", "TOKENS", "TASK")
+	fmt.Printf("%-12s %-5s %-22s %5s %8s %5s %8s %15s  %s\n", "WHEN", "MODE", "WHERE", "STEPS", "FROM MEM", "CALLS", "TOKENS", "CLICK/NEXT/SEEN", "TASK")
 	for _, r := range runs {
-		fmt.Printf("%-12s %-5s %-22s %5d %8d %5d %8d  %s\n",
-			r.At.Format("Jan 2 15:04"), r.Mode, clip(r.App, 22), r.Steps, r.Replayed, r.Calls, r.TokensIn+r.TokensOut, clip(r.Shape, 60))
+		noticed := ""
+		if r.Clicked+r.NextPressed+r.Seen > 0 {
+			noticed = fmt.Sprintf("%d/%d/%d", r.Clicked, r.NextPressed, r.Seen)
+		}
+		fmt.Printf("%-12s %-5s %-22s %5d %8d %5d %8d %15s  %s\n",
+			r.At.Format("Jan 2 15:04"), r.Mode, clip(r.App, 22), r.Steps, r.Replayed, r.Calls, r.TokensIn+r.TokensOut, noticed, clip(r.Shape, 60))
 		if r.Failed != "" {
 			fmt.Printf("%-12s       failed: %s\n", "", clip(r.Failed, 140))
 		}

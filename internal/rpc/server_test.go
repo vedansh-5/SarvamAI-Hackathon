@@ -761,6 +761,20 @@ func TestStopAndAdvanceGuideWhenIdle(t *testing.T) {
 	}
 }
 
+func TestAdvanceGuideTakesAClickFromTheShell(t *testing.T) {
+	s := run(t, nil,
+		req(1, "advance_guide", AdvanceGuideParams{Clicked: true}),
+		req(2, "advance_guide", "not an object"),
+	)
+
+	if res := decode[AdvanceGuideResult](t, s.ok(1)); !res.Advanced {
+		t.Errorf("res = %+v, want Advanced: true", res)
+	}
+	if e := s.failure(2); e.Code != CodeBadRequest {
+		t.Errorf("code = %s, want %s for params that are not an object", e.Code, CodeBadRequest)
+	}
+}
+
 // The window shows one line at a time and keeps none of them, so a run that went
 // wrong leaves nothing to read afterwards unless the same lines go somewhere
 // durable.

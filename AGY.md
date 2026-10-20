@@ -930,7 +930,9 @@ needed — and it should be done first and separately.
   watching starts (`settleBeforeJudging`) and 500 ms between looks (`guidePoll`).
   The shell reports a click directly (D-109) and that path should make it
   immediate, so a delay this long means the direct signal is not arriving and the
-  poll is doing all the work. Find out which before tuning either number.
+  poll is doing all the work. Find out which before tuning either number. Since D-274
+  each guided run keeps CLICK/NEXT/SEEN counts (`vans-probe -tasks`), and the
+  click goes from the shell to the runtime without passing through the panel.
 - ~~**A drive step moved the real mouse.**~~ **Fixed in #96.** Clicking by posting
   a mouse event at the control's centre moves the actual cursor across the actual
   screen, which is the single thing that makes a runtime feel like it took the

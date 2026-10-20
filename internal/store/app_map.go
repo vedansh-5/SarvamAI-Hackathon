@@ -78,6 +78,10 @@ type Run struct {
 
 	TokensIn  int64
 	TokensOut int64
+
+	Clicked     int
+	NextPressed int
+	Seen        int
 }
 
 func (s *Store) RecordTask(ctx context.Context, r Run) error {
@@ -86,8 +90,8 @@ func (s *Store) RecordTask(ctx context.Context, r Run) error {
 		finished = 1
 	}
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO runs (at, app, shape, mode, steps, replayed, calls, finished, failed, tokens_in, tokens_out) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		time.Now().Unix(), r.App, r.Shape, r.Mode, r.Steps, r.Replayed, r.Calls, finished, r.Failed, r.TokensIn, r.TokensOut)
+		`INSERT INTO runs (at, app, shape, mode, steps, replayed, calls, finished, failed, tokens_in, tokens_out, clicked, next_pressed, seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		time.Now().Unix(), r.App, r.Shape, r.Mode, r.Steps, r.Replayed, r.Calls, finished, r.Failed, r.TokensIn, r.TokensOut, r.Clicked, r.NextPressed, r.Seen)
 	if err != nil {
 		return fmt.Errorf("store: record run: %w", err)
 	}
@@ -96,7 +100,7 @@ func (s *Store) RecordTask(ctx context.Context, r Run) error {
 
 func (s *Store) RecentTasks(ctx context.Context, most int) ([]Run, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT at, app, shape, mode, steps, replayed, calls, finished, failed, tokens_in, tokens_out FROM runs ORDER BY id DESC LIMIT ?`, most)
+		`SELECT at, app, shape, mode, steps, replayed, calls, finished, failed, tokens_in, tokens_out, clicked, next_pressed, seen FROM runs ORDER BY id DESC LIMIT ?`, most)
 	if err != nil {
 		return nil, fmt.Errorf("store: read runs: %w", err)
 	}
@@ -107,7 +111,7 @@ func (s *Store) RecentTasks(ctx context.Context, most int) ([]Run, error) {
 		var r Run
 		var at int64
 		var finished int
-		if err := rows.Scan(&at, &r.App, &r.Shape, &r.Mode, &r.Steps, &r.Replayed, &r.Calls, &finished, &r.Failed, &r.TokensIn, &r.TokensOut); err != nil {
+		if err := rows.Scan(&at, &r.App, &r.Shape, &r.Mode, &r.Steps, &r.Replayed, &r.Calls, &finished, &r.Failed, &r.TokensIn, &r.TokensOut, &r.Clicked, &r.NextPressed, &r.Seen); err != nil {
 			return nil, fmt.Errorf("store: read run: %w", err)
 		}
 		r.At, r.Finished = time.Unix(at, 0), finished == 1

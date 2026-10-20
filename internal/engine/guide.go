@@ -17,6 +17,19 @@ import (
 
 const MaxGuideSteps = 24
 
+type Advance string
+
+const (
+	ByNext  Advance = "next"
+	ByClick Advance = "click"
+)
+
+type Noticing struct {
+	Clicked     int
+	NextPressed int
+	Seen        int
+}
+
 // Long enough to find a control and read a line about it, short enough that a
 // person who walked away is not left with a dimmed screen. Polling is how we
 // notice they acted, since nothing tells us.
@@ -316,7 +329,7 @@ func (e *Engine) planGuideIn(ctx context.Context, task, shape string, literals m
 	}, nil
 }
 
-func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep), advance <-chan struct{}) (int, error) {
+func (e *Engine) RunGuide(ctx context.Context, plan *Plan, show func(GuideStep), advance <-chan Advance) (int, error) {
 	work, err := e.RunGuideCounted(ctx, plan, show, advance)
 	return work.Steps, err
 }
@@ -328,7 +341,7 @@ func coachKey(shape string) string {
 	return "coach: " + shape
 }
 
-func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(GuideStep), advance <-chan struct{}) (StepWork, error) {
+func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(GuideStep), advance <-chan Advance) (StepWork, error) {
 	g := plan.Guide
 	before := e.Meter.Now()
 	ctx = withAsked(withLooking(ctx, g.Looking), g.Task)
@@ -401,6 +414,7 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 
 	entered := &enteredForThem{}
 	enteringAll, declined := false, false
+	heard := &Noticing{}
 
 	point := func(ctx context.Context, on *Engine, tree uiact.Tree, program uiact.Program, number int, describe string) (uiact.Tree, error) {
 		step := program.Steps[0]
@@ -497,7 +511,7 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 
 			// The hand is theirs. Nothing is clicked here — the next step is only
 			// worked out once the window shows they have done this one.
-			err := on.waitForTheUserToAct(ctx, here, tree, step, advance, changed, reply)
+			err := on.waitForTheUserToAct(ctx, here, tree, step, advance, changed, reply, heard)
 			if errors.Is(err, errOfferTakenForAll) && all {
 				on.logf("step %d: doing this one for you, and the rest like it", number)
 				enteringAll = true
@@ -547,12 +561,13 @@ func (e *Engine) RunGuideCounted(ctx context.Context, plan *Plan, show func(Guid
 		app: g.App, task: asTask(g.Task), limit: limit, handle: point,
 		trace: planned, confirmed: memo.Kept, whole: whole, pointing: asksWhere(g.Task),
 	})
+	run.Noticed = *heard
 	e.settleTheTrace(context.WithoutCancel(ctx), memo, run)
 	e.writeDownWhatWasEntered(ctx, g, entered, run.Committed)
 	used := e.noteTheTask(ctx, g.App, g.Shape, ModeShow, run, planCalls, err, before)
 	work := StepWork{
 		Steps: run.Steps(), Replayed: run.Replayed, Calls: run.Calls + planCalls,
-		TokensIn: used.In, TokensOut: used.Out,
+		TokensIn: used.In, TokensOut: used.Out, Noticed: run.Noticed,
 	}
 	if err != nil {
 		return work, err
@@ -646,7 +661,7 @@ var openAppTimeout = 90 * time.Second
 // Readiness is the window publishing controls, not the process existing. An
 // application that has launched but has not drawn anything cannot be read, and
 // going on to plan a step against it would fail for a reason nobody could act on.
-func (e *Engine) waitForTheAppToOpen(ctx context.Context, g *GuidePlan, show func(GuideStep), advance <-chan struct{}) error {
+func (e *Engine) waitForTheAppToOpen(ctx context.Context, g *GuidePlan, show func(GuideStep), advance <-chan Advance) error {
 	label := "Open " + g.App
 	if g.Running {
 		label = "Switch to " + g.App
@@ -706,7 +721,7 @@ func (e *Engine) waitForTheAppToOpen(ctx context.Context, g *GuidePlan, show fun
 	return stopped(g.App, "engine: %s was never opened, so the steps stopped", g.App)
 }
 
-func (e *Engine) waitForTheScroll(ctx context.Context, app string, tree uiact.Tree, step uiact.Step, number int, show func(GuideStep), advance <-chan struct{}, changed <-chan struct{}) (uiact.Tree, error) {
+func (e *Engine) waitForTheScroll(ctx context.Context, app string, tree uiact.Tree, step uiact.Step, number int, show func(GuideStep), advance <-chan Advance, changed <-chan struct{}) (uiact.Tree, error) {
 	x, y, w, h, way, ok := tree.ScrollHint(step.Target)
 	if !ok {
 		return tree, stopped(app, "engine: the %s %q is out of view and there is nothing to scroll to reach it", step.Target.Role, step.Target.Title)
@@ -841,7 +856,7 @@ var (
 	errOfferDeclined    = errors.New("engine: they will do this step themselves")
 )
 
-func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uiact.Tree, step uiact.Step, advance <-chan struct{}, changed <-chan struct{}, reply <-chan OfferReply) error {
+func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uiact.Tree, step uiact.Step, advance <-chan Advance, changed <-chan struct{}, reply <-chan OfferReply, heard *Noticing) error {
 	// A Next left over from the step before belongs to that step. Cleared before
 	// settling rather than after, so a click the person makes while the window is
 	// still settling is kept rather than thrown away with the stale one.
@@ -864,11 +879,16 @@ func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uia
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-advance:
+		case by := <-advance:
 			pressed := time.Now()
 			e.sayItWasNoticed()
+			if by == ByClick {
+				heard.Clicked++
+			} else {
+				heard.NextPressed++
+			}
 			e.waitForTheWindowToAnswer(ctx, app, before, changed)
-			e.logf("%s answered the click in %s", app, took(pressed))
+			e.logf("%s answered the %s in %s", app, by, took(pressed))
 			return nil
 		case said := <-reply:
 			switch said {
@@ -909,6 +929,7 @@ func (e *Engine) waitForTheUserToAct(ctx context.Context, app string, before uia
 		// the shell reports their click directly (D-109).
 		if uiact.PersonActedOn(before, after, step) {
 			e.sayItWasNoticed()
+			heard.Seen++
 			return nil
 		}
 
@@ -965,7 +986,7 @@ func (e *Engine) handedBack(ctx context.Context, app string) bool {
 	}
 }
 
-func (e *Engine) waitForTheSwitch(ctx context.Context, app string, number int, describe string, show func(GuideStep), advance <-chan struct{}) error {
+func (e *Engine) waitForTheSwitch(ctx context.Context, app string, number int, describe string, show func(GuideStep), advance <-chan Advance) error {
 	there := func() bool {
 		if !names.Same(e.frontApp(ctx), app) {
 			return false
