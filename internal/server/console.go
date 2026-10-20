@@ -361,6 +361,8 @@ type view struct {
 
 	Feedback []Feedback
 	Open     int
+	Stops    []stopRow
+	Stopped  []countRow
 
 	Who    *testerRow
 	Kinds  []countRow
@@ -402,6 +404,37 @@ type providerRow struct {
 	Today  int
 	Limit  int
 }
+
+type stopRow struct {
+	At    time.Time
+	From  string
+	Why   string
+	App   string
+	Step  string
+	Asked string
+}
+
+func stopOf(f Feedback) stopRow {
+	row := stopRow{At: f.At, From: f.From}
+	for i, line := range strings.Split(f.Text, "\n") {
+		if i == 0 {
+			row.Why = strings.TrimSpace(line)
+			continue
+		}
+		name, said, _ := strings.Cut(line, ": ")
+		switch name {
+		case "In":
+			row.App = said
+		case "At":
+			row.Step = said
+		case "Asked":
+			row.Asked = said
+		}
+	}
+	return row
+}
+
+const mostStopsShown = 20
 
 type countRow struct {
 	Name    string
@@ -445,7 +478,7 @@ func (c *Console) show(w http.ResponseWriter, r *http.Request, fill func(ctx con
 	if page != "feedback" {
 		if all, err := c.Books.Feedback(r.Context()); err == nil {
 			for _, f := range all {
-				if !f.Handled {
+				if !f.Handled && f.Kind != synth.FeedbackStoppedGuide {
 					v.Open++
 				}
 			}
@@ -722,12 +755,24 @@ func (c *Console) feedback(ctx context.Context, v *view) error {
 		return err
 	}
 	sort.SliceStable(all, func(i, j int) bool { return !all[i].Handled && all[j].Handled })
-	v.Feedback = all
+	why := map[string]int{}
 	for _, f := range all {
+		if f.Kind == synth.FeedbackStoppedGuide {
+			stop := stopOf(f)
+			why[stop.Why]++
+			v.Stops = append(v.Stops, stop)
+			continue
+		}
+		v.Feedback = append(v.Feedback, f)
 		if !f.Handled {
 			v.Open++
 		}
 	}
+	sort.SliceStable(v.Stops, func(i, j int) bool { return v.Stops[i].At.After(v.Stops[j].At) })
+	if len(v.Stops) > mostStopsShown {
+		v.Stops = v.Stops[:mostStopsShown]
+	}
+	v.Stopped = ranked(why, nil, len(why))
 	return nil
 }
 

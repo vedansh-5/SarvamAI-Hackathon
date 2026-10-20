@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -333,8 +334,12 @@ func (s *Server) feedback(w http.ResponseWriter, r *http.Request, who Tester, ra
 		return
 	}
 	f.Text = strings.TrimSpace(f.Text)
-	if f.Kind != synth.FeedbackFailedGuide && f.Kind != synth.FeedbackNote {
+	if f.Kind != synth.FeedbackFailedGuide && f.Kind != synth.FeedbackNote && f.Kind != synth.FeedbackStoppedGuide {
 		refuse(w, http.StatusBadRequest, fmt.Sprintf("%q is not a kind of feedback VANS sends", f.Kind))
+		return
+	}
+	if f.Kind == synth.FeedbackStoppedGuide && !slices.Contains(synth.StopReasons, stopReason(f.Text)) {
+		refuse(w, http.StatusBadRequest, "a stopped guide says why on its first line")
 		return
 	}
 	if f.Text == "" || len(f.Text) > synth.MostFeedbackBytes {
@@ -348,13 +353,18 @@ func (s *Server) feedback(w http.ResponseWriter, r *http.Request, who Tester, ra
 		return
 	}
 	s.logf("%s sent %s feedback", who.Name, f.Kind)
-	if s.Mail != nil {
+	if s.Mail != nil && f.Kind != synth.FeedbackStoppedGuide {
 		subject := fmt.Sprintf("VANS: %s from %s", strings.ReplaceAll(f.Kind, "_", " "), who.Name)
 		if err := s.Mail.Mail(r.Context(), subject, f.Text); err != nil {
 			s.logf("feedback from %s was kept but not mailed: %v", who.Name, err)
 		}
 	}
 	reply(w, http.StatusOK, synth.Answered{})
+}
+
+func stopReason(text string) string {
+	first, _, _ := strings.Cut(text, "\n")
+	return strings.TrimSpace(first)
 }
 
 func (s *Server) learned(w http.ResponseWriter, r *http.Request, who Tester, raw json.RawMessage) {

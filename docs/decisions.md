@@ -6611,3 +6611,29 @@ filled a one-way trip, two cities, a date two months on, 2 adults and 2 rooms
 in 8 steps and 3 calls, about 8 seconds, three runs out of three. Not done:
 the real model on MakeMyTrip itself (it needs Vedansh's Chrome), and number
 rows such as ADULTS are clicks, which undo does not put back.
+
+## D-273 — A stopped guide asks why, with three taps
+
+Seven of nine Antigravity guides ended with Stop (plan B3). A stop is a wrong
+step, a slow one, or someone trying VANS out, and nothing told them apart: a
+tester does not write in to say which.
+
+When a guide is stopped (Escape, or the panel's stop), the panel comes back
+with one line above the field: "Why did you stop?" and Wrong step, Too slow,
+Just looking, and Skip. One tap sends it as feedback of the kind
+`stopped_guide`, and the line goes. Asking something else takes it away too.
+It is not shown when the stop was a switch to "do it for me", and not in a
+copy that asks a model directly, which has nowhere to send it.
+
+The plan put the three taps on the coach's caption. The coach window lets
+every click through to the application under it, so it cannot take a tap
+without taking the person's clicks too; the panel is already coming back at
+that moment, and takes them.
+
+What is sent is the reason on the first line, then what was asked, the
+application and the step it was on. The server refuses a reason the panel does
+not offer. It keeps these like any feedback (they count against the day's
+allowance, one each) but does not mail them, and the console does not count
+them as open: they are numbers to read, not messages to answer. The Feedback
+page shows how many of each, then the last twenty, with the application and
+the step.

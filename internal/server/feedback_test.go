@@ -96,3 +96,24 @@ func TestFeedbackCountsAgainstTheAllowance(t *testing.T) {
 		t.Errorf("err = %v, want over the cap", err)
 	}
 }
+
+func TestAStoppedGuideIsKeptWithItsReasonAndNotMailed(t *testing.T) {
+	mail := &postbox{}
+	srv, ledger := feedbackServer(t, 10, mail)
+	remote := synth.NewRemote(srv.URL, riya)
+
+	err := remote.SendFeedback(context.Background(), synth.Feedback{Kind: synth.FeedbackStoppedGuide, Text: "Too slow\nAsked: open settings\nIn: Antigravity\nAt: 2. Click Settings"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kept := ledger.Kept(); len(kept) != 1 || kept[0].Kind != synth.FeedbackStoppedGuide {
+		t.Errorf("kept = %+v", kept)
+	}
+	if len(mail.subjects) != 0 {
+		t.Errorf("a one-tap reason was mailed: %q", mail.subjects)
+	}
+
+	if err := remote.SendFeedback(context.Background(), synth.Feedback{Kind: synth.FeedbackStoppedGuide, Text: "I got bored\nIn: Notes"}); !errors.Is(err, synth.ErrRefused) {
+		t.Errorf("a reason the panel does not offer answered %v, want refused", err)
+	}
+}

@@ -2309,6 +2309,9 @@ was deployed from. See docs/infrastructure.md, "Versions".
   ticked; copy buttons for a code and for an invite; usage meters; "ago"
   times. One script, `internal/server/console.js`, allowed by its hash; the
   page still works without it.
+- Feedback: "Why guides were stopped" (D-273), counted by reason, then the
+  last twenty with the application and the step. Stop reasons are not mailed
+  and not counted as open.
 
 **Trials (A/B).** Built in D-260, unused since D-263. A trial is an entry in
 `synth.KnownTrials`; its first version is everyone's default; the console picks

@@ -309,3 +309,30 @@ func TestTheConsoleRunsOnlyTheScriptItShips(t *testing.T) {
 		t.Errorf("the script on the page is not the one the policy allows:\n%s", policy)
 	}
 }
+
+func TestStoppedGuidesAreCountedByWhyAndAreNotLeftOpen(t *testing.T) {
+	srv, _, client := consoleServer(t)
+	remote := synth.NewRemote(srv.URL, riya)
+	remote.HTTP = srv.Client()
+	ctx := context.Background()
+	for _, why := range []string{"Wrong step", "Wrong step", "Just looking"} {
+		text := why + "\nAsked: how do i open settings here\nIn: Antigravity\nAt: 3. Click Manage"
+		if err := remote.SendFeedback(ctx, synth.Feedback{Kind: synth.FeedbackStoppedGuide, Text: text}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	signIn(t, srv, client)
+	_, body := page(t, client, http.MethodGet, srv.URL+"/console/feedback", nil)
+	for _, want := range []string{"Why guides were stopped", "Nothing open", "3. Click Manage", "Antigravity", `<td>Wrong step</td><td style="width:45%"><div class="hbar" style="width: 100%"></div></td><td class="num">2</td>`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the feedback page is missing %q", want)
+		}
+	}
+	if strings.Contains(body, "Mark handled") || strings.Contains(body, "No feedback yet") {
+		t.Error("a stop reason was listed as feedback to handle")
+	}
+	if _, home := page(t, client, http.MethodGet, srv.URL+"/console", nil); strings.Contains(home, `<span class="count">`) {
+		t.Error("stop reasons were counted as open feedback")
+	}
+}

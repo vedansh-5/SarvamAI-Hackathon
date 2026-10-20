@@ -52,10 +52,13 @@ const (
 )
 
 const (
-	FeedbackFailedGuide = "failed_guide"
-	FeedbackNote        = "note"
-	MostFeedbackBytes   = 64 << 10
+	FeedbackFailedGuide  = "failed_guide"
+	FeedbackNote         = "note"
+	FeedbackStoppedGuide = "stopped_guide"
+	MostFeedbackBytes    = 64 << 10
 )
+
+var StopReasons = []string{"Wrong step", "Too slow", "Just looking"}
 
 const MostLearnedBytes = 64 << 10
 

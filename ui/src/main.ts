@@ -1038,6 +1038,8 @@ async function extract(sendAs?: string, text?: string) {
     console.error(e);
   }
 
+  stoppedAt = null;
+  renderWhyStopped();
   ($("intent") as HTMLInputElement).value = instruction;
   $("working-query").textContent = instruction;
   $("progress").textContent = "Working";
@@ -1110,6 +1112,10 @@ async function showTheWay(plan: Plan) {
     const res = await invoke<GuideResult>("guide", { planId: plan.plan_id });
     if (res?.stopped) {
       rerunAs = switchTo;
+      if (!rerunAs) {
+        stoppedAt = { asked: lastInstruction, app: coachedApp, step: $("guiding-step").textContent ?? "" };
+        renderWhyStopped();
+      }
       show("ask");
     } else {
       // A tick on the last control, which takes itself away. Finished and stopped
@@ -3207,6 +3213,45 @@ function failedGuideReport(): string {
   const detail = ($("failure-detail") as HTMLElement).innerText.trim();
   if (detail) lines.push("", detail.slice(0, 4000));
   return lines.join("\n");
+}
+
+const STOP_REASONS = ["Wrong step", "Too slow", "Just looking"];
+
+let stoppedAt: { asked: string; app: string; step: string } | null = null;
+
+function renderWhyStopped() {
+  const box = $("why-stopped");
+  clear(box);
+  const at = stoppedAt;
+  box.hidden = at === null || !canSendFeedback;
+  if (!at || !canSendFeedback) return;
+
+  const row = el("div", "row");
+  row.appendChild(el("span", "field-note", "Why did you stop? One tap tells Vedansh."));
+  for (const reason of STOP_REASONS) {
+    const pick = el("button", "btn secondary", reason) as HTMLButtonElement;
+    pick.addEventListener("click", async () => {
+      stoppedAt = null;
+      renderWhyStopped();
+      fitWindow();
+      const text = [reason, `Asked: ${at.asked.trim() || "(nothing typed)"}`, `In: ${at.app || "(unknown)"}`, `At: ${at.step.trim() || "(before the first step)"}`].join("\n");
+      try {
+        await invoke("send_feedback", { kind: "stopped_guide", text });
+        toast("Thanks. Sent to Vedansh");
+      } catch (e) {
+        toast(isRpcError(e) ? `Not sent: ${withoutThePrefix(e.message)}` : "Not sent. Try again in a moment.");
+      }
+    });
+    row.appendChild(pick);
+  }
+  const skip = el("button", "btn quiet", "Skip") as HTMLButtonElement;
+  skip.addEventListener("click", () => {
+    stoppedAt = null;
+    renderWhyStopped();
+    fitWindow();
+  });
+  row.appendChild(skip);
+  box.appendChild(row);
 }
 
 async function sendFeedback(kind: "failed_guide" | "note", text: string, state: HTMLElement): Promise<boolean> {
