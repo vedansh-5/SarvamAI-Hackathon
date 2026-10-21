@@ -6711,3 +6711,18 @@ at every level: they say something the person should see. The page starts
 faded, so a missed first message never leaves it bright. The fade needs no
 new permission; it reads the same pointer position the hover-to-open already
 reads. The times are constants at the top of `notch.rs`.
+
+## D-278 — A database from before the step times gets their columns
+
+D-274 added three columns to `runs` (`clicked`, `next_pressed`, `seen`) inside
+the migration but left `schemaVersion` at 19. The migration returns early
+when the database is already at that version, so every copy that had run
+0.4.0 or later never got them. From 0.4.4 every run's record failed
+(`no such column: clicked`): nothing a guide or a do-it run did was kept, the
+step times B4 waits on were never saved, and `vans-probe -tasks` stopped
+reading.
+
+`schemaVersion` is now 20, so the next start adds the columns. A test opens a
+version-19 database without them, records a run and reads it back; it fails
+on the old code. Anyone adding a column in the migration raises the version
+in the same change.
