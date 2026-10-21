@@ -6751,8 +6751,6 @@ as an ordinary page and was already read that way. A selection inside a
 canvas document is still not read: the one place Docs exposes it is meant only
 for extensions it has approved.
 
-## D-278 — Talking to VANS: hold to talk, heard and spoken on this Mac only
-
 ## D-280 — Talking to VANS: hold to talk, heard and spoken on this Mac only
 
 Asked for on 2026-10-22, to the shape in Part D of
