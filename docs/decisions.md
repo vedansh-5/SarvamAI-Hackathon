@@ -6753,6 +6753,8 @@ for extensions it has approved.
 
 ## D-278 — Talking to VANS: hold to talk, heard and spoken on this Mac only
 
+## D-280 — Talking to VANS: hold to talk, heard and spoken on this Mac only
+
 Asked for on 2026-10-22, to the shape in Part D of
 `docs/plans/2026-10-18-before-voice.md` and the 2026-10-03 decision to start
 with Apple's own recognition. Built in `voice.rs` (listening, keys, the
