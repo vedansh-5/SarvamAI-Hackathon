@@ -6795,7 +6795,7 @@ Return to say yes."), or what went wrong. Each step of a guide is said the
 way its caption reads ("Click Tools", "Type groceries"), once per step;
 steps VANS is doing itself are not. Typed requests stay silent. Speech is
 `AVSpeechSynthesizer` with the person's own Spoken Content voice and rate, so
-nothing new runs: like D-266's text recognition, it is the Mac's own, not a
+nothing new runs: like D-231's text recognition, it is the Mac's own, not a
 model VANS ships. Links and formatting are dropped and it stops after about
 280 characters, at a sentence. Setup can turn it off.
 
