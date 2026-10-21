@@ -6726,3 +6726,27 @@ reading.
 version-19 database without them, records a run and reads it back; it fails
 on the old code. Anyone adding a column in the migration raises the version
 in the same change.
+## D-279 — A Google Doc, Sheet or Slides deck is read from its own export
+
+Part C4 of the before-voice plan. Docs, Sheets and Slides draw their content
+on a canvas, so the page VANS reads for "what does this say" or "summarise
+this" held menus and an empty drawing: the answer could only come from the
+toolbar.
+
+When the page in front is a file on `docs.google.com`, the engine now asks
+that same tab for the file's own export (`internal/gapps`, called from
+`readWhatIsInFront`): plain text for a document or a deck, CSV for the sheet
+that is open (its `gid`). The request runs inside the person's tab, so it
+carries their sign-in and reads only what they can already open; nothing is
+sent anywhere new. The export becomes a plain page — paragraphs, or a real
+table with the empty edges cut off — and the usual reading and answering runs
+on that. Anything that goes wrong (no access, a sign-in page, a browser that
+cannot run the script) falls back to reading the page as drawn.
+
+The file id is checked before it goes into the script, so an address cannot
+smuggle code into it. Tried in a hidden Chrome on the public Docs, Sheets and
+Slides samples Google publishes for its APIs; Gmail, a selection inside a
+document, and files in a signed-in account are not tried yet. Gmail is drawn
+as an ordinary page and was already read that way. A selection inside a
+canvas document is still not read: the one place Docs exposes it is meant only
+for extensions it has approved.
