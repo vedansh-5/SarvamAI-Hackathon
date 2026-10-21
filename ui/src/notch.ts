@@ -21,7 +21,7 @@ interface Watching {
 
 function watched(w: Watching) {
   pill.classList.toggle("unwatched", !w.on);
-  pill.title = w.on ? "VANS (⌥Space) · learning from your clicks" : "VANS (⌥Space)";
+  pill.title = w.on ? "VANS: ⌥Space opens, hold it to talk · learning from your clicks" : "VANS: ⌥Space opens, hold it to talk";
 }
 
 paint({ state: "idle" });

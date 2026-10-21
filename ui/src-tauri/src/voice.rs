@@ -608,6 +608,11 @@ pub fn speaking(app: &AppHandle, words: &str) {
     tell(app, "speaking", words);
 }
 
+pub fn shown_not_said(app: &AppHandle, words: &str) {
+    *LAST_SAID.lock().unwrap() = words.to_string();
+    tell_then_go(app, "heard", words, Duration::from_secs(4));
+}
+
 pub fn quiet(app: &AppHandle) {
     if !SPEAKING.swap(false, Ordering::SeqCst) {
         return;

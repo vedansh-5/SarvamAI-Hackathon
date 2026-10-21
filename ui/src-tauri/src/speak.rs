@@ -75,6 +75,11 @@ pub fn say(app: &AppHandle, text: &str) {
         if SAYING.load(Ordering::SeqCst) != n {
             return;
         }
+        if mac::on_a_call() {
+            eprintln!("[vans] another app has the microphone; showing instead of saying");
+            crate::voice::shown_not_said(&handle, &words);
+            return;
+        }
         mac::speak(&words);
         crate::voice::speaking(&handle, &words);
         until_quiet(handle, n);
@@ -144,6 +149,15 @@ mod mac {
     pub fn speaking() -> bool {
         SYNTH.with(|s| s.borrow().as_ref().is_some_and(|synth| unsafe { synth.isSpeaking() }))
     }
+
+    pub fn on_a_call() -> bool {
+        use objc2_av_foundation::{AVCaptureDevice, AVMediaTypeAudio};
+        unsafe {
+            AVMediaTypeAudio
+                .and_then(|audio| AVCaptureDevice::defaultDeviceWithMediaType(audio))
+                .is_some_and(|mic| mic.isInUseByAnotherApplication())
+        }
+    }
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -151,6 +165,9 @@ mod mac {
     pub fn speak(_words: &str) {}
     pub fn stop() {}
     pub fn speaking() -> bool {
+        false
+    }
+    pub fn on_a_call() -> bool {
         false
     }
 }

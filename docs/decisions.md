@@ -6797,7 +6797,7 @@ steps VANS is doing itself are not. Typed requests stay silent. Speech is
 `AVSpeechSynthesizer` with the person's own Spoken Content voice and rate, so
 nothing new runs: like D-231's text recognition, it is the Mac's own, not a
 model VANS ships. Links and formatting are dropped and it stops after about
-280 characters, at a sentence. Setup can turn it off.
+280 characters, at a sentence. When another app has the microphone (a call), it shows the words in the island and says nothing, as Clicky stays quiet on calls. Setup can turn it off.
 
 **The island.** On a Mac with a notch, the black of the notch grows outward
 while VANS listens, thinks or speaks, with the same inward-curved top corners
