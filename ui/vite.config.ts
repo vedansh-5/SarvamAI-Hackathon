@@ -21,6 +21,7 @@ export default defineConfig(async () => ({
         coach: "coach.html",
         notch: "notch.html",
         nudge: "nudge.html",
+        voice: "voice.html",
       },
     },
   },

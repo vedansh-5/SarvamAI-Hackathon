@@ -29,9 +29,12 @@
       #pill.unwatched #dot { background: transparent; box-shadow: inset 0 0 0 1.5px var(--volt); }
       #pill.offering #dot { background: radial-gradient(circle, #fff 0 1.5px, var(--volt) 2px); }
       #pill.working #dot, #pill.guiding #dot, #pill.offering #dot { opacity: 1; }
+      #pill.listening #dot { opacity: 1; transform: scale(1.35); animation: hear 1.2s ease-in-out infinite; }
       @keyframes breathe { 50% { opacity: 0.3; transform: scale(0.8); } }
+      @keyframes hear { 50% { box-shadow: 0 0 0 4px rgb(var(--volt-rgb) / 0.35); } }
       @media (prefers-reduced-motion: reduce) {
         #pill.working #dot { animation: none; opacity: 1; }
+        #pill.listening #dot { animation: none; box-shadow: 0 0 0 3px rgb(var(--volt-rgb) / 0.35); }
       }
     </style>
   </head>

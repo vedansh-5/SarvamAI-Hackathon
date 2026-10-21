@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "voice",
+  "description": "The capsule under the menu bar while VANS is listening. It hears how loud you are and what was heard, and shows it. It needs nothing else.",
+  "windows": ["voice"],
+  "permissions": ["core:event:default"]
+}

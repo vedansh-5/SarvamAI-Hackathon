@@ -760,8 +760,11 @@ pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
 
     let handle = app.clone();
     app.global_shortcut().on_shortcut(hotkey(), move |_, _, event| {
-        // Fire on press. Acting on release too would toggle twice per tap.
-        if event.state() != ShortcutState::Pressed {
+        if event.state() == ShortcutState::Pressed {
+            crate::voice::key_down(&handle);
+            return;
+        }
+        if !crate::voice::key_up(&handle) {
             return;
         }
 

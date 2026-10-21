@@ -123,6 +123,7 @@ func (e *Engine) Abilities(ctx context.Context) []Ability {
 		synth.AbilityRoutines: e.Routines != nil,
 		synth.AbilityLater:    e.Schedules != nil,
 		synth.AbilityLearning: e.Clicks != nil,
+		synth.AbilityVoice:    true,
 	}
 	var base []synth.AbilityText
 	builtIn := map[string][]string{}

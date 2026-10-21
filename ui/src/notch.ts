@@ -42,6 +42,10 @@ listen<string>("pill://calm", (e) => {
   pill.dataset.calm = e.payload;
 });
 
+listen<boolean>("pill://listening", (e) => {
+  pill.classList.toggle("listening", e.payload);
+});
+
 pill.addEventListener("click", () => {
   invoke("summon").catch(() => {});
 });

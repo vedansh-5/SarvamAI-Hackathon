@@ -51,6 +51,7 @@ const (
 	AbilityRoutines = "routines"
 	AbilityLater    = "later"
 	AbilityLearning = "learning"
+	AbilityVoice    = "voice"
 )
 
 func BuiltInWelcome() Welcome {
@@ -59,6 +60,7 @@ func BuiltInWelcome() Welcome {
 		Lede:  "Ask how to do something and VANS points at each step on your own screen while you do it. When you would rather not, it can do it for you, where you can watch.",
 		Keys: []Key{
 			{Key: "⌥Space", After: "opens VANS, from any app. So does the dot at the top of the screen."},
+			{Before: "Hold", Key: "⌥Space", After: "and talk, then let go, to ask out loud."},
 			{Key: "Esc", After: "stops what VANS is doing."},
 			{Before: "Hold", Key: "Return", After: "to say yes when VANS asks before changing something."},
 		},
@@ -73,6 +75,8 @@ func BuiltInAbilities() []AbilityText {
 		{ID: AbilityDo, Title: "Do it for you",
 			Says:     "Switch to Do it for me and VANS does the steps on screen where you can watch. It asks before anything that changes your work.",
 			Examples: []string{"make a new note called Groceries"}},
+		{ID: AbilityVoice, Title: "Ask out loud",
+			Says: "Hold ⌥Space, say what you want and let go. Or press ⌥⇧Space and talk; VANS stops listening when you stop. During a guide, say \"next\" or \"stop\". Your voice stays on this Mac; only the words go on, as if typed."},
 		{ID: AbilityRead, Title: "Read what is on screen",
 			Says:     "Ask about the window in front: an error, a status, a long message.",
 			Examples: []string{"what does this error say", "summarise this window"}},

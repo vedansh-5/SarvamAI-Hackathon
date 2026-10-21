@@ -59,7 +59,7 @@ pub struct Place {
 }
 
 #[cfg(target_os = "macos")]
-pub fn place() -> Option<Place> {
+fn bar_screen() -> Option<(objc2::rc::Retained<objc2_app_kit::NSScreen>, f64)> {
     use objc2::MainThreadMarker;
     use objc2_app_kit::NSScreen;
 
@@ -71,6 +71,29 @@ pub fn place() -> Option<Place> {
         .iter()
         .find(|s| s.safeAreaInsets().top > 0.0)
         .unwrap_or(primary);
+    Some((screen, primary_top))
+}
+
+#[cfg(target_os = "macos")]
+pub fn under_the_bar(width: f64, gap: f64) -> Option<(f64, f64)> {
+    let (screen, primary_top) = bar_screen()?;
+    let frame = screen.frame();
+    let top = frame.origin.y + frame.size.height;
+    let inset = screen.safeAreaInsets().top;
+    let visible = screen.visibleFrame();
+    let bar = if inset > 0.0 { inset } else { top - (visible.origin.y + visible.size.height) };
+    let bar = if bar > 0.0 { bar } else { BAR_HEIGHT };
+    Some((frame.origin.x + (frame.size.width - width) / 2.0, primary_top - top + bar + gap))
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn under_the_bar(_width: f64, _gap: f64) -> Option<(f64, f64)> {
+    None
+}
+
+#[cfg(target_os = "macos")]
+pub fn place() -> Option<Place> {
+    let (screen, primary_top) = bar_screen()?;
 
     let frame = screen.frame();
     let top = frame.origin.y + frame.size.height;
@@ -112,7 +135,7 @@ pub fn put(app: &AppHandle) {
 }
 
 #[cfg(target_os = "macos")]
-fn sit_in_the_menu_bar(win: &WebviewWindow) {
+pub fn sit_in_the_menu_bar(win: &WebviewWindow) {
     use objc2_app_kit::{NSWindow, NSWindowCollectionBehavior, NSWindowLevel};
 
     let Ok(ptr) = win.ns_window() else { return };
@@ -132,7 +155,7 @@ fn sit_in_the_menu_bar(win: &WebviewWindow) {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn sit_in_the_menu_bar(_win: &WebviewWindow) {}
+pub fn sit_in_the_menu_bar(_win: &WebviewWindow) {}
 
 #[cfg(target_os = "macos")]
 fn follow_the_screens(app: &AppHandle) {

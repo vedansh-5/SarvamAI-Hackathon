@@ -2854,6 +2854,15 @@ listen<{ instruction?: string }>("nudge://run", async (event) => {
   void extract("do", instruction);
 });
 
+listen<{ text?: string; context?: ScreenContext }>("voice://heard", async (event) => {
+  const instruction = event.payload?.text?.trim();
+  if (!instruction) return;
+  openFresh = false;
+  if (event.payload?.context) updateActiveContext(event.payload.context);
+  await invoke("summon").catch(console.error);
+  void extract(undefined, instruction);
+});
+
 listen("engine://habits", () => {
   loadHabit().catch(console.error);
 });

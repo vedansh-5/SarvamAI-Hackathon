@@ -6751,6 +6751,47 @@ as an ordinary page and was already read that way. A selection inside a
 canvas document is still not read: the one place Docs exposes it is meant only
 for extensions it has approved.
 
+## D-278 — Talking to VANS: hold ⌥Space, heard on this Mac only
+
+Asked for on 2026-10-22, to the shape in Part D of
+`docs/plans/2026-10-18-before-voice.md` and the 2026-10-03 decision to start
+with Apple's own recognition. Built in `voice.rs`, `voice.html` and
+`voice.ts`; the words become text before anything else sees them, so the
+engine, routing and caching do not change.
+
+**Controls.**
+
+- Hold ⌥Space (280 ms or more), talk, let go: what was heard runs as if typed.
+  A tap still opens the panel, now on release instead of on press, since a
+  press alone cannot tell a tap from a hold.
+- ⌥⇧Space starts listening hands-free. It ends 1.4 s after you stop talking,
+  on a second press of either key, or after 6 s of nothing said.
+- Esc stops listening and throws away what was heard. Nothing listens for
+  longer than 30 s.
+- During a guide, a tap on ⌥Space is still Next. Holding it hears "next" or
+  "stop" (and a few words like them, four words at most), nothing else. A
+  spoken yes is never taken as consent; Command-Return is still the only yes.
+
+**Hearing.** `SFSpeechRecognizer` with `requiresOnDeviceRecognition`: the audio
+never leaves the Mac. When the Mac has no on-device model for the language,
+VANS says to turn on Dictation rather than falling back to Apple's servers.
+The frontmost app's name is passed as a hint so it is spelled right. The
+microphone runs only while listening; macOS shows its own indicator then.
+
+**Looks.** The dot grows and pulses while listening. A capsule under the menu
+bar, centred on the screen with the notch, shows a level bar, the words as
+they are heard, then the request; it never takes the keyboard or a click.
+The panel opens only once there is a request, as it does for a typed one.
+
+**Asking.** Microphone and Speech Recognition are asked for the first time
+someone holds the key, not in Setup: Setup's list blocks requests until
+everything in it is answered, and voice is optional.
+
+Not yet: steps said aloud, a choice of other recognition services, a line in
+the privacy page (it goes in with the release that ships voice, since the site
+only says what VANS does today), and voice as a trial (D-263), which is set
+up when it ships.
+
 ## D-281 — Anyone can sign in with their email; the code arrives by email
 
 Invite codes were made by hand (`vans-testers add`, the console), which does

@@ -6,6 +6,7 @@ mod nudge;
 mod overlay;
 mod permissions;
 mod update;
+mod voice;
 mod watching;
 pub mod screen;
 
@@ -610,6 +611,7 @@ pub fn run() {
             overlay::install(&handle_for_overlay)?;
             notch::install(&handle_for_overlay)?;
             nudge::install(&handle_for_overlay)?;
+            voice::install(&handle_for_overlay)?;
             watching::install(&handle_for_overlay);
             update::install(&handle_for_overlay);
             if !login::started_at_login() {
