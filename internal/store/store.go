@@ -99,7 +99,7 @@ func Open(path string) (*Store, error) {
 // Close releases the database.
 func (s *Store) Close() error { return s.db.Close() }
 
-const schemaVersion = 19
+const schemaVersion = 20
 
 func (s *Store) migrate(ctx context.Context) error {
 	var v int
