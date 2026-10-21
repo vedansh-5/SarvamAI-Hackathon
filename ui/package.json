@@ -1,7 +1,7 @@
 {
   "name": "vans",
   "private": true,
-  "version": "0.4.4",
+  "version": "0.4.5",
   "type": "module",
   "scripts": {
     "dev": "go build -o vans-engine ../cmd/vans-engine && sh ../infra/mac/sign-engine.sh vans-engine && vite",
