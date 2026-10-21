@@ -49,6 +49,7 @@ func (e *Engine) readWhatIsInFront(ctx context.Context, intent string, lookingAt
 	if err != nil {
 		return nil, fmt.Errorf("engine: read the page in front of you: %w", err)
 	}
+	src = e.googleFileIn(ctx, reader, pageURL, src)
 
 	sig, err := extract.SignatureOf(src, extract.NewSigOptions())
 	if err != nil {
