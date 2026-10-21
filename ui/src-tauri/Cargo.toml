@@ -1,6 +1,6 @@
 [package]
 name = "vans"
-version = "0.4.4"
+version = "0.4.5"
 description = "Visual Agent Navigation System"
 edition = "2021"
 
