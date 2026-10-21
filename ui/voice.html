@@ -4,59 +4,114 @@
     <meta charset="UTF-8" />
     <title>VANS</title>
     <style>
+      :root { --notch: 0px; --bar: 0px; --flare: 10px; --ease: cubic-bezier(0.2, 0.8, 0.2, 1); }
       html, body {
         margin: 0; padding: 0; width: 100%; height: 100%;
         background: transparent; overflow: hidden;
         -webkit-user-select: none; user-select: none; cursor: default;
         font: 500 13px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+        color: #f5f5f7;
       }
-      #room {
-        position: fixed; inset: 0;
-        display: flex; align-items: flex-start; justify-content: center;
+      #island {
+        position: absolute; top: 0; left: 50%;
+        transform: translateX(-50%);
+        box-sizing: border-box;
+        background: #000;
+        display: flex; flex-direction: column;
+        overflow: visible;
       }
-      #capsule {
-        display: inline-flex; align-items: center; gap: 10px;
-        max-width: calc(100% - 24px); min-height: 36px; box-sizing: border-box;
-        padding: 8px 16px; border-radius: 20px;
-        background: rgba(18, 18, 20, 0.94); color: #f5f5f7;
-        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28), inset 0 0 0 0.5px rgba(255, 255, 255, 0.12);
-        opacity: 0; transform: translateY(-6px) scale(0.96);
-        transition: opacity 160ms ease, transform 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
+      #island[data-shape="notch"] {
+        width: var(--notch); height: var(--bar);
+        border-radius: 0 0 14px 14px;
+        transition: width 340ms var(--ease), height 340ms var(--ease), border-radius 340ms var(--ease);
       }
-      #capsule.on { opacity: 1; transform: none; }
-      #bars { display: flex; align-items: center; gap: 3px; height: 18px; flex: none; }
-      #bars i {
-        display: block; width: 3px; height: 18px; border-radius: 2px;
-        background: var(--volt);
-        transform: scaleY(0.15); transform-origin: center;
-        transition: transform 70ms linear;
+      #island[data-shape="notch"]::before,
+      #island[data-shape="notch"]::after {
+        content: ""; position: absolute; top: 0; width: var(--flare); height: var(--flare);
       }
+      #island[data-shape="notch"]::before {
+        left: calc(-1 * var(--flare));
+        background: radial-gradient(circle at 0 100%, transparent calc(var(--flare) - 0.5px), #000 var(--flare));
+      }
+      #island[data-shape="notch"]::after {
+        right: calc(-1 * var(--flare));
+        background: radial-gradient(circle at 100% 100%, transparent calc(var(--flare) - 0.5px), #000 var(--flare));
+      }
+      #island[data-shape="notch"].open { width: calc(100% - 2 * var(--flare)); border-radius: 0 0 22px 22px; }
+      #island[data-shape="float"] {
+        top: 0; width: auto; max-width: calc(100% - 24px); min-height: 36px;
+        border-radius: 20px; flex-direction: row; align-items: center;
+        padding: 0 16px 0 12px;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28), inset 0 0 0 0.5px rgba(255, 255, 255, 0.14);
+        opacity: 0; transform: translateX(-50%) translateY(-6px) scale(0.96);
+        transition: opacity 180ms ease, transform 240ms var(--ease);
+      }
+      #island[data-shape="float"].open { opacity: 1; transform: translateX(-50%); }
+
+      #top { display: flex; align-items: center; flex: none; }
+      #island[data-shape="notch"] #top { height: var(--bar); }
+      #gap { width: var(--notch); flex: none; }
+      #island[data-shape="float"] #gap, #island[data-shape="float"] #tail { display: none; }
+      #lead, #tail { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; }
+      #island[data-shape="float"] #lead { flex: none; padding-right: 10px; }
+
+      #body { overflow: hidden; }
+      #island[data-shape="notch"] #body { padding: 0 20px; opacity: 0; transition: opacity 160ms ease, padding 340ms var(--ease); }
+      #island[data-shape="notch"].open #body { padding: 4px 20px 12px; opacity: 1; transition-delay: 120ms; }
+      #island[data-shape="float"] #body { padding: 8px 0; }
+      #island #lead > *, #island #tail > * { opacity: 0; transition: opacity 160ms ease; }
+      #island.open #lead > *, #island.open #tail > * { opacity: 1; transition-delay: 100ms; }
+
       #words {
         overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-        overflow-wrap: anywhere;
+        overflow-wrap: anywhere; text-align: center;
       }
+      #island[data-shape="float"] #words { text-align: left; }
       #words.hint { color: rgba(245, 245, 247, 0.55); }
-      #capsule[data-state="thinking"] #bars i { animation: think 900ms ease-in-out infinite; }
-      #capsule[data-state="thinking"] #bars i:nth-child(2) { animation-delay: 90ms; }
-      #capsule[data-state="thinking"] #bars i:nth-child(3) { animation-delay: 180ms; }
-      #capsule[data-state="thinking"] #bars i:nth-child(4) { animation-delay: 270ms; }
-      #capsule[data-state="thinking"] #bars i:nth-child(5) { animation-delay: 360ms; }
-      #capsule[data-state="heard"] #bars,
-      #capsule[data-state="note"] #bars { display: none; }
-      #capsule[data-state="note"] { font-weight: 400; font-size: 12px; }
-      @keyframes think { 50% { transform: scaleY(0.45); } }
+      #island[data-state="note"] #words { font-weight: 400; font-size: 12px; color: rgba(245, 245, 247, 0.85); }
+
+      .glyph { display: none; align-items: center; gap: 3px; height: 16px; }
+      #island[data-state="listening"] .glyph.bars,
+      #island[data-state="thinking"] .glyph.dots,
+      #island[data-state="heard"] .glyph.done,
+      #island[data-state="speaking"] .glyph.eq,
+      #island[data-state="note"] .glyph.note { display: flex; }
+
+      .bars i { display: block; width: 3px; height: 16px; border-radius: 2px; background: var(--volt); transform: scaleY(0.2); }
+      .dots i { display: block; width: 5px; height: 5px; border-radius: 50%; background: var(--volt); animation: hop 1s ease-in-out infinite; }
+      .dots i:nth-child(2) { animation-delay: 0.15s; }
+      .dots i:nth-child(3) { animation-delay: 0.3s; }
+      .eq i { display: block; width: 3px; height: 14px; border-radius: 2px; background: var(--volt); animation: eq 0.9s ease-in-out infinite; transform-origin: center; }
+      .eq i:nth-child(2) { animation-delay: 0.2s; }
+      .eq i:nth-child(3) { animation-delay: 0.4s; }
+      .eq i:nth-child(4) { animation-delay: 0.1s; }
+      .done svg, .note svg { width: 15px; height: 15px; }
+      .done svg { stroke: var(--volt); }
+      .note svg { stroke: #ffb340; }
+      #tail .live { display: none; width: 7px; height: 7px; border-radius: 50%; background: #ff453a; animation: live 1.2s ease-in-out infinite; }
+      #island[data-state="listening"] #tail .live { display: block; }
+      @keyframes hop { 50% { transform: translateY(-4px); opacity: 0.6; } }
+      @keyframes eq { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
+      @keyframes live { 50% { opacity: 0.35; } }
       @media (prefers-reduced-motion: reduce) {
-        #capsule, #bars i { transition: none; }
-        #capsule[data-state="thinking"] #bars i { animation: none; transform: scaleY(0.3); }
+        #island, #island * { transition-duration: 0ms !important; animation: none !important; }
       }
     </style>
   </head>
   <body>
-    <div id="room">
-      <div id="capsule" data-state="listening" role="status" aria-live="polite">
-        <div id="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-        <div id="words"></div>
+    <div id="island" data-shape="float" data-state="listening" role="status" aria-live="polite">
+      <div id="top">
+        <span id="lead">
+          <span class="glyph bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="glyph dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="glyph done" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7" /></svg></span>
+          <span class="glyph eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <span class="glyph note" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="8" r="6.2" /><path d="M8 4.8v3.8M8 11.2v.1" /></svg></span>
+        </span>
+        <span id="gap"></span>
+        <span id="tail"><span class="live" aria-hidden="true"></span></span>
       </div>
+      <div id="body"><div id="words"></div></div>
     </div>
     <script type="module" src="/src/voice.ts"></script>
   </body>

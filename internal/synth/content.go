@@ -76,7 +76,7 @@ func BuiltInAbilities() []AbilityText {
 			Says:     "Switch to Do it for me and VANS does the steps on screen where you can watch. It asks before anything that changes your work.",
 			Examples: []string{"make a new note called Groceries"}},
 		{ID: AbilityVoice, Title: "Ask out loud",
-			Says: "Hold ⌥Space, say what you want and let go. Or press ⌥⇧Space and talk; VANS stops listening when you stop. During a guide, say \"next\" or \"stop\". Your voice stays on this Mac; only the words go on, as if typed."},
+			Says: "Hold ⌥Space, say what you want and let go, or press ⌥⇧Space and talk until you stop. VANS answers out loud and says each step as it points. During a guide, say \"next\", \"again\" or \"stop\". Setup can change the key to ⌃⌥ or turn the talking off. Your voice stays on this Mac; only the words go on, as if typed."},
 		{ID: AbilityRead, Title: "Read what is on screen",
 			Says:     "Ask about the window in front: an error, a status, a long message.",
 			Examples: []string{"what does this error say", "summarise this window"}},

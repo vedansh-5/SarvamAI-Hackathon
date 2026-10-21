@@ -465,6 +465,7 @@ async function runPreflight(advance = true) {
   clear(checks);
   checks.appendChild(el("p", "meta", "Checking…"));
   loadWatching().catch(console.error);
+  loadVoice().catch(console.error);
   loadInvite().catch(console.error);
 
   let result: Preflight;
@@ -577,6 +578,49 @@ function showWatching(w: Watching) {
 
 async function loadWatching() {
   showWatching(await invoke<Watching>("watching"));
+}
+
+interface VoiceSettings {
+  on: boolean;
+  key: "option-space" | "control-option";
+  aloud: boolean;
+}
+
+interface Ears {
+  state: "granted" | "not_asked" | "needed";
+}
+
+let voiceNow: VoiceSettings = { on: true, key: "option-space", aloud: true };
+
+function showVoice(v: VoiceSettings, ears: Ears) {
+  voiceNow = v;
+  ($("voice-on") as HTMLInputElement).checked = v.on;
+  ($("voice-aloud") as HTMLInputElement).checked = v.aloud;
+  for (const b of document.querySelectorAll<HTMLButtonElement>("#voice-key button")) {
+    const on = b.dataset.key === v.key;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-checked", String(on));
+    b.disabled = !v.on;
+  }
+  ($("voice-aloud") as HTMLInputElement).disabled = !v.on;
+  const hold = v.key === "control-option" ? "Hold ⌃⌥" : "Hold ⌥Space";
+  const heard = ears.state === "granted"
+    ? `${hold}, talk, and let go. ⌥⇧Space listens until you stop talking. Esc stops. What you say is turned into words on this Mac; your voice is not sent anywhere.`
+    : ears.state === "not_asked"
+      ? "VANS asks for the microphone and speech recognition the first time you hold the key, or now."
+      : "Microphone or Speech Recognition is off for VANS. Turn both on in System Settings › Privacy & Security.";
+  $("voice-note").textContent = v.on ? heard : "Off. The keys do what they did before: ⌥Space opens VANS.";
+  $("voice-allow").hidden = !v.on || ears.state !== "not_asked";
+  $("voice-open").hidden = !v.on || ears.state !== "needed";
+}
+
+async function loadVoice() {
+  showVoice(await invoke<VoiceSettings>("voice_settings"), await invoke<Ears>("voice_ears"));
+}
+
+async function saveVoice(next: Partial<VoiceSettings>) {
+  const saved = await invoke<VoiceSettings>("set_voice_settings", { settings: { ...voiceNow, ...next } });
+  showVoice(saved, await invoke<Ears>("voice_ears"));
 }
 
 async function seeNoted() {
@@ -801,7 +845,7 @@ let setupReady = false;
 let startOpen: boolean | null = null;
 const setupGroups: { id: string; title: string; blocks: string[] }[] = [
   { id: "start", title: "Getting started", blocks: ["perms", "ready", "invite", "model"] },
-  { id: "behave", title: "How VANS behaves", blocks: ["rules", "learning"] },
+  { id: "behave", title: "How VANS behaves", blocks: ["rules", "voice", "learning"] },
   { id: "about", title: "About this copy", blocks: ["tell", "record", "updates", "start", "appearance"] },
 ];
 const groupOpen: Record<string, boolean> = { behave: true, about: true };
@@ -1019,7 +1063,15 @@ function showHeadsup(where: "guiding" | "confirm", plan: Plan) {
     : `Doing it for you${why}.`;
 }
 
-async function extract(sendAs?: string, text?: string) {
+function sayAloud(text: string) {
+  if (text.trim()) invoke("say_aloud", { text }).catch(() => {});
+}
+
+function sayShown(...ids: string[]) {
+  sayAloud(ids.map((id) => $(id).textContent?.trim() ?? "").filter(Boolean).join(". "));
+}
+
+async function extract(sendAs?: string, text?: string, spoken = false) {
   const instruction = (text ?? ($("intent") as HTMLInputElement).value).trim();
   const destination = chosen;
 
@@ -1027,6 +1079,7 @@ async function extract(sendAs?: string, text?: string) {
     ($("intent") as HTMLInputElement).focus();
     return;
   }
+  invoke("set_aloud", { on: spoken }).catch(() => {});
 
   try {
     if (mustAsk(withMemory(await invoke<Permission[]>("permissions")))) {
@@ -1065,20 +1118,28 @@ async function extract(sendAs?: string, text?: string) {
       if (plan.marked) showClearStyle(true);
       renderSay(plan);
       show("results");
+      if (spoken) sayAloud(plan.say);
       if (plan.decision_calls + plan.synthesis_calls === 0) setStatus("", "Instant");
     } else if (plan.kind === "app.guide") {
       await showTheWay(plan);
     } else if (plan.needs_commit) {
       renderConfirm(plan);
       show("confirm");
+      if (spoken) sayAloud(`${$("confirm-title").textContent ?? ""} Hold Return to say yes.`);
     } else {
       renderResults(plan);
       show("results");
       if (plan.decision_calls + plan.synthesis_calls === 0) setStatus("instant", "Remembered");
+      if (spoken) sayAloud(plan.answer || $("results-kicker").textContent || "");
     }
   } catch (e) {
     renderFailure(e);
-    show(isRpcError(e) && e.code === "unroutable" ? "notunderstood" : "failure");
+    const why = isRpcError(e) && e.code === "unroutable" ? "notunderstood" : "failure";
+    show(why);
+    if (spoken) {
+      if (why === "notunderstood") sayAloud("I didn't understand that. Try saying it another way.");
+      else sayShown("failure-title", "failure-message");
+    }
   }
 }
 
@@ -2860,7 +2921,7 @@ listen<{ text?: string; context?: ScreenContext }>("voice://heard", async (event
   openFresh = false;
   if (event.payload?.context) updateActiveContext(event.payload.context);
   await invoke("summon").catch(console.error);
-  void extract(undefined, instruction);
+  void extract(undefined, instruction, true);
 });
 
 listen("engine://habits", () => {
@@ -3553,6 +3614,32 @@ $("watching").addEventListener("change", async (e) => {
     box.checked = !box.checked;
     $("watching-note").textContent = String(err);
   }
+});
+$("voice-on").addEventListener("change", (e) => {
+  saveVoice({ on: (e.target as HTMLInputElement).checked }).catch((err) => {
+    $("voice-note").textContent = String(err);
+  });
+});
+$("voice-aloud").addEventListener("change", (e) => {
+  saveVoice({ aloud: (e.target as HTMLInputElement).checked }).catch((err) => {
+    $("voice-note").textContent = String(err);
+  });
+});
+for (const b of document.querySelectorAll<HTMLButtonElement>("#voice-key button")) {
+  b.addEventListener("click", () => {
+    saveVoice({ key: b.dataset.key as VoiceSettings["key"] }).catch((err) => {
+      $("voice-note").textContent = String(err);
+    });
+  });
+}
+$("voice-allow").addEventListener("click", () => {
+  invoke("ask_voice_ears").catch(console.error);
+});
+$("voice-open").addEventListener("click", () => {
+  invoke("open_permission_settings", { name: "microphone" }).catch(console.error);
+});
+listen("voice://ears", () => {
+  loadVoice().catch(console.error);
 });
 $("watching-see").addEventListener("click", () => {
   seeNoted().catch(console.error);

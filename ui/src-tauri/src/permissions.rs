@@ -59,6 +59,8 @@ fn pane(name: &str) -> &'static str {
     match name {
         ACCESSIBILITY => "Privacy_Accessibility",
         SCREEN => "Privacy_ScreenCapture",
+        "microphone" => "Privacy_Microphone",
+        "speech" => "Privacy_SpeechRecognition",
         _ => "Privacy_Automation",
     }
 }

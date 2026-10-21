@@ -387,6 +387,30 @@
               <p id="update-note" class="note" hidden></p>
               </div>
 
+              <div class="setup-block" data-block="voice">
+              <div class="kicker spaced">Voice</div>
+              <div class="setting-row">
+                <label for="voice-on">Talk to VANS</label>
+                <input id="voice-on" type="checkbox" class="switch" />
+              </div>
+              <div class="setting-row">
+                <span class="setting-label" id="voice-key-label">Hold to talk</span>
+                <div id="voice-key" class="seg" role="radiogroup" aria-labelledby="voice-key-label">
+                  <button type="button" role="radio" data-key="option-space">⌥Space</button>
+                  <button type="button" role="radio" data-key="control-option">⌃⌥</button>
+                </div>
+              </div>
+              <div class="setting-row">
+                <label for="voice-aloud">Answer out loud when I talk</label>
+                <input id="voice-aloud" type="checkbox" class="switch" />
+              </div>
+              <p id="voice-note" class="note"></p>
+              <div class="row">
+                <button id="voice-allow" class="btn" type="button" hidden>Allow the microphone</button>
+                <button id="voice-open" class="btn link" type="button" hidden>Open System Settings</button>
+              </div>
+              </div>
+
               <div class="setup-block" data-block="learning">
               <div class="kicker spaced">Learning</div>
               <div class="setting-row">

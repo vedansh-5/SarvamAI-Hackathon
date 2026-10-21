@@ -91,6 +91,46 @@ pub fn under_the_bar(_width: f64, _gap: f64) -> Option<(f64, f64)> {
     None
 }
 
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct Island {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    pub notch: f64,
+    pub bar: f64,
+}
+
+pub fn island_for(screen_x: f64, screen_width: f64, left: f64, notch: f64, bar: f64, width: f64, body: f64) -> (f64, f64, f64) {
+    let width = width.max(notch + 2.0 * 96.0).min(screen_width);
+    let centre = if notch > 0.0 { screen_x + left + notch / 2.0 } else { screen_x + screen_width / 2.0 };
+    let x = (centre - width / 2.0).clamp(screen_x, screen_x + screen_width - width);
+    (x, width, bar + body)
+}
+
+#[cfg(target_os = "macos")]
+pub fn island(width: f64, body: f64, gap: f64) -> Option<Island> {
+    let (screen, primary_top) = bar_screen()?;
+    let frame = screen.frame();
+    let top = frame.origin.y + frame.size.height;
+    let inset = screen.safeAreaInsets().top;
+    if inset > 0.0 {
+        let left = screen.auxiliaryTopLeftArea().size.width;
+        let right = screen.auxiliaryTopRightArea().size.width;
+        let notch = (frame.size.width - left - right).max(0.0);
+        let (x, width, height) = island_for(frame.origin.x, frame.size.width, left, notch, inset, width, body);
+        return Some(Island { x, y: primary_top - top, width, height, notch, bar: inset });
+    }
+    let (_, y) = under_the_bar(width, gap)?;
+    let (x, width, height) = island_for(frame.origin.x, frame.size.width, 0.0, 0.0, 0.0, width, body);
+    Some(Island { x, y, width, height, notch: 0.0, bar: 0.0 })
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn island(_width: f64, _body: f64, _gap: f64) -> Option<Island> {
+    None
+}
+
 #[cfg(target_os = "macos")]
 pub fn place() -> Option<Place> {
     let (screen, primary_top) = bar_screen()?;
@@ -335,6 +375,21 @@ mod tests {
         assert_eq!(calm_for(Some(Duration::from_millis(1600)), Duration::ZERO), Calm::Faded);
         assert_eq!(calm_for(None, Duration::from_secs(1)), Calm::Faded);
         assert_eq!(calm_for(None, Duration::ZERO), Calm::Faded);
+    }
+
+    #[test]
+    fn the_island_is_centred_on_the_notch_and_stays_on_the_screen() {
+        let (x, width, height) = island_for(0.0, 1512.0, 650.0, 212.0, 32.0, 460.0, 70.0);
+        assert_eq!(width, 460.0);
+        assert_eq!(x + width / 2.0, 650.0 + 106.0);
+        assert_eq!(height, 102.0);
+        let (_, wide, _) = island_for(0.0, 1512.0, 600.0, 400.0, 32.0, 460.0, 70.0);
+        assert_eq!(wide, 400.0 + 192.0);
+        let (x, width, _) = island_for(1512.0, 1920.0, 0.0, 0.0, 0.0, 460.0, 70.0);
+        assert_eq!(x, 1512.0 + (1920.0 - 460.0) / 2.0);
+        assert_eq!(width, 460.0);
+        let (x, _, _) = island_for(0.0, 300.0, 0.0, 0.0, 0.0, 460.0, 70.0);
+        assert_eq!(x, 0.0);
     }
 
     #[test]

@@ -6751,46 +6751,84 @@ as an ordinary page and was already read that way. A selection inside a
 canvas document is still not read: the one place Docs exposes it is meant only
 for extensions it has approved.
 
-## D-278 — Talking to VANS: hold ⌥Space, heard on this Mac only
+## D-278 — Talking to VANS: hold to talk, heard and spoken on this Mac only
 
 Asked for on 2026-10-22, to the shape in Part D of
 `docs/plans/2026-10-18-before-voice.md` and the 2026-10-03 decision to start
-with Apple's own recognition. Built in `voice.rs`, `voice.html` and
-`voice.ts`; the words become text before anything else sees them, so the
-engine, routing and caching do not change.
+with Apple's own recognition. Built in `voice.rs` (listening, keys, the
+island), `speak.rs` (speaking), `voice.html` and `voice.ts`. The words become
+text before anything else sees them, so the engine, routing and caching do not
+change.
+
+Studied first: Clicky (its open-source first version and the strings and
+resources of the installed 1.0.53), Wispr Flow, superwhisper, boring.notch and
+DynamicNotch. What was taken, and what was not, is at the end.
 
 **Controls.**
 
-- Hold ⌥Space (280 ms or more), talk, let go: what was heard runs as if typed.
-  A tap still opens the panel, now on release instead of on press, since a
-  press alone cannot tell a tap from a hold.
-- ⌥⇧Space starts listening hands-free. It ends 1.4 s after you stop talking,
-  on a second press of either key, or after 6 s of nothing said.
-- Esc stops listening and throws away what was heard. Nothing listens for
+- Hold ⌥Space (280 ms or more), talk, let go: what was heard runs as if
+  typed. A tap still opens the panel, now on release, since a press alone
+  cannot tell a tap from a hold.
+- Or, chosen in Setup, hold ⌃⌥ with no other key, as Clicky does. Nothing
+  else is pressed, so a tap is never mistaken; any key or click while it is
+  held means it was a shortcut like ⌃⌥←, and the listening is dropped. The
+  other keys are watched only while ⌃⌥ is down.
+- ⌥⇧Space listens hands-free. It ends 1.4 s after you stop talking, on a
+  second press, or after 6 s of nothing said.
+- Esc stops listening and throws away what was heard, and stops VANS talking.
+  Pressing to talk while VANS is talking stops it too. Nothing listens for
   longer than 30 s.
-- During a guide, a tap on ⌥Space is still Next. Holding it hears "next" or
-  "stop" (and a few words like them, four words at most), nothing else. A
-  spoken yes is never taken as consent; Command-Return is still the only yes.
+- During a guide, a tap on ⌥Space is still Next. Holding hears "next",
+  "again" (the step is said again) or "stop" — four words at most — and
+  nothing else. A spoken yes is never consent; Command-Return is still the
+  only yes.
 
 **Hearing.** `SFSpeechRecognizer` with `requiresOnDeviceRecognition`: the audio
-never leaves the Mac. When the Mac has no on-device model for the language,
-VANS says to turn on Dictation rather than falling back to Apple's servers.
-The frontmost app's name is passed as a hint so it is spelled right. The
-microphone runs only while listening; macOS shows its own indicator then.
+never leaves the Mac. With no on-device model for the language, VANS says to
+turn on Dictation rather than fall back to Apple's servers. The front app's
+name and window title are passed as hints so they are spelled right. The
+microphone runs only while listening, and macOS shows its own indicator.
 
-**Looks.** The dot grows and pulses while listening. A capsule under the menu
-bar, centred on the screen with the notch, shows a level bar, the words as
-they are heard, then the request; it never takes the keyboard or a click.
-The panel opens only once there is a request, as it does for a typed one.
+**Speaking.** A request that was spoken gets its answer spoken: what the panel
+says, the first sentences of an answer, the question before a change ("…Hold
+Return to say yes."), or what went wrong. Each step of a guide is said the
+way its caption reads ("Click Tools", "Type groceries"), once per step;
+steps VANS is doing itself are not. Typed requests stay silent. Speech is
+`AVSpeechSynthesizer` with the person's own Spoken Content voice and rate, so
+nothing new runs: like D-266's text recognition, it is the Mac's own, not a
+model VANS ships. Links and formatting are dropped and it stops after about
+280 characters, at a sentence. Setup can turn it off.
 
-**Asking.** Microphone and Speech Recognition are asked for the first time
-someone holds the key, not in Setup: Setup's list blocks requests until
-everything in it is answered, and voice is optional.
+**The island.** On a Mac with a notch, the black of the notch grows outward
+while VANS listens, thinks or speaks, with the same inward-curved top corners
+the hardware has, and folds back into it when done. The left side shows a
+level bar while you talk, dots while VANS works it out, bars while it speaks;
+a red light on the right means the microphone is on; the words sit underneath.
+Without a notch it is a floating capsule under the menu bar. It never takes
+the keyboard or a click, and it closes a second after the last thing is said.
 
-Not yet: steps said aloud, a choice of other recognition services, a line in
-the privacy page (it goes in with the release that ships voice, since the site
-only says what VANS does today), and voice as a trial (D-263), which is set
-up when it ships.
+**Asking and Setup.** Microphone and Speech Recognition are asked for the first
+time someone holds the key, or from Setup's Voice section, never in the
+Permissions list: that list blocks requests until it is all answered, and
+voice is optional. Setup › How VANS behaves › Voice turns voice on or off,
+picks ⌥Space or ⌃⌥, and turns the speaking off. The settings live in
+`voice.json` in the app's folder.
+
+**From the others.**
+
+- Taken from Clicky: modifier-only hold, barge-in, the level smoothing, the
+  final-words wait after letting go, the transient surface that fades a second
+  after speech, the notch as home. Not taken: its cloud transcription and
+  voices (VANS stays on the Mac), its `[POINT:x,y]` tags (the coach already
+  points at real controls, D-016), and its blind paste into fields.
+- From Wispr Flow and superwhisper: hold for push-to-talk with a separate
+  hands-free start, Esc cancels, the shortcut must carry a modifier.
+- From boring.notch and DynamicNotch: the island centred on the notch, its
+  flared corners, and the capsule on screens without one.
+
+Not yet: other recognition services, a line in the privacy page (it goes in
+with the release that ships voice, since the site only says what VANS does
+today), and voice as a trial (D-263), set up when it ships.
 
 ## D-281 — Anyone can sign in with their email; the code arrives by email
 

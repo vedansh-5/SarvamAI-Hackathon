@@ -479,6 +479,7 @@ pub fn point_at(app: &AppHandle, p: Pointer) {
 
 fn draw(app: &AppHandle, mut p: Pointer) {
     *LAST.lock().unwrap() = Some(p.clone());
+    crate::voice::step_aloud(app, &p);
 
     // Only a step with a control to point at belongs to one application's window.
     // A step with nothing to point at is an instruction — usually "open System

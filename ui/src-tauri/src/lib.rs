@@ -5,6 +5,7 @@ mod notch;
 mod nudge;
 mod overlay;
 mod permissions;
+mod speak;
 mod update;
 mod voice;
 mod watching;
@@ -53,6 +54,36 @@ fn open_permission_settings(name: String) {
 #[tauri::command]
 fn reopen(app: tauri::AppHandle) {
     app.restart();
+}
+
+#[tauri::command]
+fn voice_settings() -> voice::Settings {
+    voice::settings()
+}
+
+#[tauri::command]
+fn set_voice_settings(app: tauri::AppHandle, settings: voice::Settings) -> Result<voice::Settings, String> {
+    voice::save_settings(&app, settings)
+}
+
+#[tauri::command]
+fn voice_ears() -> voice::EarsState {
+    voice::ears_state()
+}
+
+#[tauri::command]
+fn ask_voice_ears(app: tauri::AppHandle) {
+    voice::ask_ears(&app);
+}
+
+#[tauri::command]
+fn set_aloud(on: bool) {
+    voice::set_aloud(on);
+}
+
+#[tauri::command]
+fn say_aloud(app: tauri::AppHandle, text: String) -> bool {
+    voice::say_if_asked_aloud(&app, &text)
 }
 
 #[tauri::command]
@@ -691,6 +722,12 @@ pub fn run() {
             reopen,
             take_keyboard,
             keep_panel,
+            voice_settings,
+            set_voice_settings,
+            voice_ears,
+            ask_voice_ears,
+            set_aloud,
+            say_aloud,
             login_item,
             set_login_item
         ])

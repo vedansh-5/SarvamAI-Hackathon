@@ -3,56 +3,109 @@ import { followTheme } from "./theme";
 
 followTheme();
 
+type State = "listening" | "thinking" | "heard" | "speaking" | "note";
+
 interface Says {
-  state: "listening" | "thinking" | "heard" | "note";
+  state: State;
   words: string;
 }
 
-const capsule = document.getElementById("capsule") as HTMLElement;
+interface Shape {
+  notch: number;
+  bar: number;
+  width: number;
+}
+
+const island = document.getElementById("island") as HTMLElement;
+const body = document.getElementById("body") as HTMLElement;
 const words = document.getElementById("words") as HTMLElement;
-const bars = Array.from(document.querySelectorAll<HTMLElement>("#bars i"));
-const SHAPE = [0.55, 0.8, 1, 0.8, 0.55];
-const LONGEST = 90;
+const bars = Array.from(document.querySelectorAll<HTMLElement>(".bars i"));
+const PROFILE = [0.45, 0.75, 1, 0.75, 0.45];
+const LONGEST = 110;
 
 let hint = "";
+let bar = 0;
+let target = 0;
+let shown = 0;
+let moving = false;
 
 function tail(text: string): string {
   const t = text.trim();
   return t.length > LONGEST ? "…" + t.slice(t.length - LONGEST) : t;
 }
 
-function write(text: string) {
-  const shown = tail(text);
-  words.classList.toggle("hint", !shown);
-  words.textContent = shown || hint;
+function fit() {
+  if (island.dataset.shape !== "notch") {
+    island.style.height = "";
+    return;
+  }
+  island.style.height = island.classList.contains("open") ? `${bar + body.scrollHeight}px` : `${bar}px`;
 }
 
-function level(n: number) {
-  bars.forEach((bar, i) => {
-    bar.style.transform = `scaleY(${Math.max(0.15, n * SHAPE[i])})`;
-  });
+function write(text: string, asHint = false) {
+  words.classList.toggle("hint", asHint);
+  words.textContent = text;
+  fit();
 }
+
+function frame(now: number) {
+  shown = Math.max(target, shown * 0.88);
+  target *= 0.9;
+  bars.forEach((b, i) => {
+    const pulse = ((Math.sin(now / 160 + i * 0.6) + 1) / 2) * 0.08;
+    b.style.transform = `scaleY(${Math.min(1, 0.2 + shown * PROFILE[i] + pulse)})`;
+  });
+  if (island.dataset.state === "listening" && island.classList.contains("open")) {
+    requestAnimationFrame(frame);
+  } else {
+    moving = false;
+  }
+}
+
+function animate() {
+  if (moving) return;
+  moving = true;
+  requestAnimationFrame(frame);
+}
+
+listen<Shape>("voice://shape", (e) => {
+  const { notch, bar: height } = e.payload;
+  bar = height;
+  island.dataset.shape = notch > 0 ? "notch" : "float";
+  document.documentElement.style.setProperty("--notch", `${notch}px`);
+  document.documentElement.style.setProperty("--bar", `${height}px`);
+  fit();
+});
 
 listen<Says>("voice://says", (e) => {
   const { state, words: said } = e.payload;
-  capsule.dataset.state = state;
-  capsule.classList.add("on");
+  island.dataset.state = state;
+  island.classList.add("open");
   if (state === "listening") {
     hint = said || "Listening…";
-    level(0);
-    write("");
+    target = 0;
+    shown = 0;
+    write(hint, true);
+    animate();
     return;
   }
   hint = "";
-  bars.forEach((bar) => (bar.style.transform = ""));
-  words.classList.remove("hint");
-  words.textContent = state === "note" ? said : tail(said) || "…";
+  write(state === "note" ? said : tail(said) || "…");
 });
 
 listen<string>("voice://words", (e) => {
-  if (capsule.dataset.state === "listening" || capsule.dataset.state === "thinking") write(e.payload);
+  const state = island.dataset.state;
+  if (state !== "listening" && state !== "thinking") return;
+  const said = tail(e.payload);
+  if (said) write(said);
+  else write(hint, true);
 });
 
 listen<number>("voice://level", (e) => {
-  if (capsule.dataset.state === "listening") level(e.payload);
+  target = Math.max(target, e.payload);
+});
+
+listen("voice://close", () => {
+  island.classList.remove("open");
+  fit();
 });
