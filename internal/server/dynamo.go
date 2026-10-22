@@ -376,7 +376,9 @@ func (d *Dynamo) Pending(ctx context.Context, email string) (Pending, bool, erro
 }
 
 func (d *Dynamo) SetPending(ctx context.Context, p Pending) error {
-	n := func(v int64) types.AttributeValue { return &types.AttributeValueMemberN{Value: strconv.FormatInt(v, 10)} }
+	n := func(v int64) types.AttributeValue {
+		return &types.AttributeValueMemberN{Value: strconv.FormatInt(v, 10)}
+	}
 	_, err := d.Client.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: &d.Table,
 		Item: map[string]types.AttributeValue{
