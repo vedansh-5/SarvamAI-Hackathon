@@ -205,6 +205,39 @@ the table either way):
 
 Check with `aws sesv2 get-email-identity --profile vans-deploy --email-identity summonvans.in --query VerifiedForSendingStatus`.
 
+### Sending to anyone: SES production access
+
+SES starts every account in sandbox mode: 200 emails a day, and only to
+addresses verified in SES. That is enough for feedback to Vedansh, but email
+sign-in (D-281) mails codes to strangers, so the account needs production
+access. Amazon's Trust & Safety team reads the request, usually within a day
+or two and sometimes a week; a refusal gives no reason, so the request should
+be complete the first time. Sending costs about US$0.10 per 1,000 emails.
+
+What they look for is already in place: the domain verified with DKIM (above),
+a DMARC record (`p=quarantine`), and the account's suppression list on for
+bounces and complaints. Check the state with
+`aws sesv2 get-account --profile vans-deploy --query ProductionAccessEnabled`.
+
+Status, 2026-10-23: not requested. Vedansh sends it from the console (SES →
+Account dashboard → Request production access), or says to send it with
+`aws sesv2 put-account-details`. The text to send:
+
+- **Mail type:** Transactional. **Website:** https://summonvans.in.
+- **Use case:** VANS is a macOS app in testing. We send one kind of email: a
+  6-digit sign-in code, sent only when a person types their own address into
+  the app and asks for one. No marketing, no newsletters, no lists bought or
+  rented.
+- **Volume:** under 50 a day at first, under 1,500 a month. Asking again
+  within a minute re-sends nothing; each address and each network is limited
+  per day.
+- **Sender:** `no-reply@summonvans.in`, on a domain verified with Easy DKIM
+  and a DMARC policy.
+- **Bounces and complaints:** the account-level suppression list is on, so a
+  bounced or complaining address is never sent to again. Each email says who
+  sent it and why, and that nothing more follows unless they ask again.
+- **Contact:** vedansh@summonvans.in.
+
 ## Planned
 
 | Piece | Where | Free allowance (check before relying on it) |
