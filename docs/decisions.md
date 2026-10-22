@@ -6750,3 +6750,38 @@ document, and files in a signed-in account are not tried yet. Gmail is drawn
 as an ordinary page and was already read that way. A selection inside a
 canvas document is still not read: the one place Docs exposes it is meant only
 for extensions it has approved.
+
+## D-281 — Anyone can sign in with their email; the code arrives by email
+
+Invite codes were made by hand (`vans-testers add`, the console), which does
+not reach strangers, such as testers found through a listing site. A code tied
+to each download was turned down: a link that is shared shares its code, and a
+build per person would break the one signature every update relies on (D-243).
+So everyone downloads the same app, and the code is made when they first sign
+in.
+
+**How it goes.** Setup › Sign in asks for an email. `POST /v1/join/ask` sends
+a 6-digit code to it; `POST /v1/join/check` takes the email and the code and
+answers with an invite code, which the app keeps in the Keychain as before,
+with the email beside it so Setup can say who is signed in. The new tester is
+named by their email, with 100 requests a day (`VANS_JOIN_DAILY`), and
+Vedansh is mailed that they joined. Signing in again with the same email, on
+another Mac, gives back the same invite code: one code per email. A pasted
+invite code still works, behind "Have an invite code instead?".
+
+**Against abuse.** The 6-digit code works for 15 minutes and five tries, and
+is kept only as a hash. Asking again within a minute sends nothing new; an
+email gets at most five codes a day, one network at most ten sign-ups a day,
+and the server sends at most 150 codes a day, under the 200 that SES allows.
+Throwaway mail services are turned down by name, and a domain with no mail
+server by a lookup. After 50 new people in a day (`VANS_JOINS_PER_DAY`), the
+rest join the waiting list: their code exists but is off, the app says they
+are waiting, and the console shows them as waiting with Let in, which switches
+them on. The total cap across everyone still guards the model quota.
+
+**Off until turned on.** Without `VANS_JOIN_FROM` (the address codes are sent
+from) the two routes answer that signing up is not open yet. SES in sandbox
+mode sends only to verified addresses, so production access comes first.
+
+Not yet: switching off codes nobody has used for a while, and a bot check on
+the form; both wait until abuse is seen.

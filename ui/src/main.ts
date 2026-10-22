@@ -3328,10 +3328,18 @@ function showModel(m: ModelStatus) {
 interface InviteState {
   tester: boolean;
   has: boolean;
+  email?: string;
+  waiting?: boolean;
 }
+
+type InviteStep = "email" | "code" | "paste";
+
+const WAITING = "You\u2019re on the waiting list. VANS starts working as soon as your place opens; there\u2019s nothing to do.";
 
 let lastInvite: InviteState = { tester: false, has: false };
 let changingInvite = false;
+let inviteStep: InviteStep = "email";
+let joiningAs = "";
 
 function showInvite(i: InviteState) {
   lastInvite = i;
@@ -3341,14 +3349,37 @@ function showInvite(i: InviteState) {
   field("invite-code").placeholder = i.has ? "Saved. Paste a new code to replace it" : "vans-\u2026";
   const folded = i.has && !changingInvite;
   $("invite-saved").hidden = !folded;
-  $("invite-entry").hidden = folded;
+  $("invite-who").textContent = i.email ? `Signed in as ${i.email}.` : "Signed in with an invite code.";
+  $("join-email").hidden = folded || inviteStep !== "email";
+  $("join-code").hidden = folded || inviteStep !== "code";
+  $("invite-entry").hidden = folded || inviteStep !== "paste";
+  $("invite-paste").hidden = folded;
+  $("invite-paste").textContent = inviteStep === "paste" ? "Sign in with your email instead" : "Have an invite code instead?";
+}
+
+function inviteGoTo(step: InviteStep) {
+  inviteStep = step;
+  showInvite(lastInvite);
+  field(step === "email" ? "join-address" : step === "code" ? "join-digits" : "invite-code").focus();
+  fitWindow();
+}
+
+function rpcMessage(e: unknown): string {
+  return isRpcError(e) ? withoutThePrefix(e.message) : String(e);
 }
 
 $("invite-change").addEventListener("click", () => {
   changingInvite = true;
-  showInvite(lastInvite);
-  field("invite-code").focus();
-  fitWindow();
+  inviteGoTo("email");
+});
+
+$("invite-paste").addEventListener("click", () => {
+  inviteGoTo(inviteStep === "paste" ? "email" : "paste");
+});
+
+$("join-back").addEventListener("click", () => {
+  $("join-code-state").textContent = "";
+  inviteGoTo("email");
 });
 
 async function loadInvite() {
@@ -3356,6 +3387,65 @@ async function loadInvite() {
     showInvite(await invoke<InviteState>("invite"));
   } catch {}
 }
+
+async function sendJoinCode() {
+  const button = $("join-send") as HTMLButtonElement;
+  const email = field("join-address").value.trim();
+  if (!email) {
+    $("join-state").textContent = "Type your email first.";
+    return;
+  }
+  button.disabled = true;
+  $("join-state").textContent = "Sending\u2026";
+  try {
+    await invoke<InviteState>("ask_to_join", { email });
+    joiningAs = email;
+    $("join-state").textContent = "";
+    $("join-sent").textContent = `We sent a 6-digit code to ${email}. It works for 15 minutes. Check spam if it isn\u2019t there in a minute.`;
+    field("join-digits").value = "";
+    inviteGoTo("code");
+  } catch (e) {
+    $("join-state").textContent = rpcMessage(e);
+  } finally {
+    button.disabled = false;
+    fitWindow();
+  }
+}
+
+$("join-send").addEventListener("click", sendJoinCode);
+field("join-address").addEventListener("keydown", (e) => {
+  if ((e as KeyboardEvent).key === "Enter") sendJoinCode();
+});
+
+async function checkJoinCode() {
+  const button = $("join-check") as HTMLButtonElement;
+  const code = field("join-digits").value.replace(/\s+/g, "");
+  if (!code) {
+    $("join-code-state").textContent = "Type the code from the email first.";
+    return;
+  }
+  button.disabled = true;
+  $("join-code-state").textContent = "Checking\u2026";
+  try {
+    const state = await invoke<InviteState>("join", { email: joiningAs, code });
+    changingInvite = false;
+    inviteStep = "email";
+    $("join-code-state").textContent = "";
+    showInvite(state);
+    if (state.waiting) $("invite-who").textContent = `Signed in as ${state.email}. ${WAITING}`;
+    runPreflight(false);
+  } catch (e) {
+    $("join-code-state").textContent = rpcMessage(e);
+  } finally {
+    button.disabled = false;
+    fitWindow();
+  }
+}
+
+$("join-check").addEventListener("click", checkJoinCode);
+field("join-digits").addEventListener("keydown", (e) => {
+  if ((e as KeyboardEvent).key === "Enter") checkJoinCode();
+});
 
 $("invite-save").addEventListener("click", async () => {
   const button = $("invite-save") as HTMLButtonElement;
@@ -3368,11 +3458,12 @@ $("invite-save").addEventListener("click", async () => {
   $("invite-state").textContent = "Checking\u2026";
   try {
     changingInvite = false;
+    inviteStep = "email";
     showInvite(await invoke<InviteState>("set_invite", { code }));
     $("invite-state").textContent = "Saved. The VANS server knows this code.";
     runPreflight(false);
   } catch (e) {
-    $("invite-state").textContent = isRpcError(e) ? withoutThePrefix(e.message) : String(e);
+    $("invite-state").textContent = rpcMessage(e);
   } finally {
     button.disabled = false;
     fitWindow();

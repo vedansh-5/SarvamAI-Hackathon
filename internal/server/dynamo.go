@@ -24,6 +24,9 @@ const (
 	feedbackKey  = "feedback"
 	learnedKey   = "learned"
 	contentKey   = "content"
+	emailKey     = "email"
+	joinKey      = "join"
+	joinsPrefix  = "joins#"
 	everyoneKey  = "all"
 	dayKeyPrefix = "use#"
 	actKeyPrefix = "act#"
@@ -71,7 +74,8 @@ func flag(item map[string]types.AttributeValue, name string) bool {
 }
 
 func testerFrom(item map[string]types.AttributeValue) Tester {
-	t := Tester{Name: str(item, "name"), Code: str(item, "sk"), Daily: num(item, "daily"), Off: flag(item, "off")}
+	t := Tester{Name: str(item, "name"), Code: str(item, "sk"), Daily: num(item, "daily"), Off: flag(item, "off"),
+		Email: str(item, "email"), Waiting: flag(item, "waiting")}
 	if spelled := str(item, "trials"); spelled != "" {
 		t.Trials = synth.TrialsSpelled(spelled)
 	}
@@ -231,15 +235,22 @@ func (d *Dynamo) AddTester(ctx context.Context, t Tester) error {
 	if t.Name == "" || len(t.Code) < 12 || t.Daily < 0 {
 		return fmt.Errorf("server: a tester needs a name, a code of 12 or more characters and a daily number")
 	}
+	item := map[string]types.AttributeValue{
+		"pk":    &types.AttributeValueMemberS{Value: testersKey},
+		"sk":    &types.AttributeValueMemberS{Value: t.Code},
+		"name":  &types.AttributeValueMemberS{Value: t.Name},
+		"daily": &types.AttributeValueMemberN{Value: strconv.Itoa(t.Daily)},
+		"off":   &types.AttributeValueMemberBOOL{Value: t.Off},
+	}
+	if t.Email != "" {
+		item["email"] = &types.AttributeValueMemberS{Value: t.Email}
+	}
+	if t.Waiting {
+		item["waiting"] = &types.AttributeValueMemberBOOL{Value: true}
+	}
 	_, err := d.Client.PutItem(ctx, &dynamodb.PutItemInput{
-		TableName: &d.Table,
-		Item: map[string]types.AttributeValue{
-			"pk":    &types.AttributeValueMemberS{Value: testersKey},
-			"sk":    &types.AttributeValueMemberS{Value: t.Code},
-			"name":  &types.AttributeValueMemberS{Value: t.Name},
-			"daily": &types.AttributeValueMemberN{Value: strconv.Itoa(t.Daily)},
-			"off":   &types.AttributeValueMemberBOOL{Value: t.Off},
-		},
+		TableName:           &d.Table,
+		Item:                item,
 		ConditionExpression: aws.String("attribute_not_exists(pk)"),
 	})
 	var taken *types.ConditionalCheckFailedException
@@ -276,6 +287,11 @@ func (d *Dynamo) DeleteTester(ctx context.Context, code string) error {
 	if _, err := d.Client.DeleteItem(ctx, &dynamodb.DeleteItemInput{TableName: &d.Table, Key: key(testersKey, code)}); err != nil {
 		return err
 	}
+	if t.Email != "" {
+		if _, err := d.Client.DeleteItem(ctx, &dynamodb.DeleteItemInput{TableName: &d.Table, Key: key(emailKey, t.Email)}); err != nil {
+			return err
+		}
+	}
 	_, err = d.Client.DeleteItem(ctx, &dynamodb.DeleteItemInput{TableName: &d.Table, Key: key(learnedKey, t.Name)})
 	return err
 }
@@ -297,7 +313,103 @@ func (d *Dynamo) SetTrial(ctx context.Context, code, name, variant string) error
 }
 
 func (d *Dynamo) SetOff(ctx context.Context, code string, off bool) error {
-	return d.set(ctx, testersKey, code, "off", &types.AttributeValueMemberBOOL{Value: off}, ErrNoTester)
+	if off {
+		return d.set(ctx, testersKey, code, "off", &types.AttributeValueMemberBOOL{Value: true}, ErrNoTester)
+	}
+	_, err := d.Client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName:                 &d.Table,
+		Key:                       key(testersKey, code),
+		UpdateExpression:          aws.String("SET #f = :v REMOVE waiting"),
+		ConditionExpression:       aws.String("attribute_exists(pk)"),
+		ExpressionAttributeNames:  map[string]string{"#f": "off"},
+		ExpressionAttributeValues: map[string]types.AttributeValue{":v": &types.AttributeValueMemberBOOL{Value: false}},
+	})
+	var gone *types.ConditionalCheckFailedException
+	if errors.As(err, &gone) {
+		return ErrNoTester
+	}
+	return err
+}
+
+func (d *Dynamo) Joined(ctx context.Context, email string) (Tester, bool, error) {
+	out, err := d.Client.GetItem(ctx, &dynamodb.GetItemInput{TableName: &d.Table, Key: key(emailKey, email), ConsistentRead: aws.Bool(true)})
+	if err != nil || len(out.Item) == 0 {
+		return Tester{}, false, err
+	}
+	return d.Tester(ctx, str(out.Item, "code"))
+}
+
+func (d *Dynamo) Join(ctx context.Context, t Tester) error {
+	_, err := d.Client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: &d.Table,
+		Item: map[string]types.AttributeValue{
+			"pk":   &types.AttributeValueMemberS{Value: emailKey},
+			"sk":   &types.AttributeValueMemberS{Value: t.Email},
+			"code": &types.AttributeValueMemberS{Value: t.Code},
+		},
+		ConditionExpression: aws.String("attribute_not_exists(pk)"),
+	})
+	var taken *types.ConditionalCheckFailedException
+	if errors.As(err, &taken) {
+		return ErrEmailTaken
+	}
+	if err != nil {
+		return err
+	}
+	if err := d.AddTester(ctx, t); err != nil {
+		_, _ = d.Client.DeleteItem(ctx, &dynamodb.DeleteItemInput{TableName: &d.Table, Key: key(emailKey, t.Email)})
+		return err
+	}
+	return nil
+}
+
+func (d *Dynamo) Pending(ctx context.Context, email string) (Pending, bool, error) {
+	out, err := d.Client.GetItem(ctx, &dynamodb.GetItemInput{TableName: &d.Table, Key: key(joinKey, email), ConsistentRead: aws.Bool(true)})
+	if err != nil || len(out.Item) == 0 {
+		return Pending{}, false, err
+	}
+	return Pending{
+		Email: email, Hash: str(out.Item, "hash"), Day: str(out.Item, "day"),
+		Expires: time.Unix(int64(num(out.Item, "expires")), 0), SentAt: time.Unix(int64(num(out.Item, "sent")), 0),
+		Tries: num(out.Item, "tries"), Sends: num(out.Item, "sends"),
+	}, true, nil
+}
+
+func (d *Dynamo) SetPending(ctx context.Context, p Pending) error {
+	n := func(v int64) types.AttributeValue { return &types.AttributeValueMemberN{Value: strconv.FormatInt(v, 10)} }
+	_, err := d.Client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: &d.Table,
+		Item: map[string]types.AttributeValue{
+			"pk":      &types.AttributeValueMemberS{Value: joinKey},
+			"sk":      &types.AttributeValueMemberS{Value: p.Email},
+			"hash":    &types.AttributeValueMemberS{Value: p.Hash},
+			"day":     &types.AttributeValueMemberS{Value: p.Day},
+			"expires": n(p.Expires.Unix()),
+			"sent":    n(p.SentAt.Unix()),
+			"tries":   n(int64(p.Tries)),
+			"sends":   n(int64(p.Sends)),
+			"gone":    n(p.SentAt.Add(48 * time.Hour).Unix()),
+		},
+	})
+	return err
+}
+
+func (d *Dynamo) Count(ctx context.Context, day, what string) (int, error) {
+	at, _ := time.Parse("2006-01-02", day)
+	out, err := d.Client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName:        &d.Table,
+		Key:              key(joinsPrefix+day, what),
+		UpdateExpression: aws.String("ADD n :one SET gone = :gone"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":one":  &types.AttributeValueMemberN{Value: "1"},
+			":gone": &types.AttributeValueMemberN{Value: strconv.FormatInt(at.Add(72*time.Hour).Unix(), 10)},
+		},
+		ReturnValues: types.ReturnValueUpdatedNew,
+	})
+	if err != nil {
+		return 0, err
+	}
+	return num(out.Attributes, "n"), nil
 }
 
 func (d *Dynamo) SetDaily(ctx context.Context, code string, daily int) error {

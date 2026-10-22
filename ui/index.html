@@ -262,19 +262,41 @@
               </div>
 
               <div id="invite-section" data-block="invite" hidden>
-                <div class="kicker spaced">Invite code</div>
-                <p class="note">The code Vedansh sent you. It is kept in your Mac’s Keychain and lets this copy ask the VANS server.</p>
+                <div class="kicker spaced">Sign in</div>
                 <div id="invite-saved" class="setting-row" hidden>
-                  <span class="note inline">Saved in your Mac’s Keychain.</span>
+                  <span id="invite-who" class="note inline">Signed in.</span>
                   <button id="invite-change" class="btn link" type="button">Change</button>
                 </div>
-                <div id="invite-entry">
+                <div id="join-email">
+                <p class="note">Type your email. VANS sends you a 6-digit code to finish signing in.</p>
+                <input id="join-address" class="line-input" type="email" autocomplete="email" spellcheck="false"
+                       placeholder="you@example.com" />
+                <div class="row">
+                  <button id="join-send" class="btn volt" type="button">Send code</button>
+                  <span id="join-state" class="note inline"></span>
+                </div>
+                </div>
+                <div id="join-code" hidden>
+                <p id="join-sent" class="note"></p>
+                <input id="join-digits" class="line-input" type="text" inputmode="numeric" autocomplete="one-time-code"
+                       maxlength="7" spellcheck="false" placeholder="123456" />
+                <div class="row">
+                  <button id="join-check" class="btn volt" type="button">Sign in</button>
+                  <button id="join-back" class="btn link" type="button">Use another email</button>
+                  <span id="join-code-state" class="note inline"></span>
+                </div>
+                </div>
+                <div id="invite-entry" hidden>
+                <p class="note">The code Vedansh sent you. It is kept in your Mac’s Keychain and lets this copy ask the VANS server.</p>
                 <input id="invite-code" class="line-input" type="text" autocomplete="off" spellcheck="false"
                        placeholder="vans-…" />
                 <div class="row">
                   <button id="invite-save" class="btn volt" type="button">Save and check</button>
                   <span id="invite-state" class="note inline"></span>
                 </div>
+                </div>
+                <div class="row">
+                  <button id="invite-paste" class="btn link" type="button">Have an invite code instead?</button>
                 </div>
               </div>
 

@@ -143,10 +143,10 @@ curl -sI https://summonvans.in | head -1
 |---|---|---|
 | Function | `vans-server`, Lambda, Mumbai, arm64, 256 MB, 140 s limit | built from `cmd/vans-lambda`; runs as `vans-server-runtime` |
 | Its address | `https://dcebecm6rhedpylmqas2q3hxyq0holhl.lambda-url.ap-south-1.on.aws/` | a Lambda function URL; anyone can reach it, only an invite code gets an answer |
-| Table | `vans-server`, DynamoDB, Mumbai, 10 reads and 10 writes a second, deletion protection on | testers (`pk = tester`), counts per day (`pk = use#<day>`), feedback (`pk = feedback`), one row per request (`pk = act#<day>`, deleted after 30 days by the `gone` time-to-live) |
+| Table | `vans-server`, DynamoDB, Mumbai, 10 reads and 10 writes a second, deletion protection on | testers (`pk = tester`), counts per day (`pk = use#<day>`), feedback (`pk = feedback`), one row per request (`pk = act#<day>`, deleted after 30 days by the `gone` time-to-live), and for email sign-in (D-281): which email has which code (`pk = email`), a code waiting to be typed, kept as a hash (`pk = join`, gone after two days), and the day's sign-up counts (`pk = joins#<day>`, gone after three) |
 | Console | `https://console.summonvans.in` | sign in with `VANS_CONSOLE_KEY`, kept in `.env` and in Parameter Store (D-236). Served through the Cloudflare Worker `vans-console` (`infra/cloudflare/console`), which adds the `VANS_CONSOLE_GATE` secret; the function's own address answers "not found" for the console without it |
 | Settings | Parameter Store, `/vans/server/*` | read into the environment when the function starts |
-| Mail | SES, Mumbai, sandbox (200 a day, only to verified addresses) | sends feedback from `feedback@summonvans.in` to Vedansh's Gmail |
+| Mail | SES, Mumbai, sandbox (200 a day, only to verified addresses) | sends feedback from `feedback@summonvans.in` to Vedansh's Gmail; sign-in codes from `VANS_JOIN_FROM` once that is set and production access is granted (D-281) |
 | Logs | `/aws/lambda/vans-server`, kept 14 days | the tester's name and the kind of question; never what was asked (that is in the table, for the console) |
 
 Releases for testers sit in the private bucket `vans-releases` (Mumbai,
@@ -160,7 +160,7 @@ Parameter Store and hands out hour-long download links to testers only
 ./infra/mac/bump.sh 0.2.0               # set the version in every file that holds it
 ./infra/mac/release.sh "what changed"   # build, sign, check, upload and tag the version in tauri.conf.json
 ./infra/aws/deploy-server.sh            # build and deploy the server, label it with the commit, check it answers
-go run ./cmd/vans-testers add Riya      # a new tester and their code (200 a day unless -daily)
+go run ./cmd/vans-testers add Riya      # a new tester and their code (200 a day unless -daily); people who sign in by email get 100
 go run ./cmd/vans-testers list          # every tester and what each used today
 go run ./cmd/vans-testers off Riya      # switch a code off at once; "on" puts it back
 go run ./cmd/vans-testers feedback      # what testers sent, newest first

@@ -21,11 +21,13 @@ const (
 )
 
 type Tester struct {
-	Name   string
-	Code   string
-	Daily  int
-	Off    bool
-	Trials map[string]string
+	Name    string
+	Code    string
+	Daily   int
+	Off     bool
+	Trials  map[string]string
+	Email   string
+	Waiting bool
 }
 
 type Ledger interface {
@@ -128,6 +130,7 @@ type Server struct {
 	Mail     Mailer
 	Console  http.Handler
 	Releases Releases
+	Joining  *Joining
 	Total    int
 	Now      func() time.Time
 	Log      func(format string, args ...any)
@@ -163,6 +166,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.updateFile(w, r)
 	case r.URL.Path == DownloadPath && (r.Method == http.MethodGet || r.Method == http.MethodHead):
 		s.download(w, r)
+	case r.URL.Path == synth.JoinAskPath && r.Method == http.MethodPost:
+		s.joinAsk(w, r)
+	case r.URL.Path == synth.JoinCheckPath && r.Method == http.MethodPost:
+		s.joinCheck(w, r)
 	case r.URL.Path == synth.AskPath:
 		reply(w, http.StatusMethodNotAllowed, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultRefused, Message: "post only"}})
 	default:
@@ -203,6 +210,10 @@ func (s *Server) tester(w http.ResponseWriter, r *http.Request) (Tester, bool) {
 	}
 	if !found {
 		refuse(w, http.StatusUnauthorized, "this invite code is not one VANS knows")
+		return Tester{}, false
+	}
+	if who.Off && who.Waiting {
+		refuse(w, http.StatusForbidden, "You're on the waiting list. VANS starts working here as soon as your place opens; there's nothing to do.")
 		return Tester{}, false
 	}
 	if who.Off {
