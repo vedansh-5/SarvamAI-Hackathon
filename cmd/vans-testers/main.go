@@ -37,7 +37,7 @@ func main() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	ledger, _, err := server.OnAWS(ctx, table)
+	ledger, _, _, err := server.OnAWS(ctx, table)
 	if err == nil {
 		err = run(ctx, ledger, os.Args[1], os.Args[2:])
 	}

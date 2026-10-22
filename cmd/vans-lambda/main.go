@@ -43,7 +43,11 @@ func run() error {
 	if table == "" {
 		return fmt.Errorf("%s is not set", server.EnvTable)
 	}
-	ledger, mail, err := server.OnAWS(ctx, table)
+	ledger, mail, send, err := server.OnAWS(ctx, table)
+	if err != nil {
+		return err
+	}
+	joining, err := server.JoiningFromEnv(ledger, send)
 	if err != nil {
 		return err
 	}
@@ -52,11 +56,15 @@ func run() error {
 	synth.Notice = func(format string, args ...any) { logger.Printf("[model] "+format, args...) }
 	logger.Printf("ready for testers in %s; %s", table, described)
 
+	if joining == nil {
+		logger.Printf("no %s set; signing up by email is closed", server.EnvJoinFrom)
+	}
+
 	releases := server.ReleasesFromEnv(cfg)
 	if releases == nil {
 		logger.Printf("no %s set; update checks answer that there is nothing new", server.EnvReleases)
 	}
 
-	lambda.Start(server.FunctionURL(&server.Server{Model: models, Ledger: ledger, Mail: mail, Total: total, Log: logger.Printf, Console: server.ConsoleFor(ledger), Releases: releases}))
+	lambda.Start(server.FunctionURL(&server.Server{Model: models, Ledger: ledger, Mail: mail, Total: total, Log: logger.Printf, Console: server.ConsoleFor(ledger), Releases: releases, Joining: joining}))
 	return nil
 }

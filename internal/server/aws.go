@@ -27,17 +27,22 @@ const (
 	EnvMailTo    = "VANS_FEEDBACK_TO"
 )
 
-func OnAWS(ctx context.Context, table string) (*Dynamo, Mailer, error) {
+func OnAWS(ctx context.Context, table string) (*Dynamo, Mailer, Sender, error) {
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(Region))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	ledger := &Dynamo{Client: dynamodb.NewFromConfig(cfg), Table: table}
-	from, to := strings.TrimSpace(os.Getenv(EnvMailFrom)), strings.TrimSpace(os.Getenv(EnvMailTo))
-	if from == "" || to == "" {
-		return ledger, nil, nil
+	client := sesv2.NewFromConfig(cfg)
+	var mail Mailer
+	var send Sender
+	if from, to := strings.TrimSpace(os.Getenv(EnvMailFrom)), strings.TrimSpace(os.Getenv(EnvMailTo)); from != "" && to != "" {
+		mail = &SES{Client: client, From: from, To: to}
 	}
-	return ledger, &SES{Client: sesv2.NewFromConfig(cfg), From: from, To: to}, nil
+	if from := strings.TrimSpace(os.Getenv(EnvJoinFrom)); from != "" {
+		send = &SES{Client: client, From: from}
+	}
+	return ledger, mail, send, nil
 }
 
 type SESAPI interface {
@@ -51,9 +56,13 @@ type SES struct {
 }
 
 func (m *SES) Mail(ctx context.Context, subject, body string) error {
+	return m.Send(ctx, m.To, subject, body)
+}
+
+func (m *SES) Send(ctx context.Context, to, subject, body string) error {
 	_, err := m.Client.SendEmail(ctx, &sesv2.SendEmailInput{
 		FromEmailAddress: aws.String(m.From),
-		Destination:      &sestypes.Destination{ToAddresses: []string{m.To}},
+		Destination:      &sestypes.Destination{ToAddresses: []string{to}},
 		Content: &sestypes.EmailContent{Simple: &sestypes.Message{
 			Subject: &sestypes.Content{Data: aws.String(subject), Charset: aws.String("UTF-8")},
 			Body:    &sestypes.Body{Text: &sestypes.Content{Data: aws.String(body), Charset: aws.String("UTF-8")}},

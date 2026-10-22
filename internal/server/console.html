@@ -356,7 +356,7 @@ form.allowance input { width: 76px; padding: 6px 10px; }
       {{range .Testers}}
       <tr {{if .Off}}class="off"{{end}}>
         <td><input form="many" type="checkbox" name="code" value="{{.Code}}" aria-label="Tick {{.Name}}"></td>
-        <td><div class="who"><span class="avatar">{{initial .Name}}</span><div><a href="{{$.Base}}/testers/{{.Name}}">{{.Name}}</a>{{if .Off}}<div><span class="pill">switched off</span></div>{{end}}</div></div></td>
+        <td><div class="who"><span class="avatar">{{initial .Name}}</span><div><a href="{{$.Base}}/testers/{{.Name}}">{{.Name}}</a>{{if .Waiting}}<div><span class="pill">waiting</span></div>{{else if .Off}}<div><span class="pill">switched off</span></div>{{end}}</div></div></td>
         <td><span class="chip"><code>{{.Code}}</code><button class="icon" type="button" data-copy="{{.Code}}" data-icon title="Copy the code" aria-label="Copy {{.Name}}'s code" hidden>{{template "copy"}}</button><button class="icon" type="button" data-copy="Download VANS: {{$.Get}}&#10;Your code: {{.Code}}" data-icon title="Copy an invite with the link and the code" aria-label="Copy an invite for {{.Name}}" hidden>{{template "send"}}</button></span></td>
         <td>{{if .Daily}}{{$p := pct .Today .Daily}}<div class="meter {{if ge $p 100}}full{{else if ge $p 80}}warn{{end}}"><span class="small">{{.Today}} <span class="mute">of {{.Daily}}</span></span><div class="track"><div class="bar" style="width: {{$p}}%"></div></div></div>{{else}}{{.Today}}{{end}}</td>
         <td><form method="post" action="{{$.Base}}/testers/daily" class="allowance">
@@ -368,7 +368,7 @@ form.allowance input { width: 76px; padding: 6px 10px; }
         <td class="mute small hide-sm">{{if .Versions}}{{.Versions}}{{else}}<span class="faint">–</span>{{end}}</td>
         <td class="num"><form method="post" action="{{$.Base}}/testers/{{if .Off}}on{{else}}off{{end}}">
           <input type="hidden" name="code" value="{{.Code}}">
-          <button class="{{if .Off}}sm{{else}}plain sm{{end}}" type="submit">{{if .Off}}Switch on{{else}}Switch off{{end}}</button>
+          <button class="{{if .Off}}sm{{else}}plain sm{{end}}" type="submit">{{if .Waiting}}Let in{{else if .Off}}Switch on{{else}}Switch off{{end}}</button>
         </form></td>
       </tr>
       {{else}}<tr><td colspan="9" class="empty">No testers yet. Add one above to make their code.</td></tr>{{end}}
@@ -382,7 +382,7 @@ form.allowance input { width: 76px; padding: 6px 10px; }
   <div class="head">
     <div class="profile {{if .Off}}off{{end}}"><span class="avatar big">{{initial .Name}}</span><div>
       <h1>{{.Name}}</h1>
-      <div class="row" style="margin-top:6px">{{if .Off}}<span class="pill">switched off</span>{{else}}<span class="pill good"><span class="dot"></span>active</span>{{end}}<code>{{.Code}}</code><button class="ghost sm" type="button" data-copy="{{.Code}}" hidden>Copy code</button><button class="ghost sm" type="button" data-copy="Download VANS: {{$.Get}}&#10;Your code: {{.Code}}" hidden>Copy invite</button></div>
+      <div class="row" style="margin-top:6px">{{if .Waiting}}<span class="pill">waiting</span>{{else if .Off}}<span class="pill">switched off</span>{{else}}<span class="pill good"><span class="dot"></span>active</span>{{end}}<code>{{.Code}}</code><button class="ghost sm" type="button" data-copy="{{.Code}}" hidden>Copy code</button><button class="ghost sm" type="button" data-copy="Download VANS: {{$.Get}}&#10;Your code: {{.Code}}" hidden>Copy invite</button></div>
     </div></div>
   </div>
   <div class="stats">
@@ -419,7 +419,7 @@ form.allowance input { width: 76px; padding: 6px 10px; }
         <div class="what">{{if .Off}}Switched off{{else}}Switched on{{end}}<small>{{if .Off}}Their code does nothing until it is switched on again.{{else}}Switching off stops their code at once and keeps everything else.{{end}}</small></div>
         <form method="post" action="{{$.Base}}/testers/{{if .Off}}on{{else}}off{{end}}">
           <input type="hidden" name="code" value="{{.Code}}"><input type="hidden" name="back" value="{{.Name}}">
-          <button class="{{if .Off}}sm{{else}}plain sm{{end}}" type="submit">{{if .Off}}Switch on{{else}}Switch off{{end}}</button>
+          <button class="{{if .Off}}sm{{else}}plain sm{{end}}" type="submit">{{if .Waiting}}Let in{{else if .Off}}Switch on{{else}}Switch off{{end}}</button>
         </form>
       </div>
       <div class="setting danger">

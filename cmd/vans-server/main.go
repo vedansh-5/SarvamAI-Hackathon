@@ -50,8 +50,11 @@ func run(addr string) error {
 	srv := &server.Server{Model: models, Total: total, Log: logger.Printf}
 	who := ""
 	if table := strings.TrimSpace(os.Getenv(server.EnvTable)); table != "" {
-		ledger, mail, err := server.OnAWS(ctx, table)
+		ledger, mail, send, err := server.OnAWS(ctx, table)
 		if err != nil {
+			return err
+		}
+		if srv.Joining, err = server.JoiningFromEnv(ledger, send); err != nil {
 			return err
 		}
 		srv.Ledger, srv.Mail = ledger, mail

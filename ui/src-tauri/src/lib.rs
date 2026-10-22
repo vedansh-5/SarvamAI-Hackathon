@@ -330,6 +330,16 @@ async fn set_invite(engine: State<'_, Engine>, code: String) -> Result<Value, Rp
 }
 
 #[tauri::command]
+async fn ask_to_join(engine: State<'_, Engine>, email: String) -> Result<Value, RpcError> {
+    engine.call("ask_to_join", Some(json!({ "email": email }))).await
+}
+
+#[tauri::command]
+async fn join(engine: State<'_, Engine>, email: String, code: String) -> Result<Value, RpcError> {
+    engine.call("join", Some(json!({ "email": email, "code": code }))).await
+}
+
+#[tauri::command]
 async fn model_settings(engine: State<'_, Engine>) -> Result<Value, RpcError> {
     engine.call("model_settings", None).await
 }
@@ -643,6 +653,8 @@ pub fn run() {
             set_accent,
             invite,
             set_invite,
+            ask_to_join,
+            join,
             restart_app,
             update_state,
             check_updates,

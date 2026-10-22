@@ -23,6 +23,9 @@ type Memory struct {
 	learned  map[string]string
 	sentAt   map[string]time.Time
 	content  string
+	emails   map[string]string
+	pending  map[string]Pending
+	tallies  map[string]int
 }
 
 var (
@@ -165,6 +168,7 @@ func (m *Memory) DeleteTester(_ context.Context, code string) error {
 		return ErrNoTester
 	}
 	delete(m.testers, code)
+	delete(m.emails, t.Email)
 	delete(m.learned, t.Name)
 	delete(m.sentAt, t.Name)
 	return nil
@@ -183,7 +187,10 @@ func (m *Memory) change(code string, f func(*Tester)) error {
 }
 
 func (m *Memory) SetOff(_ context.Context, code string, off bool) error {
-	return m.change(code, func(t *Tester) { t.Off = off })
+	return m.change(code, func(t *Tester) {
+		t.Off = off
+		t.Waiting = t.Waiting && off
+	})
 }
 
 func (m *Memory) SetDaily(_ context.Context, code string, daily int) error {
@@ -251,4 +258,55 @@ func ParseTesters(spelled string) ([]Tester, error) {
 		out = append(out, Tester{Name: name, Code: code, Daily: daily})
 	}
 	return out, nil
+}
+
+func (m *Memory) Joined(_ context.Context, email string) (Tester, bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	t, ok := m.testers[m.emails[email]]
+	return t, ok && email != "", nil
+}
+
+func (m *Memory) Join(_ context.Context, t Tester) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.emails == nil {
+		m.emails = map[string]string{}
+	}
+	if _, taken := m.emails[t.Email]; taken {
+		return ErrEmailTaken
+	}
+	if _, taken := m.testers[t.Code]; taken {
+		return ErrCodeTaken
+	}
+	m.emails[t.Email] = t.Code
+	m.testers[t.Code] = t
+	return nil
+}
+
+func (m *Memory) Pending(_ context.Context, email string) (Pending, bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	p, ok := m.pending[email]
+	return p, ok, nil
+}
+
+func (m *Memory) SetPending(_ context.Context, p Pending) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.pending == nil {
+		m.pending = map[string]Pending{}
+	}
+	m.pending[p.Email] = p
+	return nil
+}
+
+func (m *Memory) Count(_ context.Context, day, what string) (int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.tallies == nil {
+		m.tallies = map[string]int{}
+	}
+	m.tallies[day+"|"+what]++
+	return m.tallies[day+"|"+what], nil
 }
