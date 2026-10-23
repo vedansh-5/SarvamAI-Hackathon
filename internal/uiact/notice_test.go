@@ -13,6 +13,8 @@ func TestOnlyNamedControlsOutsideWebPagesAreNoticed(t *testing.T) {
 		{"a button", "Mail", []Layer{{"AXButton", "Archive"}}, false, "Archive"},
 		{"the text on a button", "Mail", []Layer{{"AXStaticText", "Archive"}, {"AXButton", "Archive"}}, false, "Archive"},
 		{"a menu item", "Finder", []Layer{{"AXMenuItem", "New Folder"}}, false, "New Folder"},
+		{"switching windows in Stage Manager", "WindowManager", []Layer{{"AXButton", "Telegram @ Vedansh"}}, false, ""},
+		{"switching apps in the Dock", "Dock", []Layer{{"AXButton", "WhatsApp"}}, false, ""},
 		{"a row carries content", "Mail", []Layer{{"AXRow", "Dinner on Friday"}}, false, ""},
 		{"text carries content", "Notes", []Layer{{"AXTextArea", "my diary"}}, false, ""},
 		{"inside a web page", "Google Chrome", []Layer{{"AXButton", "Pay now"}}, true, ""},
