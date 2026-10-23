@@ -99,7 +99,7 @@ func Open(path string) (*Store, error) {
 // Close releases the database.
 func (s *Store) Close() error { return s.db.Close() }
 
-const schemaVersion = 20
+const schemaVersion = 21
 
 func (s *Store) migrate(ctx context.Context) error {
 	var v int
@@ -329,6 +329,18 @@ CREATE TABLE IF NOT EXISTS schedules (
 			`ALTER TABLE instructions ADD COLUMN `+column+` INTEGER NOT NULL DEFAULT 0`); err != nil &&
 			!strings.Contains(err.Error(), "duplicate column name") {
 			return fmt.Errorf("store: add instructions.%s: %w", column, err)
+		}
+	}
+
+	if v < 21 {
+		for _, q := range []string{
+			`DELETE FROM clicks WHERE app IN ('WindowManager', 'Dock')`,
+			`DELETE FROM habits WHERE steps LIKE '%"app":"WindowManager"%' OR steps LIKE '%"app":"Dock"%'`,
+			`DELETE FROM timed WHERE action LIKE '%"app":"WindowManager"%' OR action LIKE '%"app":"Dock"%' OR action LIKE '%"role":"front"%'`,
+		} {
+			if _, err := s.db.ExecContext(ctx, q); err != nil {
+				return fmt.Errorf("store: forget window switching: %w", err)
+			}
 		}
 	}
 

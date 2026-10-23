@@ -14,6 +14,7 @@ const (
 	WhenOpened  = "opened"
 	AfterAnApp  = "after"
 	BeforeDone  = "finish"
+	AfterABreak = "back"
 	daysToCount = 3
 	nearTheTime = 20
 	afterOpened = 10 * time.Minute
@@ -22,6 +23,7 @@ const (
 	mostTimed   = 5
 	beforeDone  = 15 * time.Minute
 	offerEarly  = 10
+	longBreak   = 15 * time.Minute
 )
 
 type Trigger struct {
@@ -80,14 +82,35 @@ func FindTimed(events []store.Click) []Timed {
 	opened := map[string]time.Time{}
 	closed := map[string]time.Time{}
 	appFirst := map[string]firsts{}
+	every := map[string][]time.Time{}
+	var backs []time.Time
+	var away time.Time
 	for _, d := range days {
 		for _, e := range byDay[d] {
 			if e.Role == store.RoleMoment {
-				if (e.Title == "unlock" || e.Title == "wake") && opened[d].IsZero() {
-					opened[d] = e.At
+				if e.Title == "unlock" || e.Title == "wake" {
+					if opened[d].IsZero() {
+						opened[d] = e.At
+					}
+					if !away.IsZero() && e.At.Sub(away) >= longBreak {
+						backs = append(backs, e.At)
+					}
+					away = time.Time{}
 				}
 				if (e.Title == "lock" || e.Title == "sleep") && e.At.After(closed[d]) {
 					closed[d] = e.At
+				}
+				if (e.Title == "lock" || e.Title == "sleep") && away.IsZero() {
+					away = e.At
+				}
+				continue
+			}
+			if e.Role == store.RoleFront {
+				if appFirst[e.App] == nil {
+					appFirst[e.App] = firsts{}
+				}
+				if _, ok := appFirst[e.App][d]; !ok {
+					appFirst[e.App][d] = e.At
 				}
 				continue
 			}
@@ -105,14 +128,7 @@ func FindTimed(events []store.Click) []Timed {
 			if e.At.After(lastOf[k][d]) {
 				lastOf[k][d] = e.At
 			}
-			if e.Role == store.RoleFront {
-				if appFirst[e.App] == nil {
-					appFirst[e.App] = firsts{}
-				}
-				if _, ok := appFirst[e.App][d]; !ok {
-					appFirst[e.App][d] = e.At
-				}
-			}
+			every[k] = append(every[k], e.At)
 		}
 	}
 
@@ -143,6 +159,10 @@ func FindTimed(events []store.Click) []Timed {
 		}
 		if n >= daysToCount {
 			consider(Timed{Trigger: Trigger{Kind: WhenOpened}, Action: action, Days: n})
+		}
+
+		if n := daysSoonAfter(every[k], backs); n >= daysToCount {
+			consider(Timed{Trigger: Trigger{Kind: AfterABreak}, Action: action, Days: n})
 		}
 
 		var ends []time.Time
@@ -194,6 +214,19 @@ func FindTimed(events []store.Click) []Timed {
 		out = out[:mostTimed]
 	}
 	return out
+}
+
+func daysSoonAfter(done, backs []time.Time) int {
+	on := map[string]bool{}
+	for _, at := range done {
+		for _, b := range backs {
+			if !at.Before(b) && at.Sub(b) <= afterOpened {
+				on[dayOf(at)] = true
+				break
+			}
+		}
+	}
+	return len(on)
 }
 
 func lastActivity(day []store.Click, closed time.Time) bool {
@@ -265,6 +298,8 @@ func (t Timed) When() string {
 		return "before you finish for the day, around " + at
 	case WhenOpened:
 		return "after you open your Mac"
+	case AfterABreak:
+		return "when you come back after a break"
 	case AfterAnApp:
 		return "after you open " + t.Trigger.App
 	}

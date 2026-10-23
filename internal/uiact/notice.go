@@ -30,7 +30,7 @@ var noticeable = map[string]bool{
 	"AXDisclosureTriangle": true,
 }
 
-var neverNoticed = regexp.MustCompile(`(?i)^(1password.*|bitwarden|keychain access|passwords|lastpass|dashlane|keeper.*|enpass|vans|loginwindow|securityagent)$`)
+var neverNoticed = regexp.MustCompile(`(?i)^(1password.*|bitwarden|keychain access|passwords|lastpass|dashlane|keeper.*|enpass|vans|loginwindow|securityagent|windowmanager|dock)$`)
 
 const longestNoticedTitle = 60
 

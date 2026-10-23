@@ -98,6 +98,33 @@ func doneSince(today []store.Click, action store.Click, since time.Time) bool {
 	return false
 }
 
+func backFromABreak(recent []store.Click) bool {
+	opens := 0
+	for i := len(recent) - 1; i >= 0; i-- {
+		c := recent[i]
+		if c.Role != store.RoleMoment {
+			continue
+		}
+		switch c.Title {
+		case "unlock", "wake":
+			opens++
+		case "lock", "sleep":
+			return opens == 1 && recent[len(recent)-1].At.Sub(c.At) >= longBreak
+		}
+	}
+	return opens == 1
+}
+
+func leftOn(recent []store.Click, action store.Click) bool {
+	for i := len(recent) - 1; i >= 0; i-- {
+		c := recent[i]
+		if c.Clicked() && c.App == action.App {
+			return actionKey(c) == actionKey(action)
+		}
+	}
+	return false
+}
+
 func firstTimeToday(today []store.Click, app string) bool {
 	n := 0
 	for _, c := range today {
@@ -122,7 +149,7 @@ func due(t Timed, cause Cause, now time.Time, today []store.Click) bool {
 		}
 		m := minuteOf(now)
 		return m >= t.Trigger.Minute-offerEarly && m <= t.Trigger.Minute
-	case WhenOpened:
+	case WhenOpened, AfterABreak:
 		return cause.Kind == MacOpened
 	case AfterAnApp:
 		return cause.Kind == AppForward && cause.App == t.Trigger.App && firstTimeToday(today, cause.App)
@@ -146,6 +173,18 @@ func (e *Engine) OffersFor(ctx context.Context, cause Cause, now time.Time) ([]O
 		return nil, err
 	}
 
+	var recent []store.Click
+	loaded := false
+	sinceAWeek := func() ([]store.Click, error) {
+		if loaded {
+			return recent, nil
+		}
+		loaded = true
+		var err error
+		recent, err = e.Clicks.Clicks(ctx, now.Add(-keepClicksFor))
+		return recent, err
+	}
+
 	var offers []Offer
 	if cause.Kind == MacOpened {
 		if greeted, _ := e.Clicks.Setting(ctx, greetedKey); greeted != dayOf(now) && len(rows) > 0 {
@@ -154,7 +193,7 @@ func (e *Engine) OffersFor(ctx context.Context, cause Cause, now time.Time) ([]O
 			}
 			morning := Offer{Key: OfferGreeting, Line: "Good morning", Morning: true}
 			for _, r := range rows {
-				if t, ok := timedFrom(r); ok && t.Trigger.Kind != WhenOpened && (!t.Trigger.Weekdays || isWeekday(dayOf(now))) {
+				if t, ok := timedFrom(r); ok && t.Trigger.Kind != WhenOpened && t.Trigger.Kind != AfterABreak && (!t.Trigger.Weekdays || isWeekday(dayOf(now))) {
 					morning.Usual = append(morning.Usual, t.Doing()+" "+t.When())
 				}
 			}
@@ -177,10 +216,18 @@ func (e *Engine) OffersFor(ctx context.Context, cause Cause, now time.Time) ([]O
 			if cause.Kind != ByTheClock {
 				continue
 			}
-		case r.OfferedOn == dayOf(now) || !due(t, cause, now, today):
+		case t.Trigger.Kind != AfterABreak && r.OfferedOn == dayOf(now) || !due(t, cause, now, today):
 			continue
 		}
-		if t.Trigger.Kind == BeforeDone {
+		if t.Trigger.Kind == AfterABreak {
+			recent, err := sinceAWeek()
+			if err != nil {
+				return nil, err
+			}
+			if !snoozed && !backFromABreak(recent) || leftOn(recent, t.Action) {
+				continue
+			}
+		} else if t.Trigger.Kind == BeforeDone {
 			if doneSince(today, t.Action, now.Add(-2*time.Hour)) {
 				continue
 			}

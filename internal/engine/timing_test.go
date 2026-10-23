@@ -26,14 +26,29 @@ func click(at time.Time, app, title string) store.Click {
 func TestSomethingDoneAtTheSameTimeOnThreeWeekdaysIsTimed(t *testing.T) {
 	var events []store.Click
 	for i, m := range []int{5, 12, 0} {
-		events = append(events, front(day(i, 9, m), "Spotify"))
+		events = append(events, click(day(i, 9, m), "Clock", "Start"))
 	}
 	got := FindTimed(events)
 	if len(got) != 1 || got[0].Trigger.Kind != AtATime || !got[0].Trigger.Weekdays {
-		t.Fatalf("found %+v, want Spotify around nine on weekdays", got)
+		t.Fatalf("found %+v, want Start in Clock around nine on weekdays", got)
 	}
-	if got[0].When() != "around 09:05 on weekdays" || got[0].Line() != "Open Spotify, like usual?" {
+	if got[0].When() != "around 09:05 on weekdays" || got[0].Line() != "Start in Clock, like usual?" {
 		t.Errorf("said %q / %q", got[0].When(), got[0].Line())
+	}
+}
+
+func TestBringingAnAppForwardIsNotLearned(t *testing.T) {
+	var events []store.Click
+	for i := 0; i < 5; i++ {
+		events = append(events,
+			moment(day(i, 9, 0), "unlock"),
+			front(day(i, 9, 1), "WhatsApp"),
+			front(day(i, 9, 2), "Telegram"),
+			front(day(i, 9, 3), "WhatsApp"),
+		)
+	}
+	if got := FindTimed(events); len(got) != 0 {
+		t.Errorf("found %+v; switching to an app is not something to offer", got)
 	}
 }
 
@@ -55,6 +70,45 @@ func TestSomethingDoneRightAfterOpeningTheMacIsTimed(t *testing.T) {
 	}
 	if got[0].When() != "after you open your Mac" || got[0].Instruction() != "In Calendar, click Today" {
 		t.Errorf("said %q / %q", got[0].When(), got[0].Instruction())
+	}
+}
+
+func TestSomethingDoneSoonAfterComingBackFromALongBreakIsTimed(t *testing.T) {
+	var events []store.Click
+	for i, h := range []int{11, 14, 17} {
+		events = append(events,
+			moment(day(i, 8, 0), "unlock"),
+			moment(day(i, h, 0), "lock"),
+			moment(day(i, h, 40), "wake"),
+			moment(day(i, h, 40), "unlock"),
+			click(day(i, h, 45), "Clock", "Start"),
+			moment(day(i, 19, 0), "lock"),
+			moment(day(i, 19, 3), "unlock"),
+		)
+	}
+	got := FindTimed(events)
+	if len(got) != 1 || got[0].Trigger.Kind != AfterABreak || got[0].Days != 3 {
+		t.Fatalf("found %+v, want Start in Clock after a break", got)
+	}
+	if got[0].When() != "when you come back after a break" || got[0].Line() != "Start in Clock, like usual?" {
+		t.Errorf("said %q / %q", got[0].When(), got[0].Line())
+	}
+}
+
+func TestAShortLockIsNotABreak(t *testing.T) {
+	var events []store.Click
+	for i := 0; i < 3; i++ {
+		events = append(events,
+			moment(day(i, 8, 0), "unlock"),
+			moment(day(i, 12, 0), "lock"),
+			moment(day(i, 12, 5), "unlock"),
+			click(day(i, 12, 6), "Clock", "Start"),
+		)
+	}
+	for _, got := range FindTimed(events) {
+		if got.Trigger.Kind == AfterABreak {
+			t.Errorf("found %+v after a five-minute lock", got)
+		}
 	}
 }
 

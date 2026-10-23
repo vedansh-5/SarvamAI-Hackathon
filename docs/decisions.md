@@ -6785,3 +6785,37 @@ mode sends only to verified addresses, so production access comes first.
 
 Not yet: switching off codes nobody has used for a while, and a bot check on
 the form; both wait until abuse is seen.
+
+## D-282 — Switching windows is not a habit; the stopwatch is offered after a break
+
+Seen on 2026-10-23: the ask screen offered "You often do this. In
+WindowManager:" followed by two chat apps, back and forth. Vedansh: "I do that only when
+its needed and its often but that doesn't mean I need it to open it for me."
+What he does want is the stopwatch started when he sits down to work, which
+VANS had seen on all seven days of watching and never offered.
+
+**Switching is not noted.** Clicks in Stage Manager (`WindowManager`) and the
+Dock were kept like any other button (D-240), so going between two windows
+counted as a habit, and the most common "habits" were exactly that. Their
+buttons are also named after windows ("visdom-cloud — Rate limit…", "Telegram
+@ Vedansh"), which D-241 says are never kept. Both are now left out with the
+password managers, and the store's upgrade (schema 21) deletes what was
+already kept from them, with any habit or suggestion built on it. The app
+coming forward is still noted, as before.
+
+**Bringing an app forward is no longer offered.** "Open <app>, like usual?"
+came from the same switching (D-241's `front` rows). An app coming forward
+still triggers a suggestion; it is never the suggestion. Suggestions already
+kept for one are deleted by the same upgrade.
+
+**After a break.** A new kind beside D-241's three: done within ten minutes of
+coming back to the Mac after it was locked or asleep for fifteen minutes or
+more, on at least three days. In his week, Start in Clock came on five. Unlike
+the others it can come more than once a day, once each time he comes back:
+only for the first wake or unlock after the break, not the one a second later.
+It is not offered while it is still running, which is read as the last button
+pressed in that app being this one (Start, with no Stop since). Run, Later,
+Skip and Always work as in D-241.
+
+The first unlock of the day keeps its own kind ("after you open your Mac");
+his Starts mostly came after a later unlock, so that kind never found them.

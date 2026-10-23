@@ -49,7 +49,7 @@ func TestAnAppHabitIsOfferedTheFirstTimeTheAppComesForwardToday(t *testing.T) {
 func TestNothingIsOfferedForWhatWasAlreadyDoneToday(t *testing.T) {
 	ctx := context.Background()
 	e, st, _ := timedOffer(t, Trigger{Kind: AfterAnApp, App: "Mail"}, click(time.Time{}, "Clockify", "Start"))
-	now := time.Now()
+	now := time.Date(2026, 10, 15, 12, 0, 0, 0, time.Local)
 	_ = st.NoteClick(ctx, click(now.Add(-time.Hour), "Clockify", "Start"))
 	_ = st.NoteClick(ctx, front(now, "Mail"))
 	if got, _ := e.OffersFor(ctx, Cause{Kind: AppForward, App: "Mail"}, now); len(got) != 0 {
@@ -215,5 +215,50 @@ func TestBeforeYouFinishIsNotOfferedIfJustDone(t *testing.T) {
 	_ = st.SetSetting(ctx, greetedKey, dayOf(now))
 	if got, _ := e.OffersFor(ctx, Cause{Kind: ByTheClock}, now); len(got) != 0 {
 		t.Errorf("offered what was done ten minutes ago: %+v", got)
+	}
+}
+
+func TestAfterABreakIsOfferedEachTimeYouComeBackUnlessItIsStillRunning(t *testing.T) {
+	ctx := context.Background()
+	e, st, _ := timedOffer(t, Trigger{Kind: AfterABreak}, click(time.Time{}, "Clock", "Start"))
+	at := time.Date(2026, 10, 15, 9, 0, 0, 0, time.Local)
+	_ = st.SetSetting(ctx, greetedKey, dayOf(at))
+	back := func(after time.Duration, kind string) []Offer {
+		t.Helper()
+		at = at.Add(after)
+		_ = st.NoteClick(ctx, moment(at, kind))
+		got, err := e.OffersFor(ctx, Cause{Kind: MacOpened}, at)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	press := func(title string) {
+		at = at.Add(time.Minute)
+		_ = st.NoteClick(ctx, click(at, "Clock", title))
+	}
+
+	_ = st.NoteClick(ctx, moment(at.Add(-time.Hour), "lock"))
+	if got := back(0, "wake"); len(got) != 1 || got[0].Line != "Start in Clock, like usual?" {
+		t.Fatalf("coming back after an hour offered %+v", got)
+	}
+	if got := back(2*time.Second, "unlock"); len(got) != 0 {
+		t.Errorf("the unlock right after the wake offered it again: %+v", got)
+	}
+
+	press("Start")
+	_ = st.NoteClick(ctx, moment(at.Add(time.Hour), "lock"))
+	if got := back(2*time.Hour, "unlock"); len(got) != 0 {
+		t.Errorf("offered while the stopwatch was still running: %+v", got)
+	}
+
+	press("Stop")
+	_ = st.NoteClick(ctx, moment(at.Add(time.Minute), "lock"))
+	if got := back(5*time.Minute, "unlock"); len(got) != 0 {
+		t.Errorf("offered after a four-minute lock: %+v", got)
+	}
+	_ = st.NoteClick(ctx, moment(at.Add(time.Minute), "lock"))
+	if got := back(30*time.Minute, "unlock"); len(got) != 1 {
+		t.Errorf("coming back a second time today offered %+v", got)
 	}
 }
