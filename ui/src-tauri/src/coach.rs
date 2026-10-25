@@ -364,7 +364,7 @@ fn build(app: &AppHandle) -> Option<WebviewWindow> {
     }
 
     let win = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("coach.html".into()))
-        .title("VANS")
+        .title("Vspk")
         .decorations(false)
         .transparent(true)
         .always_on_top(true)

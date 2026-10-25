@@ -109,7 +109,7 @@ pub fn open_app(name: &str) -> Result<(), String> {
 
 pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let win = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("nudge.html".into()))
-        .title("VANS")
+        .title("Vspk")
         .decorations(false)
         .transparent(true)
         .always_on_top(true)

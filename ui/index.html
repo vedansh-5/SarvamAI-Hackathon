@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VANS</title>
+    <title>Vspk</title>
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
@@ -17,7 +17,7 @@
             type="text"
             autocomplete="off"
             spellcheck="false"
-            placeholder="Ask VANS…"
+            placeholder="Ask Vspk…"
           />
           <span id="active-app-label" class="context"></span>
           <span id="status" class="status" hidden>
@@ -49,7 +49,7 @@
               <div class="chip-row">
                 <span class="kicker">Try</span>
                 <div id="suggestions" class="chips"></div>
-                <button id="show-abilities" class="chip quiet-chip" type="button">What can VANS do?</button>
+                <button id="show-abilities" class="chip quiet-chip" type="button">What can Vspk do?</button>
               </div>
               <div class="mode-row">
                 <span class="kicker">For a task</span>
@@ -84,7 +84,7 @@
 
           <section id="question" hidden>
             <div class="plain">
-              <span class="kicker volt">VANS needs to know</span>
+              <span class="kicker volt">Vspk needs to know</span>
               <h2 id="question-text" class="plain-title"></h2>
               <div id="question-options" class="rows"></div>
               <input
@@ -208,14 +208,14 @@
               <ul id="welcome-keys" class="keys"></ul>
               <div class="row">
                 <button id="welcome-start" class="btn volt" type="button">Start</button>
-                <button id="welcome-more" class="btn quiet" type="button">Everything VANS can do</button>
+                <button id="welcome-more" class="btn quiet" type="button">Everything Vspk can do</button>
               </div>
             </div>
           </section>
 
           <section id="abilities" hidden>
             <div class="setup">
-              <h2 class="screen-title">What VANS can do</h2>
+              <h2 class="screen-title">What Vspk can do</h2>
               <p class="lede">Pick an example to put it in the box. Nothing runs until you press Return.</p>
               <div id="ability-list" class="abilities"></div>
               <div class="row">
@@ -226,7 +226,7 @@
 
           <section id="history" hidden>
             <div class="setup">
-              <h2 class="screen-title">What VANS has done</h2>
+              <h2 class="screen-title">What Vspk has done</h2>
               <p class="lede">Every change it made, newest first.</p>
               <div id="deeds" class="setup-list"></div>
               <div class="row">
@@ -237,16 +237,16 @@
 
           <section id="preflight" hidden>
             <div id="setup-body" class="setup">
-              <h2 class="screen-title">Set up VANS</h2>
+              <h2 class="screen-title">Set up Vspk</h2>
               <p id="setup-lede" class="lede">Grant these once. This window stays put while you switch apps.</p>
 
               <div class="setup-block" data-block="perms">
               <div class="kicker">Permissions</div>
-              <p id="perms-note" class="note">VANS asks for all of them now, so nothing stops you halfway through a step. Allow all opens Safari, Chrome and Notes in the background for a moment, because macOS only asks about an app that is open, and closes them again.</p>
+              <p id="perms-note" class="note">Vspk asks for all of them now, so nothing stops you halfway through a step. Allow all opens Safari, Chrome and Notes in the background for a moment, because macOS only asks about an app that is open, and closes them again.</p>
               <div id="perms" class="setup-list"></div>
               <div class="row">
                 <button id="perms-ask" class="btn volt" type="button">Allow all</button>
-                <button id="perms-reopen" class="btn quiet" type="button" hidden>Reopen VANS</button>
+                <button id="perms-reopen" class="btn quiet" type="button" hidden>Reopen Vspk</button>
                 <span id="perms-state" class="note inline"></span>
                 <button id="perms-fold" class="btn link" type="button" hidden>Show</button>
               </div>
@@ -268,7 +268,7 @@
                   <button id="invite-change" class="btn link" type="button">Change</button>
                 </div>
                 <div id="join-email">
-                <p class="note">Type your email. VANS sends you a 6-digit code to finish signing in.</p>
+                <p class="note">Type your email. Vspk sends you a 6-digit code to finish signing in.</p>
                 <input id="join-address" class="line-input" type="email" autocomplete="email" spellcheck="false"
                        placeholder="you@example.com" />
                 <div class="row">
@@ -287,7 +287,7 @@
                 </div>
                 </div>
                 <div id="invite-entry" hidden>
-                <p class="note">The code Vedansh sent you. It is kept in your Mac’s Keychain and lets this copy ask the VANS server.</p>
+                <p class="note">The code Vedansh sent you. It is kept in your Mac’s Keychain and lets this copy ask the Vspk server.</p>
                 <input id="invite-code" class="line-input" type="text" autocomplete="off" spellcheck="false"
                        placeholder="vans-…" />
                 <div class="row">
@@ -302,7 +302,7 @@
 
               <div id="model-section" data-block="model">
               <div class="kicker spaced">Model</div>
-              <p id="model-note" class="note">VANS needs a key for the model it thinks with. It is kept in your Mac’s Keychain and sent only to that model.</p>
+              <p id="model-note" class="note">Vspk needs a key for the model it thinks with. It is kept in your Mac’s Keychain and sent only to that model.</p>
               <input id="model-key" class="line-input" type="password" autocomplete="off" spellcheck="false"
                      placeholder="Paste your model key" />
               <p class="note">Model name. Leave empty for the usual one.</p>
@@ -330,7 +330,7 @@
               <div class="setup-block" data-block="rules">
               <div class="kicker spaced">Rules</div>
               <div class="rule" data-rule="never" data-name="Never act in" data-empty="Nowhere">
-              <p class="note">VANS will never act in these apps or sites. It can still show you how.</p>
+              <p class="note">Vspk will never act in these apps or sites. It can still show you how.</p>
               <input id="rules-never" class="line-input" type="text" autocomplete="off" spellcheck="false"
                      placeholder="e.g. Mail, mybank.com" />
               </div>
@@ -359,8 +359,8 @@
               <div class="setup-block" data-block="record">
               <div class="kicker spaced">Record</div>
               <div class="row">
-                <button id="show-history" class="btn" type="button">What VANS has done</button>
-                <button id="setup-abilities" class="btn quiet" type="button">What VANS can do</button>
+                <button id="show-history" class="btn" type="button">What Vspk has done</button>
+                <button id="setup-abilities" class="btn quiet" type="button">What Vspk can do</button>
                 <button id="setup-welcome" class="btn quiet" type="button">The welcome again</button>
               </div>
               </div>
@@ -368,12 +368,12 @@
               <div class="setup-block" data-block="start">
               <div class="kicker spaced">Start</div>
               <div class="setting-row">
-                <label for="login-item">Open VANS when you log in</label>
+                <label for="login-item">Open Vspk when you log in</label>
                 <input id="login-item" type="checkbox" class="switch" />
               </div>
               <p id="login-note" class="note" hidden></p>
               <div class="row">
-                <button id="quit" class="btn quiet" type="button">Quit VANS</button>
+                <button id="quit" class="btn quiet" type="button">Quit Vspk</button>
               </div>
               </div>
 
@@ -390,7 +390,7 @@
               <div class="setup-block" data-block="voice">
               <div class="kicker spaced">Voice</div>
               <div class="setting-row">
-                <label for="voice-on">Talk to VANS</label>
+                <label for="voice-on">Talk to Vspk</label>
                 <input id="voice-on" type="checkbox" class="switch" />
               </div>
               <div class="setting-row">
@@ -405,7 +405,7 @@
                 <input id="voice-aloud" type="checkbox" class="switch" />
               </div>
               <div class="setting-row">
-                <label for="voice-sounds">Play a sound when VANS starts and stops listening</label>
+                <label for="voice-sounds">Play a sound when Vspk starts and stops listening</label>
                 <input id="voice-sounds" type="checkbox" class="switch" />
               </div>
               <p id="voice-note" class="note"></p>
@@ -452,7 +452,7 @@
 
               <p id="setup-helper" class="helper" hidden>
                 Allow all opens Safari, Chrome and Notes for a moment to ask
-                macOS about them. Apart from that, VANS never opens anything on
+                macOS about them. Apart from that, Vspk never opens anything on
                 its own.
               </p>
 

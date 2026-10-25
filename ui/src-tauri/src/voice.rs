@@ -37,8 +37,8 @@ const WARM_UP: Duration = Duration::from_millis(300);
 const SENT_AFTER: Duration = Duration::from_millis(700);
 const HINT_CHARS: usize = 60;
 
-const NO_EARS: &str = "VANS can't hear you. Allow Microphone and Speech Recognition for VANS in System Settings › Privacy & Security.";
-const ON_THIS_MAC: &str = "VANS listens on this Mac only. Turn on Dictation in System Settings › Keyboard so your language is on this Mac, then try again.";
+const NO_EARS: &str = "Vspk can't hear you. Allow Microphone and Speech Recognition for Vspk in System Settings › Privacy & Security.";
+const ON_THIS_MAC: &str = "Vspk listens on this Mac only. Turn on Dictation in System Settings › Keyboard so your language is on this Mac, then try again.";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -81,7 +81,7 @@ fn load_settings(app: &AppHandle) {
 }
 
 pub fn save_settings(app: &AppHandle, next: Settings) -> Result<Settings, String> {
-    let path = settings_path(app).ok_or("VANS has no folder to keep its settings in.")?;
+    let path = settings_path(app).ok_or("Vspk has no folder to keep its settings in.")?;
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
@@ -179,7 +179,7 @@ pub fn step_words(verb: &str, label: &str, detail: &str, points: bool) -> String
 }
 
 fn hints(app_name: &str, title: &str) -> Vec<String> {
-    let mut out = vec!["VANS".to_string()];
+    let mut out = vec!["Vspk".to_string()];
     for hint in [app_name.trim(), title.trim()] {
         if hint.is_empty() || out.iter().any(|h| h.eq_ignore_ascii_case(hint)) {
             continue;
@@ -485,7 +485,7 @@ fn start(app: &AppHandle, mode: Mode) {
     }
     match mac::ears() {
         Ears::Ask => {
-            tell(app, "note", "Allow VANS to hear you, then try again.");
+            tell(app, "note", "Allow Vspk to hear you, then try again.");
             mac::ask_for_ears(app);
             return;
         }
@@ -767,7 +767,7 @@ pub enum Ears {
 fn after_asking(app: &AppHandle) {
     let _ = app.emit("voice://ears", ears_state());
     match mac::ears() {
-        Ears::Ready => tell_then_go(app, "note", "VANS can hear you now. Hold the key and talk.", Duration::from_secs(3)),
+        Ears::Ready => tell_then_go(app, "note", "Vspk can hear you now. Hold the key and talk.", Duration::from_secs(3)),
         _ => tell_then_go(app, "note", NO_EARS, Duration::from_secs(6)),
     }
 }
@@ -879,7 +879,7 @@ mod mac {
             let input = engine.inputNode();
             let format = input.outputFormatForBus(0);
             if format.channelCount() == 0 {
-                return Err("VANS can't find a microphone.".into());
+                return Err("Vspk can't find a microphone.".into());
             }
             let keep = crate::sarvam::on();
             if keep {
@@ -903,7 +903,7 @@ mod mac {
             engine.prepare();
             if let Err(e) = engine.startAndReturnError() {
                 input.removeTapOnBus(0);
-                return Err(format!("VANS couldn't start the microphone: {}", e.localizedDescription()));
+                return Err(format!("Vspk couldn't start the microphone: {}", e.localizedDescription()));
             }
 
             let words_app = app.clone();
@@ -1025,7 +1025,7 @@ mod mac {
     }
     pub fn ask_for_ears(_app: &AppHandle) {}
     pub fn listen(_app: &AppHandle, _id: u64, _heard: &Arc<Mutex<Heard>>, _hints: &[String]) -> Result<(), String> {
-        Err("Talking to VANS works on a Mac.".into())
+        Err("Talking to Vspk works on a Mac.".into())
     }
     pub fn stop_hearing() {}
     pub fn drop_live() {}
@@ -1038,7 +1038,7 @@ mod mac {
 pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     load_settings(app);
     let win = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("voice.html".into()))
-        .title("VANS")
+        .title("Vspk")
         .decorations(false)
         .transparent(true)
         .always_on_top(true)
@@ -1126,9 +1126,9 @@ mod tests {
 
     #[test]
     fn the_app_and_window_name_help_hearing_without_repeats() {
-        assert_eq!(hints("Preview", "Holiday.jpg"), vec!["VANS", "Preview", "Holiday.jpg"]);
-        assert_eq!(hints("", ""), vec!["VANS"]);
-        assert_eq!(hints("Notes", "notes"), vec!["VANS", "Notes"]);
+        assert_eq!(hints("Preview", "Holiday.jpg"), vec!["Vspk", "Preview", "Holiday.jpg"]);
+        assert_eq!(hints("", ""), vec!["Vspk"]);
+        assert_eq!(hints("Notes", "notes"), vec!["Vspk", "Notes"]);
         assert_eq!(hints("A", &"x".repeat(200))[2].chars().count(), HINT_CHARS);
     }
 

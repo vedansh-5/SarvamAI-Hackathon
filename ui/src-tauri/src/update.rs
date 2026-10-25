@@ -145,7 +145,7 @@ async fn fetch(app: &AppHandle, pubkey: &str) -> Result<(), String> {
     let server = source.get("server").and_then(|v| v.as_str()).unwrap_or_default().trim_end_matches('/');
     let code = source.get("code").and_then(|v| v.as_str()).unwrap_or_default();
     if server.is_empty() || code.is_empty() {
-        return Err("VANS needs your invite code before it can look for updates".into());
+        return Err("Vspk needs your invite code before it can look for updates".into());
     }
     let endpoint = Url::parse(&format!("{server}/v1/update/{{{{target}}}}/{{{{arch}}}}/{{{{current_version}}}}"))
         .map_err(|e| e.to_string())?;
