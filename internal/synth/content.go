@@ -56,13 +56,13 @@ const (
 
 func BuiltInWelcome() Welcome {
 	return Welcome{
-		Title: "VANS shows you how",
-		Lede:  "Ask how to do something and VANS points at each step on your own screen while you do it. When you would rather not, it can do it for you, where you can watch.",
+		Title: "Vspk shows you how",
+		Lede:  "Ask how to do something and Vspk points at each step on your own screen while you do it. When you would rather not, it can do it for you, where you can watch.",
 		Keys: []Key{
-			{Key: "⌥Space", After: "opens VANS, from any app. So does the dot at the top of the screen."},
+			{Key: "⌥Space", After: "opens Vspk, from any app. So does the dot at the top of the screen."},
 			{Before: "Hold", Key: "⌥Space", After: "and talk, then let go, to ask out loud."},
-			{Key: "Esc", After: "stops what VANS is doing."},
-			{Before: "Hold", Key: "Return", After: "to say yes when VANS asks before changing something."},
+			{Key: "Esc", After: "stops what Vspk is doing."},
+			{Before: "Hold", Key: "Return", After: "to say yes when Vspk asks before changing something."},
 		},
 	}
 }
@@ -70,13 +70,13 @@ func BuiltInWelcome() Welcome {
 func BuiltInAbilities() []AbilityText {
 	return []AbilityText{
 		{ID: AbilityGuide, Title: "Show you how",
-			Says:     "Ask how to do something in any app. VANS points at each step on your screen while you do it yourself.",
+			Says:     "Ask how to do something in any app. Vspk points at each step on your screen while you do it yourself.",
 			Examples: []string{"how do I add a new layer", "show me how to export this as a PDF"}},
 		{ID: AbilityDo, Title: "Do it for you",
-			Says:     "Switch to Do it for me and VANS does the steps on screen where you can watch. It asks before anything that changes your work.",
+			Says:     "Switch to Do it for me and Vspk does the steps on screen where you can watch. It asks before anything that changes your work.",
 			Examples: []string{"make a new note called Groceries"}},
 		{ID: AbilityVoice, Title: "Ask out loud",
-			Says: "Hold ⌥Space, say what you want and let go, or press ⌥⇧Space and talk until you stop. VANS answers out loud and says each step as it points. During a guide, say \"next\", \"again\" or \"stop\". Setup can change the key to ⌃⌥ or turn the talking off. Your voice stays on this Mac; only the words go on, as if typed."},
+			Says: "Hold ⌥Space, say what you want and let go, or press ⌥⇧Space and talk until you stop. Vspk answers out loud and says each step as it points. During a guide, say \"next\", \"again\" or \"stop\". Setup can change the key to ⌃⌥ or turn the talking off. Your voice stays on this Mac; only the words go on, as if typed."},
 		{ID: AbilityRead, Title: "Read what is on screen",
 			Says:     "Ask about the window in front: an error, a status, a long message.",
 			Examples: []string{"what does this error say", "summarise this window"}},
@@ -99,7 +99,7 @@ func BuiltInAbilities() []AbilityText {
 			Says:     "Volume, mute, dark or light, and a few more, without opening System Settings.",
 			Examples: []string{"turn on dark mode", "set the volume to 30%"}},
 		{ID: AbilityMemory, Title: "Remember things",
-			Says:     "Facts VANS uses when a task needs them. Ask what it remembers, or tell it to forget.",
+			Says:     "Facts Vspk uses when a task needs them. Ask what it remembers, or tell it to forget.",
 			Examples: []string{"remember that my home city is Delhi", "what do you remember"}},
 		{ID: AbilityRoutines, Title: "Save a routine",
 			Says:     "Keep a request under a name and run it again by saying the name.",
@@ -140,7 +140,7 @@ func ParseContent(raw string) (Content, error) {
 	seen := map[string]bool{}
 	for _, a := range c.Abilities {
 		if !known[a.ID] {
-			return Content{}, fmt.Errorf("%q is not an ability VANS has; the ids are the ones in the starting text", a.ID)
+			return Content{}, fmt.Errorf("%q is not an ability Vspk has; the ids are the ones in the starting text", a.ID)
 		}
 		if seen[a.ID] {
 			return Content{}, fmt.Errorf("%q is listed twice", a.ID)

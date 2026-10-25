@@ -26,7 +26,7 @@ func (e *Engine) readTheScreen(ctx context.Context, in Ask) (*Plan, error) {
 		return nil, err
 	}
 	if where, no := forbidden(e.rules(ctx), app); no {
-		return nil, &NotAllowedError{Where: where, Rule: "you have told VANS to leave it alone, and that includes reading what it shows"}
+		return nil, &NotAllowedError{Where: where, Rule: "you have told Vspk to leave it alone, and that includes reading what it shows"}
 	}
 
 	on, name := e, app
@@ -42,10 +42,10 @@ func (e *Engine) readTheScreen(ctx context.Context, in Ask) (*Plan, error) {
 		return nil, err
 	}
 	if where, no := forbidden(e.rules(ctx), shown.App); no {
-		return nil, &NotAllowedError{Where: where, Rule: "you have told VANS to leave it alone, and that includes reading what it shows"}
+		return nil, &NotAllowedError{Where: where, Rule: "you have told Vspk to leave it alone, and that includes reading what it shows"}
 	}
 	if len(shown.Lines) == 0 {
-		return saying("Nothing to read", fmt.Sprintf("%s is showing no text VANS can read.", app)), nil
+		return saying("Nothing to read", fmt.Sprintf("%s is showing no text Vspk can read.", app)), nil
 	}
 
 	e.logf("reading what %s shows (%d line(s)) to answer this", shown.App, len(shown.Lines))

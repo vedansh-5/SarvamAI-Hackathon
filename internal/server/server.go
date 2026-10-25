@@ -199,21 +199,21 @@ func codeOf(r *http.Request) string {
 func (s *Server) tester(w http.ResponseWriter, r *http.Request) (Tester, bool) {
 	code := codeOf(r)
 	if code == "" {
-		refuse(w, http.StatusUnauthorized, "this copy of VANS has no invite code")
+		refuse(w, http.StatusUnauthorized, "this copy of Vspk has no invite code")
 		return Tester{}, false
 	}
 	who, found, err := s.Ledger.Tester(r.Context(), code)
 	if err != nil {
 		s.logf("could not look up an invite code: %v", err)
-		reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the VANS server could not check the invite code"}})
+		reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the Vspk server could not check the invite code"}})
 		return Tester{}, false
 	}
 	if !found {
-		refuse(w, http.StatusUnauthorized, "this invite code is not one VANS knows")
+		refuse(w, http.StatusUnauthorized, "this invite code is not one Vspk knows")
 		return Tester{}, false
 	}
 	if who.Off && who.Waiting {
-		refuse(w, http.StatusForbidden, "You're on the waiting list. VANS starts working here as soon as your place opens; there's nothing to do.")
+		refuse(w, http.StatusForbidden, "You're on the waiting list. Vspk starts working here as soon as your place opens; there's nothing to do.")
 		return Tester{}, false
 	}
 	if who.Off {
@@ -245,7 +245,7 @@ func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
 	}
 	answerer, known := kinds[asked.Kind]
 	if !known && asked.Kind != synth.KindFeedback && asked.Kind != synth.KindLearned && asked.Kind != synth.KindContent && asked.Kind != synth.KindTrials {
-		refuse(w, http.StatusBadRequest, fmt.Sprintf("%q is not a kind of question VANS asks", asked.Kind))
+		refuse(w, http.StatusBadRequest, fmt.Sprintf("%q is not a kind of question Vspk asks", asked.Kind))
 		return
 	}
 
@@ -270,7 +270,7 @@ func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
 		mine, all, err := s.Ledger.Spend(r.Context(), codeOf(r), Day(s.now()))
 		if err != nil {
 			s.logf("could not count a request for %s: %v", who.Name, err)
-			reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the VANS server could not count the request"}})
+			reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the Vspk server could not count the request"}})
 			return
 		}
 		if who.Daily > 0 && mine > who.Daily {
@@ -286,7 +286,7 @@ func (s *Server) ask(w http.ResponseWriter, r *http.Request) {
 			seen.Fault = synth.FaultOverCap
 			s.record(r.Context(), seen)
 			reply(w, http.StatusTooManyRequests, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultOverCap,
-				Message: "VANS has used today's allowance for everyone. It starts again at 5:30 in the morning, India time."}})
+				Message: "Vspk has used today's allowance for everyone. It starts again at 5:30 in the morning, India time."}})
 			return
 		}
 	}
@@ -346,7 +346,7 @@ func (s *Server) feedback(w http.ResponseWriter, r *http.Request, who Tester, ra
 	}
 	f.Text = strings.TrimSpace(f.Text)
 	if f.Kind != synth.FeedbackFailedGuide && f.Kind != synth.FeedbackNote && f.Kind != synth.FeedbackStoppedGuide {
-		refuse(w, http.StatusBadRequest, fmt.Sprintf("%q is not a kind of feedback VANS sends", f.Kind))
+		refuse(w, http.StatusBadRequest, fmt.Sprintf("%q is not a kind of feedback Vspk sends", f.Kind))
 		return
 	}
 	if f.Kind == synth.FeedbackStoppedGuide && !slices.Contains(synth.StopReasons, stopReason(f.Text)) {
@@ -360,12 +360,12 @@ func (s *Server) feedback(w http.ResponseWriter, r *http.Request, who Tester, ra
 	kept := Feedback{From: who.Name, Kind: f.Kind, Text: f.Text, At: s.now(), Trials: synth.TrialsFor(who.Trials).Spelled()}
 	if err := s.Ledger.Keep(r.Context(), kept); err != nil {
 		s.logf("could not keep feedback from %s: %v", who.Name, err)
-		reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the VANS server could not keep the feedback"}})
+		reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the Vspk server could not keep the feedback"}})
 		return
 	}
 	s.logf("%s sent %s feedback", who.Name, f.Kind)
 	if s.Mail != nil && f.Kind != synth.FeedbackStoppedGuide {
-		subject := fmt.Sprintf("VANS: %s from %s", strings.ReplaceAll(f.Kind, "_", " "), who.Name)
+		subject := fmt.Sprintf("Vspk: %s from %s", strings.ReplaceAll(f.Kind, "_", " "), who.Name)
 		if err := s.Mail.Mail(r.Context(), subject, f.Text); err != nil {
 			s.logf("feedback from %s was kept but not mailed: %v", who.Name, err)
 		}
@@ -391,7 +391,7 @@ func (s *Server) learned(w http.ResponseWriter, r *http.Request, who Tester, raw
 	}
 	if err := s.Ledger.KeepLearned(r.Context(), who.Name, s.now(), string(habits)); err != nil {
 		s.logf("could not keep what was learned for %s: %v", who.Name, err)
-		reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the VANS server could not keep what was learned"}})
+		reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the Vspk server could not keep what was learned"}})
 		return
 	}
 	s.logf("%s: %d learned habit(s) kept", who.Name, len(l.Habits))
@@ -402,7 +402,7 @@ func (s *Server) content(w http.ResponseWriter, r *http.Request, who Tester) {
 	raw, err := s.Ledger.Content(r.Context())
 	if err != nil {
 		s.logf("could not read the content for %s: %v", who.Name, err)
-		reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the VANS server could not read what to show"}})
+		reply(w, http.StatusServiceUnavailable, synth.Answered{Fault: &synth.Fault{Kind: synth.FaultFailed, Message: "the Vspk server could not read what to show"}})
 		return
 	}
 	c, err := synth.ParseContent(raw)

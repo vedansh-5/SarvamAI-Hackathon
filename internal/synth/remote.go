@@ -89,26 +89,26 @@ func ask[Q, A any](ctx context.Context, r *Remote, kind string, req Q) (A, error
 	resp, err := r.client().Do(httpReq)
 	if err != nil {
 		if ctx.Err() == nil && timedOut(err) {
-			return none, &noAnswer{model: "the VANS server", waited: readableWait(time.Since(start))}
+			return none, &noAnswer{model: "the Vspk server", waited: readableWait(time.Since(start))}
 		}
-		return none, fmt.Errorf("synth: the VANS server could not be reached: %w", err)
+		return none, fmt.Errorf("synth: the Vspk server could not be reached: %w", err)
 	}
 	defer resp.Body.Close()
 
 	data, err := io.ReadAll(io.LimitReader(resp.Body, MostAnswerBytes))
 	if err != nil {
-		return none, fmt.Errorf("synth: read the VANS server's answer: %w", err)
+		return none, fmt.Errorf("synth: read the Vspk server's answer: %w", err)
 	}
 	var out Answered
 	if err := json.Unmarshal(data, &out); err != nil {
-		return none, fmt.Errorf("synth: the VANS server answered %d with something unreadable", resp.StatusCode)
+		return none, fmt.Errorf("synth: the Vspk server answered %d with something unreadable", resp.StatusCode)
 	}
 	r.Usage.addUsed(out.Used)
 	if out.Fault != nil {
 		return none, out.Fault.Err()
 	}
 	if resp.StatusCode != http.StatusOK {
-		return none, fmt.Errorf("synth: the VANS server answered %d", resp.StatusCode)
+		return none, fmt.Errorf("synth: the Vspk server answered %d", resp.StatusCode)
 	}
 
 	var got A

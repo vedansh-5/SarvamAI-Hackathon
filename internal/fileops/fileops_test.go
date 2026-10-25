@@ -106,7 +106,7 @@ func TestWhatWasNotShownCannotBeTouched(t *testing.T) {
 		"to an unknown place": {Op{Do: Move, From: filepath.Join(desk, "notes.txt"), To: filepath.Join(root, "Nowhere", "notes.txt")}, "not a folder that was named"},
 		"rename elsewhere":    {Op{Do: Rename, From: filepath.Join(desk, "notes.txt"), To: filepath.Join(desk, "Old", "notes.txt")}, "same folder"},
 		"copy a folder":       {Op{Do: Copy, From: filepath.Join(desk, "Old"), To: filepath.Join(desk, "Older")}, "only files are copied"},
-		"an unknown verb":     {Op{Do: "delete", From: filepath.Join(desk, "notes.txt"), To: filepath.Join(desk, "x")}, "not something VANS does"},
+		"an unknown verb":     {Op{Do: "delete", From: filepath.Join(desk, "notes.txt"), To: filepath.Join(desk, "x")}, "not something Vspk does"},
 	} {
 		err := Validate([]Op{tc.op}, shown, root)
 		var invalid *InvalidError

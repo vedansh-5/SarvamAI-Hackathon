@@ -51,22 +51,22 @@ func join[Q, A any](ctx context.Context, r *Remote, path string, req Q) (A, erro
 	httpReq.Header.Set("Content-Type", "application/json")
 	resp, err := r.client().Do(httpReq)
 	if err != nil {
-		return none, fmt.Errorf("synth: the VANS server could not be reached: %w", err)
+		return none, fmt.Errorf("synth: the Vspk server could not be reached: %w", err)
 	}
 	defer resp.Body.Close()
 	data, err := io.ReadAll(io.LimitReader(resp.Body, 1<<16))
 	if err != nil {
-		return none, fmt.Errorf("synth: read the VANS server's answer: %w", err)
+		return none, fmt.Errorf("synth: read the Vspk server's answer: %w", err)
 	}
 	var out Answered
 	if err := json.Unmarshal(data, &out); err != nil {
-		return none, fmt.Errorf("synth: the VANS server answered %d with something unreadable", resp.StatusCode)
+		return none, fmt.Errorf("synth: the Vspk server answered %d with something unreadable", resp.StatusCode)
 	}
 	if out.Fault != nil {
 		return none, out.Fault.Err()
 	}
 	if resp.StatusCode != http.StatusOK {
-		return none, fmt.Errorf("synth: the VANS server answered %d", resp.StatusCode)
+		return none, fmt.Errorf("synth: the Vspk server answered %d", resp.StatusCode)
 	}
 	var got A
 	if len(out.Answer) > 0 {

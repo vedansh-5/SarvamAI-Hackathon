@@ -116,7 +116,7 @@ func TestAppsComingForwardAndTheMacsMomentsAreNotedButNotAsClicks(t *testing.T) 
 	}
 	got, _ := e.NotedClicks(ctx)
 	if len(got) != 3 || got[0].Title != "unlock" || got[1].App != "Mail" || got[2].Title != "lock" {
-		t.Fatalf("noted %+v, want unlock, Mail in front, lock; and nothing for a password manager, VANS or an unknown kind", got)
+		t.Fatalf("noted %+v, want unlock, Mail in front, lock; and nothing for a password manager, Vspk or an unknown kind", got)
 	}
 	if got[1].Clicked() || got[0].Clicked() {
 		t.Error("an app coming forward or the Mac unlocking was counted as a click")

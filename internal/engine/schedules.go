@@ -91,7 +91,7 @@ func (e *Engine) aboutSchedules(ctx context.Context, instruction string) (*Plan,
 		return nil, true, err
 	}
 	return saying("Scheduled", fmt.Sprintf(
-		"“%s”, %s.\n\nNext: %s. VANS will bring it up then and wait for you to say go; it does not start anything on its own.\n\nIt needs VANS to be running at the time.",
+		"“%s”, %s.\n\nNext: %s. Vspk will bring it up then and wait for you to say go; it does not start anything on its own.\n\nIt needs Vspk to be running at the time.",
 		what, rule.String(), next.Format("Mon 2 Jan, 3:04 pm"))), true, nil
 }
 

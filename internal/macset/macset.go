@@ -84,7 +84,7 @@ func (m Mac) Get(ctx context.Context, setting string) (string, error) {
 		out, err := m.runner().Run(ctx, "/usr/sbin/networksetup", "-getairportpower", device)
 		return onOff(strings.HasSuffix(strings.ToLower(out), ": on")), err
 	}
-	return "", fmt.Errorf("macset: %q is not a setting VANS changes directly", setting)
+	return "", fmt.Errorf("macset: %q is not a setting Vspk changes directly", setting)
 }
 
 func (m Mac) Set(ctx context.Context, setting, value string) error {
@@ -110,7 +110,7 @@ func (m Mac) Set(ctx context.Context, setting, value string) error {
 		_, err = m.runner().Run(ctx, "/usr/sbin/networksetup", "-setairportpower", device, value)
 		return err
 	}
-	return fmt.Errorf("macset: %q is not a setting VANS changes directly", setting)
+	return fmt.Errorf("macset: %q is not a setting Vspk changes directly", setting)
 }
 
 var (
@@ -205,5 +205,5 @@ func Wanted(setting, said, was string) (string, error) {
 		}
 		return toggle(), nil
 	}
-	return "", fmt.Errorf("%q is not a setting VANS changes directly", setting)
+	return "", fmt.Errorf("%q is not a setting Vspk changes directly", setting)
 }

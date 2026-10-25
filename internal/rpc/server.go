@@ -334,10 +334,10 @@ func (s *Server) preflight(ctx context.Context) (PreflightResult, error) {
 
 	if err := s.Probe.LLMConfigured(); err != nil && s.Invite != nil {
 		checks[0].Label = "Signed in"
-		checks[0].Detail = "This copy of VANS needs you to sign in with your email."
+		checks[0].Detail = "This copy of Vspk needs you to sign in with your email."
 		checks[0].Fix = "Type your email under \u201CSign in\u201D below and press Send code."
 	} else if err != nil {
-		checks[0].Detail = "VANS has no model to think with yet."
+		checks[0].Detail = "Vspk has no model to think with yet."
 		checks[0].Fix = "Paste a model key under \u201Cmodel\u201D below and press Save and test."
 	} else if s.Invite != nil {
 		checks[0].OK = true
@@ -389,7 +389,7 @@ func (s *Server) browserFix() string {
 		"  --remote-debugging-port=" + port + " \\\n" +
 		"  --user-data-dir=/tmp/vans-chrome\n\n" +
 		"The separate profile matters: without it Chrome attaches to your running " +
-		"instance and ignores the flag. VANS does not launch applications for you."
+		"instance and ignores the flag. Vspk does not launch applications for you."
 }
 
 func (s *Server) checkNotes(ctx context.Context) (Check, error) {
@@ -769,7 +769,7 @@ func asError(err error) *Error {
 			Message: err.Error(),
 			Data: mustData(AppNotOpenData{
 				App: notRunning.App,
-				Why: "it is not open, and VANS does not open applications",
+				Why: "it is not open, and Vspk does not open applications",
 			}),
 		}
 	}
@@ -781,7 +781,7 @@ func asError(err error) *Error {
 			Message: err.Error(),
 			Data: mustData(AppNotOpenData{
 				App: cannotRaise.App,
-				Why: "it would not come to the front, and VANS does not open applications",
+				Why: "it would not come to the front, and Vspk does not open applications",
 			}),
 		}
 	}
@@ -801,7 +801,7 @@ func asError(err error) *Error {
 		return &Error{
 			Code:    CodeNoCoachHere,
 			Message: err.Error(),
-			Data:    fixData("Ask about the page itself and VANS works on it directly — reading it, filling it in, or restyling it."),
+			Data:    fixData("Ask about the page itself and Vspk works on it directly — reading it, filling it in, or restyling it."),
 		}
 	}
 	var cannot *synth.UnwritableError
@@ -1293,7 +1293,7 @@ func (s *Server) invite() (InviteState, error) {
 
 func (s *Server) setInvite(ctx context.Context, req Request) (InviteState, error) {
 	if s.Invite == nil {
-		return InviteState{}, &Error{Code: CodeBadRequest, Message: "this copy of VANS does not use an invite code"}
+		return InviteState{}, &Error{Code: CodeBadRequest, Message: "this copy of Vspk does not use an invite code"}
 	}
 	var p struct {
 		Code string `json:"code"`
@@ -1310,7 +1310,7 @@ func (s *Server) setInvite(ctx context.Context, req Request) (InviteState, error
 
 func (s *Server) askToJoin(ctx context.Context, req Request) (InviteState, error) {
 	if s.Invite == nil {
-		return InviteState{}, &Error{Code: CodeBadRequest, Message: "this copy of VANS does not sign in"}
+		return InviteState{}, &Error{Code: CodeBadRequest, Message: "this copy of Vspk does not sign in"}
 	}
 	var p struct {
 		Email string `json:"email"`
@@ -1326,7 +1326,7 @@ func (s *Server) askToJoin(ctx context.Context, req Request) (InviteState, error
 
 func (s *Server) join(ctx context.Context, req Request) (InviteState, error) {
 	if s.Invite == nil {
-		return InviteState{}, &Error{Code: CodeBadRequest, Message: "this copy of VANS does not sign in"}
+		return InviteState{}, &Error{Code: CodeBadRequest, Message: "this copy of Vspk does not sign in"}
 	}
 	var p struct {
 		Email string `json:"email"`
@@ -1344,7 +1344,7 @@ func (s *Server) join(ctx context.Context, req Request) (InviteState, error) {
 
 func joinRefusal(err error) string {
 	if strings.HasPrefix(err.Error(), "synth:") {
-		return "VANS could not reach its server. Check the internet connection and try again."
+		return "Vspk could not reach its server. Check the internet connection and try again."
 	}
 	return err.Error()
 }
@@ -1381,7 +1381,7 @@ func inviteRefusal(err error) string {
 	if errors.Is(err, synth.ErrRefused) {
 		return err.Error()
 	}
-	return "VANS could not reach its server to check the code. Check the internet connection and try again."
+	return "Vspk could not reach its server to check the code. Check the internet connection and try again."
 }
 
 var ScheduleTick = 20 * time.Second
@@ -1422,7 +1422,7 @@ type FeedbackSender interface {
 
 func (s *Server) sendFeedback(ctx context.Context, req Request) (map[string]bool, error) {
 	if s.Feedback == nil {
-		return nil, &Error{Code: CodeBadRequest, Message: "feedback goes through the VANS server, and this copy asks a model directly"}
+		return nil, &Error{Code: CodeBadRequest, Message: "feedback goes through the Vspk server, and this copy asks a model directly"}
 	}
 	var f synth.Feedback
 	if err := json.Unmarshal(req.Params, &f); err != nil {

@@ -122,7 +122,7 @@ func TestExcludedCommandsDoNotSurviveTheSplice(t *testing.T) {
 		t.Error("get was dropped along with the excluded commands")
 	}
 	if hasCommand(d, "delete") || hasCommand(d, "move") {
-		t.Error("an excluded command survived, so VANS would offer one the app rejects")
+		t.Error("an excluded command survived, so Vspk would offer one the app rejects")
 	}
 }
 
@@ -157,7 +157,7 @@ func TestUnrecognisedXpointerIsAnError(t *testing.T) {
 	}
 
 	if _, err := loadFile(own); err == nil {
-		t.Error("an xpointer VANS cannot honour was accepted, so the surface it reports is a guess")
+		t.Error("an xpointer Vspk cannot honour was accepted, so the surface it reports is a guess")
 	}
 }
 

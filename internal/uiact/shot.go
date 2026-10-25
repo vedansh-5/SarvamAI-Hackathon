@@ -17,7 +17,7 @@ type Shot struct {
 
 var ErrCannotSee = errors.New("uiact: the window could not be pictured")
 
-const CannotSeeFix = "VANS needs Screen Recording permission to look at a window: System Settings \u203A Privacy & Security \u203A Screen & System Audio Recording."
+const CannotSeeFix = "Vspk needs Screen Recording permission to look at a window: System Settings \u203A Privacy & Security \u203A Screen & System Audio Recording."
 
 const longestShotSide = 1400
 

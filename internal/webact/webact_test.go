@@ -106,12 +106,12 @@ func TestOnlyKnownVerbsAndKeys(t *testing.T) {
 	n, _ := Parse(page)
 
 	bad := Program{Steps: []Step{{Do: "navigate", Selector: "#send"}}}
-	if !mentions(reasons(t, Validate(bad, n)), "not something VANS does") {
+	if !mentions(reasons(t, Validate(bad, n)), "not something Vspk does") {
 		t.Error("an invented verb was accepted")
 	}
 
 	key := Program{Steps: []Step{{Do: "press", Selector: "#msg", Key: "F13"}}}
-	if !mentions(reasons(t, Validate(key, n)), "not a key VANS presses") {
+	if !mentions(reasons(t, Validate(key, n)), "not a key Vspk presses") {
 		t.Error("an arbitrary key was accepted")
 	}
 }

@@ -34,7 +34,7 @@ func TestLiveWriteToNotes(t *testing.T) {
 	p := Program{App: "Notes", Steps: []Step{{
 		Command: "make",
 		Make:    "note",
-		With:    map[string]string{"body": "<div>VANS live test</div>"},
+		With:    map[string]string{"body": "<div>Vspk live test</div>"},
 		Bind:    "note",
 	}}}
 

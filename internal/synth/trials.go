@@ -38,7 +38,7 @@ func TrialNamed(name string) (Trial, bool) {
 func CheckTrial(name, variant string) error {
 	t, ok := TrialNamed(name)
 	if !ok {
-		return fmt.Errorf("%q is not a trial VANS runs", name)
+		return fmt.Errorf("%q is not a trial Vspk runs", name)
 	}
 	for _, v := range t.Variants {
 		if v == variant {

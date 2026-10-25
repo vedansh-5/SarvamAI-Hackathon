@@ -105,7 +105,7 @@ func (b *ChromiumBrowser) attach(ctx context.Context) (*cdp.Page, error) {
 	wsURL, err := cdp.BrowserWSURL(ctx, b.HostPort)
 	if err != nil {
 		return nil, &TransientError{Err: fmt.Errorf(
-			"no Chromium debugging endpoint at %s. Start Chrome yourself with --remote-debugging-port=%s; VANS does not launch applications: %w",
+			"no Chromium debugging endpoint at %s. Start Chrome yourself with --remote-debugging-port=%s; Vspk does not launch applications: %w",
 			b.HostPort, portOf(b.HostPort), err)}
 	}
 

@@ -153,7 +153,7 @@ func TestUnknownVerbAndKeyAreRefused(t *testing.T) {
 		{Do: "press", Target: Selector{Role: "AXTextArea", Title: "Message"}, Key: "F13"},
 	}}
 	rs := reasons(t, Validate(p, window()))
-	if !mentions(rs, "not something VANS does") || !mentions(rs, "not a key VANS presses") {
+	if !mentions(rs, "not something Vspk does") || !mentions(rs, "not a key Vspk presses") {
 		t.Errorf("reasons = %v", rs)
 	}
 }

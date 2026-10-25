@@ -64,7 +64,7 @@ func (e *Engine) aboutRoutines(ctx context.Context, instruction string) (*Plan, 
 
 	if m := saveTheLast.FindStringSubmatch(instruction); m != nil {
 		if e.History == nil {
-			return saying("Nothing to save", "VANS has no record of the last thing asked."), true, nil
+			return saying("Nothing to save", "Vspk has no record of the last thing asked."), true, nil
 		}
 		recent, err := e.History.RecentInstructions(ctx)
 		if err != nil {

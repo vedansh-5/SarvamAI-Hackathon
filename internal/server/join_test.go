@@ -18,7 +18,7 @@ type inbox struct {
 
 func (i *inbox) Send(_ context.Context, to, subject, body string) error {
 	i.to = append(i.to, to)
-	i.codes = append(i.codes, strings.TrimPrefix(subject, "Your VANS code: "))
+	i.codes = append(i.codes, strings.TrimPrefix(subject, "Your Vspk code: "))
 	if !strings.Contains(body, i.codes[len(i.codes)-1]) {
 		return errors.New("the code is not in the body")
 	}

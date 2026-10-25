@@ -11,7 +11,7 @@ import (
 )
 
 // Every way a coached run can end short has to be tellable from VANS breaking,
-// or the panel says "something went wrong inside VANS" about a window that
+// or the panel says "something went wrong inside Vspk" about a window that
 // simply did not have what the step needed.
 func TestAStoppedRunIsNotAFault(t *testing.T) {
 	quickGuide(t)
@@ -74,10 +74,10 @@ func TestAControlThatCannotBePointedAtIsNamedPlainlyWithWhatToDo(t *testing.T) {
 		why  string
 		want string
 	}{
-		{uiact.Selector{Role: "AXButton", Title: "Save"}, `nothing on screen is a AXButton named "Save"`, "VANS cannot see “Save” any more"},
-		{uiact.Selector{Role: "AXButton", Title: "Tahoe"}, `no part of the AXButton "Tahoe" is visible on screen`, "VANS cannot see “Tahoe”: it is covered or off screen"},
+		{uiact.Selector{Role: "AXButton", Title: "Save"}, `nothing on screen is a AXButton named "Save"`, "Vspk cannot see “Save” any more"},
+		{uiact.Selector{Role: "AXButton", Title: "Tahoe"}, `no part of the AXButton "Tahoe" is visible on screen`, "Vspk cannot see “Tahoe”: it is covered or off screen"},
 		{uiact.Selector{Role: "AXCheckBox"}, `3 elements are a AXCheckBox, so it does not say which one`, "more than one checkbox here"},
-		{uiact.Selector{Role: "AXGroup"}, `nothing on screen is a AXGroup`, "VANS cannot see that control any more"},
+		{uiact.Selector{Role: "AXGroup"}, `nothing on screen is a AXGroup`, "Vspk cannot see that control any more"},
 	} {
 		said := cannotPointAt("Editor", c.sel, c.why).Error()
 		if !strings.Contains(said, c.want) {

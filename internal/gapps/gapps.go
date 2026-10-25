@@ -81,7 +81,7 @@ func (f File) ExportPath() string {
 func (f File) ReadScript() (string, error) {
 	path := f.ExportPath()
 	if path == "" || !idPattern.MatchString(f.ID) {
-		return "", fmt.Errorf("gapps: %q is not a file VANS can read", f.ID)
+		return "", fmt.Errorf("gapps: %q is not a file Vspk can read", f.ID)
 	}
 	literal, err := json.Marshal(path)
 	if err != nil {

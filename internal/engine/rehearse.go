@@ -54,16 +54,16 @@ func (e *Engine) rehearsalOf(ctx context.Context, plan *Plan) *Plan {
 		if what == "" {
 			what = "Nothing would be changed."
 		}
-		return saying(title, "VANS would:\n\n"+what)
+		return saying(title, "Vspk would:\n\n"+what)
 	}
 
 	d := plan.Drive
 	var b strings.Builder
 	where := d.App
 	if d.Open != "" {
-		fmt.Fprintf(&b, "VANS would open %s, then on that page:\n\n", hostOf(d.Open))
+		fmt.Fprintf(&b, "Vspk would open %s, then on that page:\n\n", hostOf(d.Open))
 	} else {
-		fmt.Fprintf(&b, "In %s, VANS would:\n\n", where)
+		fmt.Fprintf(&b, "In %s, Vspk would:\n\n", where)
 	}
 
 	steps := d.Replay
@@ -106,7 +106,7 @@ func (e *Engine) rehearsalOf(ctx context.Context, plan *Plan) *Plan {
 	case fromMemory:
 		b.WriteString("These are the steps that worked last time.")
 	case len(steps) > 1:
-		b.WriteString("Only the first step has been checked against the screen. The rest are what VANS expects, and each is checked when its turn comes.")
+		b.WriteString("Only the first step has been checked against the screen. The rest are what Vspk expects, and each is checked when its turn comes.")
 	}
 	if limit := e.rules(ctx).SpendLimit; limit > 0 {
 		fmt.Fprintf(&b, "\nA step that pays more than %s would not be taken.", plainAmount(limit))

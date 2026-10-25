@@ -44,7 +44,7 @@ func TestTheDriveLoopStillTakesArrivalsAsEvidence(t *testing.T) {
 	after := Tree{App: "System Settings", Elements: rows(9)}
 
 	if !ActedOn(before, after, clickWallpaper()) {
-		t.Error("VANS acted and the window changed, which is what it has to go on")
+		t.Error("Vspk acted and the window changed, which is what it has to go on")
 	}
 }
 

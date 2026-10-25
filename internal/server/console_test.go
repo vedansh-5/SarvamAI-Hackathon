@@ -89,7 +89,7 @@ func TestTheConsoleRunsTheTesters(t *testing.T) {
 
 	_, body := page(t, client, http.MethodPost, srv.URL+"/console/testers/add", url.Values{"name": {"Arjun"}, "daily": {"50"}})
 	code := regexp.MustCompile(`vans-[0-9a-f]{20}`).FindString(body)
-	if code == "" || !strings.Contains(body, "Arjun can use VANS") {
+	if code == "" || !strings.Contains(body, "Arjun can use Vspk") {
 		t.Fatalf("no code shown after adding a tester:\n%s", body)
 	}
 	if !strings.Contains(body, DownloadLink()) {

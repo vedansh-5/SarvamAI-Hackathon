@@ -9,11 +9,11 @@ import (
 func TestQuotedTextStaysQuotedInTheTaskTheModelIsGiven(t *testing.T) {
 	r := route.Route{
 		Kind:      route.KindAppAction,
-		Slots:     map[string]string{"app": "whatsapp", "action": "send sent from VANS to suhani"},
+		Slots:     map[string]string{"app": "whatsapp", "action": "send sent from Vspk to suhani"},
 		Templates: map[string]string{"app": "whatsapp", "action": "send {s0} to suhani"},
-		Literals:  route.Literals{"s0": "sent from VANS"},
+		Literals:  route.Literals{"s0": "sent from Vspk"},
 	}
-	if got := theTask(r); got != `send "sent from VANS" to suhani` {
+	if got := theTask(r); got != `send "sent from Vspk" to suhani` {
 		t.Errorf("task = %q; without the quotes \"sent\" reads as the message and the rest as the sentence", got)
 	}
 }

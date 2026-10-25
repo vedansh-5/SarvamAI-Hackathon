@@ -90,7 +90,7 @@ func (e *Engine) stylePage(ctx context.Context, r route.Route) (*Plan, int, erro
 			Destination: hostOf(pageURL),
 			Style: &StylePlan{
 				URL:     pageURL,
-				Preview: "Take the highlighting off every page VANS put it on",
+				Preview: "Take the highlighting off every page Vspk put it on",
 				Clears:  true,
 				script:  webstyle.Clear(),
 			},

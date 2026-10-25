@@ -490,7 +490,7 @@ func (e *Engine) ask(ctx context.Context, in Ask) (*Plan, error) {
 	return nil, &UnroutableError{
 		Instruction: in.Instruction,
 		Why: fmt.Sprintf(
-			"that is a %s task, which VANS can recognise but cannot carry out yet",
+			"that is a %s task, which Vspk can recognise but cannot carry out yet",
 			res.Route.Kind),
 		Can: e.capabilities(),
 	}

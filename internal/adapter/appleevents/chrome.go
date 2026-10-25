@@ -155,7 +155,7 @@ function tabById(app, id) {
       if (String(tabs[i].id()) === id) return tabs[i];
     }
   }
-  throw new Error('the VANS tab is gone');
+  throw new Error('the Vspk tab is gone');
 }
 function reply(f) {
   try { return JSON.stringify({ ok: true, value: f() }); }
@@ -457,9 +457,9 @@ func Fix(err error) string {
 	case errors.Is(err, ErrSafariScriptingOff):
 		return SafariScriptingFix
 	case errors.Is(err, ErrSafariNotRunning):
-		return "Open Safari. VANS does not launch applications."
+		return "Open Safari. Vspk does not launch applications."
 	case errors.Is(err, ErrNotRunning):
-		return "Open Chrome. VANS does not launch applications."
+		return "Open Chrome. Vspk does not launch applications."
 	default:
 		return ""
 	}

@@ -110,7 +110,7 @@ func (e *Engine) actInApplication(ctx context.Context, r route.Route, shape stri
 				if installed, err := e.Apps.FindInstalled(name); err == nil {
 					var closed *uiact.NotRunningError
 					if errors.As(uiErr, &closed) {
-						e.logf("%s is installed but not open, and VANS does not open applications", installed.Name)
+						e.logf("%s is installed but not open, and Vspk does not open applications", installed.Name)
 						return nil, 0, &uiact.NotRunningError{App: installed.Name}
 					}
 					e.logf("%s is installed, so its website is not used in its place", installed.Name)

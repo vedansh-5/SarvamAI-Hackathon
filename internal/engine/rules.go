@@ -108,7 +108,7 @@ func (e *Engine) allowedToAct(ctx context.Context, plan *Plan) error {
 		return nil
 	}
 	if where, no := forbidden(e.rules(ctx), places...); no {
-		return &NotAllowedError{Where: where, Rule: "you have told VANS never to act there. It can still show you how"}
+		return &NotAllowedError{Where: where, Rule: "you have told Vspk never to act there. It can still show you how"}
 	}
 	return nil
 }

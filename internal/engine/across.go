@@ -96,7 +96,7 @@ func (e *Engine) whereToSwitch(ctx context.Context, step uiact.Step, from string
 	}
 	if acting {
 		if where, no := forbidden(e.rules(ctx), name); no {
-			return "", fmt.Sprintf("your rules say VANS never acts in %s, so it cannot be switched to; say stuck", where)
+			return "", fmt.Sprintf("your rules say Vspk never acts in %s, so it cannot be switched to; say stuck", where)
 		}
 	}
 	return name, ""

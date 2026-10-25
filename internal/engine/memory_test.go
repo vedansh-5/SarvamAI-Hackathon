@@ -101,7 +101,7 @@ func TestSomethingRememberedAnswersAQuestionBeforeThePersonIsAsked(t *testing.T)
 		t.Fatalf("runDrive: %v", err)
 	}
 	if asked != 0 {
-		t.Errorf("asked the person %d time(s) something they had already told VANS", asked)
+		t.Errorf("asked the person %d time(s) something they had already told Vspk", asked)
 	}
 	if len(steps.requests) < 2 || !strings.Contains(strings.Join(steps.requests[1].Done, " "), "IndiGo") {
 		t.Errorf("the next step was worked out without what was remembered: %v", steps.requests[1].Done)

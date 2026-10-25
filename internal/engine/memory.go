@@ -32,9 +32,9 @@ func (e *Engine) aboutMemory(ctx context.Context, instruction string) (*Plan, bo
 			return nil, true, err
 		}
 		if len(facts) == 0 {
-			return saying("What VANS remembers", "Nothing yet. Say \u201Cremember that my home city is Delhi\u201D and it will."), true, nil
+			return saying("What Vspk remembers", "Nothing yet. Say \u201Cremember that my home city is Delhi\u201D and it will."), true, nil
 		}
-		return saying("What VANS remembers", "\u2022 "+strings.Join(facts, "\n\u2022 ")+
+		return saying("What Vspk remembers", "\u2022 "+strings.Join(facts, "\n\u2022 ")+
 			"\n\nSay \u201Cforget \u2026\u201D to remove one."), true, nil
 	}
 
@@ -53,7 +53,7 @@ func (e *Engine) aboutMemory(ctx context.Context, instruction string) (*Plan, bo
 			return nil, true, err
 		}
 		if gone == 0 {
-			return saying("Nothing to forget", fmt.Sprintf("VANS remembers nothing about \u201C%s\u201D.", about)), true, nil
+			return saying("Nothing to forget", fmt.Sprintf("Vspk remembers nothing about \u201C%s\u201D.", about)), true, nil
 		}
 		return saying("Forgotten", fmt.Sprintf("%d thing(s) about \u201C%s\u201D.", gone, about)), true, nil
 	}
@@ -128,5 +128,5 @@ func rememberedNote(facts []string) string {
 	if len(facts) == 0 {
 		return ""
 	}
-	return "The person has told VANS to remember: " + strings.Join(facts, "; ") + ". Use it where the task depends on it."
+	return "The person has told Vspk to remember: " + strings.Join(facts, "; ") + ". Use it where the task depends on it."
 }
