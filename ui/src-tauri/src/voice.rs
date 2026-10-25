@@ -586,7 +586,31 @@ fn deliver(app: &AppHandle, id: u64) {
     release_esc(app);
     listening_light(app, false);
 
+    if crate::sarvam::on() {
+        let live = session.heard.lock().unwrap().words.trim().to_string();
+        tell(app, "thinking", if live.is_empty() { "…" } else { &live });
+        let handle = app.clone();
+        std::thread::spawn(move || {
+            let heard = crate::sarvam::hear();
+            let main = handle.clone();
+            let _ = handle.run_on_main_thread(move || match heard {
+                Ok(h) => {
+                    eprintln!("[vans] sarvam heard ({}): {:?}", h.language, h.text);
+                    act_on(&main, session, h.text);
+                }
+                Err(e) => {
+                    eprintln!("[vans] sarvam: {e}");
+                    act_on(&main, session, live);
+                }
+            });
+        });
+        return;
+    }
     let words = session.heard.lock().unwrap().words.trim().to_string();
+    act_on(app, session, words);
+}
+
+fn act_on(app: &AppHandle, session: Session, words: String) {
     eprintln!("[vans] heard: {words:?}");
     if words.is_empty() {
         tell_then_go(app, "note", "Didn't catch that.", Duration::from_millis(1600));
@@ -816,16 +840,22 @@ mod mac {
         unsafe { SFSpeechRecognizer::requestAuthorization(&after_speech) };
     }
 
-    fn rms(buffer: &AVAudioPCMBuffer) -> f32 {
+    fn samples(buffer: &AVAudioPCMBuffer) -> &[f32] {
         unsafe {
             let frames = buffer.frameLength() as usize;
             let channels = buffer.floatChannelData();
             if channels.is_null() || frames == 0 {
-                return 0.0;
+                return &[];
             }
-            let samples = std::slice::from_raw_parts((*channels).as_ptr(), frames);
-            (samples.iter().map(|s| s * s).sum::<f32>() / frames as f32).sqrt()
+            std::slice::from_raw_parts((*channels).as_ptr(), frames)
         }
+    }
+
+    fn rms(samples: &[f32]) -> f32 {
+        if samples.is_empty() {
+            return 0.0;
+        }
+        (samples.iter().map(|s| s * s).sum::<f32>() / samples.len() as f32).sqrt()
     }
 
     pub fn listen(app: &AppHandle, id: u64, heard: &Arc<Mutex<Heard>>, hints: &[String]) -> Result<(), String> {
@@ -851,6 +881,10 @@ mod mac {
             if format.channelCount() == 0 {
                 return Err("VANS can't find a microphone.".into());
             }
+            let keep = crate::sarvam::on();
+            if keep {
+                crate::sarvam::begin(format.sampleRate());
+            }
 
             let feed = request.clone();
             let loud_app = app.clone();
@@ -858,7 +892,11 @@ mod mac {
             let tap: Tap = RcBlock::new(move |buffer: NonNull<AVAudioPCMBuffer>, _when: NonNull<AVAudioTime>| {
                 let buffer = buffer.as_ref();
                 feed.appendAudioPCMBuffer(buffer);
-                super::level_now(&loud_app, &loud, rms(buffer));
+                let heard = samples(buffer);
+                if keep {
+                    crate::sarvam::push(heard);
+                }
+                super::level_now(&loud_app, &loud, rms(heard));
             });
             input.installTapOnBus_bufferSize_format_block(0, 1024, Some(&format), RcBlock::as_ptr(&tap));
 

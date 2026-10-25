@@ -4,6 +4,7 @@ mod login;
 mod notch;
 mod nudge;
 mod overlay;
+mod sarvam;
 mod permissions;
 mod speak;
 mod update;
