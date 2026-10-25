@@ -43,10 +43,10 @@ enum SelfTest {
             let language = answer.language ?? heard.language
             print(String(format: "ask      %.2f s  language %@", askTime, language))
             print("say      \(answer.say)")
-            for (i, step) in answer.steps.enumerated() { print("step \(i + 1)   \(step)") }
+            for (i, step) in answer.steps.enumerated() { print("step \(i + 1)   \(step.text)  [\(step.target ?? "-")]") }
             let speakStart = Date()
             async let sayAudio = client.speak(text: answer.say, language: language)
-            async let stepAudio = optionalSpeak(client, answer.steps.first, language)
+            async let stepAudio = optionalSpeak(client, answer.steps.first?.text, language)
             let first = try await sayAudio
             let firstTime = Date().timeIntervalSince(speakStart)
             let total = Date().timeIntervalSince(start)

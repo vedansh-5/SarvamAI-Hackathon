@@ -141,7 +141,7 @@ final class GuideModel {
         guard mine == round else { return }
         language = answer.language ?? words.language
         say = answer.say
-        steps = answer.steps
+        steps = answer.steps.map(\.text)
         index = 0
         turns.append(Turn(question: text, say: answer.say, steps: answer.steps))
         stepAudio = [:]
