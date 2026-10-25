@@ -1,4 +1,4 @@
-APP_NAME = "Vspk"
+APP_NAME = "VANS"
 TAGLINE = "Ask how to do anything on your computer, in your own language."
 EMOJI = "🗣️"
 DB_NAME = "vspk"
