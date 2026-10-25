@@ -5,7 +5,7 @@
   "redirects": [
     {
       "source": "/download",
-      "destination": "https://vans-releases.s3.ap-south-1.amazonaws.com/voice/VANS_voice_bba2389.dmg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIA4TWFKMBSLGCM3F3E%2F20261025%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20261025T114549Z&X-Amz-Expires=604800&X-Amz-SignedHeaders=host&X-Amz-Signature=34e2bef3272c76d40cc6c06d4d3fc5f87aba9d9ead4c18655d365fb8ce7cc9d7",
+      "destination": "https://dcebecm6rhedpylmqas2q3hxyq0holhl.lambda-url.ap-south-1.on.aws/v1/download/voice",
       "permanent": false
     }
   ]
