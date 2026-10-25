@@ -1,0 +1,76 @@
+:root {
+  --bg: #f6f7f2; --card: #fff; --ink: #1c2117; --soft: #6b7264;
+  --accent: #6aa121; --accent-rgb: 106 161 33; --red: #ff453a; --amber: #ffb340;
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1); --settle: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #11140f; --card: #1a1e16; --ink: #eef2e8; --soft: #9aa391; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+main { max-width: 640px; margin: 0 auto; padding: 96px 16px 48px; }
+h1 { font-size: 40px; margin: 0 0 4px; letter-spacing: -0.02em; }
+.lede { color: var(--soft); margin: 0 0 32px; }
+h2 { font-size: 15px; color: var(--soft); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 40px; }
+
+#talk {
+  width: 100%; display: flex; align-items: center; gap: 14px; padding: 18px 20px;
+  border: 0; border-radius: 18px; background: var(--card); color: var(--ink); font: inherit; cursor: pointer;
+  box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 6px 24px rgba(0,0,0,.06); transition: transform .15s var(--settle), box-shadow .2s;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+#talk:active, #talk.held { transform: scale(0.985); box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / .45); }
+#talk .mic { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); flex: none; position: relative; }
+#talk .mic::after { content: ""; position: absolute; inset: 12px 15px; border-radius: 6px; background: #fff; }
+kbd { font: 600 13px/1 ui-monospace, monospace; padding: 3px 6px; border-radius: 6px; background: rgb(var(--accent-rgb) / .15); }
+
+#type-form { display: flex; gap: 8px; margin-top: 12px; }
+#type-form input { flex: 1; padding: 12px 14px; border-radius: 12px; border: 1px solid rgb(var(--accent-rgb) / .25); background: var(--card); color: var(--ink); font: inherit; }
+button { font: inherit; }
+#type-form button, .guide-nav button { padding: 10px 16px; border-radius: 12px; border: 0; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; }
+.guide-nav button { background: rgb(var(--accent-rgb) / .14); color: var(--ink); }
+.guide-nav #g-next { background: var(--accent); color: #fff; }
+
+#guide { margin-top: 28px; padding: 20px; border-radius: 18px; background: var(--card); box-shadow: 0 6px 24px rgba(0,0,0,.06); }
+#guide-say { margin: 0 0 12px; font-weight: 600; }
+#guide-steps { margin: 0 0 16px; padding-left: 22px; }
+#guide-steps li { padding: 6px 0; color: var(--soft); transition: color .2s; }
+#guide-steps li.now { color: var(--ink); font-weight: 600; }
+#guide-steps li.done { text-decoration: line-through; text-decoration-color: rgb(var(--accent-rgb) / .6); }
+.guide-nav { display: flex; gap: 8px; flex-wrap: wrap; }
+.hint { color: var(--soft); font-size: 13px; margin: 12px 0 0; }
+#history { list-style: none; padding: 0; margin: 0; }
+#history li { padding: 10px 0; border-bottom: 1px solid rgb(var(--accent-rgb) / .12); cursor: pointer; }
+#history li small { color: var(--soft); margin-left: 6px; }
+
+#island {
+  position: fixed; top: 10px; left: 50%; transform: translateX(-50%) scale(.6); opacity: 0;
+  display: flex; align-items: center; gap: 12px; min-height: 40px; max-width: min(560px, calc(100vw - 32px));
+  padding: 8px 18px; border-radius: 22px; background: #000; color: #f5f5f7; font-size: 14px; font-weight: 500;
+  transition: transform .45s var(--spring), opacity .2s ease, box-shadow .2s ease; z-index: 10; pointer-events: none;
+  box-shadow: 0 8px 28px rgba(0,0,0,.3), 0 0 calc(6px + var(--lvl, 0) * 26px) rgb(var(--accent-rgb) / calc(var(--lvl, 0) * .5));
+}
+#island:not([data-state="idle"]) { transform: translateX(-50%) scale(1); opacity: 1; }
+#island.shake { animation: shake .36s var(--settle); }
+#island-words { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+#island[data-state="listening"] #island-words:empty::before { content: "Listening…"; color: rgba(245,245,247,.55); }
+#island[data-state="thinking"] #island-words { color: rgba(245,245,247,.7); }
+#island[data-state="note"] #island-words { color: var(--amber); }
+.wave, .dots, .live { display: none; flex: none; }
+#island[data-state="listening"] .wave, #island[data-state="speaking"] .wave { display: flex; gap: 2.5px; align-items: center; height: 18px; }
+.wave i { width: 2.5px; height: 18px; border-radius: 2px; background: var(--accent); transform: scaleY(.16); }
+#island[data-state="speaking"] .wave i { animation: eq .8s ease-in-out infinite; }
+#island[data-state="speaking"] .wave i:nth-child(2n) { animation-delay: .18s; }
+#island[data-state="speaking"] .wave i:nth-child(3n) { animation-delay: .32s; }
+#island[data-state="thinking"] .dots { display: flex; gap: 4px; }
+.dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); animation: hop .95s var(--settle) infinite; }
+.dots i:nth-child(2) { animation-delay: .14s; } .dots i:nth-child(3) { animation-delay: .28s; }
+#island[data-state="listening"] .live { display: block; width: 8px; height: 8px; border-radius: 50%; background: var(--red); animation: live 1.3s ease-in-out infinite; }
+@keyframes hop { 45% { transform: translateY(-4px); opacity: .55; } }
+@keyframes eq { 0%, 100% { transform: scaleY(.28); } 50% { transform: scaleY(1); } }
+@keyframes live { 50% { opacity: .4; transform: scale(.8); } }
+@keyframes shake { 18% { transform: translateX(calc(-50% - 5px)); } 36% { transform: translateX(calc(-50% + 4px)); } 54% { transform: translateX(calc(-50% - 3px)); } 72% { transform: translateX(calc(-50% + 1.5px)); } }
+@media (prefers-reduced-motion: reduce) { #island, #island * { animation: none !important; transition-duration: 1ms !important; } }
+.memory { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 16px 0 0; color: var(--soft); font-size: 14px; }
+.memory button { padding: 6px 12px; border-radius: 10px; border: 1px solid rgb(var(--accent-rgb) / .35); background: transparent; color: var(--ink); cursor: pointer; }
+.memory[hidden] { display: none; }

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ app_name }}: try it</title>
+    <meta name="description" content="{{ tagline }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}" />
+  </head>
+  <body data-app-name="{{ app_name }}">
+    <div id="island" data-state="idle" role="status" aria-live="polite">
+      <span class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+      <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span id="island-words"></span>
+      <span class="live" aria-hidden="true"></span>
+    </div>
+
+    <main>
+      <h1><span aria-hidden="true">{{ emoji }}</span> {{ app_name }}</h1>
+      <p class="lede">{{ tagline }} Ask in Hindi, English or another Indian language. {{ app_name }} shows you the steps and says them out loud.</p>
+
+      <button id="talk" type="button" aria-label="Hold to talk">
+        <span class="mic"></span>
+        <span id="talk-label">Hold <kbd>Space</kbd> or this button and talk</span>
+      </button>
+
+      <form id="type-form" autocomplete="off">
+        <input id="type-box" placeholder="…or type: how do I crop a photo on my Mac?" aria-label="Ask {{ app_name }}" />
+        <button type="submit">Ask</button>
+      </form>
+
+      <section id="guide" hidden>
+        <p id="guide-say"></p>
+        <ol id="guide-steps"></ol>
+        <div class="guide-nav">
+          <button id="g-back" type="button">Back</button>
+          <button id="g-again" type="button">Again</button>
+          <button id="g-next" type="button">Next</button>
+          <button id="g-stop" type="button">Stop</button>
+        </div>
+        <p class="hint" id="command-hint"></p>
+      </section>
+
+      <p class="memory" id="memory" hidden>
+        <span id="memory-text"></span>
+        <button id="fresh" type="button">Start fresh</button>
+      </p>
+
+      <section id="history-box">
+        <h2>Earlier</h2>
+        <ul id="history"></ul>
+      </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='ears.js') }}"></script>
+    <script src="{{ url_for('static', filename='guide.js') }}"></script>
+  </body>
+</html>
