@@ -1,5 +1,12 @@
 {
   "buildCommand": "python3 site/build.py",
   "outputDirectory": "dist",
-  "framework": null
+  "framework": null,
+  "redirects": [
+    {
+      "source": "/download",
+      "destination": "https://vans-releases.s3.ap-south-1.amazonaws.com/0.4.6-voice/VANS_0.4.6_voice.dmg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIA4TWFKMBSLGCM3F3E%2F20261025%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20261025T112551Z&X-Amz-Expires=604800&X-Amz-SignedHeaders=host&X-Amz-Signature=e6239a7fdbe6c67cb826e74fc9447083b35ce37095a905accc532c14586ec109",
+      "permanent": false
+    }
+  ]
 }
