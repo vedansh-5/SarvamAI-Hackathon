@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ app_name }}</title>
+    <meta name="description" content="{{ tagline }}">
+    <link rel="icon" href="/site/img/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/site/site.css">
+  </head>
+  <body>
+    <header class="site-nav">
+      <div class="nav-container">
+        <a href="/" class="nav-brand">
+          <span class="nav-emoji" aria-hidden="true">{{ emoji }}</span>
+          <span>{{ app_name }}</span>
+        </a>
+        {% if not static_build %}
+        <a href="/try" class="nav-cta">Try Demo &rarr;</a>
+        {% endif %}
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="island-showcase">
+          <div class="island-pill" role="region" aria-label="Floating island preview">
+            <div class="island-top">
+              <span class="island-status">
+                <span class="status-dot" aria-hidden="true"></span>
+                <span>Speaking step 1</span>
+              </span>
+              <span class="waveform" aria-hidden="true">
+                <i></i><i></i><i></i><i></i><i></i>
+              </span>
+              <span class="island-hotkey">⌥K</span>
+            </div>
+            <div class="island-body">
+              <div class="island-query">Mac par screen split kaise karein?</div>
+              <div class="island-answer">Click and hold the green full-screen button in the top left corner of the window.</div>
+            </div>
+            <div class="island-controls">
+              <span class="control-chip primary">Next / अगला</span>
+              <span class="control-chip">Again / फिर से</span>
+              <span class="control-chip">Back / पीछे</span>
+              <span class="control-chip">Stop / रुको</span>
+            </div>
+          </div>
+        </div>
+
+        <h1 class="hero-title">
+          <span class="brand-emoji" aria-hidden="true">{{ emoji }}</span>{{ app_name }}
+        </h1>
+        <p class="hero-tagline">{{ tagline }}</p>
+        <p class="hero-subtext">A small native Mac voice guide. Hold <kbd>⌥</kbd> <kbd>K</kbd>, ask how to do anything on your computer in your own language, and follow spoken steps from a floating island.</p>
+
+        <div class="hero-actions">
+          <button type="button" class="btn btn-primary" disabled aria-disabled="true">
+            <img src="/site/img/mac.svg" width="16" height="16" alt="">
+            <span>Download for Mac</span>
+            <span class="badge">Coming soon</span>
+          </button>
+          {% if not static_build %}
+          <a href="/try" class="btn btn-demo">
+            <span>Try in Browser</span>
+            <span aria-hidden="true">&rarr;</span>
+          </a>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="section" id="how-it-works">
+        <div class="section-header">
+          <p class="section-label">Three simple steps</p>
+          <h2 class="section-title">How it works</h2>
+          <p class="section-desc">Get spoken guidance for any macOS task without switching away from your work.</p>
+        </div>
+
+        <div class="steps-grid">
+          <div class="step-card">
+            <div class="step-top">
+              <span class="step-badge">1</span>
+              <div>
+                <kbd>⌥</kbd> <kbd>K</kbd>
+              </div>
+            </div>
+            <h3 class="step-title">Hold ⌥K</h3>
+            <p class="step-text">Hold Option-K anywhere on your Mac. The small black island appears at the top of your screen ready to listen.</p>
+          </div>
+
+          <div class="step-card">
+            <div class="step-top">
+              <span class="step-badge">2</span>
+              <span class="command-spoken">Automatic detection</span>
+            </div>
+            <h3 class="step-title">Ask in your language</h3>
+            <p class="step-text">Speak naturally in your mother tongue. Ask how to crop a photo, format a drive, arrange windows, or change settings.</p>
+          </div>
+
+          <div class="step-card">
+            <div class="step-top">
+              <span class="step-badge">3</span>
+              <span class="command-spoken">Spoken out loud</span>
+            </div>
+            <h3 class="step-title">Follow the spoken steps</h3>
+            <p class="step-text">Listen to clear spoken instructions and read short numbered steps. Advance hands-free by voice or tap the buttons.</p>
+          </div>
+        </div>
+
+        <div class="commands-card">
+          <div class="commands-header">
+            <span class="commands-title">Voice and button navigation</span>
+            <span class="commands-tag">Control the guide while working</span>
+          </div>
+          <div class="commands-list">
+            <div class="command-item">
+              <span class="command-name">Next</span>
+              <span class="command-spoken">अगला / Next</span>
+            </div>
+            <div class="command-item">
+              <span class="command-name">Again</span>
+              <span class="command-spoken">फिर से / Again</span>
+            </div>
+            <div class="command-item">
+              <span class="command-name">Back</span>
+              <span class="command-spoken">पीछे / Back</span>
+            </div>
+            <div class="command-item">
+              <span class="command-name">Stop</span>
+              <span class="command-spoken">रुको / Stop</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="languages">
+        <div class="section-header">
+          <p class="section-label">Native Indian voices</p>
+          <h2 class="section-title">Languages</h2>
+          <p class="section-desc">Speak in your language and hear clear spoken guidance back.</p>
+        </div>
+
+        <div class="languages-grid">
+          <div class="lang-card">
+            <span class="lang-native">हिन्दी</span>
+            <span class="lang-english">Hindi</span>
+          </div>
+          <div class="lang-card">
+            <span class="lang-native">English</span>
+            <span class="lang-english">English</span>
+          </div>
+          <div class="lang-card">
+            <span class="lang-native">বাংলা</span>
+            <span class="lang-english">Bengali</span>
+          </div>
+          <div class="lang-card">
+            <span class="lang-native">ગુજરાતી</span>
+            <span class="lang-english">Gujarati</span>
+          </div>
+          <div class="lang-card">
+            <span class="lang-native">ಕನ್ನಡ</span>
+            <span class="lang-english">Kannada</span>
+          </div>
+          <div class="lang-card">
+            <span class="lang-native">മലയാളം</span>
+            <span class="lang-english">Malayalam</span>
+          </div>
+          <div class="lang-card">
+            <span class="lang-native">मराठी</span>
+            <span class="lang-english">Marathi</span>
+          </div>
+          <div class="lang-card">
+            <span class="lang-native">ଓଡ଼ିଆ</span>
+            <span class="lang-english">Odia</span>
+          </div>
+          <div class="lang-card">
+            <span class="lang-native">ਪੰਜਾਬੀ</span>
+            <span class="lang-english">Punjabi</span>
+          </div>
+          <div class="lang-card">
+            <span class="lang-native">தமிழ்</span>
+            <span class="lang-english">Tamil</span>
+          </div>
+          <div class="lang-card">
+            <span class="lang-native">తెలుగు</span>
+            <span class="lang-english">Telugu</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="cta-banner">
+        <h2 class="cta-title">Try {{ app_name }} right now</h2>
+        <p class="cta-desc">Experience the voice guide directly in your browser, or get ready for the native Mac menu bar app.</p>
+        <div class="hero-actions">
+          {% if not static_build %}
+          <a href="/try" class="btn btn-demo">
+            <span>Launch Browser Demo</span>
+            <span aria-hidden="true">&rarr;</span>
+          </a>
+          {% endif %}
+          <button type="button" class="btn btn-primary" disabled aria-disabled="true">
+            <img src="/site/img/mac.svg" width="16" height="16" alt="">
+            <span>Download for Mac</span>
+            <span class="badge">Coming soon</span>
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-container">
+        <div class="footer-brand">
+          <span aria-hidden="true">{{ emoji }}</span>
+          <span>{{ app_name }}</span>
+        </div>
+        <div class="footer-copy">{{ tagline }}</div>
+        {% if not static_build %}
+        <a href="/try" class="footer-link">Try Demo</a>
+        {% endif %}
+      </div>
+    </footer>
+  </body>
+</html>
