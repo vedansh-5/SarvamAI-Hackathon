@@ -17,6 +17,9 @@
   let at = 0;
   let player = null;
 
+  const stepText = (s) => (typeof s === "string" ? s : (s && s.text) || "");
+  const lines = (g) => (Array.isArray(g.steps_text) ? g.steps_text : (g.steps || []).map(stepText)).filter(Boolean);
+
   function command(text) {
     const t = text.toLowerCase().replace(/[.!?।,]/g, "").trim();
     if (t.split(/\s+/).length > 4) return null;
@@ -78,7 +81,7 @@
 
   function render() {
     list.replaceChildren(
-      ...current.steps.map((s, i) => {
+      ...current.lines.map((s, i) => {
         const li = document.createElement("li");
         li.textContent = s;
         if (i < at) li.className = "done";
@@ -89,16 +92,16 @@
   }
 
   function go(to) {
-    if (!current || !current.steps.length) return;
-    if (to >= current.steps.length) {
-      at = current.steps.length;
+    if (!current || !current.lines.length) return;
+    if (to >= current.lines.length) {
+      at = current.lines.length;
       render();
       speak(current.language.startsWith("hi") ? "हो गया!" : "All done!", current.language);
       return;
     }
     at = Math.max(0, to);
     render();
-    speak(current.steps[at], current.language);
+    speak(current.lines[at], current.language);
   }
 
   function stop() {
@@ -109,17 +112,17 @@
   }
 
   function showGuide(g) {
-    current = g;
+    current = { ...g, lines: lines(g) };
     at = 0;
     box.hidden = false;
     sayEl.textContent = g.say;
     render();
-    const first = g.steps.length ? `${g.say} ${g.steps[0]}` : g.say;
+    const first = current.lines.length ? `${g.say} ${current.lines[0]}` : g.say;
     speak(first, g.language);
   }
 
   async function ask(text, language) {
-    if (current && current.steps.length) {
+    if (current && current.lines.length) {
       const c = command(text);
       if (c === "next") return go(at + 1);
       if (c === "back") return go(at - 1);

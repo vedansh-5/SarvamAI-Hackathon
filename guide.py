@@ -6,7 +6,7 @@ from flask import Blueprint, jsonify, request
 
 from brand import APP_NAME
 from db import db
-from sarvam import DEFAULT_LANGUAGE, script_language, think
+from sarvam import DEFAULT_LANGUAGE, script_language, steps_of, texts, think
 
 guide_bp = Blueprint("guide", __name__)
 
@@ -42,6 +42,7 @@ def ask():
         "language": language,
         "say": say,
         "steps": steps,
+        "steps_text": texts(steps),
         "at": datetime.now(timezone.utc),
     }
     doc["id"] = str(db().asks.insert_one(dict(doc)).inserted_id)
@@ -52,7 +53,12 @@ def ask():
 @guide_bp.get("/api/history")
 def history():
     rows = db().asks.find({}, {"_id": 0}).sort("at", -1).limit(20)
-    return jsonify([{**r, "at": r["at"].isoformat()} for r in rows])
+    return jsonify([shaped(r) for r in rows])
+
+
+def shaped(row):
+    steps = steps_of(row.get("steps") or [])
+    return {**row, "steps": steps, "steps_text": texts(steps), "at": row["at"].isoformat()}
 
 
 @guide_bp.get("/api/commands")
