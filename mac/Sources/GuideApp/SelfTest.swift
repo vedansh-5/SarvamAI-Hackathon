@@ -83,9 +83,9 @@ enum SelfTest {
     }
 
     static func hotkeyCheck() -> Int32 {
-        let status = Hotkeys.shared.register(id: 9, keyCode: kVK_ANSI_K, modifiers: optionKey, onPress: {})
+        let status = Hotkeys.shared.register(id: 9, keyCode: TalkKey.code, modifiers: optionKey, onPress: {})
         Hotkeys.shared.unregister(id: 9)
-        print(status == noErr ? "option-K hotkey: registers fine" : "option-K hotkey: failed with \(status)")
+        print(status == noErr ? "\(TalkKey.label) hotkey: registers fine" : "\(TalkKey.label) hotkey: failed with \(status)")
         return status == noErr ? 0 : 1
     }
 }

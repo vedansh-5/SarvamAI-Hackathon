@@ -62,3 +62,10 @@ private func hotkeyCallback(_ next: EventHandlerCallRef?, _ event: EventRef?, _ 
     }
     return noErr
 }
+
+enum TalkKey {
+    static let code = kVK_ANSI_X
+    static let letter = "X"
+    static let label = "⌥" + letter
+    static let backupLabel = "⌃⌥" + letter
+}

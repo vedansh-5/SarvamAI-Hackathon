@@ -30,7 +30,7 @@ final class GuideModel {
     var serverReachable = true
     var commands = CommandWords()
     var lastTimings: Timings?
-    var talkKeyLabel = "⌥K"
+    var talkKeyLabel = TalkKey.label
 
     @ObservationIgnored let client = ServerClient()
     @ObservationIgnored var onVisible: (Bool) -> Void = { _ in }

@@ -12,7 +12,7 @@ Three questions, about two minutes. Hindi first, then English, then Tamil.
 
 ## 1. Hindi
 
-**Say (hold ⌥K):** "मैक पर स्क्रीनशॉट कैसे लूँ?"
+**Say (hold ⌥X):** "मैक पर स्क्रीनशॉट कैसे लूँ?"
 
 **What should happen**
 - The panel at the top shows "listening", then your words, then the steps.

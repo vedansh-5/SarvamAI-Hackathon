@@ -32,15 +32,15 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func registerTalkKey() {
         let press = { [weak self] in self?.model.pressTalk() }
         let release = { [weak self] in self?.model.releaseTalk() }
-        let status = Hotkeys.shared.register(id: KeyID.talk, keyCode: kVK_ANSI_K, modifiers: optionKey, onPress: { press() }, onRelease: { release() })
+        let status = Hotkeys.shared.register(id: KeyID.talk, keyCode: TalkKey.code, modifiers: optionKey, onPress: { press() }, onRelease: { release() })
         if status == noErr {
-            model.talkKeyLabel = "⌥K"
+            model.talkKeyLabel = TalkKey.label
             return
         }
-        let backup = Hotkeys.shared.register(id: KeyID.talk, keyCode: kVK_ANSI_K, modifiers: optionKey | controlKey, onPress: { press() }, onRelease: { release() })
+        let backup = Hotkeys.shared.register(id: KeyID.talk, keyCode: TalkKey.code, modifiers: optionKey | controlKey, onPress: { press() }, onRelease: { release() })
         if backup == noErr {
-            model.talkKeyLabel = "⌃⌥K"
-            talkKeyProblem = "⌥K was taken (error \(status)), so ⌃⌥K is used."
+            model.talkKeyLabel = TalkKey.backupLabel
+            talkKeyProblem = "\(TalkKey.label) was taken (error \(status)), so \(TalkKey.backupLabel) is used."
         } else {
             talkKeyProblem = "No talk key could be set (error \(status))."
         }
