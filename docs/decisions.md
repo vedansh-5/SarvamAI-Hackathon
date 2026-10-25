@@ -6807,11 +6807,24 @@ a red light on the right means the microphone is on; the words sit underneath.
 Without a notch it is a floating capsule under the menu bar. It never takes
 the keyboard or a click, and it closes a second after the last thing is said.
 
+**How it moves.** The notch widens a little the moment the key goes down, so
+the press is seen before listening starts; a quick tap folds it straight back.
+It grows to fit the words, each new word fading in, and glows with the voice.
+In hands-free the red light gains a ring that fills as the quiet runs toward
+ending it. While VANS works it out, a shimmer passes over the words; when they
+are sent they lift into the notch, while Esc folds it faster. A spoken answer
+lights each word as it is said, from the synthesizer's own word callbacks. A
+problem gives a small shake with the amber note. Soft system sounds (Tink, Pop)
+mark the start and the send, at a third of full volume. The first 300 ms of
+sound is not taken as talking, so the key's own click does not start the quiet
+timer. With Reduce Motion on, the shapes still change but nothing slides,
+blurs or shakes.
+
 **Asking and Setup.** Microphone and Speech Recognition are asked for the first
 time someone holds the key, or from Setup's Voice section, never in the
 Permissions list: that list blocks requests until it is all answered, and
 voice is optional. Setup › How VANS behaves › Voice turns voice on or off,
-picks ⌥Space or ⌃⌥, and turns the speaking off. The settings live in
+picks ⌥Space or ⌃⌥, and turns the speaking or the sounds off. The settings live in
 `voice.json` in the app's folder.
 
 **From the others.**
