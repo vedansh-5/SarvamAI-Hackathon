@@ -4,7 +4,7 @@ Three questions, about two minutes. Hindi first, then English, then Tamil.
 
 ## Before you start
 
-- MongoDB running (`docker start kiwi-mongo`) and the server running
+- MongoDB running (`docker start vspk-mongo`) and the server running
   (`.venv/bin/python app.py`).
 - Mac app open, its icon in the menu bar. Sound on, mic allowed.
 - Backup: the same questions work on http://127.0.0.1:5050/try (hold Space or

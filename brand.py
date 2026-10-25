@@ -1,7 +1,7 @@
-APP_NAME = "Kiwi"
+APP_NAME = "Vspk"
 TAGLINE = "Ask how to do anything on your computer, in your own language."
-EMOJI = "🥝"
-DB_NAME = "kiwi"
+EMOJI = "🗣️"
+DB_NAME = "vspk"
 
 
 def brand():
