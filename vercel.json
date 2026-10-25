@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pip install jinja2 && python3 site/build.py",
+  "buildCommand": "python3 site/build.py",
   "outputDirectory": "dist",
   "framework": null
 }
