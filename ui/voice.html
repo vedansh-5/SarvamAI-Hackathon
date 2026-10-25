@@ -4,27 +4,43 @@
     <meta charset="UTF-8" />
     <title>VANS</title>
     <style>
-      :root { --notch: 0px; --bar: 0px; --flare: 10px; --ease: cubic-bezier(0.2, 0.8, 0.2, 1); }
+      :root {
+        --notch: 0px; --bar: 0px; --flare: 10px;
+        --w: 0px; --h: 0px; --lvl: 0;
+        --spring: linear(0, 0.009, 0.035 2.1%, 0.141 4.4%, 0.723 12.9%, 0.938 16.7%, 1.017 19.4%, 1.067, 1.099 24.3%, 1.108 26%, 1.103 27.9%, 1.077 30.2%, 1.01 35.7%, 0.993 39.4%, 0.987 43.5%, 0.999 53.9%, 1.002 61.2%, 1);
+        --settle: cubic-bezier(0.2, 0.8, 0.2, 1);
+        --away: cubic-bezier(0.5, 0, 0.75, 0);
+        --ink: #f5f5f7;
+        --soft: rgba(245, 245, 247, 0.52);
+        --amber: #ffb340;
+        --red: #ff453a;
+      }
       html, body {
         margin: 0; padding: 0; width: 100%; height: 100%;
         background: transparent; overflow: hidden;
         -webkit-user-select: none; user-select: none; cursor: default;
-        font: 500 13px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
-        color: #f5f5f7;
+        font: 500 13px/1.38 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+        color: var(--ink);
+        -webkit-font-smoothing: antialiased;
       }
+
       #island {
         position: absolute; top: 0; left: 50%;
+        width: var(--w); height: var(--h);
         transform: translateX(-50%);
         box-sizing: border-box;
         background: #000;
         display: flex; flex-direction: column;
-        overflow: visible;
+        transition:
+          width 520ms var(--spring),
+          height 520ms var(--spring),
+          border-radius 420ms var(--settle),
+          box-shadow 240ms ease,
+          opacity 200ms ease;
+        box-shadow: 0 0 calc(6px + var(--lvl) * 26px) calc(var(--lvl) * 2px) rgb(var(--volt-rgb) / calc(var(--lvl) * 0.42));
       }
-      #island[data-shape="notch"] {
-        width: var(--notch); height: var(--bar);
-        border-radius: 0 0 14px 14px;
-        transition: width 340ms var(--ease), height 340ms var(--ease), border-radius 340ms var(--ease);
-      }
+      #island[data-shape="notch"] { border-radius: 0 0 14px 14px; }
+      #island[data-shape="notch"].open { border-radius: 0 0 24px 24px; }
       #island[data-shape="notch"]::before,
       #island[data-shape="notch"]::after {
         content: ""; position: absolute; top: 0; width: var(--flare); height: var(--flare);
@@ -37,82 +53,127 @@
         right: calc(-1 * var(--flare));
         background: radial-gradient(circle at 100% 100%, transparent calc(var(--flare) - 0.5px), #000 var(--flare));
       }
-      #island[data-shape="notch"].open { width: calc(100% - 2 * var(--flare)); border-radius: 0 0 22px 22px; }
       #island[data-shape="float"] {
-        top: 0; width: auto; max-width: calc(100% - 24px); min-height: 36px;
-        border-radius: 20px; flex-direction: row; align-items: center;
-        padding: 0 16px 0 12px;
-        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28), inset 0 0 0 0.5px rgba(255, 255, 255, 0.14);
-        opacity: 0; transform: translateX(-50%) translateY(-6px) scale(0.96);
-        transition: opacity 180ms ease, transform 240ms var(--ease);
+        border-radius: 22px; flex-direction: row; align-items: center;
+        box-shadow:
+          0 8px 28px rgba(0, 0, 0, 0.3),
+          inset 0 0 0 0.5px rgba(255, 255, 255, 0.14),
+          0 0 calc(6px + var(--lvl) * 26px) calc(var(--lvl) * 2px) rgb(var(--volt-rgb) / calc(var(--lvl) * 0.42));
+        opacity: 0;
       }
-      #island[data-shape="float"].open { opacity: 1; transform: translateX(-50%); }
+      #island[data-shape="float"].open { opacity: 1; }
+      #island.leaving { transition: width 260ms var(--away), height 260ms var(--away), opacity 200ms ease, box-shadow 160ms ease; }
+      #island.quick { transition: width 170ms var(--away), height 170ms var(--away), opacity 120ms ease, box-shadow 100ms ease; }
+      #island.shake { animation: shake 360ms var(--settle); }
 
       #top { display: flex; align-items: center; flex: none; }
       #island[data-shape="notch"] #top { height: var(--bar); }
+      #island[data-shape="float"] #top { height: 100%; }
       #gap { width: var(--notch); flex: none; }
       #island[data-shape="float"] #gap, #island[data-shape="float"] #tail { display: none; }
       #lead, #tail { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; }
-      #island[data-shape="float"] #lead { flex: none; padding-right: 10px; }
+      #island[data-shape="float"] #lead { flex: none; width: 34px; padding-left: 8px; }
 
-      #body { overflow: hidden; }
-      #island[data-shape="notch"] #body { padding: 0 20px; opacity: 0; transition: opacity 160ms ease, padding 340ms var(--ease); }
-      #island[data-shape="notch"].open #body { padding: 4px 20px 12px; opacity: 1; transition-delay: 120ms; }
-      #island[data-shape="float"] #body { padding: 8px 0; }
-      #island #lead > *, #island #tail > * { opacity: 0; transition: opacity 160ms ease; }
-      #island.open #lead > *, #island.open #tail > * { opacity: 1; transition-delay: 100ms; }
+      #body { overflow: hidden; flex: 1; min-width: 0; }
+      #island[data-shape="notch"] #body { padding: 2px 22px 0; }
+      #island[data-shape="float"] #body { padding: 0 18px 0 2px; display: flex; align-items: center; }
+
+      #lead > *, #tail > *, #words {
+        opacity: 0; transform: translateY(-3px);
+        transition: opacity 180ms ease, transform 260ms var(--settle), filter 260ms ease;
+      }
+      #island.open #lead > *, #island.open #tail > *, #island.open #words {
+        opacity: 1; transform: none; transition-delay: 110ms;
+      }
+      #island.leaving #words { opacity: 0; transform: translateY(-10px) scale(0.98); filter: blur(2px); transition-delay: 0ms; transition-duration: 200ms; }
+      #island.leaving #lead > *, #island.leaving #tail > *, #island.quick #lead > *, #island.quick #tail > *, #island.quick #words {
+        opacity: 0; transition-delay: 0ms; transition-duration: 110ms;
+      }
 
       #words {
-        overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-        overflow-wrap: anywhere; text-align: center;
+        max-height: calc(2 * 1.38em); overflow: hidden;
+        text-align: center; overflow-wrap: anywhere;
       }
-      #island[data-shape="float"] #words { text-align: left; }
-      #words.hint { color: rgba(245, 245, 247, 0.55); }
-      #island[data-state="note"] #words { font-weight: 400; font-size: 12px; color: rgba(245, 245, 247, 0.85); }
+      #island[data-shape="float"] #words { text-align: left; max-height: calc(2 * 1.38em); }
+      #words.hint { color: var(--soft); }
+      #words span { display: inline; transition: color 180ms ease, opacity 180ms ease; }
+      #words span.in { animation: word-in 280ms var(--settle) both; }
+      #island[data-state="speaking"] #words span { color: var(--soft); }
+      #island[data-state="speaking"] #words span.said { color: var(--ink); }
+      #island[data-state="speaking"] #words span.now { color: var(--volt); }
+      #island[data-state="thinking"] #words {
+        background: linear-gradient(100deg, var(--soft) 0%, var(--soft) 38%, var(--ink) 50%, var(--soft) 62%, var(--soft) 100%);
+        background-size: 240% 100%;
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+        animation: shimmer 1.4s linear infinite;
+      }
+      #island[data-state="thinking"] #words span { color: transparent; }
+      #island[data-state="note"] #words { font-weight: 400; font-size: 12px; color: rgba(245, 245, 247, 0.86); }
 
-      .glyph { display: none; align-items: center; gap: 3px; height: 16px; }
-      #island[data-state="listening"] .glyph.bars,
+      .glyph { display: none; align-items: center; justify-content: center; gap: 2.5px; height: 18px; }
+      #island[data-state="listening"] .glyph.wave,
       #island[data-state="thinking"] .glyph.dots,
       #island[data-state="heard"] .glyph.done,
       #island[data-state="speaking"] .glyph.eq,
       #island[data-state="note"] .glyph.note { display: flex; }
 
-      .bars i { display: block; width: 3px; height: 16px; border-radius: 2px; background: var(--volt); transform: scaleY(0.2); }
-      .dots i { display: block; width: 5px; height: 5px; border-radius: 50%; background: var(--volt); animation: hop 1s ease-in-out infinite; }
-      .dots i:nth-child(2) { animation-delay: 0.15s; }
-      .dots i:nth-child(3) { animation-delay: 0.3s; }
-      .eq i { display: block; width: 3px; height: 14px; border-radius: 2px; background: var(--volt); animation: eq 0.9s ease-in-out infinite; transform-origin: center; }
-      .eq i:nth-child(2) { animation-delay: 0.2s; }
-      .eq i:nth-child(3) { animation-delay: 0.4s; }
-      .eq i:nth-child(4) { animation-delay: 0.1s; }
-      .done svg, .note svg { width: 15px; height: 15px; }
+      .wave i { display: block; width: 2.5px; height: 18px; border-radius: 2px; background: var(--volt); transform: scaleY(0.16); will-change: transform; }
+      .dots i { display: block; width: 4.5px; height: 4.5px; border-radius: 50%; background: var(--volt); animation: hop 0.95s var(--settle) infinite; }
+      .dots i:nth-child(2) { animation-delay: 0.14s; }
+      .dots i:nth-child(3) { animation-delay: 0.28s; }
+      .eq i { display: block; width: 2.5px; height: 15px; border-radius: 2px; background: var(--volt); animation: eq 0.8s ease-in-out infinite; transform-origin: center; }
+      .eq i:nth-child(2) { animation-delay: 0.18s; animation-duration: 0.7s; }
+      .eq i:nth-child(3) { animation-delay: 0.32s; animation-duration: 0.9s; }
+      .eq i:nth-child(4) { animation-delay: 0.08s; animation-duration: 0.75s; }
+      .done svg, .note svg { width: 16px; height: 16px; }
       .done svg { stroke: var(--volt); }
-      .note svg { stroke: #ffb340; }
-      #tail .live { display: none; width: 7px; height: 7px; border-radius: 50%; background: #ff453a; animation: live 1.2s ease-in-out infinite; }
-      #island[data-state="listening"] #tail .live { display: block; }
-      @keyframes hop { 50% { transform: translateY(-4px); opacity: 0.6; } }
-      @keyframes eq { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
-      @keyframes live { 50% { opacity: 0.35; } }
+      .done path { stroke-dasharray: 16; stroke-dashoffset: 16; }
+      #island[data-state="heard"] .done path { animation: draw 320ms var(--settle) 80ms forwards; }
+      .note svg { stroke: var(--amber); }
+
+      #tail .mic { position: relative; width: 18px; height: 18px; display: none; }
+      #island[data-state="listening"] #tail .mic { display: block; }
+      #tail .mic .live { position: absolute; inset: 5.5px; border-radius: 50%; background: var(--red); animation: live 1.3s ease-in-out infinite; }
+      #tail .mic svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+      #tail .mic circle { fill: none; stroke: var(--red); stroke-width: 1.6; stroke-linecap: round; stroke-dasharray: 47.1; stroke-dashoffset: 47.1; opacity: 0.85; transition: stroke-dashoffset 120ms linear; }
+
+      @keyframes word-in { from { opacity: 0; filter: blur(4px); transform: translateY(3px); } to { opacity: 1; filter: none; transform: none; } }
+      @keyframes shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+      @keyframes hop { 0%, 100% { transform: translateY(0); opacity: 1; } 45% { transform: translateY(-4px); opacity: 0.55; } }
+      @keyframes eq { 0%, 100% { transform: scaleY(0.28); } 50% { transform: scaleY(1); } }
+      @keyframes live { 50% { opacity: 0.4; transform: scale(0.8); } }
+      @keyframes draw { to { stroke-dashoffset: 0; } }
+      @keyframes shake {
+        0%, 100% { transform: translateX(-50%); }
+        18% { transform: translateX(calc(-50% - 5px)); }
+        36% { transform: translateX(calc(-50% + 4px)); }
+        54% { transform: translateX(calc(-50% - 3px)); }
+        72% { transform: translateX(calc(-50% + 1.5px)); }
+      }
       @media (prefers-reduced-motion: reduce) {
-        #island, #island * { transition-duration: 0ms !important; animation: none !important; }
+        #island { transition-duration: 1ms !important; --lvl: 0 !important; }
+        #island.shake, #words span.in, .dots i, .eq i, #tail .mic .live { animation: none !important; }
+        #island[data-state="thinking"] #words { animation: none; color: var(--soft); background: none; }
+        #words, #lead > *, #tail > * { transition-duration: 1ms !important; filter: none !important; }
       }
     </style>
   </head>
   <body>
-    <div id="island" data-shape="float" data-state="listening" role="status" aria-live="polite">
+    <div id="island" data-shape="float" data-state="arming" role="status" aria-live="polite">
       <div id="top">
         <span id="lead">
-          <span class="glyph bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="glyph wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
           <span class="glyph dots" aria-hidden="true"><i></i><i></i><i></i></span>
           <span class="glyph done" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7" /></svg></span>
           <span class="glyph eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
           <span class="glyph note" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="8" r="6.2" /><path d="M8 4.8v3.8M8 11.2v.1" /></svg></span>
         </span>
         <span id="gap"></span>
-        <span id="tail"><span class="live" aria-hidden="true"></span></span>
+        <span id="tail"><span class="mic" aria-hidden="true"><span class="live"></span><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="7.5" /></svg></span></span>
       </div>
       <div id="body"><div id="words"></div></div>
     </div>
+    <span id="measure" aria-hidden="true" style="position:absolute;visibility:hidden;white-space:nowrap;left:-9999px;top:0;font:inherit"></span>
     <script type="module" src="/src/voice.ts"></script>
   </body>
 </html>

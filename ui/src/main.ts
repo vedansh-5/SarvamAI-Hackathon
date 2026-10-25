@@ -584,18 +584,20 @@ interface VoiceSettings {
   on: boolean;
   key: "option-space" | "control-option";
   aloud: boolean;
+  sounds: boolean;
 }
 
 interface Ears {
   state: "granted" | "not_asked" | "needed";
 }
 
-let voiceNow: VoiceSettings = { on: true, key: "option-space", aloud: true };
+let voiceNow: VoiceSettings = { on: true, key: "option-space", aloud: true, sounds: true };
 
 function showVoice(v: VoiceSettings, ears: Ears) {
   voiceNow = v;
   ($("voice-on") as HTMLInputElement).checked = v.on;
   ($("voice-aloud") as HTMLInputElement).checked = v.aloud;
+  ($("voice-sounds") as HTMLInputElement).checked = v.sounds;
   for (const b of document.querySelectorAll<HTMLButtonElement>("#voice-key button")) {
     const on = b.dataset.key === v.key;
     b.classList.toggle("on", on);
@@ -603,6 +605,7 @@ function showVoice(v: VoiceSettings, ears: Ears) {
     b.disabled = !v.on;
   }
   ($("voice-aloud") as HTMLInputElement).disabled = !v.on;
+  ($("voice-sounds") as HTMLInputElement).disabled = !v.on;
   const hold = v.key === "control-option" ? "Hold ⌃⌥" : "Hold ⌥Space";
   const heard = ears.state === "granted"
     ? `${hold}, talk, and let go. ⌥⇧Space listens until you stop talking. Esc stops. What you say is turned into words on this Mac; your voice is not sent anywhere.`
@@ -3622,6 +3625,11 @@ $("voice-on").addEventListener("change", (e) => {
 });
 $("voice-aloud").addEventListener("change", (e) => {
   saveVoice({ aloud: (e.target as HTMLInputElement).checked }).catch((err) => {
+    $("voice-note").textContent = String(err);
+  });
+});
+$("voice-sounds").addEventListener("change", (e) => {
+  saveVoice({ sounds: (e.target as HTMLInputElement).checked }).catch((err) => {
     $("voice-note").textContent = String(err);
   });
 });

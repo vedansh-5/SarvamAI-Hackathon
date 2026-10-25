@@ -15,6 +15,7 @@ const WORDS: &str = "voice://words";
 const LEVEL: &str = "voice://level";
 const SHAPE: &str = "voice://shape";
 const CLOSE: &str = "voice://close";
+const QUIET: &str = "voice://quiet";
 const LISTENING: &str = "pill://listening";
 const SETTINGS_FILE: &str = "voice.json";
 
@@ -32,6 +33,8 @@ const LEVEL_EVERY: Duration = Duration::from_millis(60);
 const WATCH: Duration = Duration::from_millis(100);
 const AFTER_SPEAKING: Duration = Duration::from_secs(1);
 const SPEAKING_DB: f32 = -42.0;
+const WARM_UP: Duration = Duration::from_millis(300);
+const SENT_AFTER: Duration = Duration::from_millis(700);
 const HINT_CHARS: usize = 60;
 
 const NO_EARS: &str = "VANS can't hear you. Allow Microphone and Speech Recognition for VANS in System Settings › Privacy & Security.";
@@ -50,11 +53,12 @@ pub struct Settings {
     pub on: bool,
     pub key: Key,
     pub aloud: bool,
+    pub sounds: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { on: true, key: Key::OptionSpace, aloud: true }
+        Settings { on: true, key: Key::OptionSpace, aloud: true, sounds: true }
     }
 }
 
@@ -185,6 +189,13 @@ fn hints(app_name: &str, title: &str) -> Vec<String> {
     out
 }
 
+fn quiet_for(mode: Mode, quiet: Option<Duration>) -> f32 {
+    match (mode, quiet) {
+        (Mode::HandsFree, Some(q)) => (q.as_secs_f32() / QUIET_ENDS.as_secs_f32()).clamp(0.0, 1.0),
+        _ => 0.0,
+    }
+}
+
 fn level_of(rms: f32) -> f32 {
     let db = 20.0 * rms.max(1e-6).log10();
     ((db + 55.0) / 45.0).clamp(0.0, 1.0)
@@ -208,7 +219,7 @@ impl Heard {
     }
 
     fn sound(&mut self, rms: f32) -> Option<f32> {
-        if speaking_rms(rms) {
+        if speaking_rms(rms) && self.started.elapsed() >= WARM_UP {
             self.spoke = Some(Instant::now());
         }
         if self.sent.is_some_and(|t| t.elapsed() < LEVEL_EVERY) {
@@ -265,9 +276,9 @@ fn show_island(app: &AppHandle) {
     let _ = win.set_ignore_cursor_events(true);
 }
 
-fn close_island(app: &AppHandle) {
+fn close_island(app: &AppHandle, how: &str) {
     let n = SAID.load(Ordering::SeqCst);
-    let _ = app.emit_to(LABEL, CLOSE, ());
+    let _ = app.emit_to(LABEL, CLOSE, json!({ "how": how }));
     let handle = app.clone();
     std::thread::spawn(move || {
         std::thread::sleep(CLOSING);
@@ -304,10 +315,30 @@ fn go_after(app: &AppHandle, n: u64, after: Duration) {
         let main = handle.clone();
         let _ = handle.run_on_main_thread(move || {
             if SAID.load(Ordering::SeqCst) == n {
-                close_island(&main);
+                close_island(&main, "done");
             }
         });
     });
+}
+
+fn chime(name: &'static str) {
+    if settings().sounds {
+        mac::chime(name);
+    }
+}
+
+fn arm(app: &AppHandle) {
+    if SESSION.lock().unwrap().is_some() {
+        return;
+    }
+    tell(app, "arming", "");
+}
+
+fn disarm(app: &AppHandle) {
+    if SESSION.lock().unwrap().is_none() && !SPEAKING.load(Ordering::SeqCst) {
+        SAID.fetch_add(1, Ordering::SeqCst);
+        close_island(app, "tap");
+    }
 }
 
 fn listening_light(app: &AppHandle, on: bool) {
@@ -351,6 +382,8 @@ fn holds_to_talk(key: Key) -> bool {
 
 fn press(app: &AppHandle) {
     crate::speak::hush(app);
+    let main = app.clone();
+    let _ = app.run_on_main_thread(move || arm(&main));
     let press = PRESS.fetch_add(1, Ordering::SeqCst) + 1;
     let handle = app.clone();
     std::thread::spawn(move || {
@@ -391,6 +424,10 @@ pub fn key_up(app: &AppHandle) -> bool {
         let _ = app.run_on_main_thread(move || finish_current(&main));
         return false;
     }
+    if holds_to_talk(Key::OptionSpace) {
+        let main = app.clone();
+        let _ = app.run_on_main_thread(move || disarm(&main));
+    }
     true
 }
 
@@ -414,6 +451,8 @@ fn chord(app: &AppHandle, held: bool) {
     KEY_DOWN.store(false, Ordering::SeqCst);
     if HELD.swap(false, Ordering::SeqCst) {
         finish_current(app);
+    } else {
+        disarm(app);
     }
 }
 
@@ -423,6 +462,8 @@ fn chord_spoiled(app: &AppHandle) {
     }
     if HELD.swap(false, Ordering::SeqCst) {
         cancel(app);
+    } else {
+        disarm(app);
     }
 }
 
@@ -455,6 +496,7 @@ fn start(app: &AppHandle, mode: Mode) {
         Ears::Ready => {}
     }
 
+    chime("Tink");
     let guide = crate::coach::is_showing();
     let context = crate::screen::capture_active_context(false);
     let id = NEXT_ID.fetch_add(1, Ordering::SeqCst);
@@ -478,13 +520,17 @@ fn watch(app: &AppHandle, id: u64, mode: Mode, heard: Arc<Mutex<Heard>>) {
         if SESSION.lock().unwrap().as_ref().map(|s| s.id) != Some(id) {
             return;
         }
-        let end = {
+        let (end, quiet) = {
             let h = heard.lock().unwrap();
             if h.ending {
                 return;
             }
-            end_for(mode, h.started.elapsed(), h.spoke.map(|t| t.elapsed()))
+            let since = h.spoke.map(|t| t.elapsed());
+            (end_for(mode, h.started.elapsed(), since), quiet_for(mode, since))
         };
+        if mode == Mode::HandsFree {
+            let _ = handle.emit_to(LABEL, QUIET, quiet);
+        }
         let Some(end) = end else { continue };
         let main = handle.clone();
         let _ = handle.run_on_main_thread(move || match end {
@@ -570,8 +616,19 @@ fn deliver(app: &AppHandle, id: u64) {
     }
     ALOUD.store(true, Ordering::SeqCst);
     LAST_STEP.lock().unwrap().clear();
+    chime("Pop");
     let _ = app.emit_to("main", HEARD, json!({ "text": words, "context": session.context }));
-    tell_then_go(app, "heard", &words, Duration::from_millis(1400));
+    let n = tell(app, "heard", &words);
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(SENT_AFTER);
+        let main = handle.clone();
+        let _ = handle.run_on_main_thread(move || {
+            if SAID.load(Ordering::SeqCst) == n && SESSION.lock().unwrap().is_none() && !SPEAKING.load(Ordering::SeqCst) {
+                close_island(&main, "sent");
+            }
+        });
+    });
 }
 
 fn cancel(app: &AppHandle) {
@@ -584,7 +641,7 @@ fn cancel(app: &AppHandle) {
     release_esc(app);
     listening_light(app, false);
     SAID.fetch_add(1, Ordering::SeqCst);
-    close_island(app);
+    close_island(app, "cancel");
 }
 
 fn words_now(app: &AppHandle, id: u64, words: String) {
@@ -910,6 +967,13 @@ mod mac {
             unsafe { NSEvent::removeMonitor(&monitor) };
         }
     }
+
+    pub fn chime(name: &str) {
+        if let Some(sound) = objc2_app_kit::NSSound::soundNamed(&NSString::from_str(name)) {
+            sound.setVolume(0.35);
+            sound.play();
+        }
+    }
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -930,6 +994,7 @@ mod mac {
     pub fn watch_chord(_app: &AppHandle) {}
     pub fn watch_other_keys(_app: &AppHandle) {}
     pub fn unwatch_other_keys() {}
+    pub fn chime(_name: &str) {}
 }
 
 pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
@@ -1041,17 +1106,33 @@ mod tests {
     #[test]
     fn the_level_is_sent_at_most_every_little_while() {
         let mut heard = Heard::new();
+        heard.started -= WARM_UP;
         assert!(heard.sound(0.05).is_some());
         assert!(heard.sound(0.05).is_none());
         assert!(heard.spoke.is_some());
     }
 
     #[test]
+    fn the_first_moment_of_sound_is_not_taken_for_talking() {
+        let mut heard = Heard::new();
+        assert!(heard.sound(0.2).is_some());
+        assert!(heard.spoke.is_none());
+    }
+
+    #[test]
+    fn hands_free_shows_how_close_the_quiet_is_to_ending_it() {
+        assert_eq!(quiet_for(Mode::HandsFree, None), 0.0);
+        assert_eq!(quiet_for(Mode::Held, Some(Duration::from_secs(1))), 0.0);
+        assert!((quiet_for(Mode::HandsFree, Some(QUIET_ENDS / 2)) - 0.5).abs() < 0.01);
+        assert_eq!(quiet_for(Mode::HandsFree, Some(QUIET_ENDS * 3)), 1.0);
+    }
+
+    #[test]
     fn settings_start_on_with_option_space_and_read_old_files() {
         let s = Settings::default();
-        assert!(s.on && s.aloud && s.key == Key::OptionSpace);
+        assert!(s.on && s.aloud && s.sounds && s.key == Key::OptionSpace);
         let old: Settings = serde_json::from_str(r#"{"on":false}"#).unwrap();
-        assert!(!old.on && old.aloud && old.key == Key::OptionSpace);
+        assert!(!old.on && old.aloud && old.sounds && old.key == Key::OptionSpace);
         let chord: Settings = serde_json::from_str(r#"{"key":"control-option"}"#).unwrap();
         assert_eq!(chord.key, Key::ControlOption);
     }

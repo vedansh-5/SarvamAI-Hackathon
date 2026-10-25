@@ -1,11 +1,9 @@
+use serde_json::json;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::mpsc;
-use std::time::Duration;
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 
 const MOST: usize = 280;
-const FIRST_LOOK: Duration = Duration::from_millis(450);
-const LOOK: Duration = Duration::from_millis(150);
+const SPOKEN: &str = "voice://spoken";
 
 static SAYING: AtomicU64 = AtomicU64::new(0);
 
@@ -80,9 +78,8 @@ pub fn say(app: &AppHandle, text: &str) {
             crate::voice::shown_not_said(&handle, &words);
             return;
         }
-        mac::speak(&words);
         crate::voice::speaking(&handle, &words);
-        until_quiet(handle, n);
+        mac::speak(&handle, &words);
     });
 }
 
@@ -91,63 +88,116 @@ pub fn hush(app: &AppHandle) {
     let _ = app.run_on_main_thread(mac::stop);
 }
 
-fn until_quiet(app: AppHandle, n: u64) {
-    std::thread::spawn(move || {
-        std::thread::sleep(FIRST_LOOK);
-        loop {
-            if SAYING.load(Ordering::SeqCst) != n {
-                return;
-            }
-            let (tx, rx) = mpsc::channel();
-            let _ = app.run_on_main_thread(move || {
-                let _ = tx.send(mac::speaking());
-            });
-            if !rx.recv_timeout(Duration::from_secs(1)).unwrap_or(false) {
-                break;
-            }
-            std::thread::sleep(LOOK);
-        }
-        if SAYING.load(Ordering::SeqCst) == n {
-            crate::voice::quiet(&app);
-        }
-    });
+fn word_at(app: &AppHandle, from: usize, to: usize) {
+    let _ = app.emit_to(crate::voice::LABEL, SPOKEN, json!({ "from": from, "to": to }));
+}
+
+fn finished(app: &AppHandle) {
+    let main = app.clone();
+    let _ = app.run_on_main_thread(move || crate::voice::quiet(&main));
 }
 
 #[cfg(target_os = "macos")]
 mod mac {
     use objc2::rc::Retained;
-    use objc2_avf_audio::{AVSpeechBoundary, AVSpeechSynthesizer, AVSpeechUtterance};
-    use objc2_foundation::NSString;
+    use objc2::runtime::ProtocolObject;
+    use objc2::{define_class, msg_send, AnyThread, DefinedClass};
+    use objc2_avf_audio::{AVSpeechBoundary, AVSpeechSynthesizer, AVSpeechSynthesizerDelegate, AVSpeechUtterance};
+    use objc2_foundation::{NSObject, NSObjectProtocol, NSRange, NSString};
     use std::cell::RefCell;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use tauri::AppHandle;
+
+    static CURRENT: AtomicUsize = AtomicUsize::new(0);
+
+    fn is_current(utterance: &AVSpeechUtterance) -> bool {
+        CURRENT.load(Ordering::SeqCst) == utterance as *const AVSpeechUtterance as usize
+    }
+
+    pub struct Ivars {
+        app: AppHandle,
+    }
+
+    define_class!(
+        #[unsafe(super(NSObject))]
+        #[name = "VansSpeechListener"]
+        #[ivars = Ivars]
+        pub struct Listener;
+
+        unsafe impl NSObjectProtocol for Listener {}
+
+        unsafe impl AVSpeechSynthesizerDelegate for Listener {
+            #[unsafe(method(speechSynthesizer:willSpeakRangeOfSpeechString:utterance:))]
+            fn will_speak(&self, _synth: &AVSpeechSynthesizer, range: NSRange, utterance: &AVSpeechUtterance) {
+                if is_current(utterance) {
+                    super::word_at(&self.ivars().app, range.location, range.location + range.length);
+                }
+            }
+
+            #[unsafe(method(speechSynthesizer:didFinishSpeechUtterance:))]
+            fn did_finish(&self, _synth: &AVSpeechSynthesizer, utterance: &AVSpeechUtterance) {
+                if is_current(utterance) {
+                    super::finished(&self.ivars().app);
+                }
+            }
+
+            #[unsafe(method(speechSynthesizer:didCancelSpeechUtterance:))]
+            fn did_cancel(&self, _synth: &AVSpeechSynthesizer, utterance: &AVSpeechUtterance) {
+                if is_current(utterance) {
+                    super::finished(&self.ivars().app);
+                }
+            }
+        }
+    );
+
+    impl Listener {
+        fn new(app: &AppHandle) -> Retained<Self> {
+            let this = Self::alloc().set_ivars(Ivars { app: app.clone() });
+            unsafe { msg_send![super(this), init] }
+        }
+    }
+
+    struct Voice {
+        synth: Retained<AVSpeechSynthesizer>,
+        _listener: Retained<Listener>,
+    }
 
     thread_local! {
-        static SYNTH: RefCell<Option<Retained<AVSpeechSynthesizer>>> = const { RefCell::new(None) };
+        static VOICE: RefCell<Option<Voice>> = const { RefCell::new(None) };
     }
 
-    fn synth() -> Retained<AVSpeechSynthesizer> {
-        SYNTH.with(|s| s.borrow_mut().get_or_insert_with(|| unsafe { AVSpeechSynthesizer::new() }).clone())
+    fn synth(app: &AppHandle) -> Retained<AVSpeechSynthesizer> {
+        VOICE.with(|v| {
+            v.borrow_mut()
+                .get_or_insert_with(|| {
+                    let synth = unsafe { AVSpeechSynthesizer::new() };
+                    let listener = Listener::new(app);
+                    unsafe { synth.setDelegate(Some(ProtocolObject::from_ref(&*listener))) };
+                    Voice { synth, _listener: listener }
+                })
+                .synth
+                .clone()
+        })
     }
 
-    pub fn speak(words: &str) {
-        let synth = synth();
+    pub fn speak(app: &AppHandle, words: &str) {
+        let synth = synth(app);
         unsafe {
-            synth.stopSpeakingAtBoundary(AVSpeechBoundary::Immediate);
             let utterance = AVSpeechUtterance::speechUtteranceWithString(&NSString::from_str(words));
             utterance.setPrefersAssistiveTechnologySettings(true);
+            CURRENT.store(&*utterance as *const AVSpeechUtterance as usize, Ordering::SeqCst);
+            synth.stopSpeakingAtBoundary(AVSpeechBoundary::Immediate);
             synth.speakUtterance(&utterance);
         }
     }
 
     pub fn stop() {
-        SYNTH.with(|s| {
-            if let Some(synth) = s.borrow().as_ref() {
-                unsafe { synth.stopSpeakingAtBoundary(AVSpeechBoundary::Immediate) };
+        CURRENT.store(0, Ordering::SeqCst);
+        VOICE.with(|v| {
+            if let Some(voice) = v.borrow().as_ref() {
+                unsafe { voice.synth.stopSpeakingAtBoundary(AVSpeechBoundary::Immediate) };
             }
         });
-    }
-
-    pub fn speaking() -> bool {
-        SYNTH.with(|s| s.borrow().as_ref().is_some_and(|synth| unsafe { synth.isSpeaking() }))
     }
 
     pub fn on_a_call() -> bool {
@@ -162,11 +212,10 @@ mod mac {
 
 #[cfg(not(target_os = "macos"))]
 mod mac {
-    pub fn speak(_words: &str) {}
+    use tauri::AppHandle;
+
+    pub fn speak(_app: &AppHandle, _words: &str) {}
     pub fn stop() {}
-    pub fn speaking() -> bool {
-        false
-    }
     pub fn on_a_call() -> bool {
         false
     }
