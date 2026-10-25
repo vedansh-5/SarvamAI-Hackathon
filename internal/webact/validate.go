@@ -51,7 +51,7 @@ func Validate(p Program, doc *html.Node) error {
 		where := fmt.Sprintf("step %d", i+1)
 
 		if !Verbs[verb(s.Do)] {
-			add("%s: %q is not something Vspk does to a page", where, s.Do)
+			add("%s: %q is not something VANS does to a page", where, s.Do)
 			continue
 		}
 
@@ -92,7 +92,7 @@ func Validate(p Program, doc *html.Node) error {
 		}
 
 		if verb(s.Do) == "press" && !Keys[s.Key] {
-			add("%s: %q is not a key Vspk presses", where, s.Key)
+			add("%s: %q is not a key VANS presses", where, s.Key)
 		}
 	}
 

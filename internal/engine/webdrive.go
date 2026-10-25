@@ -279,7 +279,7 @@ func (e *Engine) waitForTheSite(ctx context.Context, g *GuidePlan, number int, s
 			}
 		}
 	}
-	return false, stopped(g.Browser, "engine: Vspk stopped waiting for %s to be opened. Open it in %s, then ask again.", hostOf(g.Site), g.Browser)
+	return false, stopped(g.Browser, "engine: VANS stopped waiting for %s to be opened. Open it in %s, then ask again.", hostOf(g.Site), g.Browser)
 }
 
 func siteFor(task, hint string) (string, bool) {

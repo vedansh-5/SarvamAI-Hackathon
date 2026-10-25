@@ -40,7 +40,7 @@ func (s AppSink) Write(ctx context.Context, doc Document) (Receipt, error) {
 	}
 	if strings.EqualFold(strings.TrimSpace(app), s.self()) {
 		return Receipt{}, fmt.Errorf(
-			"engine: Vspk is the application in front, so there is nothing behind it to type into")
+			"engine: VANS is the application in front, so there is nothing behind it to type into")
 	}
 
 	tree, err := s.Screen.Capture(ctx, app)

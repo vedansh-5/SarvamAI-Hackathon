@@ -365,7 +365,7 @@ func (s *Screen) Act(ctx context.Context, p uiact.Program, t uiact.Tree) error {
 		if a.Verb == "press" {
 			key, ok := domKeys[step.Key]
 			if !ok {
-				return &uiact.InvalidError{App: t.App, Reasons: []string{fmt.Sprintf("%q is not a key Vspk presses on a page", step.Key)}}
+				return &uiact.InvalidError{App: t.App, Reasons: []string{fmt.Sprintf("%q is not a key VANS presses on a page", step.Key)}}
 			}
 			a.Key, a.Code, a.KeyCode = key.Key, key.Code, key.KeyCode
 			for _, m := range step.Modifiers {

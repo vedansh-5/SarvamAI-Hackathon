@@ -51,7 +51,7 @@ func TestFeedbackIsKeptAndMailed(t *testing.T) {
 	if len(kept) != 1 || kept[0].From != "Riya" || kept[0].Text != "The second step pointed at the wrong button." {
 		t.Errorf("kept = %+v", kept)
 	}
-	if len(mail.subjects) != 1 || mail.subjects[0] != "Vspk: failed guide from Riya" || !strings.Contains(mail.bodies[0], "wrong button") {
+	if len(mail.subjects) != 1 || mail.subjects[0] != "VANS: failed guide from Riya" || !strings.Contains(mail.bodies[0], "wrong button") {
 		t.Errorf("mailed %q / %q", mail.subjects, mail.bodies)
 	}
 }

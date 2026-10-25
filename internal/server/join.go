@@ -172,7 +172,7 @@ func (s *Server) joinAsk(w http.ResponseWriter, r *http.Request) {
 	from, err := j.Joins.Count(ctx, day, "net:"+networkOf(r))
 	if err != nil {
 		s.logf("could not count sign-ups: %v", err)
-		failed(w, http.StatusServiceUnavailable, "Vspk could not be reached. Try again in a minute.")
+		failed(w, http.StatusServiceUnavailable, "VANS could not be reached. Try again in a minute.")
 		return
 	}
 	if from > MostFromOneNet {
@@ -187,7 +187,7 @@ func (s *Server) joinAsk(w http.ResponseWriter, r *http.Request) {
 	p, found, err := j.Joins.Pending(ctx, email)
 	if err != nil {
 		s.logf("could not read a pending sign-up: %v", err)
-		failed(w, http.StatusServiceUnavailable, "Vspk could not be reached. Try again in a minute.")
+		failed(w, http.StatusServiceUnavailable, "VANS could not be reached. Try again in a minute.")
 		return
 	}
 	if found && now.Before(p.Expires) && now.Sub(p.SentAt) < ResendAfter {
@@ -204,24 +204,24 @@ func (s *Server) joinAsk(w http.ResponseWriter, r *http.Request) {
 	sent, err := j.Joins.Count(ctx, day, "sent")
 	if err != nil {
 		s.logf("could not count codes sent: %v", err)
-		failed(w, http.StatusServiceUnavailable, "Vspk could not be reached. Try again in a minute.")
+		failed(w, http.StatusServiceUnavailable, "VANS could not be reached. Try again in a minute.")
 		return
 	}
 	if sent > MostSentADay {
 		s.logf("over %d sign-in codes sent today", MostSentADay)
-		failed(w, http.StatusServiceUnavailable, "Vspk can't send more codes today. Try again tomorrow.")
+		failed(w, http.StatusServiceUnavailable, "VANS can't send more codes today. Try again tomorrow.")
 		return
 	}
 	code := newDigits()
 	p.Hash, p.Expires, p.SentAt, p.Tries, p.Sends = hashOf(email, code), now.Add(CodeLasts), now, 0, p.Sends+1
 	if err := j.Joins.SetPending(ctx, p); err != nil {
 		s.logf("could not keep a pending sign-up: %v", err)
-		failed(w, http.StatusServiceUnavailable, "Vspk could not be reached. Try again in a minute.")
+		failed(w, http.StatusServiceUnavailable, "VANS could not be reached. Try again in a minute.")
 		return
 	}
-	if err := j.Send.Send(ctx, email, "Your Vspk code: "+code, codeMail(code)); err != nil {
+	if err := j.Send.Send(ctx, email, "Your VANS code: "+code, codeMail(code)); err != nil {
 		s.logf("could not send a sign-in code: %v", err)
-		failed(w, http.StatusServiceUnavailable, "Vspk could not send the email. Try again in a minute.")
+		failed(w, http.StatusServiceUnavailable, "VANS could not send the email. Try again in a minute.")
 		return
 	}
 	s.logf("sent a sign-in code (%d today)", sent)
@@ -229,9 +229,9 @@ func (s *Server) joinAsk(w http.ResponseWriter, r *http.Request) {
 }
 
 func codeMail(code string) string {
-	return "Your code for Vspk is\n\n    " + code + "\n\n" +
-		"Type it into Vspk to finish signing in. It works for 15 minutes.\n\n" +
-		"You got this because someone typed this address into Vspk. If it wasn't you, ignore this email; nothing else will be sent.\n\n" +
+	return "Your code for VANS is\n\n    " + code + "\n\n" +
+		"Type it into VANS to finish signing in. It works for 15 minutes.\n\n" +
+		"You got this because someone typed this address into VANS. If it wasn't you, ignore this email; nothing else will be sent.\n\n" +
 		"VANS · https://summonvans.in\n"
 }
 
@@ -254,7 +254,7 @@ func (s *Server) joinCheck(w http.ResponseWriter, r *http.Request) {
 	p, found, err := j.Joins.Pending(ctx, email)
 	if err != nil {
 		s.logf("could not read a pending sign-up: %v", err)
-		failed(w, http.StatusServiceUnavailable, "Vspk could not be reached. Try again in a minute.")
+		failed(w, http.StatusServiceUnavailable, "VANS could not be reached. Try again in a minute.")
 		return
 	}
 	if !found || p.Hash == "" || !now.Before(p.Expires) {
@@ -282,7 +282,7 @@ func (s *Server) joinCheck(w http.ResponseWriter, r *http.Request) {
 	who, found, err := j.Joins.Joined(ctx, email)
 	if err != nil {
 		s.logf("could not look up a joined email: %v", err)
-		failed(w, http.StatusServiceUnavailable, "Vspk could not be reached. Try again in a minute.")
+		failed(w, http.StatusServiceUnavailable, "VANS could not be reached. Try again in a minute.")
 		return
 	}
 	if found {
@@ -293,7 +293,7 @@ func (s *Server) joinCheck(w http.ResponseWriter, r *http.Request) {
 	joined, err := j.Joins.Count(ctx, Day(now), "joined")
 	if err != nil {
 		s.logf("could not count new testers: %v", err)
-		failed(w, http.StatusServiceUnavailable, "Vspk could not be reached. Try again in a minute.")
+		failed(w, http.StatusServiceUnavailable, "VANS could not be reached. Try again in a minute.")
 		return
 	}
 	waiting := j.PerDay > 0 && joined > j.PerDay
@@ -306,7 +306,7 @@ func (s *Server) joinCheck(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		s.logf("could not make a tester for a new sign-up: %v", err)
-		failed(w, http.StatusServiceUnavailable, "Vspk could not be reached. Try again in a minute.")
+		failed(w, http.StatusServiceUnavailable, "VANS could not be reached. Try again in a minute.")
 		return
 	}
 	state := "joined"
@@ -315,7 +315,7 @@ func (s *Server) joinCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	s.logf("%s %s", email, state)
 	if s.Mail != nil {
-		if err := s.Mail.Mail(ctx, "Vspk: "+email+" "+state, email+" "+state+" from the app, with "+strconv.Itoa(j.Daily)+" requests a day."); err != nil {
+		if err := s.Mail.Mail(ctx, "VANS: "+email+" "+state, email+" "+state+" from the app, with "+strconv.Itoa(j.Daily)+" requests a day."); err != nil {
 			s.logf("could not mail about a new tester: %v", err)
 		}
 	}

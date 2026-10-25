@@ -220,7 +220,7 @@ func (e *Engine) driveOn(ctx context.Context, app, task, shape string, literals 
 	}
 
 	if vision {
-		preview += "\n\n" + tree.App + " does not publish its controls, so Vspk reads the words on its window. " +
+		preview += "\n\n" + tree.App + " does not publish its controls, so VANS reads the words on its window. " +
 			"It clicks only what it can place exactly; anything it could only estimate, it points at and leaves to you."
 	}
 

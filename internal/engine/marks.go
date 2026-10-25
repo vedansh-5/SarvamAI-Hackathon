@@ -37,7 +37,7 @@ func (e *Engine) Theme(ctx context.Context) theme.Theme {
 
 func (e *Engine) SetTheme(ctx context.Context, id string) error {
 	if !theme.Known(id) {
-		return fmt.Errorf("engine: %q is not one of Vspk's colours", id)
+		return fmt.Errorf("engine: %q is not one of VANS's colours", id)
 	}
 	if e.Prefs == nil {
 		return nil
@@ -69,7 +69,7 @@ func (e *Engine) aboutMarks(ctx context.Context, in Ask) (*Plan, bool, error) {
 		if err := e.ClearStyle(ctx); err != nil {
 			return nil, true, err
 		}
-		return saying("Highlighting off", "Took the highlighting off every page Vspk put it on."), true, nil
+		return saying("Highlighting off", "Took the highlighting off every page VANS put it on."), true, nil
 	}
 	match, ok := pagemark.Understand(in.Instruction)
 	if !ok {

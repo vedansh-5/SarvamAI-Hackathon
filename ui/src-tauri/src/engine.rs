@@ -132,7 +132,7 @@ impl Engine {
             for (_, tx) in waiting.drain() {
                 let _ = tx.send(Err(RpcError {
                     code: "engine_stopped".into(),
-                    message: "The Vspk runtime stopped unexpectedly. Restart the app.".into(),
+                    message: "The VANS runtime stopped unexpectedly. Restart the app.".into(),
                     data: None,
                 }));
             }
@@ -170,7 +170,7 @@ impl Engine {
                 self.pending.lock().unwrap().remove(&id);
                 return Err(RpcError {
                     code: "engine_stopped".into(),
-                    message: format!("Could not reach the Vspk runtime: {e}"),
+                    message: format!("Could not reach the VANS runtime: {e}"),
                     data: None,
                 });
             }
@@ -179,7 +179,7 @@ impl Engine {
         rx.await.unwrap_or_else(|_| {
             Err(RpcError {
                 code: "engine_stopped".into(),
-                message: "The Vspk runtime stopped before answering.".into(),
+                message: "The VANS runtime stopped before answering.".into(),
                 data: None,
             })
         })

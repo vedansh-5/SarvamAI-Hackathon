@@ -42,7 +42,7 @@ func TestAnOwnTabPlanNeverTouchesTheTabInFront(t *testing.T) {
 		t.Fatalf("runWeb: %v", err)
 	}
 	if rec.frontCalls != 0 {
-		t.Error("a plan for Vspk's own tab reached the tab the user is reading")
+		t.Error("a plan for VANS's own tab reached the tab the user is reading")
 	}
 	if rec.ownCalls != 1 {
 		t.Errorf("ran in the own tab %d time(s), want 1", rec.ownCalls)
@@ -61,7 +61,7 @@ func TestAPageActionUsesTheTabInFront(t *testing.T) {
 		t.Errorf("acted on the front tab %d time(s), want 1", rec.frontCalls)
 	}
 	if rec.ownCalls != 0 {
-		t.Error("a page action was diverted into Vspk's own tab")
+		t.Error("a page action was diverted into VANS's own tab")
 	}
 }
 

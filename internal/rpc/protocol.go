@@ -68,13 +68,13 @@ const (
 
 	// CodeModelSilent means the model took the request and never replied.
 	// Deliberately not CodeInternal: nothing in VANS went wrong, there is
-	// nothing to fix here, and "something went wrong inside Vspk" sends a
+	// nothing to fix here, and "something went wrong inside VANS" sends a
 	// person looking for a fault on the wrong side of the network.
 	CodeModelSilent = "model_silent"
 
 	// CodeCoachStopped means a coached run ended because of what was on screen.
 	// Its own code because the messages are accurate and were written for a
-	// person to read, and arriving under "something went wrong inside Vspk" told
+	// person to read, and arriving under "something went wrong inside VANS" told
 	// them the one thing that was not true.
 	CodeCoachStopped = "coach_stopped"
 

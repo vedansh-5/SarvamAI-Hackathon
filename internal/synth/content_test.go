@@ -29,7 +29,7 @@ func TestWordingThatCannotBeUsedIsTurnedDown(t *testing.T) {
 		`{"welcome":{"tite":"Hi"}}`,
 		`{"abilities":[{"id":"teleport"}]}`,
 		`{"abilities":[{"id":"files"},{"id":"files"}]}`,
-		`{"welcome":{"keys":[{"after":"opens Vspk"}]}}`,
+		`{"welcome":{"keys":[{"after":"opens VANS"}]}}`,
 		`{} {}`,
 	} {
 		if _, err := ParseContent(raw); err == nil {

@@ -88,7 +88,7 @@ func Allowed(path, home string) string {
 	case !filepath.IsAbs(path):
 		return fmt.Sprintf("%s is not a full path", path)
 	case !Within(path, home):
-		return fmt.Sprintf("%s is outside your home folder, which is as far as Vspk reaches", path)
+		return fmt.Sprintf("%s is outside your home folder, which is as far as VANS reaches", path)
 	case path == home:
 		return "the home folder itself is not something to move or rename"
 	case hidden(path, home):
@@ -226,7 +226,7 @@ func Validate(ops []Op, shown []Folder, home string) error {
 			exists[to] = true
 			folders[to] = true
 		default:
-			add(i, "%q is not something Vspk does to a file", op.Do)
+			add(i, "%q is not something VANS does to a file", op.Do)
 		}
 	}
 
@@ -310,7 +310,7 @@ func Apply(ops []Op, home string) ([]Done, error) {
 				err = os.Rename(from, record.To)
 			}
 		default:
-			err = fmt.Errorf("%q is not something Vspk does to a file", op.Do)
+			err = fmt.Errorf("%q is not something VANS does to a file", op.Do)
 		}
 
 		if err != nil {

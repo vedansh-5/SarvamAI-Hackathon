@@ -138,13 +138,13 @@ func (s *Server) download(w http.ResponseWriter, r *http.Request) {
 	latest, err := s.Releases.Latest(r.Context())
 	if err != nil {
 		s.logf("could not read the latest release for a download: %v", err)
-		http.Error(w, "Vspk could not be reached. Try again in a minute.", http.StatusServiceUnavailable)
+		http.Error(w, "VANS could not be reached. Try again in a minute.", http.StatusServiceUnavailable)
 		return
 	}
 	link, err := s.Releases.Link(r.Context(), DmgKey(latest.Version))
 	if err != nil {
 		s.logf("could not make a download link for %s: %v", latest.Version, err)
-		http.Error(w, "Vspk could not be reached. Try again in a minute.", http.StatusServiceUnavailable)
+		http.Error(w, "VANS could not be reached. Try again in a minute.", http.StatusServiceUnavailable)
 		return
 	}
 	if r.Method == http.MethodGet {

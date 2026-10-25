@@ -29,7 +29,7 @@ type Runner interface {
 	Run(ctx context.Context, script string) ([]byte, error)
 }
 
-var ErrNoAssistiveAccess = errors.New("uiact: Vspk has not been allowed to control this Mac through accessibility")
+var ErrNoAssistiveAccess = errors.New("uiact: VANS has not been allowed to control this Mac through accessibility")
 
 var ErrNoWindow = errors.New("uiact: that application is not showing a window to the accessibility API, which only lists windows for the application in front")
 

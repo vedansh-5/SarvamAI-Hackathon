@@ -19,13 +19,13 @@ import (
 func main() {
 	flag.Usage = func() {
 		fmt.Fprintln(os.Stderr, "usage: vans-probe [application ...]")
-		fmt.Fprintln(os.Stderr, "Reads each application's front window and says how much of it Vspk can use.")
+		fmt.Fprintln(os.Stderr, "Reads each application's front window and says how much of it VANS can use.")
 		fmt.Fprintln(os.Stderr, "With no names, every application with a window on screen is read.")
 		fmt.Fprintln(os.Stderr, "Each one is brought forward for a moment, because macOS only lists the windows of the application in front.")
 	}
 	tasks := flag.Bool("tasks", false, "list the most recent tasks and how many model calls each took, instead of reading applications")
 	words := flag.Bool("words", false, "measure how exactly the words read from each window's picture land on the controls the window publishes")
-	selection := flag.Bool("selection", false, "say what Vspk reads as selected in each named application, without bringing it forward")
+	selection := flag.Bool("selection", false, "say what VANS reads as selected in each named application, without bringing it forward")
 	flag.Parse()
 
 	ctx := context.Background()

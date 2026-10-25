@@ -564,13 +564,13 @@ function notedLine(c: NotedClick): string {
 function showWatching(w: Watching) {
   ($("watching") as HTMLInputElement).checked = w.on;
   const sent = w.shared
-    ? " The habits it finds, and how you answered them, are sent to Vedansh to improve Vspk; the list of clicks itself is not."
+    ? " The habits it finds, and how you answered them, are sent to Vedansh to improve VANS; the list of clicks itself is not."
     : "";
   $("watching-note").textContent = w.on
-    ? `Vspk notes the names of the buttons and menu items you click, which app is in front, and when your Mac wakes, unlocks and locks, so it can offer what you usually do at the moment you usually do it. Never what you type, window titles, or anything on a web page. The notes stay on this Mac for seven days.${sent}`
+    ? `VANS notes the names of the buttons and menu items you click, which app is in front, and when your Mac wakes, unlocks and locks, so it can offer what you usually do at the moment you usually do it. Never what you type, window titles, or anything on a web page. The notes stay on this Mac for seven days.${sent}`
     : "Off. Nothing new is noted. What was noted goes after seven days, or now with Clear.";
   const see = $("watching-see") as HTMLButtonElement;
-  see.textContent = w.clicks ? `See what Vspk noted (${w.clicks})` : "Nothing noted yet";
+  see.textContent = w.clicks ? `See what VANS noted (${w.clicks})` : "Nothing noted yet";
   see.disabled = w.clicks === 0;
   ($("watching-clear") as HTMLButtonElement).disabled = w.clicks === 0;
   if (w.clicks === 0) $("watching-list").hidden = true;
@@ -610,9 +610,9 @@ function showVoice(v: VoiceSettings, ears: Ears) {
   const heard = ears.state === "granted"
     ? `${hold}, talk, and let go. ⌥⇧Space listens until you stop talking. Esc stops. What you say is turned into words on this Mac; your voice is not sent anywhere.`
     : ears.state === "not_asked"
-      ? "Vspk asks for the microphone and speech recognition the first time you hold the key, or now."
-      : "Microphone or Speech Recognition is off for Vspk. Turn both on in System Settings › Privacy & Security.";
-  $("voice-note").textContent = v.on ? heard : "Off. The keys do what they did before: ⌥Space opens Vspk.";
+      ? "VANS asks for the microphone and speech recognition the first time you hold the key, or now."
+      : "Microphone or Speech Recognition is off for VANS. Turn both on in System Settings › Privacy & Security.";
+  $("voice-note").textContent = v.on ? heard : "Off. The keys do what they did before: ⌥Space opens VANS.";
   $("voice-allow").hidden = !v.on || ears.state !== "not_asked";
   $("voice-open").hidden = !v.on || ears.state !== "needed";
 }
@@ -750,7 +750,7 @@ function renderPermissions(perms: Permission[]) {
     $("perms-state").textContent = allGranted
       ? `All ${perms.length} permissions granted.`
       : asked
-        ? "Accessibility and Screen Recording can only be switched on by you, in Settings. Turn on takes you there and Vspk comes back when it is on."
+        ? "Accessibility and Screen Recording can only be switched on by you, in Settings. Turn on takes you there and VANS comes back when it is on."
         : "";
   }
   fitWindow();
@@ -848,7 +848,7 @@ let setupReady = false;
 let startOpen: boolean | null = null;
 const setupGroups: { id: string; title: string; blocks: string[] }[] = [
   { id: "start", title: "Getting started", blocks: ["perms", "ready", "invite", "model"] },
-  { id: "behave", title: "How Vspk behaves", blocks: ["rules", "voice", "learning"] },
+  { id: "behave", title: "How VANS behaves", blocks: ["rules", "voice", "learning"] },
   { id: "about", title: "About this copy", blocks: ["tell", "record", "updates", "start", "appearance"] },
 ];
 const groupOpen: Record<string, boolean> = { behave: true, about: true };
@@ -902,7 +902,7 @@ function renderSetupGroups() {
     (group.querySelector(".group-head") as HTMLElement).setAttribute("aria-expanded", String(open));
     (group.querySelector(".group-body") as HTMLElement).hidden = !open;
     const state = group.querySelector(".group-state") as HTMLElement;
-    if (g.id === "start") state.textContent = setupReady ? "Vspk is ready" : "Something still needs you";
+    if (g.id === "start") state.textContent = setupReady ? "VANS is ready" : "Something still needs you";
     if (g.id === "about") state.textContent = $("version-line").textContent ?? "";
   }
   fitWindow();
@@ -1018,10 +1018,10 @@ function modeFor(text: string): { mode: Mode | null; note: string } {
     if (pinned === "show" && done) {
       return { mode: "do", note: "Your words ask to have it done, so this one is done for you." };
     }
-    return { mode: pinned, note: "Your choice. Click it again to let Vspk pick from your words." };
+    return { mode: pinned, note: "Your choice. Click it again to let VANS pick from your words." };
   }
   if (typed === "") {
-    return { mode: null, note: "Vspk picks from your words. Click one to set it yourself." };
+    return { mode: null, note: "VANS picks from your words. Click one to set it yourself." };
   }
   return {
     mode: shown ? "show" : "do",
@@ -1603,7 +1603,7 @@ function renderResults(plan: Plan) {
     ? `${plan.app || source}${remembered}`
     : `${n} result${n === 1 ? "" : "s"} from ${source}${remembered}`;
   $("results-kicker").title = timing(plan);
-  $("show-read").textContent = `Show what Vspk read (${n})`;
+  $("show-read").textContent = `Show what VANS read (${n})`;
   $("show-read").hidden = !answered || n === 0;
   if (answered) {
     $("view-switch").hidden = true;
@@ -1873,7 +1873,7 @@ const PLAIN: Record<string, { title: string; message: string }> = {
   },
   cannot_do_there: {
     title: "Can't do that there",
-    message: "Vspk understood you, but what's in front can't do it. The reason is below.",
+    message: "VANS understood you, but what's in front can't do it. The reason is below.",
   },
   unroutable: {
     title: "Not sure what you meant",
@@ -1882,10 +1882,10 @@ const PLAIN: Record<string, { title: string; message: string }> = {
   no_browser: {
     title: "Chrome isn't ready",
     message:
-      "Vspk works through the Chrome you are already using, with at least one window open. It will not start one for you.",
+      "VANS works through the Chrome you are already using, with at least one window open. It will not start one for you.",
   },
   browser_scripting_off: {
-    title: "Chrome won't let Vspk read the page",
+    title: "Chrome won't let VANS read the page",
     message:
       "One menu item, once. Chrome keeps this off by default so that scripts cannot read what you are signed in to.",
   },
@@ -1908,12 +1908,12 @@ const PLAIN: Record<string, { title: string; message: string }> = {
   app_not_open: {
     title: "That's done somewhere else",
     message:
-      "The application this belongs in is not open. Vspk does not open applications for you \u2014 open it and ask again.",
+      "The application this belongs in is not open. VANS does not open applications for you \u2014 open it and ask again.",
   },
   no_coach_here: {
     title: "Can't point at things in a browser",
     message:
-      "A browser window publishes no controls to the accessibility API, so there is nothing for Vspk to draw on. It can work on the page directly instead.",
+      "A browser window publishes no controls to the accessibility API, so there is nothing for VANS to draw on. It can work on the page directly instead.",
   },
   model_silent: {
     title: "The model didn't answer",
@@ -1922,7 +1922,7 @@ const PLAIN: Record<string, { title: string; message: string }> = {
   },
   plan_spent: {
     title: "Already written",
-    message: "That confirmation was used. Vspk never repeats a write, so ask again for another.",
+    message: "That confirmation was used. VANS never repeats a write, so ask again for another.",
   },
 };
 
@@ -1933,7 +1933,7 @@ function renderFailure(e: unknown) {
 
   if (!isRpcError(e)) {
     $("failure-title").textContent = "That didn't work";
-    $("failure-message").textContent = "Something went wrong inside Vspk.";
+    $("failure-message").textContent = "Something went wrong inside VANS.";
     detail.appendChild(raw(String(e)));
     return;
   }
@@ -1948,7 +1948,7 @@ function renderFailure(e: unknown) {
 
   const plain = PLAIN[e.code];
   $("failure-title").textContent = plain?.title ?? "That didn't work";
-  $("failure-message").textContent = plain?.message ?? "Something went wrong inside Vspk.";
+  $("failure-message").textContent = plain?.message ?? "Something went wrong inside VANS.";
 
   switch (e.code) {
     case "unresolved": {
@@ -2015,7 +2015,7 @@ function renderFailure(e: unknown) {
         $("failure-title").textContent = `That's done in ${data.app}`;
         $("failure-message").textContent = data.why
           ? `It ${data.why.replace(/^it /i, "")}. Open ${data.app} and ask again.`
-          : `Open ${data.app} and ask again. Vspk does not open applications for you.`;
+          : `Open ${data.app} and ask again. VANS does not open applications for you.`;
       }
       break;
     }
@@ -2073,7 +2073,7 @@ async function showHistory() {
 
   clear(list);
   if (deeds.length === 0) {
-    list.appendChild(el("p", "lede", "Nothing yet. Vspk has not changed anything."));
+    list.appendChild(el("p", "lede", "Nothing yet. VANS has not changed anything."));
     return;
   }
 
@@ -2947,13 +2947,13 @@ function renderUpdate(u: UpdateState) {
   box.hidden = !u.ready;
   if (u.ready) {
     const row = el("div", "row");
-    row.appendChild(el("span", "field-note", `Vspk ${u.ready} is ready. It restarts by itself when you are away.`));
+    row.appendChild(el("span", "field-note", `VANS ${u.ready} is ready. It restarts by itself when you are away.`));
     const now = el("button", "btn secondary", "Restart now") as HTMLButtonElement;
     now.addEventListener("click", () => invoke("restart_app").catch(console.error));
     row.appendChild(now);
     box.appendChild(row);
   }
-  $("version-line").textContent = u.ready ? `Vspk ${u.current}, ${u.ready} ready` : `Vspk ${u.current}`;
+  $("version-line").textContent = u.ready ? `VANS ${u.current}, ${u.ready} ready` : `VANS ${u.current}`;
   $("restart-now").hidden = !u.ready;
   ($("check-updates") as HTMLButtonElement).hidden = !!u.ready;
   renderSetupGroups();
@@ -2977,7 +2977,7 @@ async function loadUpdate() {
   renderUpdate(u);
   try {
     const seen = localStorage.getItem(SEEN_VERSION_KEY);
-    if (seen && seen !== u.current) toast(`Updated to Vspk ${u.current}`);
+    if (seen && seen !== u.current) toast(`Updated to VANS ${u.current}`);
     localStorage.setItem(SEEN_VERSION_KEY, u.current);
   } catch {}
 }
@@ -3104,7 +3104,7 @@ function examples(): string[] {
 
 function showExample() {
   const all = examples();
-  ($("intent") as HTMLInputElement).placeholder = all.length ? all[exampleAt % all.length] : "Ask Vspk…";
+  ($("intent") as HTMLInputElement).placeholder = all.length ? all[exampleAt % all.length] : "Ask VANS…";
 }
 
 function nextExample() {
@@ -3272,7 +3272,7 @@ function resetReport() {
 }
 
 function failedGuideReport(): string {
-  const lines = [`Asked: ${lastInstruction.trim() || "(nothing typed)"}`, `Vspk said: ${$("failure-title").textContent ?? ""}`];
+  const lines = [`Asked: ${lastInstruction.trim() || "(nothing typed)"}`, `VANS said: ${$("failure-title").textContent ?? ""}`];
   const message = $("failure-message").textContent?.trim();
   if (message) lines.push(message);
   const detail = ($("failure-detail") as HTMLElement).innerText.trim();
@@ -3395,7 +3395,7 @@ function showModel(m: ModelStatus) {
   $("model-note").textContent =
     m.source === "environment"
       ? "The model is set by the environment this copy was started with. Saving here applies until it is restarted."
-      : "Vspk needs a key for the model it thinks with. It is kept in your Mac\u2019s Keychain and sent only to that model.";
+      : "VANS needs a key for the model it thinks with. It is kept in your Mac\u2019s Keychain and sent only to that model.";
 }
 
 interface InviteState {
@@ -3407,7 +3407,7 @@ interface InviteState {
 
 type InviteStep = "email" | "code" | "paste";
 
-const WAITING = "You\u2019re on the waiting list. Vspk starts working as soon as your place opens; there\u2019s nothing to do.";
+const WAITING = "You\u2019re on the waiting list. VANS starts working as soon as your place opens; there\u2019s nothing to do.";
 
 let lastInvite: InviteState = { tester: false, has: false };
 let changingInvite = false;
@@ -3533,7 +3533,7 @@ $("invite-save").addEventListener("click", async () => {
     changingInvite = false;
     inviteStep = "email";
     showInvite(await invoke<InviteState>("set_invite", { code }));
-    $("invite-state").textContent = "Saved. The Vspk server knows this code.";
+    $("invite-state").textContent = "Saved. The VANS server knows this code.";
     runPreflight(false);
   } catch (e) {
     $("invite-state").textContent = rpcMessage(e);

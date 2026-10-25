@@ -77,9 +77,9 @@ func cannotPointAt(app string, sel uiact.Selector, why string) error {
 	name := called(sel)
 	switch {
 	case strings.Contains(why, "visible"):
-		return stopped(app, "engine: Vspk cannot see %s: it is covered or off screen. Move the window so it shows, then ask again.", name)
+		return stopped(app, "engine: VANS cannot see %s: it is covered or off screen. Move the window so it shows, then ask again.", name)
 	case strings.Contains(why, "does not say which"), strings.Contains(why, "number"):
-		return stopped(app, "engine: There is more than one %s here, and Vspk could not tell which one is meant. Ask again and say where it is.", oneOfSeveral(sel))
+		return stopped(app, "engine: There is more than one %s here, and VANS could not tell which one is meant. Ask again and say where it is.", oneOfSeveral(sel))
 	}
-	return stopped(app, "engine: Vspk cannot see %s any more. Ask again to start from what the window shows now.", name)
+	return stopped(app, "engine: VANS cannot see %s any more. Ask again to start from what the window shows now.", name)
 }

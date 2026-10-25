@@ -16,7 +16,7 @@ import (
 func TestCreateVerifiedLive(t *testing.T) {
 	n := Notes{Runner: Osascript{}}
 
-	got, err := n.CreateVerified(context.Background(), "<div><h1>Vspk test</h1><div>hello</div></div>")
+	got, err := n.CreateVerified(context.Background(), "<div><h1>VANS test</h1><div>hello</div></div>")
 	if err != nil {
 		if IsPermissionDenied(err) {
 			t.Fatal("Automation permission denied — grant it in System Settings > Privacy & Security > Automation")

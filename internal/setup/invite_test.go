@@ -16,7 +16,7 @@ func inviteServer(t *testing.T, good string) *httptest.Server {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer "+good {
 			w.WriteHeader(http.StatusUnauthorized)
-			_ = json.NewEncoder(w).Encode(synth.Answered{Fault: &synth.Fault{Kind: synth.FaultRefused, Message: "this invite code is not one Vspk knows"}})
+			_ = json.NewEncoder(w).Encode(synth.Answered{Fault: &synth.Fault{Kind: synth.FaultRefused, Message: "this invite code is not one VANS knows"}})
 			return
 		}
 		_ = json.NewEncoder(w).Encode(synth.Answered{})

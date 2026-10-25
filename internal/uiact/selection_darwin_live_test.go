@@ -12,7 +12,7 @@ import (
 
 func openTextPad(t *testing.T, mode, word string) int {
 	t.Helper()
-	bin := filepath.Join(t.TempDir(), "Vspk basics")
+	bin := filepath.Join(t.TempDir(), "VANS basics")
 	if out, err := exec.Command("swiftc", "-O", "-o", bin, "testdata/textpad.swift").CombinedOutput(); err != nil {
 		t.Skipf("swiftc could not build the test window: %v\n%s", err, out)
 	}

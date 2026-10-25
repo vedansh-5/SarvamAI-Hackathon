@@ -339,7 +339,7 @@ fn open_on_hover(app: &AppHandle) {
 pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let Some(at) = place() else { return Ok(()) };
     let win = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("notch.html".into()))
-        .title("Vspk")
+        .title("VANS")
         .decorations(false)
         .transparent(true)
         .always_on_top(true)

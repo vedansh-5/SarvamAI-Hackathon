@@ -322,7 +322,7 @@ func TestAppInQuestionPrefersContextAndRefusesVANS(t *testing.T) {
 
 	got, err = e.appInQuestion(context.Background(), &screen.Context{AppName: "VANS"})
 	if err != nil || got != "FallbackApp" {
-		t.Errorf("appInQuestion with Vspk = %q, %v; want FallbackApp", got, err)
+		t.Errorf("appInQuestion with VANS = %q, %v; want FallbackApp", got, err)
 	}
 
 	got, err = e.appInQuestion(context.Background(), nil)

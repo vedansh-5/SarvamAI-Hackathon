@@ -619,6 +619,10 @@ fn engine_path(app: &tauri::AppHandle) -> PathBuf {
         if bundled.exists() {
             return bundled;
         }
+        let up = dir.join("_up_").join("vans-engine");
+        if up.exists() {
+            return up;
+        }
     }
     PathBuf::from("../vans-engine")
 }
@@ -633,7 +637,7 @@ pub fn run() {
 
             let engine = Engine::spawn(handle, &path).map_err(|e| {
                 format!(
-                    "Could not start the Vspk runtime at {}: {e}\n\n\
+                    "Could not start the VANS runtime at {}: {e}\n\n\
                      Build it with:  go build -o ui/vans-engine ./cmd/vans-engine",
                     path.display()
                 )
@@ -733,7 +737,7 @@ pub fn run() {
             set_login_item
         ])
         .build(tauri::generate_context!())
-        .expect("error while running Vspk")
+        .expect("error while running VANS")
         .run(|app, event| {
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Reopen { .. } = event {

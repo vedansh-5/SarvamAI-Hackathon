@@ -218,7 +218,7 @@ func TestSayingNoOnceEndsTheOffersForTheRun(t *testing.T) {
 		t.Errorf("entered %v after being told no", screen.filled)
 	}
 	if len(deeds.deeds) != 0 {
-		t.Errorf("recorded %+v though Vspk entered nothing", deeds.deeds)
+		t.Errorf("recorded %+v though VANS entered nothing", deeds.deeds)
 	}
 }
 
@@ -248,7 +248,7 @@ func TestNothingIsOfferedWhereVANSMustNeverAct(t *testing.T) {
 		t.Fatalf("shown = %+v, want the step with nothing offered", shown)
 	}
 	if len(screen.filled) != 0 {
-		t.Errorf("entered %v in a place Vspk must never act", screen.filled)
+		t.Errorf("entered %v in a place VANS must never act", screen.filled)
 	}
 }
 

@@ -93,7 +93,7 @@ func validate(p Program, t Tree, pointing bool) error {
 		where := fmt.Sprintf("step %d", i+1)
 
 		if !Verbs[verb(s.Do)] {
-			add("%s: %q is not something Vspk does to a window", where, s.Do)
+			add("%s: %q is not something VANS does to a window", where, s.Do)
 			continue
 		}
 		if s.Switches() {
@@ -160,14 +160,14 @@ func validate(p Program, t Tree, pointing bool) error {
 			}
 		case "press":
 			if _, ok := Keys[s.Key]; !ok {
-				add("%s: %q is not a key Vspk presses", where, s.Key)
+				add("%s: %q is not a key VANS presses", where, s.Key)
 			}
 			if NeedsCommand[s.Key] && !s.HoldsCommand() {
 				add("%s: %s is only pressed with Command held; a letter on its own is typed, not pressed", where, s.Key)
 			}
 			for _, name := range s.Modifiers {
 				if _, ok := Modifiers[name]; !ok {
-					add("%s: %q is not a modifier Vspk holds down", where, name)
+					add("%s: %q is not a modifier VANS holds down", where, name)
 				}
 			}
 		}

@@ -111,7 +111,7 @@ type Fault struct {
 	Why     string `json:"why,omitempty"`
 }
 
-var ErrRefused = errors.New("synth: the Vspk server turned the request down")
+var ErrRefused = errors.New("synth: the VANS server turned the request down")
 
 var ErrOverCap = errors.New("synth: today's allowance is used up")
 
@@ -142,7 +142,7 @@ func FaultOf(err error) *Fault {
 	case errors.Is(err, ErrNoAnswer):
 		return &Fault{Kind: FaultNoAnswer, Message: "the model did not answer in time"}
 	case errors.Is(err, ErrNotSetUp):
-		return &Fault{Kind: FaultNotSetUp, Message: "the Vspk server has no model set up"}
+		return &Fault{Kind: FaultNotSetUp, Message: "the VANS server has no model set up"}
 	}
 	return &Fault{Kind: FaultFailed, Message: "the model could not answer this time"}
 }

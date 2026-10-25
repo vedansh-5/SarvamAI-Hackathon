@@ -41,7 +41,7 @@ func TestLiveTheSummonedPanelLeavesTheWindowReadable(t *testing.T) {
 
 	vans, running := pidByProcessName(ctx, "vans")
 	if !running {
-		t.Skip("Vspk is not running; start it and summon the panel first")
+		t.Skip("VANS is not running; start it and summon the panel first")
 	}
 	// Without this the test passes for the trivial reason that there is no panel.
 	if !onScreen(vans) {

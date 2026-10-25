@@ -148,6 +148,6 @@ listen<{ params?: Offer }>("engine://offer", (e) => {
 });
 
 listen<string>("vans://updated", (e) => {
-  queue.push({ key: "update", line: `Vspk ${e.payload} is ready`, update: true });
+  queue.push({ key: "update", line: `VANS ${e.payload} is ready`, update: true });
   void next();
 });

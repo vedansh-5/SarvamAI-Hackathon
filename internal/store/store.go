@@ -202,7 +202,7 @@ CREATE TABLE IF NOT EXISTS instructions (
 	calls   INTEGER NOT NULL DEFAULT 0
 );
 
--- What Vspk has actually done, as opposed to what it has learned how to do.
+-- What VANS has actually done, as opposed to what it has learned how to do.
 -- Every other table here is a cache: losing one costs a model call. This one is
 -- the record of changes made to somebody's machine, and it is what an undo has
 -- to be built on — there was no way to answer "what has this thing done" before

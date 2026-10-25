@@ -59,7 +59,7 @@ func (e *Engine) planSetting(ctx context.Context, instruction, settingSlot, valu
 	if !ok {
 		return nil, &UnroutableError{
 			Instruction: instruction,
-			Why:         "Vspk changes the volume, mute, dark or light appearance and Wi-Fi directly; for anything else ask how, and it will show you in System Settings",
+			Why:         "VANS changes the volume, mute, dark or light appearance and Wi-Fi directly; for anything else ask how, and it will show you in System Settings",
 			Can:         e.capabilities(),
 		}
 	}
@@ -78,7 +78,7 @@ func (e *Engine) planSetting(ctx context.Context, instruction, settingSlot, valu
 		return saying("One thing first", strings.ToUpper(err.Error()[:1])+err.Error()[1:]+"."), nil
 	}
 	if to == was && setting == macset.Dark {
-		plan := saying("Already so", fmt.Sprintf("Your Mac is already %s. Vspk is %s now too.", spoken(setting, was), spoken(setting, was)))
+		plan := saying("Already so", fmt.Sprintf("Your Mac is already %s. VANS is %s now too.", spoken(setting, was), spoken(setting, was)))
 		plan.Panel = spoken(setting, was)
 		return plan, nil
 	}

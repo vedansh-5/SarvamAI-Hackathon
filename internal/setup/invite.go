@@ -14,7 +14,7 @@ const (
 	emailAccount  = "invite-email"
 )
 
-var ErrNoInvite = errors.New("setup: this copy of Vspk needs its invite code; add it in Setup")
+var ErrNoInvite = errors.New("setup: this copy of VANS needs its invite code; add it in Setup")
 
 type Invite struct {
 	Remote *synth.Remote

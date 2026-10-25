@@ -12,7 +12,7 @@ import (
 	"github.com/vedansh/vans/internal/server"
 )
 
-const usage = `vans-testers manages invite codes in the Vspk server's table.
+const usage = `vans-testers manages invite codes in the VANS server's table.
 
   vans-testers add NAME [-daily 200]   make a code for a new tester
   vans-testers list                    every tester, and what each used today
@@ -61,7 +61,7 @@ func run(ctx context.Context, d *server.Dynamo, command string, args []string) e
 		if err := d.AddTester(ctx, t); err != nil {
 			return err
 		}
-		fmt.Printf("%s can use Vspk with the code\n\n  %s\n\nup to %d requests a day.\n", t.Name, t.Code, t.Daily)
+		fmt.Printf("%s can use VANS with the code\n\n  %s\n\nup to %d requests a day.\n", t.Name, t.Code, t.Daily)
 		return nil
 	case "list":
 		testers, err := d.Testers(ctx)

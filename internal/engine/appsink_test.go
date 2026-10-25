@@ -64,7 +64,7 @@ func TestAppSinkRefusesToTypeIntoItself(t *testing.T) {
 
 	_, err := sink.Write(context.Background(), answerDoc())
 	if err == nil {
-		t.Fatal("typed into Vspk itself")
+		t.Fatal("typed into VANS itself")
 	}
 	if !strings.Contains(err.Error(), "nothing behind it") {
 		t.Errorf("err = %v", err)

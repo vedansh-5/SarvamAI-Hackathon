@@ -227,8 +227,8 @@ func TestASettingAlreadyAsAskedChangesNothing(t *testing.T) {
 	if plan.Setting != nil || plan.NeedsCommit() || !strings.Contains(plan.Say, "already") {
 		t.Errorf("plan = %+v, want to be told it is already dark", plan)
 	}
-	if plan.Panel != "dark" || !strings.Contains(plan.Say, "Vspk is dark now too") {
-		t.Errorf("panel = %q, say = %q: an already dark Mac should still turn Vspk dark", plan.Panel, plan.Say)
+	if plan.Panel != "dark" || !strings.Contains(plan.Say, "VANS is dark now too") {
+		t.Errorf("panel = %q, say = %q: an already dark Mac should still turn VANS dark", plan.Panel, plan.Say)
 	}
 }
 
@@ -239,14 +239,14 @@ func TestChangingTheAppearanceTakesVANSWithIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	if light.Setting == nil || light.Panel != "light" {
-		t.Errorf("light mode = %+v, want the Mac changed and Vspk to follow", light)
+		t.Errorf("light mode = %+v, want the Mac changed and VANS to follow", light)
 	}
 	volume, err := e.planSetting(context.Background(), "set the volume to 50", "volume", "50")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if volume.Panel != "" {
-		t.Errorf("the volume changed Vspk's colours: %q", volume.Panel)
+		t.Errorf("the volume changed VANS's colours: %q", volume.Panel)
 	}
 }
 

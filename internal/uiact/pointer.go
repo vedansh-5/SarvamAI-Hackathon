@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-var ErrEstimated = fmt.Errorf("uiact: that control's place was estimated from a picture, so Vspk points at it and leaves the click to you")
+var ErrEstimated = fmt.Errorf("uiact: that control's place was estimated from a picture, so VANS points at it and leaves the click to you")
 
 func RunByPointer(ctx context.Context, r Runner, p Program, t Tree) error {
 	acts, err := Plan(p, t)
